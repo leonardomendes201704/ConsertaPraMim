@@ -13,8 +13,6 @@
 
 ### In Progress
 
-- [ST-009 - Consulta natural de status, pedidos e agenda](STORIES/IN_PROGRESS/ST-009-consulta-natural-de-status-pedidos-e-agenda.md)
-
 ### Done
 
 - [ST-001 - Status operacional do prestador (Ausente, Online, EmAtendimento)](STORIES/DONE/ST-001-status-operacional-prestador.md)
@@ -25,6 +23,7 @@
 - [ST-006 - Orquestrador OpenAI com contexto historico e linguagem humana](STORIES/DONE/ST-006-orquestrador-openai-contexto-historico-linguagem-humana.md)
 - [ST-007 - Triagem natural e abertura automatica de pedido](STORIES/DONE/ST-007-triagem-natural-e-abertura-automatica-de-pedido.md)
 - [ST-008 - Matching de prestadores e agendamento multi-visitas](STORIES/DONE/ST-008-matching-prestadores-e-agendamento-multi-visitas.md)
+- [ST-009 - Consulta natural de status, pedidos e agenda](STORIES/DONE/ST-009-consulta-natural-de-status-pedidos-e-agenda.md)
 
 ## Manual QA/Operacao
 
@@ -39,3 +38,4 @@
 - [ST-006 - Orquestrador OpenAI com contexto historico](../DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-006-orquestrador-openai-contexto-historico/README.md)
 - [ST-007 - Triagem natural e abertura automatica de pedido](../DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-007-triagem-abertura-automatica-pedido/README.md)
 - [ST-008 - Matching de prestadores e agendamento multi-visitas](../DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-008-matching-agendamento-multi-visitas/README.md)
+- [ST-009 - Consulta natural de status, pedidos e agenda](../DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-009-consulta-natural-status-pedidos-agenda/README.md)

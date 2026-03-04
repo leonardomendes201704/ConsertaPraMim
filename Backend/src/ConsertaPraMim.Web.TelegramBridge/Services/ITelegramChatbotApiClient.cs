@@ -81,6 +81,30 @@ public interface ITelegramChatbotApiClient
         TelegramServiceRequestCreatePayload payload,
         CancellationToken cancellationToken = default);
 
+    Task<TelegramChatbotOrdersResultDto?> GetClientOrdersAsync(
+        string apiToken,
+        int skip = 0,
+        int take = 5,
+        CancellationToken cancellationToken = default);
+
+    Task<TelegramChatbotOrderStatusResultDto?> GetOrderStatusAsync(
+        string apiToken,
+        Guid serviceRequestId,
+        CancellationToken cancellationToken = default);
+
+    Task<TelegramChatbotOrderDetailsResultDto?> GetOrderDetailsAsync(
+        string apiToken,
+        Guid serviceRequestId,
+        CancellationToken cancellationToken = default);
+
+    Task<TelegramChatbotAppointmentsResultDto?> GetClientAppointmentsAsync(
+        string apiToken,
+        DateTime? fromUtc = null,
+        DateTime? toUtc = null,
+        int skip = 0,
+        int take = 5,
+        CancellationToken cancellationToken = default);
+
     Task<TelegramChatbotEligibleProvidersResultDto?> GetEligibleProvidersAsync(
         string apiToken,
         Guid serviceRequestId,

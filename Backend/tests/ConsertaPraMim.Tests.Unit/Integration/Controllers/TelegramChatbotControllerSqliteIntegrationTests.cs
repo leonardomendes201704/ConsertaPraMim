@@ -2,6 +2,7 @@ using System.Security.Claims;
 using ConsertaPraMim.API.Contracts;
 using ConsertaPraMim.API.Controllers;
 using ConsertaPraMim.Application.DTOs;
+using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
@@ -11,6 +12,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Moq;
 
 namespace ConsertaPraMim.Tests.Unit.Integration.Controllers;
 
@@ -138,6 +140,189 @@ public class TelegramChatbotControllerSqliteIntegrationTests
         }
     }
 
+    /// <summary>
+    /// Cenario: cliente autenticado consulta carteira de pedidos no chatbot.
+    /// Passos: cria pedidos para dois clientes e executa GET de pedidos com cliente A.
+    /// Resultado esperado: retorno contem apenas pedidos do cliente autenticado.
+    /// </summary>
+    [Fact(DisplayName = "Telegram chatbot controller sqlite integracao | Query orders | Deve listar apenas pedidos do cliente autenticado")]
+    public async Task GetClientOrders_ShouldReturnOnlyAuthenticatedClientOrders()
+    {
+        var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();
+        using (connection)
+        await using (context)
+        {
+            var clientA = Guid.NewGuid();
+            var clientB = Guid.NewGuid();
+            await SeedClientAsync(context, clientA);
+            await SeedClientAsync(context, clientB);
+
+            context.ServiceRequests.AddRange(
+                new ServiceRequest
+                {
+                    Id = Guid.NewGuid(),
+                    ClientId = clientA,
+                    Category = ServiceCategory.Plumbing,
+                    Status = ServiceRequestStatus.Created,
+                    Description = "Vazamento cozinha",
+                    AddressStreet = "Rua A",
+                    AddressCity = "Santos",
+                    AddressZip = "11000000",
+                    Latitude = 0,
+                    Longitude = 0
+                },
+                new ServiceRequest
+                {
+                    Id = Guid.NewGuid(),
+                    ClientId = clientB,
+                    Category = ServiceCategory.Appliances,
+                    Status = ServiceRequestStatus.Created,
+                    Description = "Ar com defeito",
+                    AddressStreet = "Rua B",
+                    AddressCity = "Praia Grande",
+                    AddressZip = "11704150",
+                    Latitude = 0,
+                    Longitude = 0
+                });
+
+            await context.SaveChangesAsync();
+
+            var controller = BuildControllerWithScheduling(context, clientA);
+            var result = await controller.GetClientOrders(take: 5, skip: 0);
+
+            var ok = Assert.IsType<OkObjectResult>(result);
+            var payload = Assert.IsType<TelegramChatbotOrdersResultDto>(ok.Value);
+            Assert.True(payload.Success);
+            Assert.Single(payload.Orders);
+            Assert.Equal("Santos", payload.Orders[0].City);
+        }
+    }
+
+    /// <summary>
+    /// Cenario: cliente tenta consultar status de pedido de outro cliente.
+    /// Passos: cria pedido para cliente B e executa endpoint de status autenticado como cliente A.
+    /// Resultado esperado: endpoint retorna Forbidden para bloquear acesso cruzado.
+    /// </summary>
+    [Fact(DisplayName = "Telegram chatbot controller sqlite integracao | Query status | Deve bloquear pedido de outro cliente")]
+    public async Task GetOrderStatus_ShouldReturnForbid_WhenRequestBelongsToAnotherClient()
+    {
+        var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();
+        using (connection)
+        await using (context)
+        {
+            var clientA = Guid.NewGuid();
+            var clientB = Guid.NewGuid();
+            await SeedClientAsync(context, clientA);
+            await SeedClientAsync(context, clientB);
+
+            var requestId = Guid.NewGuid();
+            context.ServiceRequests.Add(new ServiceRequest
+            {
+                Id = requestId,
+                ClientId = clientB,
+                Category = ServiceCategory.Plumbing,
+                Status = ServiceRequestStatus.Scheduled,
+                Description = "Teste status",
+                AddressStreet = "Rua X",
+                AddressCity = "Sao Vicente",
+                AddressZip = "11300000",
+                Latitude = 0,
+                Longitude = 0
+            });
+
+            await context.SaveChangesAsync();
+
+            var controller = BuildControllerWithScheduling(context, clientA);
+            var result = await controller.GetOrderStatus(requestId);
+
+            Assert.IsType<ForbidResult>(result);
+        }
+    }
+
+    /// <summary>
+    /// Cenario: cliente consulta agenda no chatbot com registros de mais de um cliente.
+    /// Passos: cria agendamento para cliente A e cliente B, e consulta endpoint autenticado como cliente A.
+    /// Resultado esperado: retorno contem somente visitas do cliente autenticado.
+    /// </summary>
+    [Fact(DisplayName = "Telegram chatbot controller sqlite integracao | Query appointments | Deve listar apenas agenda do cliente autenticado")]
+    public async Task GetClientAppointments_ShouldReturnOnlyAuthenticatedClientAppointments()
+    {
+        var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();
+        using (connection)
+        await using (context)
+        {
+            var clientA = Guid.NewGuid();
+            var clientB = Guid.NewGuid();
+            var providerId = Guid.NewGuid();
+            await SeedClientAsync(context, clientA);
+            await SeedClientAsync(context, clientB);
+            await SeedProviderAsync(context, providerId);
+
+            var requestA = new ServiceRequest
+            {
+                Id = Guid.NewGuid(),
+                ClientId = clientA,
+                Category = ServiceCategory.Plumbing,
+                Status = ServiceRequestStatus.Scheduled,
+                Description = "Torneira",
+                AddressStreet = "Rua A",
+                AddressCity = "Santos",
+                AddressZip = "11000000",
+                Latitude = 0,
+                Longitude = 0
+            };
+
+            var requestB = new ServiceRequest
+            {
+                Id = Guid.NewGuid(),
+                ClientId = clientB,
+                Category = ServiceCategory.Plumbing,
+                Status = ServiceRequestStatus.Scheduled,
+                Description = "Chuveiro",
+                AddressStreet = "Rua B",
+                AddressCity = "Praia Grande",
+                AddressZip = "11704150",
+                Latitude = 0,
+                Longitude = 0
+            };
+
+            context.ServiceRequests.AddRange(requestA, requestB);
+
+            context.ServiceAppointments.AddRange(
+                new ServiceAppointment
+                {
+                    Id = Guid.NewGuid(),
+                    ServiceRequestId = requestA.Id,
+                    ClientId = clientA,
+                    ProviderId = providerId,
+                    Status = ServiceAppointmentStatus.Confirmed,
+                    WindowStartUtc = DateTime.UtcNow.AddDays(1),
+                    WindowEndUtc = DateTime.UtcNow.AddDays(1).AddHours(2)
+                },
+                new ServiceAppointment
+                {
+                    Id = Guid.NewGuid(),
+                    ServiceRequestId = requestB.Id,
+                    ClientId = clientB,
+                    ProviderId = providerId,
+                    Status = ServiceAppointmentStatus.Confirmed,
+                    WindowStartUtc = DateTime.UtcNow.AddDays(2),
+                    WindowEndUtc = DateTime.UtcNow.AddDays(2).AddHours(2)
+                });
+
+            await context.SaveChangesAsync();
+
+            var controller = BuildControllerWithScheduling(context, clientA);
+            var result = await controller.GetClientAppointments(take: 5, skip: 0);
+
+            var ok = Assert.IsType<OkObjectResult>(result);
+            var payload = Assert.IsType<TelegramChatbotAppointmentsResultDto>(ok.Value);
+            Assert.True(payload.Success);
+            Assert.Single(payload.Appointments);
+            Assert.Equal(requestA.Id, payload.Appointments[0].ServiceRequestId);
+        }
+    }
+
     private static ControllerContext BuildClientControllerContext(Guid clientId)
     {
         var identity = new ClaimsIdentity(
@@ -157,6 +342,28 @@ public class TelegramChatbotControllerSqliteIntegrationTests
         };
     }
 
+    private static TelegramChatbotController BuildControllerWithScheduling(
+        ConsertaPraMim.Infrastructure.Data.ConsertaPraMimDbContext context,
+        Guid clientId)
+    {
+        var conversationRepository = new ChatbotConversationRepository(context);
+        var conversationService = new TelegramChatbotConversationService(conversationRepository);
+
+        var schedulingService = new TelegramChatbotSchedulingService(
+            new ServiceRequestRepository(context),
+            new UserRepository(context),
+            new ProposalRepository(context),
+            new ServiceAppointmentRepository(context),
+            new Mock<IServiceAppointmentService>().Object);
+
+        var controller = new TelegramChatbotController(conversationService, schedulingService)
+        {
+            ControllerContext = BuildClientControllerContext(clientId)
+        };
+
+        return controller;
+    }
+
     private static async Task SeedClientAsync(ConsertaPraMim.Infrastructure.Data.ConsertaPraMimDbContext context, Guid clientId)
     {
         context.Users.Add(new User
@@ -167,6 +374,24 @@ public class TelegramChatbotControllerSqliteIntegrationTests
             PasswordHash = "hash",
             Phone = "11999999999",
             Role = UserRole.Client,
+            IsActive = true
+        });
+
+        await context.SaveChangesAsync();
+    }
+
+    private static async Task SeedProviderAsync(
+        ConsertaPraMim.Infrastructure.Data.ConsertaPraMimDbContext context,
+        Guid providerId)
+    {
+        context.Users.Add(new User
+        {
+            Id = providerId,
+            Name = "Prestador chatbot",
+            Email = $"prestador-chatbot-{providerId:N}@consertapramim.test",
+            PasswordHash = "hash",
+            Phone = "11888888888",
+            Role = UserRole.Provider,
             IsActive = true
         });
 

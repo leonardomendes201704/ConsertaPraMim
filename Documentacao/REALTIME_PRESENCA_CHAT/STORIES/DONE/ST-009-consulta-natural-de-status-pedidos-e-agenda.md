@@ -1,6 +1,6 @@
 # ST-009 - Consulta natural de status, pedidos e agenda
 
-Status: In Progress  
+Status: Done  
 Epic: EPIC-002
 
 ## Objetivo
@@ -20,10 +20,10 @@ Permitir que o cliente consulte pedidos, status, propostas e agendamentos pelo T
 
 - [x] Definir intents de consulta (`GetOrderStatus`, `ListOrders`, `ListAppointments`, `GetOrderDetails`).
 - [x] Criar/ajustar endpoints API para consulta consolidada de pedidos/agendamentos por cliente.
-- [ ] Implementar politicas de resumo e paginacao para respostas conversacionais.
-- [ ] Implementar deteccao de referencia contextual (pedido atual, ultimo pedido citado).
-- [ ] Implementar resposta amigavel para casos sem dados encontrados.
-- [ ] Garantir trilha auditavel de consulta e resposta no historico conversacional.
-- [ ] Criar testes unitarios e integracao para intents de consulta e autorizacao.
-- [ ] Criar/atualizar diagrama de fluxo Mermaid da funcionalidade.
-- [ ] Criar/atualizar diagrama de sequencia Mermaid da funcionalidade.
+- [x] Implementar politicas de resumo e paginacao para respostas conversacionais.
+- [x] Implementar deteccao de referencia contextual (pedido atual, ultimo pedido citado).
+- [x] Implementar resposta amigavel para casos sem dados encontrados.
+- [x] Garantir trilha auditavel de consulta e resposta no historico conversacional.
+- [x] Criar testes unitarios e integracao para intents de consulta e autorizacao.
+- [x] Criar/atualizar diagrama de fluxo Mermaid da funcionalidade.
+- [x] Criar/atualizar diagrama de sequencia Mermaid da funcionalidade.

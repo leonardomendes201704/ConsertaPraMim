@@ -274,6 +274,71 @@ public sealed class TelegramChatbotApiClient : ITelegramChatbotApiClient
         return new TelegramCreatedServiceRequestDto(created.Id);
     }
 
+    public async Task<TelegramChatbotOrdersResultDto?> GetClientOrdersAsync(
+        string apiToken,
+        int skip = 0,
+        int take = 5,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedTake = Math.Clamp(take, 1, 20);
+        var normalizedSkip = Math.Max(0, skip);
+
+        return await GetAsync<TelegramChatbotOrdersResultDto>(
+            apiToken,
+            $"/api/telegram-chatbot/service-requests?take={normalizedTake}&skip={normalizedSkip}",
+            cancellationToken);
+    }
+
+    public async Task<TelegramChatbotOrderStatusResultDto?> GetOrderStatusAsync(
+        string apiToken,
+        Guid serviceRequestId,
+        CancellationToken cancellationToken = default)
+    {
+        if (serviceRequestId == Guid.Empty)
+        {
+            return null;
+        }
+
+        return await GetAsync<TelegramChatbotOrderStatusResultDto>(
+            apiToken,
+            $"/api/telegram-chatbot/service-requests/{serviceRequestId:D}/status",
+            cancellationToken);
+    }
+
+    public async Task<TelegramChatbotOrderDetailsResultDto?> GetOrderDetailsAsync(
+        string apiToken,
+        Guid serviceRequestId,
+        CancellationToken cancellationToken = default)
+    {
+        if (serviceRequestId == Guid.Empty)
+        {
+            return null;
+        }
+
+        return await GetAsync<TelegramChatbotOrderDetailsResultDto>(
+            apiToken,
+            $"/api/telegram-chatbot/service-requests/{serviceRequestId:D}/details",
+            cancellationToken);
+    }
+
+    public async Task<TelegramChatbotAppointmentsResultDto?> GetClientAppointmentsAsync(
+        string apiToken,
+        DateTime? fromUtc = null,
+        DateTime? toUtc = null,
+        int skip = 0,
+        int take = 5,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedTake = Math.Clamp(take, 1, 20);
+        var normalizedSkip = Math.Max(0, skip);
+
+        var query = BuildAppointmentsQueryParameters(fromUtc, toUtc, normalizedSkip, normalizedTake);
+        return await GetAsync<TelegramChatbotAppointmentsResultDto>(
+            apiToken,
+            $"/api/telegram-chatbot/appointments{query}",
+            cancellationToken);
+    }
+
     public async Task<TelegramChatbotEligibleProvidersResultDto?> GetEligibleProvidersAsync(
         string apiToken,
         Guid serviceRequestId,
@@ -657,4 +722,33 @@ public sealed class TelegramChatbotApiClient : ITelegramChatbotApiClient
         string? City,
         double Latitude,
         double Longitude);
+
+    private static string BuildAppointmentsQueryParameters(
+        DateTime? fromUtc,
+        DateTime? toUtc,
+        int skip,
+        int take)
+    {
+        var query = new List<string>(4)
+        {
+            $"take={take}",
+            $"skip={skip}"
+        };
+
+        if (fromUtc.HasValue)
+        {
+            var normalizedFrom = NormalizeToUtc(fromUtc.Value);
+            query.Add($"fromUtc={Uri.EscapeDataString(normalizedFrom.ToString("O", CultureInfo.InvariantCulture))}");
+        }
+
+        if (toUtc.HasValue)
+        {
+            var normalizedTo = NormalizeToUtc(toUtc.Value);
+            query.Add($"toUtc={Uri.EscapeDataString(normalizedTo.ToString("O", CultureInfo.InvariantCulture))}");
+        }
+
+        return query.Count == 0
+            ? string.Empty
+            : "?" + string.Join("&", query);
+    }
 }

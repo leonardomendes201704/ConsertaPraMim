@@ -51,10 +51,13 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
   - Orquestrador passou a pedir primeiro dias/periodo e consultar slots reais (`/api/service-appointments/slots`) antes de montar o lote de agendamento.
   - Orquestrador agora fecha o ciclo ST-008: apos criar pedido, lista prestadores elegiveis, persiste sugestoes/decisoes em snapshots/actions e dispara agendamento em lote com resposta natural de sucesso parcial/total.
   - Guardrail de seguranca aplicado: se a IA afirmar agendamento, mas nao houver `schedule_batch_create` persistido com sucesso, a resposta final e convertida para pendencia de confirmacao do prestador (`awaiting_provider_confirmation`).
-- ST-009 em progresso:
-  - Contratos de consulta natural iniciados no dominio `TelegramChatbot`: `GetClientOrders`, `GetOrderStatus`, `GetOrderDetails` e `GetClientAppointments`.
+- ST-009 concluida:
+  - Intents de consulta natural implementadas no orquestrador: `list_orders`, `get_order_status`, `get_order_details` e `list_appointments`.
   - Endpoints `GET /api/telegram-chatbot/service-requests`, `GET /api/telegram-chatbot/service-requests/{id}/status`, `GET /api/telegram-chatbot/service-requests/{id}/details` e `GET /api/telegram-chatbot/appointments` publicados com escopo por cliente autenticado.
-  - Servico de aplicacao passou a consolidar dados de pedidos/agenda com paginação, proxima visita, propostas aceitas e protecao de ownership por `ClientId`.
+  - Politica conversacional de resumo/paginacao implementada (`take` reduzido no chat, resposta objetiva e sugestao "mostrar mais").
+  - Referencia contextual implementada por protocolo/pedido atual (`query_reference_state`) para consultas sequenciais no mesmo atendimento.
+  - Respostas amigaveis para vazio/erro aplicadas em pedidos, status, detalhes e agenda.
+  - Trilha auditavel de consulta implementada com snapshots (`query_intent_result`, `query_reference_state`) e action logs (`query_*`) no historico conversacional.
 
 ## 3. Validacoes executadas no ciclo atual
 
@@ -132,9 +135,10 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
 - Validacao automatizada ST-008 hotfix (guardrail de persistencia de agenda):
   - `TelegramChatbotOrchestratorTests` valida bloqueio de confirmacao textual sem lote persistido (mensagem "agendei..." vira `awaiting_provider_confirmation`).
   - `TelegramChatbotOrchestratorTests` valida guardrail tambem quando a consulta de status entra em falha de lookup de prestadores.
-- Validacao automatizada ST-009 (tasks 1 e 2):
+- Validacao automatizada ST-009 (tasks 1 a 7):
   - `TelegramChatbotSchedulingServiceTests` cobre listagem paginada de pedidos com proxima visita e bloqueio de detalhe quando o cliente nao e dono do pedido.
-  - `TelegramChatbotControllerSqliteIntegrationTests` foi reexecutado sem regressao para role Client e isolamento por `ClientId`.
+  - `TelegramChatbotOrchestratorTests` cobre intents `list_orders`, `get_order_status`, `get_order_details`, `list_appointments`, pagina seguinte ("mostrar mais pedidos") e referencia contextual por protocolo/pedido atual.
+  - `TelegramChatbotControllerSqliteIntegrationTests` cobre listagem de pedidos/agenda por cliente autenticado e bloqueio de acesso cruzado no endpoint de status.
 - Validacao documental ST-007 task 8:
   - Publicado diagrama Mermaid de fluxo da triagem natural com abertura automatica de pedido e persistencia de trilha.
 - Validacao documental ST-007 task 9:
@@ -214,6 +218,12 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
 - Confirmar nos logs de acao a sequencia: `open_service_request_api` -> `schedule_matching_lookup` -> consulta de slots -> `schedule_batch_create`.
 - Se o cliente pedir "semana que vem", validar no payload do lote que todos os dias foram deslocados para a semana seguinte (nao misturar semana atual e seguinte).
 
+### 5.6 Consulta natural nao encontra pedido/protocolo citado
+
+- Conferir se existe snapshot `query_reference_state` recente na conversa com `currentServiceRequestId` ou `lastListedOrders`.
+- Quando o cliente citar apenas protocolo curto (`#XXXXXXXX`), validar se o protocolo esta presente em `lastListedOrders` da conversa; sem esse contexto, o orquestrador cai no fallback de listar pedidos.
+- Revisar action logs `query_get_order_status` e `query_get_order_details` para identificar erros `query_order_status_failed`/`query_order_details_failed`.
+
 ## 6. Historico de revisoes
 
 - 2026-03-03: versao inicial criada durante a ST-004 (Task 1).
@@ -255,3 +265,4 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
 - 2026-03-04: hotfix ST-008 para coletar janela antes de sugerir prestadores, validar slots reais por prestador/janela e corrigir parse de "semana q vem".
 - 2026-03-04: hotfix ST-008 com guardrail de confirmacao de agendamento: respostas da IA com "agendei/confirmado" sem `schedule_batch_create` persistido agora viram pendencia `awaiting_provider_confirmation`, incluindo cenario de falha no lookup durante consulta de status.
 - 2026-03-04: inicio da ST-009 com contratos/endpoints de consulta natural (`service-requests`, `status`, `details`, `appointments`) e cobertura inicial de testes de servico para listagem/status de pedidos.
+- 2026-03-04: conclusao da ST-009 com orquestrador de consultas naturais (resumo/paginacao, referencia contextual por protocolo/pedido atual, fallback amigavel sem dados, trilha auditavel `query_*`), testes unitarios/integracao adicionais e diagramas Mermaid de fluxo/sequencia da funcionalidade.

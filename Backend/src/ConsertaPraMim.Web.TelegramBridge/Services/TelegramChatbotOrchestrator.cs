@@ -1,8 +1,10 @@
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using ConsertaPraMim.Web.TelegramBridge.Models;
 using ConsertaPraMim.Web.TelegramBridge.Options;
 using Microsoft.Extensions.Caching.Memory;
@@ -19,9 +21,16 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
     private const int MetadataPayloadLimit = 4_000;
     private const string OpenServiceRequestIntent = "open_service_request";
     private const string ScheduleVisitsIntent = "schedule_visits";
+    private const string ListOrdersIntent = "list_orders";
+    private const string GetOrderStatusIntent = "get_order_status";
+    private const string GetOrderDetailsIntent = "get_order_details";
+    private const string ListAppointmentsIntent = "list_appointments";
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private static readonly TimeZoneInfo BusinessTimeZone = ResolveBusinessTimeZone();
+    private static readonly Regex ProtocolRegex = new(
+        "(?:#|protocolo\\s*)?(?<protocol>[a-f0-9]{8})\\b",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     private static readonly Meter Meter = new("ConsertaPraMim.Web.TelegramBridge.AiOrchestrator", "1.0.0");
     private static readonly Counter<long> RequestCounter = Meter.CreateCounter<long>("telegram_chatbot_ai_requests_total");
@@ -157,6 +166,14 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
             reply = BuildAssistantReplyFromGateway(options, gatewayResult, modelName, correlationId);
 
             reply = await ApplyServiceRequestTriageAsync(
+                apiToken,
+                conversationId.Value,
+                history,
+                clientMessage,
+                reply,
+                cancellationToken);
+
+            reply = await ApplyNaturalQueryFlowAsync(
                 apiToken,
                 conversationId.Value,
                 history,
@@ -341,7 +358,7 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
                "faca perguntas curtas para dados faltantes; " +
                "nao invente informacoes; " +
                "se houver incerteza, diga claramente e peca confirmacao; " +
-               "priorize proximo passo pratico para triagem, abertura de pedido e agendamento.";
+               "priorize proximo passo pratico para triagem, abertura de pedido, agendamento e consultas de status.";
     }
 
     private static string BuildOutputContractPrompt()
@@ -353,7 +370,12 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
                "Quando o cliente quiser abrir pedido, use intent=open_service_request e entities com os campos: " +
                "category, problemDescription, equipment, brand, model, errorCode, zipCode, street, city, availability. " +
                "Quando o cliente quiser agendar visitas, use intent=schedule_visits e entities com os campos: " +
-               "requestedVisits, preferredDays, period, preferredProviderIds.";
+               "requestedVisits, preferredDays, period, preferredProviderIds. " +
+               "Quando o cliente quiser consultar pedidos, use intent=list_orders. " +
+               "Quando o cliente quiser status de um pedido, use intent=get_order_status. " +
+               "Quando o cliente quiser detalhes de um pedido, use intent=get_order_details. " +
+               "Quando o cliente quiser consultar agenda, use intent=list_appointments. " +
+               "Para consultas especificas, em entities use serviceRequestId e/ou protocol quando disponivel.";
     }
 
     private static string BuildContextPrompt(
@@ -588,6 +610,519 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
         };
     }
 
+    private async Task<TelegramChatbotAssistantReply> ApplyNaturalQueryFlowAsync(
+        string apiToken,
+        Guid conversationId,
+        TelegramChatbotConversationHistoryDto? history,
+        ChatMessageDto clientMessage,
+        TelegramChatbotAssistantReply reply,
+        CancellationToken cancellationToken)
+    {
+        var referenceState = TryReadLatestQueryReferenceState(history);
+        var decision = ResolveQueryIntentDecision(reply, clientMessage.Text, referenceState);
+        if (decision is null)
+        {
+            return reply;
+        }
+
+        return decision.IntentName switch
+        {
+            ListOrdersIntent => await HandleListOrdersIntentAsync(
+                apiToken,
+                conversationId,
+                reply,
+                decision,
+                referenceState,
+                cancellationToken),
+            ListAppointmentsIntent => await HandleListAppointmentsIntentAsync(
+                apiToken,
+                conversationId,
+                reply,
+                decision,
+                referenceState,
+                cancellationToken),
+            GetOrderStatusIntent => await HandleOrderStatusIntentAsync(
+                apiToken,
+                conversationId,
+                reply,
+                decision,
+                referenceState,
+                cancellationToken),
+            GetOrderDetailsIntent => await HandleOrderDetailsIntentAsync(
+                apiToken,
+                conversationId,
+                reply,
+                decision,
+                referenceState,
+                cancellationToken),
+            _ => reply
+        };
+    }
+
+    private async Task<TelegramChatbotAssistantReply> HandleListOrdersIntentAsync(
+        string apiToken,
+        Guid conversationId,
+        TelegramChatbotAssistantReply reply,
+        QueryIntentDecision decision,
+        QueryReferenceState? referenceState,
+        CancellationToken cancellationToken)
+    {
+        var ordersResult = await _telegramChatbotApiClient.GetClientOrdersAsync(
+            apiToken,
+            decision.Skip,
+            decision.Take,
+            cancellationToken);
+
+        if (ordersResult is null || !ordersResult.Success)
+        {
+            await PersistQueryActionAsync(
+                apiToken,
+                conversationId,
+                actionType: "query_list_orders",
+                status: ActionStatusFailed,
+                reply,
+                payloadJson: BuildQueryPayloadJson(decision),
+                resultJson: null,
+                errorCode: ordersResult?.ErrorCode ?? "query_orders_failed",
+                errorMessage: ordersResult?.ErrorMessage ?? "Nao foi possivel consultar os pedidos agora.",
+                lastStep: "query_orders_failed",
+                cancellationToken);
+
+            return reply with
+            {
+                Intent = ListOrdersIntent,
+                NextStep = "query_orders_failed",
+                MessageText = "Tive instabilidade para consultar seus pedidos agora. Se quiser, tento novamente em seguida.",
+                EntitiesJson = BuildQueryEntitiesJson(decision.IntentName, null, null, decision.Skip, decision.Take)
+            };
+        }
+
+        var orderReferences = ordersResult.Orders
+            .Select(item => new QueryOrderReference(item.ServiceRequestId, item.Protocol))
+            .ToList();
+
+        var updatedState = BuildQueryReferenceState(
+            previous: referenceState,
+            intentName: ListOrdersIntent,
+            currentServiceRequestId: orderReferences.FirstOrDefault()?.ServiceRequestId,
+            currentProtocol: orderReferences.FirstOrDefault()?.Protocol,
+            listedOrders: orderReferences,
+            ordersSkip: ordersResult.Skip,
+            ordersTake: ordersResult.Take,
+            appointmentsSkip: referenceState?.LastAppointmentsSkip ?? 0,
+            appointmentsTake: referenceState?.LastAppointmentsTake ?? 3,
+            fromUtc: referenceState?.LastFromUtc,
+            toUtc: referenceState?.LastToUtc);
+
+        await PersistQueryContextSnapshotAsync(
+            apiToken,
+            conversationId,
+            snapshotType: "query_intent_result",
+            contextJson: BuildQueryResultSnapshotJson(decision.IntentName, decision, ordersResult, null, null, null),
+            reply,
+            lastStep: ordersResult.Orders.Count == 0 ? "query_orders_empty" : "query_orders_listed",
+            cancellationToken);
+
+        await PersistQueryReferenceStateAsync(
+            apiToken,
+            conversationId,
+            updatedState,
+            reply,
+            cancellationToken);
+
+        await PersistQueryActionAsync(
+            apiToken,
+            conversationId,
+            actionType: "query_list_orders",
+            status: ActionStatusSucceeded,
+            reply,
+            payloadJson: BuildQueryPayloadJson(decision),
+            resultJson: BuildQueryResultJson(ordersResult),
+            errorCode: null,
+            errorMessage: null,
+            lastStep: ordersResult.Orders.Count == 0 ? "query_orders_empty" : "query_orders_listed",
+            cancellationToken);
+
+        return reply with
+        {
+            Intent = ListOrdersIntent,
+            NextStep = ordersResult.Orders.Count == 0 ? "query_orders_empty" : "query_orders_listed",
+            MessageText = BuildOrdersQueryMessage(ordersResult),
+            EntitiesJson = BuildQueryEntitiesJson(
+                decision.IntentName,
+                orderReferences,
+                null,
+                ordersResult.Skip,
+                ordersResult.Take)
+        };
+    }
+
+    private async Task<TelegramChatbotAssistantReply> HandleListAppointmentsIntentAsync(
+        string apiToken,
+        Guid conversationId,
+        TelegramChatbotAssistantReply reply,
+        QueryIntentDecision decision,
+        QueryReferenceState? referenceState,
+        CancellationToken cancellationToken)
+    {
+        var appointmentsResult = await _telegramChatbotApiClient.GetClientAppointmentsAsync(
+            apiToken,
+            decision.FromUtc,
+            decision.ToUtc,
+            decision.Skip,
+            decision.Take,
+            cancellationToken);
+
+        if (appointmentsResult is null || !appointmentsResult.Success)
+        {
+            await PersistQueryActionAsync(
+                apiToken,
+                conversationId,
+                actionType: "query_list_appointments",
+                status: ActionStatusFailed,
+                reply,
+                payloadJson: BuildQueryPayloadJson(decision),
+                resultJson: null,
+                errorCode: appointmentsResult?.ErrorCode ?? "query_appointments_failed",
+                errorMessage: appointmentsResult?.ErrorMessage ?? "Nao foi possivel consultar sua agenda agora.",
+                lastStep: "query_appointments_failed",
+                cancellationToken);
+
+            return reply with
+            {
+                Intent = ListAppointmentsIntent,
+                NextStep = "query_appointments_failed",
+                MessageText = "Tive instabilidade para consultar seus agendamentos agora. Posso tentar de novo em seguida.",
+                EntitiesJson = BuildQueryEntitiesJson(decision.IntentName, null, null, decision.Skip, decision.Take)
+            };
+        }
+
+        var orderReferences = appointmentsResult.Appointments
+            .Select(item => new QueryOrderReference(item.ServiceRequestId, item.Protocol))
+            .DistinctBy(item => item.ServiceRequestId)
+            .ToList();
+
+        var updatedState = BuildQueryReferenceState(
+            previous: referenceState,
+            intentName: ListAppointmentsIntent,
+            currentServiceRequestId: orderReferences.FirstOrDefault()?.ServiceRequestId,
+            currentProtocol: orderReferences.FirstOrDefault()?.Protocol,
+            listedOrders: orderReferences,
+            ordersSkip: referenceState?.LastOrdersSkip ?? 0,
+            ordersTake: referenceState?.LastOrdersTake ?? 3,
+            appointmentsSkip: appointmentsResult.Skip,
+            appointmentsTake: appointmentsResult.Take,
+            fromUtc: decision.FromUtc,
+            toUtc: decision.ToUtc);
+
+        await PersistQueryContextSnapshotAsync(
+            apiToken,
+            conversationId,
+            snapshotType: "query_intent_result",
+            contextJson: BuildQueryResultSnapshotJson(decision.IntentName, decision, null, null, null, appointmentsResult),
+            reply,
+            lastStep: appointmentsResult.Appointments.Count == 0 ? "query_appointments_empty" : "query_appointments_listed",
+            cancellationToken);
+
+        await PersistQueryReferenceStateAsync(
+            apiToken,
+            conversationId,
+            updatedState,
+            reply,
+            cancellationToken);
+
+        await PersistQueryActionAsync(
+            apiToken,
+            conversationId,
+            actionType: "query_list_appointments",
+            status: ActionStatusSucceeded,
+            reply,
+            payloadJson: BuildQueryPayloadJson(decision),
+            resultJson: BuildQueryResultJson(appointmentsResult),
+            errorCode: null,
+            errorMessage: null,
+            lastStep: appointmentsResult.Appointments.Count == 0 ? "query_appointments_empty" : "query_appointments_listed",
+            cancellationToken);
+
+        return reply with
+        {
+            Intent = ListAppointmentsIntent,
+            NextStep = appointmentsResult.Appointments.Count == 0 ? "query_appointments_empty" : "query_appointments_listed",
+            MessageText = BuildAppointmentsQueryMessage(appointmentsResult),
+            EntitiesJson = BuildQueryEntitiesJson(
+                decision.IntentName,
+                orderReferences,
+                null,
+                appointmentsResult.Skip,
+                appointmentsResult.Take)
+        };
+    }
+
+    private async Task<TelegramChatbotAssistantReply> HandleOrderStatusIntentAsync(
+        string apiToken,
+        Guid conversationId,
+        TelegramChatbotAssistantReply reply,
+        QueryIntentDecision decision,
+        QueryReferenceState? referenceState,
+        CancellationToken cancellationToken)
+    {
+        var targetServiceRequestId = await ResolveServiceRequestIdForQueryAsync(
+            apiToken,
+            decision,
+            referenceState,
+            cancellationToken);
+
+        if (!targetServiceRequestId.HasValue)
+        {
+            return reply with
+            {
+                Intent = GetOrderStatusIntent,
+                NextStep = "query_request_reference_missing",
+                MessageText = "Nao encontrei um pedido de referencia. Se quiser, eu listo seus pedidos para voce escolher um protocolo.",
+                EntitiesJson = BuildQueryEntitiesJson(decision.IntentName, null, null, decision.Skip, decision.Take)
+            };
+        }
+
+        var statusResult = await _telegramChatbotApiClient.GetOrderStatusAsync(
+            apiToken,
+            targetServiceRequestId.Value,
+            cancellationToken);
+
+        if (statusResult is null || !statusResult.Success)
+        {
+            await PersistQueryActionAsync(
+                apiToken,
+                conversationId,
+                actionType: "query_get_order_status",
+                status: ActionStatusFailed,
+                reply,
+                payloadJson: BuildQueryPayloadJson(decision),
+                resultJson: null,
+                errorCode: statusResult?.ErrorCode ?? "query_order_status_failed",
+                errorMessage: statusResult?.ErrorMessage ?? "Nao foi possivel consultar o status do pedido agora.",
+                lastStep: "query_order_status_failed",
+                cancellationToken);
+
+            return reply with
+            {
+                Intent = GetOrderStatusIntent,
+                NextStep = "query_order_status_failed",
+                MessageText = "Nao consegui consultar o status desse pedido agora. Me pede novamente em instantes.",
+                EntitiesJson = BuildQueryEntitiesJson(decision.IntentName, null, targetServiceRequestId, decision.Skip, decision.Take)
+            };
+        }
+
+        var updatedState = BuildQueryReferenceState(
+            previous: referenceState,
+            intentName: GetOrderStatusIntent,
+            currentServiceRequestId: statusResult.ServiceRequestId,
+            currentProtocol: statusResult.Protocol,
+            listedOrders: referenceState?.LastListedOrders ?? [],
+            ordersSkip: referenceState?.LastOrdersSkip ?? 0,
+            ordersTake: referenceState?.LastOrdersTake ?? 3,
+            appointmentsSkip: referenceState?.LastAppointmentsSkip ?? 0,
+            appointmentsTake: referenceState?.LastAppointmentsTake ?? 3,
+            fromUtc: referenceState?.LastFromUtc,
+            toUtc: referenceState?.LastToUtc);
+
+        await PersistQueryContextSnapshotAsync(
+            apiToken,
+            conversationId,
+            snapshotType: "query_intent_result",
+            contextJson: BuildQueryResultSnapshotJson(decision.IntentName, decision, null, statusResult, null, null),
+            reply,
+            lastStep: "query_order_status_returned",
+            cancellationToken);
+
+        await PersistQueryReferenceStateAsync(
+            apiToken,
+            conversationId,
+            updatedState,
+            reply,
+            cancellationToken);
+
+        await PersistQueryActionAsync(
+            apiToken,
+            conversationId,
+            actionType: "query_get_order_status",
+            status: ActionStatusSucceeded,
+            reply,
+            payloadJson: BuildQueryPayloadJson(decision),
+            resultJson: BuildQueryResultJson(statusResult),
+            errorCode: null,
+            errorMessage: null,
+            lastStep: "query_order_status_returned",
+            cancellationToken);
+
+        return reply with
+        {
+            Intent = GetOrderStatusIntent,
+            NextStep = "query_order_status_returned",
+            MessageText = BuildOrderStatusQueryMessage(statusResult),
+            EntitiesJson = BuildQueryEntitiesJson(decision.IntentName, null, statusResult.ServiceRequestId, decision.Skip, decision.Take)
+        };
+    }
+
+    private async Task<TelegramChatbotAssistantReply> HandleOrderDetailsIntentAsync(
+        string apiToken,
+        Guid conversationId,
+        TelegramChatbotAssistantReply reply,
+        QueryIntentDecision decision,
+        QueryReferenceState? referenceState,
+        CancellationToken cancellationToken)
+    {
+        var targetServiceRequestId = await ResolveServiceRequestIdForQueryAsync(
+            apiToken,
+            decision,
+            referenceState,
+            cancellationToken);
+
+        if (!targetServiceRequestId.HasValue)
+        {
+            return reply with
+            {
+                Intent = GetOrderDetailsIntent,
+                NextStep = "query_request_reference_missing",
+                MessageText = "Nao consegui identificar qual pedido voce quer detalhar. Se quiser, eu listo seus pedidos para voce escolher um protocolo.",
+                EntitiesJson = BuildQueryEntitiesJson(decision.IntentName, null, null, decision.Skip, decision.Take)
+            };
+        }
+
+        var detailsResult = await _telegramChatbotApiClient.GetOrderDetailsAsync(
+            apiToken,
+            targetServiceRequestId.Value,
+            cancellationToken);
+
+        if (detailsResult is null || !detailsResult.Success || detailsResult.Details is null)
+        {
+            await PersistQueryActionAsync(
+                apiToken,
+                conversationId,
+                actionType: "query_get_order_details",
+                status: ActionStatusFailed,
+                reply,
+                payloadJson: BuildQueryPayloadJson(decision),
+                resultJson: null,
+                errorCode: detailsResult?.ErrorCode ?? "query_order_details_failed",
+                errorMessage: detailsResult?.ErrorMessage ?? "Nao foi possivel consultar os detalhes desse pedido.",
+                lastStep: "query_order_details_failed",
+                cancellationToken);
+
+            return reply with
+            {
+                Intent = GetOrderDetailsIntent,
+                NextStep = "query_order_details_failed",
+                MessageText = "Nao consegui abrir os detalhes desse pedido agora. Se quiser, tento novamente em seguida.",
+                EntitiesJson = BuildQueryEntitiesJson(decision.IntentName, null, targetServiceRequestId, decision.Skip, decision.Take)
+            };
+        }
+
+        var detailsState = BuildQueryReferenceState(
+            previous: referenceState,
+            intentName: GetOrderDetailsIntent,
+            currentServiceRequestId: detailsResult.ServiceRequestId,
+            currentProtocol: detailsResult.Details.Protocol,
+            listedOrders: referenceState?.LastListedOrders ?? [],
+            ordersSkip: referenceState?.LastOrdersSkip ?? 0,
+            ordersTake: referenceState?.LastOrdersTake ?? 3,
+            appointmentsSkip: referenceState?.LastAppointmentsSkip ?? 0,
+            appointmentsTake: referenceState?.LastAppointmentsTake ?? 3,
+            fromUtc: referenceState?.LastFromUtc,
+            toUtc: referenceState?.LastToUtc);
+
+        await PersistQueryContextSnapshotAsync(
+            apiToken,
+            conversationId,
+            snapshotType: "query_intent_result",
+            contextJson: BuildQueryResultSnapshotJson(decision.IntentName, decision, null, null, detailsResult, null),
+            reply,
+            lastStep: "query_order_details_returned",
+            cancellationToken);
+
+        await PersistQueryReferenceStateAsync(
+            apiToken,
+            conversationId,
+            detailsState,
+            reply,
+            cancellationToken);
+
+        await PersistQueryActionAsync(
+            apiToken,
+            conversationId,
+            actionType: "query_get_order_details",
+            status: ActionStatusSucceeded,
+            reply,
+            payloadJson: BuildQueryPayloadJson(decision),
+            resultJson: BuildQueryResultJson(detailsResult),
+            errorCode: null,
+            errorMessage: null,
+            lastStep: "query_order_details_returned",
+            cancellationToken);
+
+        return reply with
+        {
+            Intent = GetOrderDetailsIntent,
+            NextStep = "query_order_details_returned",
+            MessageText = BuildOrderDetailsQueryMessage(detailsResult.Details),
+            EntitiesJson = BuildQueryEntitiesJson(decision.IntentName, null, detailsResult.ServiceRequestId, decision.Skip, decision.Take)
+        };
+    }
+
+    private async Task<Guid?> ResolveServiceRequestIdForQueryAsync(
+        string apiToken,
+        QueryIntentDecision decision,
+        QueryReferenceState? referenceState,
+        CancellationToken cancellationToken)
+    {
+        if (decision.ServiceRequestId.HasValue)
+        {
+            return decision.ServiceRequestId.Value;
+        }
+
+        if (!string.IsNullOrWhiteSpace(decision.Protocol))
+        {
+            var fromReference = referenceState?.LastListedOrders
+                .FirstOrDefault(item => item.Protocol.Equals(decision.Protocol, StringComparison.OrdinalIgnoreCase));
+            if (fromReference is not null)
+            {
+                return fromReference.ServiceRequestId;
+            }
+
+            var orders = await _telegramChatbotApiClient.GetClientOrdersAsync(
+                apiToken,
+                skip: 0,
+                take: 20,
+                cancellationToken);
+            if (orders?.Success == true)
+            {
+                var resolved = orders.Orders.FirstOrDefault(item =>
+                    item.Protocol.Equals(decision.Protocol, StringComparison.OrdinalIgnoreCase));
+                if (resolved is not null)
+                {
+                    return resolved.ServiceRequestId;
+                }
+            }
+        }
+
+        if (referenceState?.CurrentServiceRequestId.HasValue == true)
+        {
+            return referenceState.CurrentServiceRequestId.Value;
+        }
+
+        var fallbackOrders = await _telegramChatbotApiClient.GetClientOrdersAsync(
+            apiToken,
+            skip: 0,
+            take: 1,
+            cancellationToken);
+
+        if (fallbackOrders?.Success == true && fallbackOrders.Orders.Count > 0)
+        {
+            return fallbackOrders.Orders[0].ServiceRequestId;
+        }
+
+        return null;
+    }
+
     private async Task<TelegramChatbotAssistantReply> ApplySchedulingFlowAsync(
         string apiToken,
         Guid conversationId,
@@ -596,6 +1131,11 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
         TelegramChatbotAssistantReply reply,
         CancellationToken cancellationToken)
     {
+        if (IsQueryIntent(reply.Intent))
+        {
+            return reply;
+        }
+
         var serviceRequestId = TryExtractServiceRequestId(reply.EntitiesJson)
             ?? TryExtractServiceRequestIdFromHistory(history);
         if (!serviceRequestId.HasValue)
@@ -1227,6 +1767,621 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
         return JsonSerializer.Serialize(payload, JsonOptions);
     }
 
+    private QueryIntentDecision? ResolveQueryIntentDecision(
+        TelegramChatbotAssistantReply reply,
+        string? clientMessage,
+        QueryReferenceState? referenceState)
+    {
+        var normalizedMessage = NormalizeMessage(clientMessage);
+        var normalizedIntent = NormalizeIntentName(reply.Intent);
+        var serviceRequestId = TryExtractServiceRequestId(reply.EntitiesJson);
+        var protocol = ExtractProtocolFromMessage(clientMessage) ?? TryExtractProtocol(reply.EntitiesJson);
+
+        var defaultTake = ResolveQueryTake(reply.EntitiesJson, normalizedMessage);
+        var isMoreRequest = ContainsAny(normalizedMessage, "mais", "proxim");
+
+        if (isMoreRequest && referenceState is not null)
+        {
+            if (referenceState.LastQueryIntent == ListOrdersIntent)
+            {
+                return new QueryIntentDecision(
+                    IntentName: ListOrdersIntent,
+                    ServiceRequestId: null,
+                    Protocol: null,
+                    Skip: referenceState.LastOrdersSkip + referenceState.LastOrdersTake,
+                    Take: referenceState.LastOrdersTake,
+                    FromUtc: null,
+                    ToUtc: null);
+            }
+
+            if (referenceState.LastQueryIntent == ListAppointmentsIntent)
+            {
+                return new QueryIntentDecision(
+                    IntentName: ListAppointmentsIntent,
+                    ServiceRequestId: null,
+                    Protocol: null,
+                    Skip: referenceState.LastAppointmentsSkip + referenceState.LastAppointmentsTake,
+                    Take: referenceState.LastAppointmentsTake,
+                    FromUtc: referenceState.LastFromUtc,
+                    ToUtc: referenceState.LastToUtc);
+            }
+        }
+
+        var (fromUtc, toUtc) = ResolveAppointmentRange(normalizedMessage);
+
+        if (normalizedIntent == ListOrdersIntent)
+        {
+            return new QueryIntentDecision(ListOrdersIntent, serviceRequestId, protocol, 0, defaultTake, null, null);
+        }
+
+        if (normalizedIntent == GetOrderStatusIntent)
+        {
+            return new QueryIntentDecision(GetOrderStatusIntent, serviceRequestId, protocol, 0, defaultTake, null, null);
+        }
+
+        if (normalizedIntent == GetOrderDetailsIntent)
+        {
+            return new QueryIntentDecision(GetOrderDetailsIntent, serviceRequestId, protocol, 0, defaultTake, null, null);
+        }
+
+        if (normalizedIntent == ListAppointmentsIntent)
+        {
+            return new QueryIntentDecision(ListAppointmentsIntent, serviceRequestId, protocol, 0, defaultTake, fromUtc, toUtc);
+        }
+
+        var asksOrderList = ContainsAny(normalizedMessage,
+            "meus pedidos",
+            "quais pedidos",
+            "listar pedidos",
+            "mostrar pedidos",
+            "pedidos tenho");
+
+        var asksAppointmentList = ContainsAny(normalizedMessage,
+            "meus agendamentos",
+            "quais agendamentos",
+            "listar agendamentos",
+            "mostrar agendamentos",
+            "minha agenda",
+            "quais visitas",
+            "visitas tenho");
+
+        var asksOrderStatus = ContainsAny(normalizedMessage,
+                                  "status do pedido",
+                                  "situacao do pedido",
+                                  "situacao do pedido",
+                                  "andamento do pedido",
+                                  "como esta meu pedido")
+                              || (ContainsAny(normalizedMessage, "status", "andamento", "situacao") &&
+                                  ContainsAny(normalizedMessage, "pedido", "protocolo"));
+
+        var asksOrderDetails = ContainsAny(normalizedMessage,
+                                   "detalhes do pedido",
+                                   "detalhe do pedido",
+                                   "mostrar detalhes",
+                                   "me mostra detalhes",
+                                   "detalhar pedido")
+                               || (ContainsAny(normalizedMessage, "detalhe", "detalhes") &&
+                                   (ContainsAny(normalizedMessage, "pedido", "protocolo") ||
+                                    protocol is not null ||
+                                    serviceRequestId.HasValue));
+
+        if (asksOrderDetails)
+        {
+            return new QueryIntentDecision(GetOrderDetailsIntent, serviceRequestId, protocol, 0, defaultTake, null, null);
+        }
+
+        if (asksOrderStatus)
+        {
+            return new QueryIntentDecision(GetOrderStatusIntent, serviceRequestId, protocol, 0, defaultTake, null, null);
+        }
+
+        if (asksAppointmentList)
+        {
+            return new QueryIntentDecision(ListAppointmentsIntent, serviceRequestId, protocol, 0, defaultTake, fromUtc, toUtc);
+        }
+
+        if (asksOrderList)
+        {
+            return new QueryIntentDecision(ListOrdersIntent, serviceRequestId, protocol, 0, defaultTake, null, null);
+        }
+
+        return null;
+    }
+
+    private static string BuildOrdersQueryMessage(TelegramChatbotOrdersResultDto result)
+    {
+        if (result.TotalCount == 0)
+        {
+            return "Voce ainda nao tem pedidos registrados. Se quiser, posso te ajudar a abrir um novo pedido agora.";
+        }
+
+        if (result.Orders.Count == 0)
+        {
+            return "Nao encontrei mais pedidos nessa pagina. Se quiser, eu volto para os primeiros pedidos.";
+        }
+
+        var lines = result.Orders
+            .Select(item =>
+            {
+                var nextVisit = item.NextAppointmentStartUtc.HasValue
+                    ? $" | Proxima visita: {BuildWindowLabel(item.NextAppointmentStartUtc.Value, item.NextAppointmentEndUtc ?? item.NextAppointmentStartUtc.Value)}"
+                    : string.Empty;
+
+                return $"- #{item.Protocol} | {TranslateRequestStatus(item.Status)} | {item.Category} | {item.City}{nextVisit}";
+            })
+            .ToList();
+
+        var message = "Encontrei estes pedidos para voce:\n" + string.Join("\n", lines);
+        if (result.HasMore)
+        {
+            message += "\n\nSe quiser, me diga \"mostrar mais pedidos\" que eu trago a proxima pagina.";
+        }
+
+        return message;
+    }
+
+    private static string BuildAppointmentsQueryMessage(TelegramChatbotAppointmentsResultDto result)
+    {
+        if (result.TotalCount == 0)
+        {
+            return "No momento, voce nao tem agendamentos registrados. Quando houver visitas confirmadas, eu te aviso por aqui.";
+        }
+
+        if (result.Appointments.Count == 0)
+        {
+            return "Nao encontrei mais agendamentos nessa pagina. Se quiser, eu volto para os primeiros horarios.";
+        }
+
+        var lines = result.Appointments
+            .Select(item =>
+                $"- Pedido #{item.Protocol} | {item.ProviderName} | {TranslateAppointmentStatus(item.Status)} | {BuildWindowLabel(item.WindowStartUtc, item.WindowEndUtc)}")
+            .ToList();
+
+        var message = "Sua agenda atual:\n" + string.Join("\n", lines);
+        if (result.HasMore)
+        {
+            message += "\n\nSe quiser, me diga \"mostrar mais agendamentos\" para trazer a proxima pagina.";
+        }
+
+        return message;
+    }
+
+    private static string BuildOrderStatusQueryMessage(TelegramChatbotOrderStatusResultDto result)
+    {
+        var summary = $"Pedido #{result.Protocol} esta em {TranslateRequestStatus(result.Status)}. " +
+                      $"Propostas: {result.ProposalsCount} (aceitas: {result.AcceptedProposalsCount}). " +
+                      $"Agendamentos: {result.AppointmentsCount}.";
+
+        if (result.NextAppointment is null)
+        {
+            return summary + " Se quiser, eu te mostro os detalhes completos desse pedido.";
+        }
+
+        var nextVisit = result.NextAppointment;
+        return summary + $" Proxima visita: {nextVisit.ProviderName}, {BuildWindowLabel(nextVisit.WindowStartUtc, nextVisit.WindowEndUtc)} ({TranslateAppointmentStatus(nextVisit.Status)}).";
+    }
+
+    private static string BuildOrderDetailsQueryMessage(TelegramChatbotOrderDetailsDto details)
+    {
+        var appointmentLine = details.Appointments.Count == 0
+            ? "Sem visitas registradas."
+            : $"Ultima visita: {details.Appointments[0].ProviderName} em {BuildWindowLabel(details.Appointments[0].WindowStartUtc, details.Appointments[0].WindowEndUtc)} ({TranslateAppointmentStatus(details.Appointments[0].Status)}).";
+
+        var proposalLine = details.Proposals.Count == 0
+            ? "Sem propostas registradas ainda."
+            : $"Propostas: {details.Proposals.Count} (aceitas: {details.Proposals.Count(item => item.Accepted)}).";
+
+        return $"Detalhes do pedido #{details.Protocol}: {TranslateRequestStatus(details.Status)} em {details.Category}. " +
+               $"Descricao: {TrimToLimit(details.Description, 180)}. {proposalLine} {appointmentLine}";
+    }
+
+    private async Task PersistQueryReferenceStateAsync(
+        string apiToken,
+        Guid conversationId,
+        QueryReferenceState state,
+        TelegramChatbotAssistantReply reply,
+        CancellationToken cancellationToken)
+    {
+        await PersistQueryContextSnapshotAsync(
+            apiToken,
+            conversationId,
+            snapshotType: "query_reference_state",
+            contextJson: TrimToLimit(JsonSerializer.Serialize(state, JsonOptions), ContextPayloadLimit) ?? "{}",
+            reply,
+            lastStep: "query_reference_state_updated",
+            cancellationToken);
+    }
+
+    private async Task PersistQueryContextSnapshotAsync(
+        string apiToken,
+        Guid conversationId,
+        string snapshotType,
+        string contextJson,
+        TelegramChatbotAssistantReply reply,
+        string lastStep,
+        CancellationToken cancellationToken)
+    {
+        await _telegramChatbotApiClient.RegisterContextSnapshotAsync(
+            apiToken,
+            conversationId,
+            snapshotType: snapshotType,
+            contextJson: contextJson,
+            promptVersion: reply.PromptVersion,
+            modelName: reply.ModelName,
+            promptTokens: reply.PromptTokens,
+            completionTokens: reply.CompletionTokens,
+            totalTokens: reply.TotalTokens,
+            intentName: reply.Intent,
+            lastStep: lastStep,
+            cancellationToken);
+    }
+
+    private async Task PersistQueryActionAsync(
+        string apiToken,
+        Guid conversationId,
+        string actionType,
+        int status,
+        TelegramChatbotAssistantReply reply,
+        string? payloadJson,
+        string? resultJson,
+        string? errorCode,
+        string? errorMessage,
+        string lastStep,
+        CancellationToken cancellationToken)
+    {
+        await _telegramChatbotApiClient.RegisterActionAsync(
+            apiToken,
+            conversationId,
+            actionType: actionType,
+            status: status,
+            intentName: reply.Intent,
+            payloadJson: TrimToLimit(payloadJson, ContextPayloadLimit),
+            resultJson: TrimToLimit(resultJson, ContextPayloadLimit),
+            errorCode: errorCode,
+            errorMessage: errorMessage,
+            correlationId: reply.CorrelationId,
+            metadataJson: TrimToLimit(JsonSerializer.Serialize(new
+            {
+                stage = "st_009",
+                origin = "telegram_bridge"
+            }, JsonOptions), MetadataPayloadLimit),
+            lastStep: lastStep,
+            conversationStatus: ConversationStatusActive,
+            cancellationToken);
+    }
+
+    private static QueryReferenceState BuildQueryReferenceState(
+        QueryReferenceState? previous,
+        string intentName,
+        Guid? currentServiceRequestId,
+        string? currentProtocol,
+        IReadOnlyList<QueryOrderReference> listedOrders,
+        int ordersSkip,
+        int ordersTake,
+        int appointmentsSkip,
+        int appointmentsTake,
+        DateTime? fromUtc = null,
+        DateTime? toUtc = null)
+    {
+        var normalizedOrders = listedOrders
+            .Where(item => item.ServiceRequestId != Guid.Empty && !string.IsNullOrWhiteSpace(item.Protocol))
+            .DistinctBy(item => item.ServiceRequestId)
+            .Take(20)
+            .ToList();
+
+        return new QueryReferenceState(
+            CurrentServiceRequestId: currentServiceRequestId ?? previous?.CurrentServiceRequestId,
+            CurrentProtocol: string.IsNullOrWhiteSpace(currentProtocol) ? previous?.CurrentProtocol : currentProtocol,
+            LastListedOrders: normalizedOrders.Count > 0 ? normalizedOrders : previous?.LastListedOrders ?? [],
+            LastQueryIntent: intentName,
+            LastOrdersSkip: ordersSkip,
+            LastOrdersTake: Math.Clamp(ordersTake, 1, 20),
+            LastAppointmentsSkip: appointmentsSkip,
+            LastAppointmentsTake: Math.Clamp(appointmentsTake, 1, 20),
+            LastFromUtc: fromUtc ?? previous?.LastFromUtc,
+            LastToUtc: toUtc ?? previous?.LastToUtc,
+            UpdatedAtUtc: DateTime.UtcNow);
+    }
+
+    private static QueryReferenceState? TryReadLatestQueryReferenceState(TelegramChatbotConversationHistoryDto? history)
+    {
+        if (history is null || history.ContextSnapshots.Count == 0)
+        {
+            return null;
+        }
+
+        var snapshot = history.ContextSnapshots
+            .Where(item => item.SnapshotType.Equals("query_reference_state", StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(item => item.CapturedAtUtc)
+            .FirstOrDefault();
+
+        if (snapshot is null || string.IsNullOrWhiteSpace(snapshot.ContextJson))
+        {
+            return null;
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<QueryReferenceState>(snapshot.ContextJson, JsonOptions);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private static string BuildQueryPayloadJson(QueryIntentDecision decision)
+    {
+        return JsonSerializer.Serialize(new
+        {
+            decision.IntentName,
+            decision.ServiceRequestId,
+            decision.Protocol,
+            decision.Skip,
+            decision.Take,
+            decision.FromUtc,
+            decision.ToUtc
+        }, JsonOptions);
+    }
+
+    private static string BuildQueryResultSnapshotJson(
+        string intentName,
+        QueryIntentDecision decision,
+        TelegramChatbotOrdersResultDto? ordersResult,
+        TelegramChatbotOrderStatusResultDto? statusResult,
+        TelegramChatbotOrderDetailsResultDto? detailsResult,
+        TelegramChatbotAppointmentsResultDto? appointmentsResult)
+    {
+        return TrimToLimit(JsonSerializer.Serialize(new
+        {
+            capturedAtUtc = DateTime.UtcNow,
+            intentName,
+            decision,
+            ordersResult,
+            statusResult,
+            detailsResult,
+            appointmentsResult
+        }, JsonOptions), ContextPayloadLimit) ?? "{}";
+    }
+
+    private static string BuildQueryResultJson(object result)
+    {
+        return JsonSerializer.Serialize(result, JsonOptions);
+    }
+
+    private static string BuildQueryEntitiesJson(
+        string intentName,
+        IReadOnlyList<QueryOrderReference>? orderReferences,
+        Guid? serviceRequestId,
+        int skip,
+        int take)
+    {
+        var payload = new
+        {
+            intent = intentName,
+            serviceRequestId,
+            pagination = new
+            {
+                skip,
+                take
+            },
+            references = orderReferences?.Select(item => new
+            {
+                item.ServiceRequestId,
+                item.Protocol
+            }).ToList() ?? []
+        };
+
+        return JsonSerializer.Serialize(payload, JsonOptions);
+    }
+
+    private static bool IsQueryIntent(string? intentName)
+    {
+        var normalized = NormalizeIntentName(intentName);
+        return normalized == ListOrdersIntent
+               || normalized == GetOrderStatusIntent
+               || normalized == GetOrderDetailsIntent
+               || normalized == ListAppointmentsIntent;
+    }
+
+    private static string NormalizeIntentName(string? intentName)
+    {
+        if (string.IsNullOrWhiteSpace(intentName))
+        {
+            return string.Empty;
+        }
+
+        return intentName.Trim().ToLowerInvariant();
+    }
+
+    private static string? TryExtractProtocol(string? entitiesJson)
+    {
+        if (string.IsNullOrWhiteSpace(entitiesJson))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(entitiesJson);
+            if (!TryGetPropertyIgnoreCase(document.RootElement, "protocol", out var protocolElement))
+            {
+                return null;
+            }
+
+            var raw = protocolElement.ValueKind switch
+            {
+                JsonValueKind.String => protocolElement.GetString(),
+                JsonValueKind.Number => protocolElement.GetRawText(),
+                _ => null
+            };
+
+            return NormalizeProtocol(raw);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private static string? ExtractProtocolFromMessage(string? message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            return null;
+        }
+
+        var match = ProtocolRegex.Match(message);
+        if (!match.Success)
+        {
+            return null;
+        }
+
+        return NormalizeProtocol(match.Groups["protocol"].Value);
+    }
+
+    private static string? NormalizeProtocol(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return null;
+        }
+
+        var cleaned = new string(raw
+            .Trim()
+            .Where(char.IsLetterOrDigit)
+            .ToArray())
+            .ToLowerInvariant();
+
+        return cleaned.Length == 8
+            ? cleaned
+            : null;
+    }
+
+    private static int ResolveQueryTake(string? entitiesJson, string normalizedMessage)
+    {
+        var byEntities = TryReadEntityInt(entitiesJson, "take")
+                         ?? TryReadEntityInt(entitiesJson, "pageSize");
+        if (byEntities.HasValue)
+        {
+            return Math.Clamp(byEntities.Value, 1, 10);
+        }
+
+        if (ContainsAny(normalizedMessage, "todos", "todas"))
+        {
+            return 10;
+        }
+
+        return 3;
+    }
+
+    private static int? TryReadEntityInt(string? entitiesJson, string fieldName)
+    {
+        if (string.IsNullOrWhiteSpace(entitiesJson))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(entitiesJson);
+            if (!TryGetPropertyIgnoreCase(document.RootElement, fieldName, out var value))
+            {
+                return null;
+            }
+
+            if (value.ValueKind == JsonValueKind.Number && value.TryGetInt32(out var numeric))
+            {
+                return numeric;
+            }
+
+            if (value.ValueKind == JsonValueKind.String && int.TryParse(value.GetString(), out numeric))
+            {
+                return numeric;
+            }
+
+            return null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private static (DateTime? fromUtc, DateTime? toUtc) ResolveAppointmentRange(string normalizedMessage)
+    {
+        var nowLocal = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, BusinessTimeZone);
+        if (ContainsAny(normalizedMessage, "hoje"))
+        {
+            var startLocal = nowLocal.Date;
+            var endLocal = startLocal.AddDays(1).AddTicks(-1);
+            return (ConvertLocalToUtc(startLocal), ConvertLocalToUtc(endLocal));
+        }
+
+        if (ContainsAny(normalizedMessage, "amanha"))
+        {
+            var startLocal = nowLocal.Date.AddDays(1);
+            var endLocal = startLocal.AddDays(1).AddTicks(-1);
+            return (ConvertLocalToUtc(startLocal), ConvertLocalToUtc(endLocal));
+        }
+
+        if (ContainsAny(normalizedMessage, "semana que vem", "semana q vem", "proxima semana"))
+        {
+            var startOfNextWeek = nowLocal.Date.AddDays(7 - (int)nowLocal.DayOfWeek + 1);
+            var endOfNextWeek = startOfNextWeek.AddDays(7).AddTicks(-1);
+            return (ConvertLocalToUtc(startOfNextWeek), ConvertLocalToUtc(endOfNextWeek));
+        }
+
+        return (null, null);
+    }
+
+    private static DateTime ConvertLocalToUtc(DateTime localDateTime)
+    {
+        return TimeZoneInfo.ConvertTimeToUtc(
+            DateTime.SpecifyKind(localDateTime, DateTimeKind.Unspecified),
+            BusinessTimeZone);
+    }
+
+    private static bool ContainsAny(string text, params string[] terms)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return false;
+        }
+
+        return terms.Any(term => text.Contains(term, StringComparison.Ordinal));
+    }
+
+    private static string TranslateRequestStatus(string status)
+    {
+        return status.Trim().ToLowerInvariant() switch
+        {
+            "created" => "criacao",
+            "matching" => "busca de prestador",
+            "scheduled" => "agendado",
+            "inprogress" => "em andamento",
+            "completed" => "concluido",
+            "cancelled" => "cancelado",
+            _ => status
+        };
+    }
+
+    private static string TranslateAppointmentStatus(string status)
+    {
+        return status.Trim().ToLowerInvariant() switch
+        {
+            "pendingproviderconfirmation" => "aguardando confirmacao do prestador",
+            "confirmed" => "confirmado",
+            "rescheduleconfirmed" => "reagendado confirmado",
+            "rejectedbyprovider" => "rejeitado pelo prestador",
+            "cancelledbyclient" => "cancelado pelo cliente",
+            "cancelledbyprovider" => "cancelado pelo prestador",
+            "expiredwithoutprovideraction" => "expirado sem acao do prestador",
+            "completed" => "concluido",
+            _ => status
+        };
+    }
+
     private static Guid? TryExtractServiceRequestId(string? entitiesJson)
     {
         if (string.IsNullOrWhiteSpace(entitiesJson))
@@ -1406,21 +2561,47 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
             return string.Empty;
         }
 
-        return value.Trim()
+        var decomposed = value.Trim()
             .ToLowerInvariant()
-            .Replace("á", "a", StringComparison.Ordinal)
-            .Replace("à", "a", StringComparison.Ordinal)
-            .Replace("ã", "a", StringComparison.Ordinal)
-            .Replace("â", "a", StringComparison.Ordinal)
-            .Replace("é", "e", StringComparison.Ordinal)
-            .Replace("ê", "e", StringComparison.Ordinal)
-            .Replace("í", "i", StringComparison.Ordinal)
-            .Replace("ó", "o", StringComparison.Ordinal)
-            .Replace("ô", "o", StringComparison.Ordinal)
-            .Replace("õ", "o", StringComparison.Ordinal)
-            .Replace("ú", "u", StringComparison.Ordinal)
-            .Replace("ç", "c", StringComparison.Ordinal);
+            .Normalize(NormalizationForm.FormD);
+
+        var builder = new StringBuilder(decomposed.Length);
+        foreach (var character in decomposed)
+        {
+            if (CharUnicodeInfo.GetUnicodeCategory(character) != UnicodeCategory.NonSpacingMark)
+            {
+                builder.Append(character);
+            }
+        }
+
+        return builder.ToString().Normalize(NormalizationForm.FormC);
     }
+
+    private sealed record QueryIntentDecision(
+        string IntentName,
+        Guid? ServiceRequestId,
+        string? Protocol,
+        int Skip,
+        int Take,
+        DateTime? FromUtc,
+        DateTime? ToUtc);
+
+    private sealed record QueryOrderReference(
+        Guid ServiceRequestId,
+        string Protocol);
+
+    private sealed record QueryReferenceState(
+        Guid? CurrentServiceRequestId,
+        string? CurrentProtocol,
+        IReadOnlyList<QueryOrderReference> LastListedOrders,
+        string? LastQueryIntent,
+        int LastOrdersSkip,
+        int LastOrdersTake,
+        int LastAppointmentsSkip,
+        int LastAppointmentsTake,
+        DateTime? LastFromUtc,
+        DateTime? LastToUtc,
+        DateTime UpdatedAtUtc);
 
     private sealed record SchedulingBatchSnapshot(
         Guid ServiceRequestId,
@@ -1779,3 +2960,4 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
         };
     }
 }
+
