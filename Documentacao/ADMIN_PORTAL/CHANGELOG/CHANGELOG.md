@@ -10,6 +10,12 @@
 
 ## Released
 
+- [2026-03-04] [ST-013] Estabilizacao da suite de cancelamento apos regra de 48h para cliente
+- Tipo: test
+- Resumo: os testes de cancelamento em `ServiceAppointmentServiceTests` foram ajustados para refletir a regra vigente de no minimo 48h de antecedencia quando o ator e cliente, evitando falso-negativo nos cenarios de cancelamento com sync Google e compensacao financeira.
+- Arquivos principais: `Backend/tests/ConsertaPraMim.Tests.Unit/Services/ServiceAppointmentServiceTests.cs`
+- Risco/Impacto: baixo
+
 - [2026-03-04] [ST-013] Observabilidade, retry, dead-letter e reprocessamento da sincronizacao Google Calendar
 - Tipo: feat
 - Resumo: a trilha Google Calendar recebeu operacao completa de confiabilidade com metricas de sync (`created|updated|deleted|failed|retry_count|latency_ms`), retry com backoff/jitter, dead-letter para falhas permanentes, worker de reprocessamento automatico e endpoints admin para visao operacional e reprocessamento manual por `appointmentId`/intervalo.

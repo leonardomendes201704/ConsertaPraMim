@@ -1072,8 +1072,8 @@ public class ServiceAppointmentServiceTests
                 ClientId = clientId,
                 ProviderId = providerId,
                 Status = ServiceAppointmentStatus.Confirmed,
-                WindowStartUtc = DateTime.UtcNow.AddHours(8),
-                WindowEndUtc = DateTime.UtcNow.AddHours(9),
+                WindowStartUtc = DateTime.UtcNow.AddHours(72),
+                WindowEndUtc = DateTime.UtcNow.AddHours(73),
                 ServiceRequest = request
             });
 
@@ -1118,8 +1118,8 @@ public class ServiceAppointmentServiceTests
                 ClientId = clientId,
                 ProviderId = providerId,
                 Status = ServiceAppointmentStatus.Confirmed,
-                WindowStartUtc = DateTime.UtcNow.AddHours(8),
-                WindowEndUtc = DateTime.UtcNow.AddHours(9),
+                WindowStartUtc = DateTime.UtcNow.AddHours(72),
+                WindowEndUtc = DateTime.UtcNow.AddHours(73),
                 ServiceRequest = request
             });
 
@@ -1188,8 +1188,8 @@ public class ServiceAppointmentServiceTests
                 ClientId = clientId,
                 ProviderId = providerId,
                 Status = ServiceAppointmentStatus.Confirmed,
-                WindowStartUtc = DateTime.UtcNow.AddHours(8),
-                WindowEndUtc = DateTime.UtcNow.AddHours(9),
+                WindowStartUtc = DateTime.UtcNow.AddHours(72),
+                WindowEndUtc = DateTime.UtcNow.AddHours(73),
                 ServiceRequest = request
             });
 
@@ -1260,8 +1260,8 @@ public class ServiceAppointmentServiceTests
                 ClientId = clientId,
                 ProviderId = providerId,
                 Status = ServiceAppointmentStatus.Confirmed,
-                WindowStartUtc = nowUtc.AddHours(8),
-                WindowEndUtc = nowUtc.AddHours(9),
+                WindowStartUtc = nowUtc.AddHours(72),
+                WindowEndUtc = nowUtc.AddHours(73),
                 ServiceRequest = request
             });
 
