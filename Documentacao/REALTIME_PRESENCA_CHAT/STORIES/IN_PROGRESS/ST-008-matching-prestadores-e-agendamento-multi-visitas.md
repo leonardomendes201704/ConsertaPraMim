@@ -1,6 +1,6 @@
 # ST-008 - Matching de prestadores e agendamento multi-visitas
 
-Status: Backlog  
+Status: In Progress  
 Epic: EPIC-002
 
 ## Objetivo
@@ -18,7 +18,7 @@ Depois da abertura do pedido, listar prestadores elegiveis da area e permitir ag
 
 ## Tasks
 
-- [ ] Criar endpoint/servico na API para listar prestadores elegiveis por pedido e cobertura.
+- [x] Criar endpoint/servico na API para listar prestadores elegiveis por pedido e cobertura.
 - [ ] Criar endpoint/servico de agendamento em lote (ate 3 visitas) com validacao de regras.
 - [ ] Implementar parser de janela temporal em linguagem natural para datas/periodos.
 - [ ] Implementar regra de limite de 3 visitas em dias distintos e feedback de violacao.

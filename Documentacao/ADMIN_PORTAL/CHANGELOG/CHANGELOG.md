@@ -114,6 +114,12 @@
 
 ## Released
 
+- [2026-03-03] [ST-008] Endpoint de matching de prestadores elegiveis para o chatbot Telegram
+- Tipo: feat
+- Resumo: iniciado o fluxo ST-008 com servico de aplicacao dedicado ao chatbot para listar prestadores elegiveis por pedido e cobertura, incluindo endpoint `GET /api/telegram-chatbot/service-requests/{serviceRequestId}/eligible-providers` com validacao de ownership por `ClientId`.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/TelegramChatbotSchedulingDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Interfaces/ITelegramChatbotSchedulingService.cs`, `Backend/src/ConsertaPraMim.Application/Services/TelegramChatbotSchedulingService.cs`, `Backend/src/ConsertaPraMim.Application/DependencyInjection.cs`, `Backend/src/ConsertaPraMim.API/Controllers/TelegramChatbotController.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ApiEndpointDocumentationCatalog.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramChatbotSchedulingServiceTests.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-008-matching-prestadores-e-agendamento-multi-visitas.md`, `Documentacao/REALTIME_PRESENCA_CHAT/INDEX.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md`
+- Risco/Impacto: medio
+
 - [2026-03-03] [ST-007] Correcao da abertura automatica de pedido com CEP valido no chatbot Telegram
 - Tipo: fix
 - Resumo: corrigida incompatibilidade de contrato no payload da triagem para `POST /api/service-requests` (categoria agora enviada como enum numerico compatível com o backend), com pre-resolucao de CEP via `GET /api/service-requests/zip-resolution` para enriquecer endereco/coordenadas e reduzir falhas falsas de "instabilidade" na abertura automatica.

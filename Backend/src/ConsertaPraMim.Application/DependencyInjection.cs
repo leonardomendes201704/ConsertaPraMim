@@ -37,6 +37,7 @@ public static class DependencyInjection
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IPaymentReceiptService, ConsertaPraMim.Application.Services.PaymentReceiptService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IChatService, ConsertaPraMim.Application.Services.ChatService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.ITelegramChatbotConversationService, ConsertaPraMim.Application.Services.TelegramChatbotConversationService>();
+        services.AddScoped<ConsertaPraMim.Application.Interfaces.ITelegramChatbotSchedulingService, ConsertaPraMim.Application.Services.TelegramChatbotSchedulingService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminDashboardService, ConsertaPraMim.Application.Services.AdminDashboardService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminGrowthService, ConsertaPraMim.Application.Services.AdminGrowthService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminGrowthAiService, ConsertaPraMim.Application.Services.AdminGrowthAiService>();

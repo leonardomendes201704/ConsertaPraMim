@@ -40,6 +40,9 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
   - Bridge passou a pre-resolver CEP em `GET /api/service-requests/zip-resolution` antes da criacao para enriquecer rua/cidade/coordenadas e reduzir falha transiente na abertura.
   - Payload final usado na abertura e estado de triagem persistidos em snapshots/contexto conversacional para continuidade.
   - Confirmacao amigavel com resumo e protocolo do pedido enviada automaticamente ao cliente apos criacao com sucesso.
+- ST-008 em andamento:
+  - Endpoint do chatbot para matching foi iniciado em `GET /api/telegram-chatbot/service-requests/{serviceRequestId}/eligible-providers`.
+  - Matching considera categoria do pedido, cobertura geografica (raio/distancia), preferencia PF/PJ e status ativo do prestador.
 
 ## 3. Validacoes executadas no ciclo atual
 
@@ -91,6 +94,9 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
   - Fluxo de triagem com CEP `11704150` e categoria `Eletrodomesticos` abre pedido com sucesso sem cair no fallback de instabilidade.
   - Payload enviado para `POST /api/service-requests` usa `category` numerico (ex.: `4` para `Appliances`) e nao string literal.
   - Quando `zip-resolution` retorna sucesso, request final usa `street/city/lat/lng` resolvidos; quando falha, mantém fallback do estado da triagem.
+- Validacao funcional manual ST-008 task 1:
+  - `GET /api/telegram-chatbot/service-requests/{serviceRequestId}/eligible-providers` retorna apenas prestadores elegiveis para o `ClientId` autenticado.
+  - Resultado vem ordenado por distancia e limitado pelo parametro `take` (1..10).
 - Validacao documental ST-007 task 8:
   - Publicado diagrama Mermaid de fluxo da triagem natural com abertura automatica de pedido e persistencia de trilha.
 - Validacao documental ST-007 task 9:
@@ -185,3 +191,4 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
 - 2026-03-03: atualizacao da ST-007 (Task 8) com diagrama Mermaid de fluxo da triagem e abertura automatica de pedido.
 - 2026-03-03: atualizacao da ST-007 (Task 9) com diagrama Mermaid de sequencia da triagem, encerramento da story em `DONE` e atualizacao dos indices da trilha.
 - 2026-03-03: hotfix ST-007 aplicado para compatibilizar `category` numerico no payload de criacao de pedido e adicionar pre-resolucao de CEP via `zip-resolution` no Telegram Bridge.
+- 2026-03-03: inicio da ST-008 com servico/endpoint de matching de prestadores elegiveis por pedido no dominio `TelegramChatbot`.

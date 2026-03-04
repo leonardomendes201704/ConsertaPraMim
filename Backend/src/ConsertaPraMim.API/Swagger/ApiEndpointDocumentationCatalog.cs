@@ -261,6 +261,14 @@ public static class ApiEndpointDocumentationCatalog
                     ExpectedOutcome: "Conversa ativa e pronta para registrar mensagens, contexto da IA e eventos de negocio.");
             }
 
+            if (httpMethod == "GET" && path.Contains("/eligible-providers", StringComparison.Ordinal))
+            {
+                return new OperationNarrativeContext(
+                    BusinessObjective: "Listar prestadores elegiveis para o pedido aberto pelo chatbot conforme cobertura geografica e categoria.",
+                    Scenario: "Apos triagem e abertura do pedido no Telegram, o bot consulta opcoes reais para sugerir agendamento de visitas tecnicas.",
+                    ExpectedOutcome: "Retorno priorizado de prestadores elegiveis com distancia/cobertura para continuidade do fluxo conversacional.");
+            }
+
             if (httpMethod == "POST" && path.Contains("/messages", StringComparison.Ordinal))
             {
                 return new OperationNarrativeContext(
