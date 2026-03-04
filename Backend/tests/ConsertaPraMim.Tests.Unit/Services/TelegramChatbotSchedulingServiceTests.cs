@@ -413,18 +413,211 @@ public class TelegramChatbotSchedulingServiceTests
             Times.Once);
     }
 
+    [Fact(DisplayName = "Telegram scheduling | Batch | Deve criar sync pendente quando agendamento for criado com sucesso")]
+    public async Task ScheduleVisitsAsync_ShouldCreatePendingCalendarSync_WhenAppointmentIsCreated()
+    {
+        var clientId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var providerId = Guid.NewGuid();
+        var appointmentId = Guid.NewGuid();
+
+        var serviceRequest = new ServiceRequest
+        {
+            Id = requestId,
+            ClientId = clientId,
+            Status = ServiceRequestStatus.Created,
+            Category = ServiceCategory.Appliances,
+            Latitude = -23.5505,
+            Longitude = -46.6333,
+            Client = new User
+            {
+                Id = clientId,
+                ClientProfileType = ClientProfileType.Pf
+            }
+        };
+
+        var requestRepositoryMock = new Mock<IServiceRequestRepository>();
+        requestRepositoryMock
+            .Setup(repository => repository.GetByIdAsync(requestId))
+            .ReturnsAsync(serviceRequest);
+
+        var userRepositoryMock = new Mock<IUserRepository>();
+        userRepositoryMock
+            .Setup(repository => repository.GetAllAsync())
+            .ReturnsAsync([BuildProvider(
+                name: "Prestador",
+                latitude: -23.5510,
+                longitude: -46.6330,
+                radiusKm: 10,
+                categories: [ServiceCategory.Appliances],
+                rating: 4.8,
+                reviewCount: 20,
+                providerId: providerId)]);
+
+        var calendarSyncRepositoryMock = new Mock<IServiceAppointmentCalendarSyncRepository>();
+        calendarSyncRepositoryMock
+            .Setup(repository => repository.GetByAppointmentIdAsync(appointmentId))
+            .ReturnsAsync((ServiceAppointmentCalendarSync?)null);
+
+        var service = BuildService(
+            requestRepositoryMock,
+            userRepositoryMock,
+            out _,
+            out var appointmentServiceMock,
+            customCalendarSyncRepositoryMock: calendarSyncRepositoryMock);
+
+        appointmentServiceMock
+            .Setup(appointments => appointments.CreateAsync(
+                clientId,
+                "Client",
+                It.IsAny<CreateServiceAppointmentRequestDto>()))
+            .ReturnsAsync(new ServiceAppointmentOperationResultDto(
+                Success: true,
+                Appointment: BuildAppointmentDto(appointmentId, requestId, clientId, providerId)));
+
+        var request = new TelegramChatbotBatchScheduleRequestDto(
+            ClientId: clientId,
+            ServiceRequestId: requestId,
+            Visits:
+            [
+                BuildVisitRequest(
+                    providerId,
+                    DateTime.UtcNow.Date.AddDays(3).AddHours(9),
+                    DateTime.UtcNow.Date.AddDays(3).AddHours(11))
+            ]);
+
+        var result = await service.ScheduleVisitsAsync(request);
+
+        Assert.True(result.Success);
+        Assert.Single(result.Results);
+        Assert.True(result.Results[0].Success);
+        Assert.Equal(appointmentId, result.Results[0].AppointmentId);
+
+        calendarSyncRepositoryMock.Verify(
+            repository => repository.GetByAppointmentIdAsync(appointmentId),
+            Times.Once);
+        calendarSyncRepositoryMock.Verify(
+            repository => repository.AddAsync(It.Is<ServiceAppointmentCalendarSync>(sync =>
+                sync.AppointmentId == appointmentId &&
+                sync.SyncStatus == ServiceAppointmentCalendarSyncStatus.Pending &&
+                sync.Error == null)),
+            Times.Once);
+        calendarSyncRepositoryMock.Verify(
+            repository => repository.UpdateAsync(It.IsAny<ServiceAppointmentCalendarSync>()),
+            Times.Never);
+    }
+
+    [Fact(DisplayName = "Telegram scheduling | Batch | Deve atualizar sync existente para pending quando agendamento for criado")]
+    public async Task ScheduleVisitsAsync_ShouldUpdateCalendarSyncToPending_WhenSyncAlreadyExists()
+    {
+        var clientId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var providerId = Guid.NewGuid();
+        var appointmentId = Guid.NewGuid();
+
+        var serviceRequest = new ServiceRequest
+        {
+            Id = requestId,
+            ClientId = clientId,
+            Status = ServiceRequestStatus.Created,
+            Category = ServiceCategory.Appliances,
+            Latitude = -23.5505,
+            Longitude = -46.6333,
+            Client = new User
+            {
+                Id = clientId,
+                ClientProfileType = ClientProfileType.Pf
+            }
+        };
+
+        var requestRepositoryMock = new Mock<IServiceRequestRepository>();
+        requestRepositoryMock
+            .Setup(repository => repository.GetByIdAsync(requestId))
+            .ReturnsAsync(serviceRequest);
+
+        var userRepositoryMock = new Mock<IUserRepository>();
+        userRepositoryMock
+            .Setup(repository => repository.GetAllAsync())
+            .ReturnsAsync([BuildProvider(
+                name: "Prestador",
+                latitude: -23.5510,
+                longitude: -46.6330,
+                radiusKm: 10,
+                categories: [ServiceCategory.Appliances],
+                rating: 4.8,
+                reviewCount: 20,
+                providerId: providerId)]);
+
+        var existingSync = new ServiceAppointmentCalendarSync
+        {
+            AppointmentId = appointmentId,
+            SyncStatus = ServiceAppointmentCalendarSyncStatus.Failed,
+            Error = "timeout_google_api"
+        };
+
+        var calendarSyncRepositoryMock = new Mock<IServiceAppointmentCalendarSyncRepository>();
+        calendarSyncRepositoryMock
+            .Setup(repository => repository.GetByAppointmentIdAsync(appointmentId))
+            .ReturnsAsync(existingSync);
+
+        var service = BuildService(
+            requestRepositoryMock,
+            userRepositoryMock,
+            out _,
+            out var appointmentServiceMock,
+            customCalendarSyncRepositoryMock: calendarSyncRepositoryMock);
+
+        appointmentServiceMock
+            .Setup(appointments => appointments.CreateAsync(
+                clientId,
+                "Client",
+                It.IsAny<CreateServiceAppointmentRequestDto>()))
+            .ReturnsAsync(new ServiceAppointmentOperationResultDto(
+                Success: true,
+                Appointment: BuildAppointmentDto(appointmentId, requestId, clientId, providerId)));
+
+        var request = new TelegramChatbotBatchScheduleRequestDto(
+            ClientId: clientId,
+            ServiceRequestId: requestId,
+            Visits:
+            [
+                BuildVisitRequest(
+                    providerId,
+                    DateTime.UtcNow.Date.AddDays(3).AddHours(9),
+                    DateTime.UtcNow.Date.AddDays(3).AddHours(11))
+            ]);
+
+        var result = await service.ScheduleVisitsAsync(request);
+
+        Assert.True(result.Success);
+        Assert.Single(result.Results);
+        Assert.True(result.Results[0].Success);
+
+        calendarSyncRepositoryMock.Verify(
+            repository => repository.AddAsync(It.IsAny<ServiceAppointmentCalendarSync>()),
+            Times.Never);
+        calendarSyncRepositoryMock.Verify(
+            repository => repository.UpdateAsync(It.Is<ServiceAppointmentCalendarSync>(sync =>
+                ReferenceEquals(sync, existingSync) &&
+                sync.SyncStatus == ServiceAppointmentCalendarSyncStatus.Pending &&
+                sync.Error == null)),
+            Times.Once);
+    }
+
     private static TelegramChatbotSchedulingService BuildService(
         Mock<IServiceRequestRepository> requestRepositoryMock,
         Mock<IUserRepository> userRepositoryMock,
         out Mock<IProposalRepository> proposalRepositoryMock,
-        out Mock<IServiceAppointmentService> appointmentServiceMock)
+        out Mock<IServiceAppointmentService> appointmentServiceMock,
+        Mock<IServiceAppointmentCalendarSyncRepository>? customCalendarSyncRepositoryMock = null)
     {
         return BuildService(
             requestRepositoryMock,
             userRepositoryMock,
             out proposalRepositoryMock,
             out _,
-            out appointmentServiceMock);
+            out appointmentServiceMock,
+            customCalendarSyncRepositoryMock: customCalendarSyncRepositoryMock);
     }
 
     private static TelegramChatbotSchedulingService BuildService(
@@ -433,7 +626,8 @@ public class TelegramChatbotSchedulingServiceTests
         out Mock<IProposalRepository> proposalRepositoryMock,
         out Mock<IServiceAppointmentRepository> appointmentRepositoryMock,
         out Mock<IServiceAppointmentService> appointmentServiceMock,
-        Mock<IServiceAppointmentRepository>? customAppointmentRepositoryMock = null)
+        Mock<IServiceAppointmentRepository>? customAppointmentRepositoryMock = null,
+        Mock<IServiceAppointmentCalendarSyncRepository>? customCalendarSyncRepositoryMock = null)
     {
         proposalRepositoryMock = new Mock<IProposalRepository>();
         appointmentRepositoryMock = customAppointmentRepositoryMock ?? new Mock<IServiceAppointmentRepository>();
@@ -443,6 +637,8 @@ public class TelegramChatbotSchedulingServiceTests
                 .Setup(repository => repository.GetByClientAsync(It.IsAny<Guid>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>()))
                 .ReturnsAsync([]);
         }
+
+        var calendarSyncRepositoryMock = customCalendarSyncRepositoryMock ?? new Mock<IServiceAppointmentCalendarSyncRepository>();
         appointmentServiceMock = new Mock<IServiceAppointmentService>();
 
         return new TelegramChatbotSchedulingService(
@@ -450,6 +646,7 @@ public class TelegramChatbotSchedulingServiceTests
             userRepositoryMock.Object,
             proposalRepositoryMock.Object,
             appointmentRepositoryMock.Object,
+            calendarSyncRepositoryMock.Object,
             appointmentServiceMock.Object);
     }
 
@@ -494,5 +691,31 @@ public class TelegramChatbotSchedulingServiceTests
                 ClientPreference = ProviderClientPreference.Both
             }
         };
+    }
+
+    private static ServiceAppointmentDto BuildAppointmentDto(
+        Guid appointmentId,
+        Guid serviceRequestId,
+        Guid clientId,
+        Guid providerId)
+    {
+        return new ServiceAppointmentDto(
+            Id: appointmentId,
+            ServiceRequestId: serviceRequestId,
+            ClientId: clientId,
+            ProviderId: providerId,
+            Status: ServiceAppointmentStatus.Confirmed.ToString(),
+            WindowStartUtc: DateTime.UtcNow.AddDays(2),
+            WindowEndUtc: DateTime.UtcNow.AddDays(2).AddHours(2),
+            ExpiresAtUtc: null,
+            Reason: "Teste",
+            ProposedWindowStartUtc: null,
+            ProposedWindowEndUtc: null,
+            RescheduleRequestedAtUtc: null,
+            RescheduleRequestedByRole: null,
+            RescheduleRequestReason: null,
+            CreatedAt: DateTime.UtcNow,
+            UpdatedAt: null,
+            History: Array.Empty<ServiceAppointmentHistoryDto>());
     }
 }

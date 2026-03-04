@@ -1,9 +1,10 @@
 flowchart TD
-    A[Agendamento criado/atualizado/cancelado] --> B[Servico de orquestracao consulta mapeamento]
-    B --> C{Existe registro em ServiceAppointmentCalendarSyncs?}
-    C -->|Nao| D[Criar registro com SyncStatus=Pending]
-    C -->|Sim| E[Atualizar status, data e erro]
-    D --> F[Persistir AppointmentId unico]
-    E --> F
-    F --> G[Persistir GoogleEventId quando houver]
-    G --> H[Consultar por status/LastSyncAtUtc para reprocessamento]
+    A[Receber visita no ScheduleVisitsAsync] --> B[Chamar CreateAsync do agendamento]
+    B --> C{CreateAsync retornou sucesso?}
+    C -->|Nao| D[Registrar falha por visita e encerrar]
+    C -->|Sim| E[Consultar sync por AppointmentId]
+    E --> F{Registro de sync existe?}
+    F -->|Nao| G[Inserir sync com Pending e Error null]
+    F -->|Sim| H[Atualizar sync existente para Pending e limpar Error]
+    G --> I[Retornar visita agendada no lote]
+    H --> I

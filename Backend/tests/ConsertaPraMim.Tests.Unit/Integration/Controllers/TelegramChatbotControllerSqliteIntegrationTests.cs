@@ -354,6 +354,7 @@ public class TelegramChatbotControllerSqliteIntegrationTests
             new UserRepository(context),
             new ProposalRepository(context),
             new ServiceAppointmentRepository(context),
+            new ServiceAppointmentCalendarSyncRepository(context),
             new Mock<IServiceAppointmentService>().Object);
 
         var controller = new TelegramChatbotController(conversationService, schedulingService)

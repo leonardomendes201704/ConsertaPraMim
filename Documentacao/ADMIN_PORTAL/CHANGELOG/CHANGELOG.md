@@ -114,6 +114,12 @@
 
 ## Released
 
+- [2026-03-04] [ST-012] Orquestracao de agendamento marcada para sync pendente no Google Calendar
+- Tipo: feat
+- Resumo: `TelegramChatbotSchedulingService` passou a persistir trilha de sincronizacao apos `CreateAsync` bem-sucedido: cria registro `ServiceAppointmentCalendarSync` com `Pending` quando inexistente ou atualiza registro existente para `Pending` limpando `Error`, garantindo fila consistente para os proximos passos de sync com Google.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/Services/TelegramChatbotSchedulingService.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramChatbotSchedulingServiceTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Integration/Controllers/TelegramChatbotControllerSqliteIntegrationTests.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-012-sync-automatica-agendamento-google-calendar.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_GOOGLE_CALENDAR_SYNC_ST-011.md`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-012-sync-agendamento-google-calendar/fluxo-sync-agendamento-google-calendar.mmd`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-012-sync-agendamento-google-calendar/sequencia-sync-agendamento-google-calendar.mmd`
+- Risco/Impacto: medio
+
 - [2026-03-04] [ST-012] Fundacao de persistencia para sincronizacao de agendamentos Google Calendar
 - Tipo: feat
 - Resumo: criada a entidade de mapeamento `ServiceAppointmentCalendarSync` com repositorio dedicado, relacao 1:1 com `ServiceAppointment`, indices de idempotencia (`AppointmentId` unico e `GoogleEventId` unico quando preenchido), status de sincronizacao e migration `AddServiceAppointmentCalendarSync` para persistencia da trilha.

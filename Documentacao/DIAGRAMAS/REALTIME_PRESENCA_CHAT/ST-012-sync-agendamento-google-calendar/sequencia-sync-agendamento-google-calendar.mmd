@@ -1,21 +1,29 @@
 sequenceDiagram
-    participant App as Scheduling Service
+    participant App as TelegramChatbotSchedulingService
+    participant Appointment as IServiceAppointmentService
     participant Repo as IServiceAppointmentCalendarSyncRepository
     participant Db as ServiceAppointmentCalendarSyncs
 
-    App->>Repo: GetByAppointmentIdAsync(appointmentId)
-    Repo->>Db: Select por AppointmentId
-    Db-->>Repo: registro ou null
-    Repo-->>App: resultado
+    App->>Appointment: CreateAsync(...)
+    alt agendamento criado com sucesso
+        Appointment-->>App: Success + AppointmentId
+        App->>Repo: GetByAppointmentIdAsync(appointmentId)
+        Repo->>Db: Select por AppointmentId
+        Db-->>Repo: registro ou null
+        Repo-->>App: resultado
 
-    alt nao existe
-        App->>Repo: AddAsync(sync: Pending)
-        Repo->>Db: Insert
-        Db-->>Repo: ok
-        Repo-->>App: ok
-    else existe
-        App->>Repo: UpdateAsync(sync: Synced/Failed/Deleted)
-        Repo->>Db: Update (GoogleEventId, LastSyncAtUtc, Error, SyncStatus)
-        Db-->>Repo: ok
-        Repo-->>App: ok
+        alt nao existe sync
+            App->>Repo: AddAsync(sync: Pending)
+            Repo->>Db: Insert
+            Db-->>Repo: ok
+            Repo-->>App: ok
+        else sync ja existe
+            App->>Repo: UpdateAsync(sync: Pending, Error=null)
+            Repo->>Db: Update
+            Db-->>Repo: ok
+            Repo-->>App: ok
+        end
+    else agendamento falha
+        Appointment-->>App: ErrorCode/ErrorMessage
+        App-->>App: Nao cria/atualiza sync
     end

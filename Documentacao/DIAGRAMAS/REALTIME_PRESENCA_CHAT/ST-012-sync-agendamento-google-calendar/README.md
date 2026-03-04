@@ -2,5 +2,5 @@
 
 Diagramas Mermaid da story ST-012.
 
-- `fluxo-sync-agendamento-google-calendar.mmd`: fluxo da trilha de persistencia do mapeamento de sincronizacao por agendamento.
-- `sequencia-sync-agendamento-google-calendar.mmd`: sequencia de leitura/escrita da entidade `ServiceAppointmentCalendarSync`.
+- `fluxo-sync-agendamento-google-calendar.mmd`: fluxo da Task 2 para marcacao `Pending` apos criacao bem-sucedida do agendamento no chatbot.
+- `sequencia-sync-agendamento-google-calendar.mmd`: sequencia de `CreateAsync` + upsert (`Add/Update`) na entidade `ServiceAppointmentCalendarSync`.

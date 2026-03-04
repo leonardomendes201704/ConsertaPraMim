@@ -12,6 +12,7 @@ public sealed class TelegramChatbotSchedulingService : ITelegramChatbotSchedulin
     private readonly IUserRepository _userRepository;
     private readonly IProposalRepository _proposalRepository;
     private readonly IServiceAppointmentRepository _serviceAppointmentRepository;
+    private readonly IServiceAppointmentCalendarSyncRepository _serviceAppointmentCalendarSyncRepository;
     private readonly IServiceAppointmentService _serviceAppointmentService;
 
     public TelegramChatbotSchedulingService(
@@ -19,12 +20,14 @@ public sealed class TelegramChatbotSchedulingService : ITelegramChatbotSchedulin
         IUserRepository userRepository,
         IProposalRepository proposalRepository,
         IServiceAppointmentRepository serviceAppointmentRepository,
+        IServiceAppointmentCalendarSyncRepository serviceAppointmentCalendarSyncRepository,
         IServiceAppointmentService serviceAppointmentService)
     {
         _serviceRequestRepository = serviceRequestRepository;
         _userRepository = userRepository;
         _proposalRepository = proposalRepository;
         _serviceAppointmentRepository = serviceAppointmentRepository;
+        _serviceAppointmentCalendarSyncRepository = serviceAppointmentCalendarSyncRepository;
         _serviceAppointmentService = serviceAppointmentService;
     }
 
@@ -494,6 +497,7 @@ public sealed class TelegramChatbotSchedulingService : ITelegramChatbotSchedulin
 
             if (createResult.Success && createResult.Appointment != null)
             {
+                await UpsertCalendarSyncPendingAsync(createResult.Appointment.Id);
                 successCount++;
                 results.Add(new TelegramChatbotBatchScheduleVisitResultDto(
                     ProviderId: visit.ProviderId,
@@ -521,6 +525,31 @@ public sealed class TelegramChatbotSchedulingService : ITelegramChatbotSchedulin
             ErrorMessage: successCount == request.Visits.Count
                 ? null
                 : "Uma ou mais visitas nao puderam ser agendadas.");
+    }
+
+    private async Task UpsertCalendarSyncPendingAsync(Guid appointmentId)
+    {
+        if (appointmentId == Guid.Empty)
+        {
+            return;
+        }
+
+        var existingSync = await _serviceAppointmentCalendarSyncRepository.GetByAppointmentIdAsync(appointmentId);
+        if (existingSync == null)
+        {
+            await _serviceAppointmentCalendarSyncRepository.AddAsync(new ServiceAppointmentCalendarSync
+            {
+                AppointmentId = appointmentId,
+                SyncStatus = ServiceAppointmentCalendarSyncStatus.Pending,
+                Error = null
+            });
+
+            return;
+        }
+
+        existingSync.SyncStatus = ServiceAppointmentCalendarSyncStatus.Pending;
+        existingSync.Error = null;
+        await _serviceAppointmentCalendarSyncRepository.UpdateAsync(existingSync);
     }
 
     private static TelegramChatbotOrderSummaryDto BuildOrderSummary(

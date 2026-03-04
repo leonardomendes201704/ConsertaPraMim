@@ -91,3 +91,17 @@ Validacao operacional:
 
 - Confirmar migration `AddServiceAppointmentCalendarSync` aplicada no ambiente.
 - Conferir criacao de indices `IX_ServiceAppointmentCalendarSyncs_AppointmentId` e `IX_ServiceAppointmentCalendarSyncs_SyncStatus_LastSyncAtUtc`.
+
+## 9. Evolucao ST-012 (Task 2)
+
+Integracao da trilha de sync na orquestracao de agendamento do chatbot:
+
+- Sempre que `TelegramChatbotSchedulingService.ScheduleVisitsAsync` cria agendamento com sucesso, a API grava `ServiceAppointmentCalendarSync` com `SyncStatus=Pending`.
+- Se o registro de sync ja existir para o `AppointmentId`, ele e atualizado para `Pending` e o campo `Error` e limpo.
+- Se o agendamento falhar (`CreateAsync` sem sucesso), nenhum registro de sync e criado/atualizado para aquela visita.
+
+Checklist operacional:
+
+- [ ] QA-GCAL-012-001: agendar visita via endpoint batch do chatbot e validar linha em `ServiceAppointmentCalendarSyncs` para o `AppointmentId` retornado com `SyncStatus=Pending`.
+- [ ] QA-GCAL-012-002: simular registro existente com `Failed` e repetir fluxo com mesmo `AppointmentId` (teste unitario/mocado), validando transicao para `Pending`.
+- [ ] QA-GCAL-012-003: validar cenario de falha de criacao de agendamento (`slot_unavailable`) sem insercao indevida em `ServiceAppointmentCalendarSyncs`.

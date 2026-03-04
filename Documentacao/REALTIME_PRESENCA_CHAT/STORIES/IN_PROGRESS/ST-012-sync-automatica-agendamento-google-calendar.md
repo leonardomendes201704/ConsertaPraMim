@@ -18,7 +18,7 @@ Garantir que agendamentos confirmados, atualizados e cancelados no sistema sejam
 ## Tasks
 
 - [x] Criar entidade de mapeamento `ServiceAppointmentCalendarSync` (`AppointmentId`, `GoogleEventId`, `SyncStatus`, `LastSyncAtUtc`, `Error`).
-- [ ] Integrar sincronizacao na orquestracao de agendamento apos persistencia local bem-sucedida.
+- [x] Integrar sincronizacao na orquestracao de agendamento apos persistencia local bem-sucedida.
 - [ ] Implementar fluxo `create event` com chave idempotente por `appointmentId`.
 - [ ] Implementar fluxo `update event` para mudancas de data/horario/prestador.
 - [ ] Implementar fluxo `delete event` no cancelamento do agendamento.
@@ -33,3 +33,5 @@ Garantir que agendamentos confirmados, atualizados e cancelados no sistema sejam
 - Repositorio dedicado criado para leitura/escrita do mapeamento por `AppointmentId` e `GoogleEventId`.
 - `DbContext` atualizado com `DbSet`, relacionamentos, indices e constraints de consistencia.
 - Migration `AddServiceAppointmentCalendarSync` gerada para provisionar a tabela no banco.
+- `TelegramChatbotSchedulingService` passou a criar/atualizar registro de sync como `Pending` imediatamente apos `CreateAsync` de agendamento concluido com sucesso.
+- Cobertura unitaria adicionada para garantir `AddAsync` (novo registro) e `UpdateAsync` (registro existente) no repositorio de sincronizacao.
