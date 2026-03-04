@@ -27,3 +27,4 @@ Permitir que o chatbot entenda o problema do cliente em linguagem natural e abra
 - [x] Criar testes unitarios de regras de completude e integracao da criacao de pedido.
 - [x] Criar/atualizar diagrama de fluxo Mermaid da funcionalidade.
 - [x] Criar/atualizar diagrama de sequencia Mermaid da funcionalidade.
+- [x] Aplicar hotfix pos-entrega para compatibilizar payload de categoria (enum numerico) e pre-resolucao de CEP no fluxo de abertura automatica.

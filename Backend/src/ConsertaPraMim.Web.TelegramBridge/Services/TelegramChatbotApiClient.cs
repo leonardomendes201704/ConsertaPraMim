@@ -245,16 +245,18 @@ public sealed class TelegramChatbotApiClient : ITelegramChatbotApiClient
         TelegramServiceRequestCreatePayload payload,
         CancellationToken cancellationToken = default)
     {
+        var zipResolution = await ResolveZipAsync(apiToken, payload.Zip, cancellationToken);
+
         var requestPayload = new
         {
             categoryId = (Guid?)null,
-            category = payload.Category,
+            category = payload.CategoryValue,
             description = payload.Description,
-            street = payload.Street,
-            city = payload.City,
-            zip = payload.Zip,
-            lat = payload.Latitude,
-            lng = payload.Longitude
+            street = FirstNonEmpty(zipResolution?.Street, payload.Street),
+            city = FirstNonEmpty(zipResolution?.City, payload.City),
+            zip = FirstNonEmpty(zipResolution?.ZipCode, payload.Zip),
+            lat = zipResolution?.Latitude ?? payload.Latitude,
+            lng = zipResolution?.Longitude ?? payload.Longitude
         };
 
         var created = await PostAsync<TelegramCreateServiceRequestApiResponse>(
@@ -269,6 +271,50 @@ public sealed class TelegramChatbotApiClient : ITelegramChatbotApiClient
         }
 
         return new TelegramCreatedServiceRequestDto(created.Id);
+    }
+
+    private async Task<TelegramZipResolution?> ResolveZipAsync(
+        string apiToken,
+        string zipCode,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(zipCode))
+        {
+            return null;
+        }
+
+        var normalizedZip = new string(zipCode.Where(char.IsDigit).ToArray());
+        if (normalizedZip.Length != 8)
+        {
+            return null;
+        }
+
+        var response = await GetAsync<TelegramZipResolutionApiResponse>(
+            apiToken,
+            $"/api/service-requests/zip-resolution?zipCode={normalizedZip}",
+            cancellationToken);
+
+        if (response is null)
+        {
+            return null;
+        }
+
+        if (double.IsNaN(response.Latitude) || double.IsInfinity(response.Latitude))
+        {
+            return null;
+        }
+
+        if (double.IsNaN(response.Longitude) || double.IsInfinity(response.Longitude))
+        {
+            return null;
+        }
+
+        return new TelegramZipResolution(
+            ZipCode: response.ZipCode,
+            Street: response.Street,
+            City: response.City,
+            Latitude: response.Latitude,
+            Longitude: response.Longitude);
     }
 
     private async Task<bool> RegisterMessageAsync(
@@ -498,6 +544,18 @@ public sealed class TelegramChatbotApiClient : ITelegramChatbotApiClient
         return JsonSerializer.Serialize(payload);
     }
 
+    private static string FirstNonEmpty(string? first, string? second)
+    {
+        if (!string.IsNullOrWhiteSpace(first))
+        {
+            return first.Trim();
+        }
+
+        return string.IsNullOrWhiteSpace(second)
+            ? string.Empty
+            : second.Trim();
+    }
+
     private sealed class TelegramChatbotConversationApiResponse
     {
         public Guid Id { get; set; }
@@ -507,4 +565,20 @@ public sealed class TelegramChatbotApiClient : ITelegramChatbotApiClient
     {
         public Guid Id { get; set; }
     }
+
+    private sealed class TelegramZipResolutionApiResponse
+    {
+        public string ZipCode { get; set; } = string.Empty;
+        public double Latitude { get; set; }
+        public double Longitude { get; set; }
+        public string? Street { get; set; }
+        public string? City { get; set; }
+    }
+
+    private sealed record TelegramZipResolution(
+        string ZipCode,
+        string? Street,
+        string? City,
+        double Latitude,
+        double Longitude);
 }

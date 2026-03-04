@@ -36,6 +36,8 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
   - Contrato de intent `open_service_request` e entidades de triagem definidos no orquestrador (categoria, descricao do problema, equipamento, marca/modelo, CEP, cidade/rua e disponibilidade).
   - Motor de triagem (`TelegramServiceRequestTriageEngine`) implementado para manter estado por conversa, identificar dados faltantes e orientar follow-up em linguagem natural.
   - Abertura automatica de pedido integrada via `POST /api/service-requests` quando os dados minimos estao completos.
+  - Payload de criacao alinhado ao contrato da API: categoria enviada como enum numerico (`ServiceCategory`) para evitar rejeicao por model binding.
+  - Bridge passou a pre-resolver CEP em `GET /api/service-requests/zip-resolution` antes da criacao para enriquecer rua/cidade/coordenadas e reduzir falha transiente na abertura.
   - Payload final usado na abertura e estado de triagem persistidos em snapshots/contexto conversacional para continuidade.
   - Confirmacao amigavel com resumo e protocolo do pedido enviada automaticamente ao cliente apos criacao com sucesso.
 
@@ -85,6 +87,10 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
   - Em caso de dados faltantes, a resposta ao cliente vira follow-up objetivo para coletar o campo ausente (categoria, descricao ou CEP).
   - Em caso de sucesso, o orquestrador registra `open_service_request_api` em `actions` e snapshot `service_request_open_payload` no historico.
   - Em caso de erro na criacao, o fluxo registra falha e orienta retry com mensagem segura para o cliente.
+- Validacao funcional manual ST-007 pos-hotfix (categoria + CEP):
+  - Fluxo de triagem com CEP `11704150` e categoria `Eletrodomesticos` abre pedido com sucesso sem cair no fallback de instabilidade.
+  - Payload enviado para `POST /api/service-requests` usa `category` numerico (ex.: `4` para `Appliances`) e nao string literal.
+  - Quando `zip-resolution` retorna sucesso, request final usa `street/city/lat/lng` resolvidos; quando falha, mantém fallback do estado da triagem.
 - Validacao documental ST-007 task 8:
   - Publicado diagrama Mermaid de fluxo da triagem natural com abertura automatica de pedido e persistencia de trilha.
 - Validacao documental ST-007 task 9:
@@ -143,6 +149,12 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
 - Revisar filtros de autorizacao por cliente no endpoint.
 - Se o browser mostrar `ERR_TOO_MANY_REDIRECTS` em `/api/chats/*`, validar se a build em execucao ja possui retorno `401/403` sem redirect para `/Account/Login` em rotas `/api` e `/hubs`.
 
+### 5.3 Chatbot pede CEP novamente mesmo com CEP valido
+
+- Verificar logs do `TelegramChatbotApiClient` para status/erro de `POST /api/service-requests` e `GET /api/service-requests/zip-resolution`.
+- Confirmar que o payload de criacao esta enviando `category` numerico (nao string), conforme contrato `CreateServiceRequestDto`.
+- Validar conectividade externa dos provedores de geocodificacao (BrasilAPI, AwesomeAPI, ViaCEP e Nominatim) usados pelo backend.
+
 ## 6. Historico de revisoes
 
 - 2026-03-03: versao inicial criada durante a ST-004 (Task 1).
@@ -172,3 +184,4 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
 - 2026-03-03: atualizacao da ST-007 (Task 7) com testes unitarios da engine de triagem e cenarios de criacao automatica de pedido no orquestrador.
 - 2026-03-03: atualizacao da ST-007 (Task 8) com diagrama Mermaid de fluxo da triagem e abertura automatica de pedido.
 - 2026-03-03: atualizacao da ST-007 (Task 9) com diagrama Mermaid de sequencia da triagem, encerramento da story em `DONE` e atualizacao dos indices da trilha.
+- 2026-03-03: hotfix ST-007 aplicado para compatibilizar `category` numerico no payload de criacao de pedido e adicionar pre-resolucao de CEP via `zip-resolution` no Telegram Bridge.

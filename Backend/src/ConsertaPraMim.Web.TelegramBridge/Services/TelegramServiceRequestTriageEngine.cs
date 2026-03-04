@@ -55,7 +55,8 @@ public sealed class TelegramServiceRequestTriageEngine
         }
 
         var payload = new TelegramServiceRequestCreatePayload(
-            Category: mergedState.CategoryEnum!,
+            CategoryValue: MapCategoryValue(mergedState.CategoryEnum!),
+            CategoryName: mergedState.CategoryEnum!,
             Description: BuildDescription(mergedState),
             Zip: mergedState.ZipCode!,
             Street: mergedState.Street ?? string.Empty,
@@ -580,6 +581,20 @@ public sealed class TelegramServiceRequestTriageEngine
             _ when normalized.Contains("pintura") => "Masonry",
             _ when normalized.Contains("faxina") => "Cleaning",
             _ => null
+        };
+    }
+
+    private static int MapCategoryValue(string categoryEnum)
+    {
+        return categoryEnum switch
+        {
+            "Electrical" => 1,
+            "Plumbing" => 2,
+            "Electronics" => 3,
+            "Appliances" => 4,
+            "Masonry" => 5,
+            "Cleaning" => 6,
+            _ => 99
         };
     }
 

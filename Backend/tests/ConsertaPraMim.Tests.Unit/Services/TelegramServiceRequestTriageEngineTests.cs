@@ -42,7 +42,8 @@ public class TelegramServiceRequestTriageEngineTests
         Assert.True(decision.IsTriageIntent);
         Assert.Empty(decision.MissingFields);
         Assert.NotNull(decision.CreatePayload);
-        Assert.Equal("Appliances", decision.CreatePayload!.Category);
+        Assert.Equal(4, decision.CreatePayload!.CategoryValue);
+        Assert.Equal("Appliances", decision.CreatePayload.CategoryName);
         Assert.Equal("04567-000", decision.CreatePayload.Zip);
         Assert.Contains("erro CH26", decision.CreatePayload.Description, StringComparison.OrdinalIgnoreCase);
     }
@@ -81,7 +82,8 @@ public class TelegramServiceRequestTriageEngineTests
 
         Assert.True(decision.IsTriageIntent);
         Assert.NotNull(decision.CreatePayload);
-        Assert.Equal("Electrical", decision.CreatePayload!.Category);
+        Assert.Equal(1, decision.CreatePayload!.CategoryValue);
+        Assert.Equal("Electrical", decision.CreatePayload.CategoryName);
         Assert.Equal("01001-000", decision.CreatePayload.Zip);
         Assert.Contains("Tomada", decision.CreatePayload.Description, StringComparison.OrdinalIgnoreCase);
     }

@@ -114,6 +114,12 @@
 
 ## Released
 
+- [2026-03-03] [ST-007] Correcao da abertura automatica de pedido com CEP valido no chatbot Telegram
+- Tipo: fix
+- Resumo: corrigida incompatibilidade de contrato no payload da triagem para `POST /api/service-requests` (categoria agora enviada como enum numerico compatível com o backend), com pre-resolucao de CEP via `GET /api/service-requests/zip-resolution` para enriquecer endereco/coordenadas e reduzir falhas falsas de "instabilidade" na abertura automatica.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/Models/TelegramServiceRequestModels.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramServiceRequestTriageEngine.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramChatbotApiClient.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramServiceRequestTriageEngineTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramChatbotOrchestratorTests.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/DONE/ST-007-triagem-natural-e-abertura-automatica-de-pedido.md`
+- Risco/Impacto: medio
+
 - [2026-03-03] [ST-007] Diagrama Mermaid de sequencia e encerramento da story no board realtime
 - Tipo: docs
 - Resumo: publicada sequencia da ST-007 com chamadas entre chat bridge, orquestrador de triagem, endpoint de criacao de pedido e persistencia conversacional, com story movida para `STORIES/DONE` e indices atualizados.

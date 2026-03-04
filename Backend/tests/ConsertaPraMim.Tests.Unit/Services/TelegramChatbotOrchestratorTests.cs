@@ -180,7 +180,8 @@ public class TelegramChatbotOrchestratorTests
             .Setup(client => client.CreateServiceRequestAsync(
                 It.IsAny<string>(),
                 It.Is<TelegramServiceRequestCreatePayload>(payload =>
-                    payload.Category == "Appliances" &&
+                    payload.CategoryValue == 4 &&
+                    payload.CategoryName == "Appliances" &&
                     payload.Zip == "04567-000"),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(new TelegramCreatedServiceRequestDto(createdRequestId))

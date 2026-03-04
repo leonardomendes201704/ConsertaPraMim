@@ -18,7 +18,8 @@ public sealed record TelegramServiceRequestTriageState(
     string? LastClientMessage);
 
 public sealed record TelegramServiceRequestCreatePayload(
-    string Category,
+    int CategoryValue,
+    string CategoryName,
     string Description,
     string Zip,
     string Street,
