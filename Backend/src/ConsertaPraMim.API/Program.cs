@@ -110,6 +110,7 @@ builder.Services.AddHostedService<ApiMonitoringAggregationWorker>();
 builder.Services.AddHostedService<AdminMailboxSyncWorker>();
 builder.Services.AddHostedService<AdminGrowthAiHourlyDigestWorker>();
 builder.Services.AddHostedService<MobilePushDevicesCleanupWorker>();
+builder.Services.AddHostedService<GoogleCalendarSyncRetryWorker>();
 builder.Services.AddSingleton<IAdminMonitoringRealtimeNotifier, AdminMonitoringRealtimeNotifier>();
 
 ICorsRuntimeSettings? corsRuntimeSettings = null;

@@ -10,7 +10,7 @@
 
 ### Backlog
 
-- [ST-013 - Observabilidade, reprocessamento, QA e rollout da sincronizacao Google Calendar](STORIES/BACKLOG/ST-013-observabilidade-reprocessamento-qa-rollout-google-calendar.md)
+- (sem itens no momento)
 
 ### In Progress
 
@@ -30,16 +30,23 @@
 - [ST-010 - Guardrails, observabilidade, QA e rollout do chatbot](STORIES/DONE/ST-010-guardrails-observabilidade-qa-e-rollout-chatbot.md)
 - [ST-011 - Fundacao Google Calendar com Service Account e calendario unico](STORIES/DONE/ST-011-fundacao-google-calendar-service-account-calendario-unico.md)
 - [ST-012 - Sincronizacao automatica de agendamento com Google Calendar](STORIES/DONE/ST-012-sync-automatica-agendamento-google-calendar.md)
+- [ST-013 - Observabilidade, reprocessamento, QA e rollout da sincronizacao Google Calendar](STORIES/DONE/ST-013-observabilidade-reprocessamento-qa-rollout-google-calendar.md)
 
 ## Manual QA/Operacao
 
 - [ST-003 - Manual QA/Operacao Telegram Bridge](MANUAL_QA_OPERACAO_TELEGRAM_BRIDGE_ST-003.md)
 - [ST-004 a ST-010 - Manual QA/Operacao Chatbot Telegram](MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md)
 - [ST-011 - Manual QA/Operacao Google Calendar Sync](MANUAL_QA_OPERACAO_GOOGLE_CALENDAR_SYNC_ST-011.md)
+- [ST-013 - Manual QA/Operacao de Observabilidade e Reprocessamento Google Calendar](MANUAL_QA_OPERACAO_GOOGLE_CALENDAR_SYNC_ST-013.md)
 
 ## Runbooks
 
 - [ST-010 - Runbook de incidentes e rollback do chatbot Telegram](RUNBOOKS/RUNBOOK_INCIDENTES_ROLLBACK_CHATBOT_TELEGRAM_ST-010.md)
+- [ST-013 - Runbook de incidentes e recuperacao do Google Calendar Sync](RUNBOOKS/RUNBOOK_INCIDENTES_ROLLBACK_GOOGLE_CALENDAR_SYNC_ST-013.md)
+
+## Rollout
+
+- [ST-013 - Plano de rollout progressivo Google Calendar Sync](ROLLOUT_GOOGLE_CALENDAR_SYNC_ST-013.md)
 
 ## Diagramas
 
@@ -53,3 +60,4 @@
 - [ST-010 - Guardrails, observabilidade e rollout do chatbot](../DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-010-guardrails-observabilidade-rollout-chatbot/README.md)
 - [ST-011 - Fundacao Google Calendar Sync](../DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-011-fundacao-google-calendar-sync/README.md)
 - [ST-012 - Sync automatica de agendamento Google Calendar](../DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-012-sync-agendamento-google-calendar/README.md)
+- [ST-013 - Observabilidade e reprocessamento Google Calendar](../DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-013-observabilidade-reprocessamento-google-calendar/README.md)

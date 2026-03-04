@@ -16,6 +16,7 @@ public sealed class TelegramChatbotSchedulingService : ITelegramChatbotSchedulin
     private readonly IServiceAppointmentCalendarSyncRepository _serviceAppointmentCalendarSyncRepository;
     private readonly IServiceAppointmentService _serviceAppointmentService;
     private readonly IGoogleCalendarService _googleCalendarService;
+    private readonly IGoogleCalendarSyncOperationsService? _googleCalendarSyncOperationsService;
     private readonly ILogger<TelegramChatbotSchedulingService> _logger;
 
     public TelegramChatbotSchedulingService(
@@ -26,7 +27,8 @@ public sealed class TelegramChatbotSchedulingService : ITelegramChatbotSchedulin
         IServiceAppointmentCalendarSyncRepository serviceAppointmentCalendarSyncRepository,
         IServiceAppointmentService serviceAppointmentService,
         IGoogleCalendarService googleCalendarService,
-        ILogger<TelegramChatbotSchedulingService> logger)
+        ILogger<TelegramChatbotSchedulingService> logger,
+        IGoogleCalendarSyncOperationsService? googleCalendarSyncOperationsService = null)
     {
         _serviceRequestRepository = serviceRequestRepository;
         _userRepository = userRepository;
@@ -35,6 +37,7 @@ public sealed class TelegramChatbotSchedulingService : ITelegramChatbotSchedulin
         _serviceAppointmentCalendarSyncRepository = serviceAppointmentCalendarSyncRepository;
         _serviceAppointmentService = serviceAppointmentService;
         _googleCalendarService = googleCalendarService;
+        _googleCalendarSyncOperationsService = googleCalendarSyncOperationsService;
         _logger = logger;
     }
 
@@ -505,7 +508,14 @@ public sealed class TelegramChatbotSchedulingService : ITelegramChatbotSchedulin
             if (createResult.Success && createResult.Appointment != null)
             {
                 var sync = await UpsertCalendarSyncPendingAsync(createResult.Appointment.Id);
-                await TrySyncCreateAppointmentToGoogleCalendarAsync(serviceRequest, createResult.Appointment, sync);
+                if (_googleCalendarSyncOperationsService is not null)
+                {
+                    await _googleCalendarSyncOperationsService.SyncAppointmentAsync(createResult.Appointment.Id, forceResetRetry: true);
+                }
+                else
+                {
+                    await TrySyncCreateAppointmentToGoogleCalendarAsync(serviceRequest, createResult.Appointment, sync);
+                }
                 successCount++;
                 results.Add(new TelegramChatbotBatchScheduleVisitResultDto(
                     ProviderId: visit.ProviderId,
@@ -583,11 +593,16 @@ public sealed class TelegramChatbotSchedulingService : ITelegramChatbotSchedulin
             if (createResult.Success)
             {
                 sync.SyncStatus = ServiceAppointmentCalendarSyncStatus.Synced;
+                sync.LastOperation = ServiceAppointmentCalendarSyncOperation.Create;
                 sync.GoogleEventId = string.IsNullOrWhiteSpace(createResult.EventId)
                     ? sync.GoogleEventId
                     : createResult.EventId.Trim();
                 sync.LastSyncAtUtc = DateTime.UtcNow;
                 sync.Error = null;
+                sync.LastErrorCode = null;
+                sync.NextRetryAtUtc = null;
+                sync.DeadLetterAtUtc = null;
+                sync.RetryCount = 0;
                 await _serviceAppointmentCalendarSyncRepository.UpdateAsync(sync);
                 return;
             }
@@ -617,10 +632,13 @@ public sealed class TelegramChatbotSchedulingService : ITelegramChatbotSchedulin
         string? errorMessage)
     {
         sync.SyncStatus = ServiceAppointmentCalendarSyncStatus.Failed;
+        sync.LastOperation = ServiceAppointmentCalendarSyncOperation.Create;
         sync.LastSyncAtUtc = DateTime.UtcNow;
+        sync.LastErrorCode = string.IsNullOrWhiteSpace(errorCode) ? "google_calendar_create_failed" : errorCode.Trim();
         // Create falhou: nao manter eventId residual para evitar falso positivo de sincronizacao.
         sync.GoogleEventId = null;
         sync.Error = TruncateError(ComposeSyncError(errorCode, errorMessage));
+        sync.RetryCount += 1;
         await _serviceAppointmentCalendarSyncRepository.UpdateAsync(sync);
     }
 
@@ -680,6 +698,7 @@ public sealed class TelegramChatbotSchedulingService : ITelegramChatbotSchedulin
         var parts = new[]
         {
             serviceRequest.AddressStreet?.Trim(),
+            serviceRequest.AddressNeighborhood?.Trim(),
             serviceRequest.AddressCity?.Trim(),
             serviceRequest.AddressZip?.Trim()
         }.Where(value => !string.IsNullOrWhiteSpace(value)).ToList();

@@ -144,6 +144,22 @@ public static class ApiEndpointDocumentationCatalog
                 ExpectedOutcome: "Dashboard retorna KPIs de qualidade pos-servico (`operationalNpsScore`, `operationalQualityScore`) e recompra (`repurchaseRatePercent`) junto dos demais indicadores de operacao.");
         }
 
+        if (path.Contains("/api/admin/google-calendar-sync/overview", StringComparison.Ordinal) && httpMethod == "GET")
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Dar visibilidade operacional da integracao de agenda com Google Calendar para gestao de risco e continuidade.",
+                Scenario: "Time admin acompanha fila de retries, dead-letter, latencia e volume por status para decidir reprocessamento ou acao corretiva.",
+                ExpectedOutcome: "Resumo consolidado de sincronizacao com contagens acionaveis para observabilidade e governanca da agenda externa.");
+        }
+
+        if (path.Contains("/api/admin/google-calendar-sync/reprocess", StringComparison.Ordinal) && httpMethod == "POST")
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Recuperar sincronizacoes quebradas do Google Calendar sem depender de deploy ou ajuste manual em banco.",
+                Scenario: "Operacao filtra por `appointmentId` ou intervalo e executa reprocessamento controlado de itens pendentes/falhos/dead-letter.",
+                ExpectedOutcome: "Retorno item a item com sucesso/falha e proxima acao, permitindo fechamento de incidentes com rastreabilidade.");
+        }
+
         if (path.Contains("/api/admin/no-show-dashboard/kpis/", StringComparison.Ordinal) &&
             httpMethod == "GET")
         {
@@ -758,6 +774,22 @@ public static class ApiEndpointDocumentationCatalog
 
     private static CatalogEntry ResolveByController(string controller)
     {
+        if (controller.Equals("AdminGoogleCalendarSync", StringComparison.OrdinalIgnoreCase))
+        {
+            return new CatalogEntry(
+                DomainTitle: "Governanca de Integracao Google Calendar",
+                ResourceLabel: "observabilidade e reprocessamento da sincronizacao de agenda",
+                BusinessContext: "Assegura continuidade operacional dos agendamentos externos com fila de retry, dead-letter e recuperacao manual auditavel.",
+                TechnicalContext: "Consumido pelo portal admin para monitorar a esteira de sync e disparar reprocessamento por recorte operacional.",
+                Audience: "Operacao/Admin/SRE/Suporte",
+                Rules:
+                [
+                    "Falhas permanentes devem ir para dead-letter com motivo objetivo.",
+                    "Reprocessamento manual precisa registrar resultado item a item para auditoria.",
+                    "Nao considerar sincronizacao como concluida quando a API Google retornar erro."
+                ]);
+        }
+
         if (controller.StartsWith("Admin", StringComparison.OrdinalIgnoreCase))
         {
             return new CatalogEntry(

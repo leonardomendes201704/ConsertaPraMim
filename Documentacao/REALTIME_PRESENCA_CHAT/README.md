@@ -16,6 +16,9 @@ Este diretorio centraliza o planejamento das evolucoes de tempo real:
 - `MANUAL_QA_OPERACAO_TELEGRAM_BRIDGE_ST-003.md`: manual operacional e de QA da bridge Telegram.
 - `MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md`: manual operacional e de QA da trilha de chatbot Telegram com IA.
 - `MANUAL_QA_OPERACAO_GOOGLE_CALENDAR_SYNC_ST-011.md`: manual de setup e QA da fundacao de sincronizacao com Google Calendar.
+- `MANUAL_QA_OPERACAO_GOOGLE_CALENDAR_SYNC_ST-013.md`: manual de observabilidade, retry, dead-letter e reprocessamento da sincronizacao Google Calendar.
+- `RUNBOOKS/RUNBOOK_INCIDENTES_ROLLBACK_GOOGLE_CALENDAR_SYNC_ST-013.md`: runbook de incidentes e recuperacao do sync Google Calendar.
+- `ROLLOUT_GOOGLE_CALENDAR_SYNC_ST-013.md`: plano de rollout progressivo com go/no-go.
 
 ## Fluxo de trabalho
 
@@ -30,6 +33,7 @@ Diagramas publicados nesta trilha:
 - `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-004-fundacao-api-chatbot-telegram-persistencia/`
 - `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-011-fundacao-google-calendar-sync/`
 - `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-012-sync-agendamento-google-calendar/`
+- `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-013-observabilidade-reprocessamento-google-calendar/`
 
 ## Convencao de IDs
 

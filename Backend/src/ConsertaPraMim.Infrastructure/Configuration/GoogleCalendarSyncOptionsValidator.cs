@@ -8,12 +8,15 @@ public sealed class GoogleCalendarSyncOptionsValidator : IValidateOptions<Google
     {
         ArgumentNullException.ThrowIfNull(options);
 
+        var failures = new List<string>();
+        ValidateRetrySettings(options, failures);
+
         if (!options.Enabled)
         {
-            return ValidateOptionsResult.Success;
+            return failures.Count == 0
+                ? ValidateOptionsResult.Success
+                : ValidateOptionsResult.Fail(failures);
         }
-
-        var failures = new List<string>();
 
         if (string.IsNullOrWhiteSpace(options.ProjectId))
         {
@@ -47,6 +50,46 @@ public sealed class GoogleCalendarSyncOptionsValidator : IValidateOptions<Google
         return failures.Count == 0
             ? ValidateOptionsResult.Success
             : ValidateOptionsResult.Fail(failures);
+    }
+
+    private static void ValidateRetrySettings(
+        GoogleCalendarSyncOptions options,
+        List<string> failures)
+    {
+        if (options.RetryMaxAttempts is < 1 or > 20)
+        {
+            failures.Add($"{GoogleCalendarSyncOptions.SectionName}:RetryMaxAttempts deve estar entre 1 e 20.");
+        }
+
+        if (options.RetryBaseDelaySeconds is < 1 or > 3600)
+        {
+            failures.Add($"{GoogleCalendarSyncOptions.SectionName}:RetryBaseDelaySeconds deve estar entre 1 e 3600.");
+        }
+
+        if (options.RetryMaxDelaySeconds is < 1 or > 21600)
+        {
+            failures.Add($"{GoogleCalendarSyncOptions.SectionName}:RetryMaxDelaySeconds deve estar entre 1 e 21600.");
+        }
+
+        if (options.RetryMaxDelaySeconds < options.RetryBaseDelaySeconds)
+        {
+            failures.Add($"{GoogleCalendarSyncOptions.SectionName}:RetryMaxDelaySeconds nao pode ser menor que RetryBaseDelaySeconds.");
+        }
+
+        if (options.RetryJitterMaxSeconds is < 0 or > 300)
+        {
+            failures.Add($"{GoogleCalendarSyncOptions.SectionName}:RetryJitterMaxSeconds deve estar entre 0 e 300.");
+        }
+
+        if (options.RetryWorkerIntervalSeconds is < 5 or > 3600)
+        {
+            failures.Add($"{GoogleCalendarSyncOptions.SectionName}:RetryWorkerIntervalSeconds deve estar entre 5 e 3600.");
+        }
+
+        if (options.RetryWorkerBatchSize is < 1 or > 1000)
+        {
+            failures.Add($"{GoogleCalendarSyncOptions.SectionName}:RetryWorkerBatchSize deve estar entre 1 e 1000.");
+        }
     }
 
     private static bool CanResolveTimeZone(string timeZoneId)

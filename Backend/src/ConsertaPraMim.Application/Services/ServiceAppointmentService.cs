@@ -87,6 +87,7 @@ public class ServiceAppointmentService : IServiceAppointmentService
     private readonly IAdminOperationalEventNotifier _adminOperationalEventNotifier;
     private readonly IServiceAppointmentCalendarSyncRepository? _serviceAppointmentCalendarSyncRepository;
     private readonly IGoogleCalendarService? _googleCalendarService;
+    private readonly IGoogleCalendarSyncOperationsService? _googleCalendarSyncOperationsService;
     private readonly TimeZoneInfo _availabilityTimeZone;
     private readonly int _providerConfirmationExpiryHours;
     private readonly int _cancelMinimumHoursBeforeWindow;
@@ -119,7 +120,8 @@ public class ServiceAppointmentService : IServiceAppointmentService
         IServiceDisputeCaseRepository? serviceDisputeCaseRepository = null,
         IAdminOperationalEventNotifier? adminOperationalEventNotifier = null,
         IServiceAppointmentCalendarSyncRepository? serviceAppointmentCalendarSyncRepository = null,
-        IGoogleCalendarService? googleCalendarService = null)
+        IGoogleCalendarService? googleCalendarService = null,
+        IGoogleCalendarSyncOperationsService? googleCalendarSyncOperationsService = null)
     {
         _serviceAppointmentRepository = serviceAppointmentRepository;
         _serviceRequestRepository = serviceRequestRepository;
@@ -138,6 +140,7 @@ public class ServiceAppointmentService : IServiceAppointmentService
         _adminOperationalEventNotifier = adminOperationalEventNotifier ?? NullAdminOperationalEventNotifier.Instance;
         _serviceAppointmentCalendarSyncRepository = serviceAppointmentCalendarSyncRepository;
         _googleCalendarService = googleCalendarService;
+        _googleCalendarSyncOperationsService = googleCalendarSyncOperationsService;
         _scopeChangePolicies = BuildScopeChangePolicies(configuration);
         _availabilityTimeZone = ResolveAvailabilityTimeZone(configuration["ServiceAppointments:AvailabilityTimeZoneId"]);
 
@@ -5614,12 +5617,26 @@ public class ServiceAppointmentService : IServiceAppointmentService
 
     private async Task SyncCalendarOnCancellationAsync(ServiceAppointment appointment)
     {
-        if (_serviceAppointmentCalendarSyncRepository is null || _googleCalendarService is null)
+        if (appointment.Id == Guid.Empty)
         {
             return;
         }
 
-        if (appointment.Id == Guid.Empty)
+        if (_googleCalendarSyncOperationsService is not null)
+        {
+            try
+            {
+                await _googleCalendarSyncOperationsService.SyncAppointmentAsync(appointment.Id, forceResetRetry: true);
+            }
+            catch
+            {
+                // best effort: nao interrompe cancelamento por falha de sync.
+            }
+
+            return;
+        }
+
+        if (_serviceAppointmentCalendarSyncRepository is null || _googleCalendarService is null)
         {
             return;
         }
@@ -5698,12 +5715,26 @@ public class ServiceAppointmentService : IServiceAppointmentService
 
     private async Task SyncCalendarOnRescheduleAcceptanceAsync(ServiceAppointment appointment)
     {
-        if (_serviceAppointmentCalendarSyncRepository is null || _googleCalendarService is null)
+        if (appointment.Id == Guid.Empty)
         {
             return;
         }
 
-        if (appointment.Id == Guid.Empty)
+        if (_googleCalendarSyncOperationsService is not null)
+        {
+            try
+            {
+                await _googleCalendarSyncOperationsService.SyncAppointmentAsync(appointment.Id, forceResetRetry: true);
+            }
+            catch
+            {
+                // best effort: nao interrompe o fluxo principal de reagendamento por falha de sync.
+            }
+
+            return;
+        }
+
+        if (_serviceAppointmentCalendarSyncRepository is null || _googleCalendarService is null)
         {
             return;
         }
@@ -5927,6 +5958,7 @@ public class ServiceAppointmentService : IServiceAppointmentService
         var parts = new[]
         {
             serviceRequest.AddressStreet?.Trim(),
+            serviceRequest.AddressNeighborhood?.Trim(),
             serviceRequest.AddressCity?.Trim(),
             serviceRequest.AddressZip?.Trim()
         }.Where(value => !string.IsNullOrWhiteSpace(value)).ToList();

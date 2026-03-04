@@ -10,6 +10,12 @@
 
 ## Released
 
+- [2026-03-04] [ST-013] Observabilidade, retry, dead-letter e reprocessamento da sincronizacao Google Calendar
+- Tipo: feat
+- Resumo: a trilha Google Calendar recebeu operacao completa de confiabilidade com metricas de sync (`created|updated|deleted|failed|retry_count|latency_ms`), retry com backoff/jitter, dead-letter para falhas permanentes, worker de reprocessamento automatico e endpoints admin para visao operacional e reprocessamento manual por `appointmentId`/intervalo.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/Services/GoogleCalendarSyncOperationsService.cs`, `Backend/src/ConsertaPraMim.Application/Services/GoogleCalendarSyncTelemetry.cs`, `Backend/src/ConsertaPraMim.API/Controllers/AdminGoogleCalendarSyncController.cs`, `Backend/src/ConsertaPraMim.API/BackgroundJobs/GoogleCalendarSyncRetryWorker.cs`, `Backend/src/ConsertaPraMim.Domain/Entities/ServiceAppointmentCalendarSync.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Migrations/20260304194940_AddGoogleCalendarSyncRetryDeadLetterObservability.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/DONE/ST-013-observabilidade-reprocessamento-qa-rollout-google-calendar.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_GOOGLE_CALENDAR_SYNC_ST-013.md`
+- Risco/Impacto: medio
+
 - [2026-03-04] [ST-012] Fechamento da sincronizacao Google Calendar com compensacao, descricao de negocio e cobertura de testes
 - Tipo: feat
 - Resumo: a ST-012 foi concluida com reforco de compensacao para falha de create/fallback (limpeza de `GoogleEventId` residual), padronizacao da descricao dos eventos com contexto de negocio, ampliacao de testes unitarios de sucesso/falha/idempotencia e novos testes de integracao com fake Google client para cenarios de create/update/delete.

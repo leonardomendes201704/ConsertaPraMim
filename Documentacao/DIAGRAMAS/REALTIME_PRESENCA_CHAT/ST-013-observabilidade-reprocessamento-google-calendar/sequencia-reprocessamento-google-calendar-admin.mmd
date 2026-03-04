@@ -1,0 +1,39 @@
+sequenceDiagram
+    participant Admin as Admin Portal
+    participant Api as AdminGoogleCalendarSyncController
+    participant Ops as GoogleCalendarSyncOperationsService
+    participant Repo as ServiceAppointmentCalendarSyncRepository
+    participant Worker as GoogleCalendarSyncRetryWorker
+    participant GCal as IGoogleCalendarService
+
+    Admin->>Api: GET /api/admin/google-calendar-sync/overview
+    Api->>Ops: GetOverviewAsync(fromUtc,toUtc)
+    Ops->>Repo: QueryForReprocessAsync(...)
+    Repo-->>Ops: itens de sync
+    Ops-->>Api: resumo por status e latencia
+    Api-->>Admin: 200 overview
+
+    Worker->>Ops: ProcessDueRetriesAsync(batchSize)
+    Ops->>Repo: GetRetryDueAsync(nowUtc,batchSize)
+    Repo-->>Ops: fila due
+    loop para cada item
+        Ops->>GCal: create update ou delete
+        alt sucesso
+            Ops->>Repo: UpdateAsync(Synced Deleted, limpar retry)
+        else falha retryable
+            Ops->>Repo: UpdateAsync(Failed, NextRetryAtUtc, RetryCount++)
+        else falha permanente
+            Ops->>Repo: UpdateAsync(DeadLetter, DeadLetterAtUtc, LastErrorCode)
+        end
+    end
+
+    Admin->>Api: POST /api/admin/google-calendar-sync/reprocess
+    Api->>Ops: ReprocessAsync(request)
+    Ops->>Repo: QueryForReprocessAsync(appointmentId intervalo status)
+    Repo-->>Ops: itens filtrados
+    loop para cada item
+        Ops->>GCal: create update ou delete
+        Ops->>Repo: UpdateAsync(resultado final)
+    end
+    Ops-->>Api: resultado item a item
+    Api-->>Admin: 200 reprocess

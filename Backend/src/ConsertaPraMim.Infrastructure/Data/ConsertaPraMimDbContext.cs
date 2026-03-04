@@ -1149,6 +1149,14 @@ public class ConsertaPraMimDbContext : DbContext
             .HasMaxLength(1200);
 
         modelBuilder.Entity<ServiceAppointmentCalendarSync>()
+            .Property(x => x.LastErrorCode)
+            .HasMaxLength(160);
+
+        modelBuilder.Entity<ServiceAppointmentCalendarSync>()
+            .Property(x => x.LastLatencyMs)
+            .HasPrecision(10, 2);
+
+        modelBuilder.Entity<ServiceAppointmentCalendarSync>()
             .HasIndex(x => x.AppointmentId)
             .IsUnique();
 
@@ -1161,11 +1169,17 @@ public class ConsertaPraMimDbContext : DbContext
             .HasIndex(x => new { x.SyncStatus, x.LastSyncAtUtc });
 
         modelBuilder.Entity<ServiceAppointmentCalendarSync>()
+            .HasIndex(x => new { x.SyncStatus, x.NextRetryAtUtc });
+
+        modelBuilder.Entity<ServiceAppointmentCalendarSync>()
             .ToTable(t =>
             {
                 t.HasCheckConstraint(
                     "CK_ServiceAppointmentCalendarSyncs_SyncStatus_Valid",
-                    "[SyncStatus] IN (1,2,3,4)");
+                    "[SyncStatus] IN (1,2,3,4,5)");
+                t.HasCheckConstraint(
+                    "CK_ServiceAppointmentCalendarSyncs_Retry_NonNegative",
+                    "[RetryCount] >= 0 AND [MaxRetryAttempts] > 0");
             });
 
         modelBuilder.Entity<ServiceScopeChangeRequest>()
