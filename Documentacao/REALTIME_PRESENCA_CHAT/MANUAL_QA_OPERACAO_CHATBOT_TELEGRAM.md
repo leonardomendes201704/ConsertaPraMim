@@ -40,7 +40,7 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
   - Bridge passou a pre-resolver CEP em `GET /api/service-requests/zip-resolution` antes da criacao para enriquecer rua/cidade/coordenadas e reduzir falha transiente na abertura.
   - Payload final usado na abertura e estado de triagem persistidos em snapshots/contexto conversacional para continuidade.
   - Confirmacao amigavel com resumo e protocolo do pedido enviada automaticamente ao cliente apos criacao com sucesso.
-- ST-008 em andamento:
+- ST-008 concluida:
   - Endpoint do chatbot para matching foi iniciado em `GET /api/telegram-chatbot/service-requests/{serviceRequestId}/eligible-providers`.
   - Matching considera categoria do pedido, cobertura geografica (raio/distancia), preferencia PF/PJ e status ativo do prestador.
   - Endpoint de agendamento em lote iniciado em `POST /api/telegram-chatbot/service-requests/{serviceRequestId}/schedule-visits-batch`.
@@ -210,3 +210,4 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
 - 2026-03-03: atualizacao da ST-008 com diagramas Mermaid de fluxo/sequencia, validacao documental e atualizacao de indices da trilha.
 - 2026-03-03: evolucao da ST-008 com parser de janela temporal em linguagem natural (dias/periodos/horarios) na bridge e cobertura de testes unitarios dedicada.
 - 2026-03-03: evolucao da ST-008 com integracao do orquestrador ao matching/agendamento em lote, persistencia de sugestoes/decisoes no historico conversacional e mensagens naturais de confirmacao/replanejamento.
+- 2026-03-03: encerramento da ST-008 com move da story para `DONE` e atualizacao do board da trilha realtime.

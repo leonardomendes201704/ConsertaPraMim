@@ -14,8 +14,6 @@
 
 ### In Progress
 
-- [ST-008 - Matching de prestadores e agendamento multi-visitas](STORIES/IN_PROGRESS/ST-008-matching-prestadores-e-agendamento-multi-visitas.md)
-
 ### Done
 
 - [ST-001 - Status operacional do prestador (Ausente, Online, EmAtendimento)](STORIES/DONE/ST-001-status-operacional-prestador.md)
@@ -25,6 +23,7 @@
 - [ST-005 - Login do cliente no Telegram Bridge e vinculacao de conversa](STORIES/DONE/ST-005-login-cliente-telegram-bridge-e-vinculo-conversa.md)
 - [ST-006 - Orquestrador OpenAI com contexto historico e linguagem humana](STORIES/DONE/ST-006-orquestrador-openai-contexto-historico-linguagem-humana.md)
 - [ST-007 - Triagem natural e abertura automatica de pedido](STORIES/DONE/ST-007-triagem-natural-e-abertura-automatica-de-pedido.md)
+- [ST-008 - Matching de prestadores e agendamento multi-visitas](STORIES/DONE/ST-008-matching-prestadores-e-agendamento-multi-visitas.md)
 
 ## Manual QA/Operacao
 

@@ -114,6 +114,12 @@
 
 ## Released
 
+- [2026-03-03] [ST-008] Story encerrada e movida para DONE no board realtime
+- Tipo: docs
+- Resumo: concluida a ST-008 com todas as tasks finalizadas, incluindo parser natural, matching e agendamento multi-visitas; story movida para `STORIES/DONE` e indices/manuais da trilha atualizados.
+- Arquivos principais: `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/DONE/ST-008-matching-prestadores-e-agendamento-multi-visitas.md`, `Documentacao/REALTIME_PRESENCA_CHAT/INDEX.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md`
+- Risco/Impacto: baixo
+
 - [2026-03-03] [ST-008] Orquestracao de matching + agendamento natural no Telegram Bridge
 - Tipo: feat
 - Resumo: integrado o fluxo ST-008 no `TelegramChatbotOrchestrator` para, apos criacao de pedido ou solicitacao do cliente, consultar prestadores elegiveis, interpretar janelas em linguagem natural, executar `schedule-visits-batch`, persistir sugestoes/decisoes em `context-snapshots/actions` e responder em linguagem humana com cenarios de sucesso total, parcial ou replanejamento.
