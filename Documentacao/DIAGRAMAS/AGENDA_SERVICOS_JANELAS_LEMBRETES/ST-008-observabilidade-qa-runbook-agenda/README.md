@@ -12,6 +12,7 @@ Diagramas Mermaid da evolucao de observabilidade da agenda, com foco em KPIs ope
 - Sequencia (runbook suporte/rollback): `sequencia-runbook-suporte-rollback-agenda.mmd`
 - Fluxo (manual admin/qa): `fluxo-manual-admin-qa-agenda.mmd`
 - Sequencia (rollout gradual): `sequencia-rollout-gradual-agenda.mmd`
+- Sequencia (consulta publica slots 15 dias): `sequencia-consulta-publica-slots-15-dias.mmd`
 
 Origem funcional:
 

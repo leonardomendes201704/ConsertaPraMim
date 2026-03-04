@@ -316,6 +316,15 @@ public static class ApiEndpointDocumentationCatalog
                 ExpectedOutcome: "Resumo por grupo (`control`/`variant`) com taxa de conversao e volume de eventos.");
         }
 
+        if (path.Contains("/api/service-appointments/public/providers/slots/next-15-days", StringComparison.Ordinal) &&
+            httpMethod == "GET")
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Expor vitrine publica de disponibilidade dos prestadores para facilitar descoberta de agenda antes da autenticacao.",
+                Scenario: "Portal/cliente consulta em uma unica chamada os slots livres dos proximos 15 dias para todos os prestadores ativos, considerando regras, bloqueios e conflitos ja reservados.",
+                ExpectedOutcome: "Resposta consolidada por prestador com janela UTC (`fromUtc`/`toUtc`) e lista ordenada de horarios disponiveis para agendamento.");
+        }
+
         if (path.Contains("/slots", StringComparison.Ordinal))
         {
             return new OperationNarrativeContext(
