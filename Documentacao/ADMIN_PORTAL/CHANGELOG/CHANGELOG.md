@@ -114,6 +114,12 @@
 
 ## Released
 
+- [2026-03-03] [ST-008] Parser de linguagem natural para janela de agendamento no chatbot Telegram
+- Tipo: feat
+- Resumo: implementado parser dedicado na bridge para interpretar pedido de agenda em linguagem natural (dias da semana, periodo manha/tarde/noite e horario explicito), convertendo para janelas UTC e retornando erros orientados quando faltar dia/periodo ou houver dias insuficientes para a quantidade solicitada.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramSchedulingNaturalLanguageParser.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Models/TelegramSchedulingModels.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramSchedulingNaturalLanguageParserTests.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-008-matching-prestadores-e-agendamento-multi-visitas.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md`
+- Risco/Impacto: medio
+
 - [2026-03-03] [ST-008] Agendamento em lote de visitas (ate 3) para o chatbot Telegram
 - Tipo: feat
 - Resumo: evoluido o fluxo ST-008 com endpoint `POST /api/telegram-chatbot/service-requests/{serviceRequestId}/schedule-visits-batch`, incluindo validacoes de ownership do cliente, limite de ate 3 visitas, bloqueio de dias duplicados e retorno consolidado por visita para suporte a replanejamento conversacional.

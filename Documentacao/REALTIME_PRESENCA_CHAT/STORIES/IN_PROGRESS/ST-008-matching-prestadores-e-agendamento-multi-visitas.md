@@ -20,7 +20,7 @@ Depois da abertura do pedido, listar prestadores elegiveis da area e permitir ag
 
 - [x] Criar endpoint/servico na API para listar prestadores elegiveis por pedido e cobertura.
 - [x] Criar endpoint/servico de agendamento em lote (ate 3 visitas) com validacao de regras.
-- [ ] Implementar parser de janela temporal em linguagem natural para datas/periodos.
+- [x] Implementar parser de janela temporal em linguagem natural para datas/periodos.
 - [x] Implementar regra de limite de 3 visitas em dias distintos e feedback de violacao.
 - [ ] Persistir no contexto conversacional as opcoes sugeridas e decisoes do cliente.
 - [ ] Implementar respostas naturais de confirmacao, indisponibilidade e replanejamento.
