@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
@@ -324,6 +325,136 @@ public class TelegramChatbotControllerSqliteIntegrationTests
         }
     }
 
+    /// <summary>
+    /// Cenario: cliente agenda visita em lote e o fluxo deve sincronizar create no Google Calendar.
+    /// Passos: prepara pedido/prestador elegiveis, executa endpoint batch e usa fake do Google para create.
+    /// Resultado esperado: agendamento criado, fake chamado uma vez e trilha `ServiceAppointmentCalendarSync` persistida como Synced.
+    /// </summary>
+    [Fact(DisplayName = "Telegram chatbot controller sqlite integracao | Schedule batch | Deve criar sync synced quando Google create succeed")]
+    public async Task ScheduleVisitsBatch_ShouldPersistCalendarSyncAsSynced_WhenGoogleCreateSucceeds()
+    {
+        var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();
+        using (connection)
+        await using (context)
+        {
+            var clientId = Guid.NewGuid();
+            var providerId = Guid.NewGuid();
+            var requestId = Guid.NewGuid();
+            await SeedClientAsync(context, clientId);
+            await SeedProviderAsync(context, providerId);
+
+            var serviceRequest = new ServiceRequest
+            {
+                Id = requestId,
+                ClientId = clientId,
+                Category = ServiceCategory.Plumbing,
+                Status = ServiceRequestStatus.Created,
+                Description = "Vazamento na cozinha",
+                AddressStreet = "Rua Integracao 100",
+                AddressCity = "Praia Grande",
+                AddressZip = "11704150",
+                Latitude = -24.01,
+                Longitude = -46.41
+            };
+            context.ServiceRequests.Add(serviceRequest);
+
+            var providerProfile = new ProviderProfile
+            {
+                UserId = providerId,
+                BaseLatitude = -24.011,
+                BaseLongitude = -46.412,
+                RadiusKm = 10,
+                Categories = [ServiceCategory.Plumbing]
+            };
+            context.ProviderProfiles.Add(providerProfile);
+
+            var windowStartUtc = DateTime.UtcNow.Date.AddDays(3).AddHours(14);
+            var windowEndUtc = windowStartUtc.AddHours(1);
+            context.ProviderAvailabilityRules.Add(new ProviderAvailabilityRule
+            {
+                ProviderId = providerId,
+                DayOfWeek = windowStartUtc.DayOfWeek,
+                StartTime = TimeSpan.FromHours(8),
+                EndTime = TimeSpan.FromHours(22),
+                SlotDurationMinutes = 30,
+                IsActive = true
+            });
+
+            await context.SaveChangesAsync();
+
+            var googleCalendarServiceMock = new Mock<IGoogleCalendarService>();
+            googleCalendarServiceMock
+                .Setup(service => service.CreateEventAsync(
+                    It.IsAny<GoogleCalendarUpsertRequest>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new GoogleCalendarUpsertResult(
+                    Success: true,
+                    EventId: "evt-int-create-001"));
+
+            var appointmentService = BuildRealAppointmentService(context, googleCalendarServiceMock.Object);
+            var schedulingService = new TelegramChatbotSchedulingService(
+                new ServiceRequestRepository(context),
+                new UserRepository(context),
+                new ProposalRepository(context),
+                new ServiceAppointmentRepository(context),
+                new ServiceAppointmentCalendarSyncRepository(context),
+                appointmentService,
+                googleCalendarServiceMock.Object,
+                NullLogger<TelegramChatbotSchedulingService>.Instance);
+
+            var conversationRepository = new ChatbotConversationRepository(context);
+            var conversationService = new TelegramChatbotConversationService(conversationRepository);
+
+            var controller = new TelegramChatbotController(conversationService, schedulingService)
+            {
+                ControllerContext = BuildClientControllerContext(clientId)
+            };
+
+            var response = await controller.ScheduleVisitsBatch(
+                requestId,
+                new TelegramChatbotBatchScheduleVisitsRequest
+                {
+                    Visits =
+                    [
+                        new TelegramChatbotBatchScheduleVisitRequestItem
+                        {
+                            ProviderId = providerId,
+                            WindowStartUtc = windowStartUtc,
+                            WindowEndUtc = windowEndUtc,
+                            Reason = "Agendamento via chatbot"
+                        }
+                    ]
+                });
+
+            var ok = Assert.IsType<OkObjectResult>(response);
+            var payload = Assert.IsType<TelegramChatbotBatchScheduleResultDto>(ok.Value);
+            Assert.True(payload.Success);
+            Assert.Single(payload.Results);
+            Assert.True(payload.Results[0].Success);
+            Assert.NotNull(payload.Results[0].AppointmentId);
+
+            googleCalendarServiceMock.Verify(
+                service => service.CreateEventAsync(
+                    It.Is<GoogleCalendarUpsertRequest>(request =>
+                        request.IdempotencyKey != null &&
+                        request.Description != null &&
+                        request.Description.Contains("Protocolo:", StringComparison.OrdinalIgnoreCase)),
+                    It.IsAny<CancellationToken>()),
+                Times.Once);
+
+            var appointmentId = payload.Results[0].AppointmentId!.Value;
+            var sync = await context.ServiceAppointmentCalendarSyncs
+                .AsNoTracking()
+                .FirstOrDefaultAsync(item => item.AppointmentId == appointmentId);
+
+            Assert.NotNull(sync);
+            Assert.Equal(ServiceAppointmentCalendarSyncStatus.Synced, sync!.SyncStatus);
+            Assert.Equal("evt-int-create-001", sync.GoogleEventId);
+            Assert.NotNull(sync.LastSyncAtUtc);
+            Assert.Null(sync.Error);
+        }
+    }
+
     private static ControllerContext BuildClientControllerContext(Guid clientId)
     {
         var identity = new ClaimsIdentity(
@@ -341,6 +472,31 @@ public class TelegramChatbotControllerSqliteIntegrationTests
                 User = new ClaimsPrincipal(identity)
             }
         };
+    }
+
+    private static ServiceAppointmentService BuildRealAppointmentService(
+        ConsertaPraMim.Infrastructure.Data.ConsertaPraMimDbContext context,
+        IGoogleCalendarService googleCalendarService)
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ServiceAppointments:ConfirmationExpiryHours"] = "12",
+                ["ServiceAppointments:CancelMinimumHoursBeforeWindow"] = "2",
+                ["ServiceAppointments:RescheduleMinimumHoursBeforeWindow"] = "2",
+                ["ServiceAppointments:RescheduleMaximumAdvanceDays"] = "30",
+                ["ServiceAppointments:AvailabilityTimeZoneId"] = "UTC"
+            })
+            .Build();
+
+        return new ServiceAppointmentService(
+            new ServiceAppointmentRepository(context),
+            new ServiceRequestRepository(context),
+            new UserRepository(context),
+            new NoOpNotificationService(),
+            configuration,
+            serviceAppointmentCalendarSyncRepository: new ServiceAppointmentCalendarSyncRepository(context),
+            googleCalendarService: googleCalendarService);
     }
 
     private static TelegramChatbotController BuildControllerWithScheduling(
@@ -408,5 +564,23 @@ public class TelegramChatbotControllerSqliteIntegrationTests
         });
 
         await context.SaveChangesAsync();
+    }
+
+    private sealed class NoOpNotificationService : INotificationService
+    {
+        public Task SendNotificationAsync(string recipient, string subject, string message, string? actionUrl = null)
+        {
+            return SendNotificationAsync(recipient, subject, message, actionUrl, data: null);
+        }
+
+        public Task SendNotificationAsync(
+            string recipient,
+            string subject,
+            string message,
+            string? actionUrl,
+            IReadOnlyDictionary<string, string>? data)
+        {
+            return Task.CompletedTask;
+        }
     }
 }

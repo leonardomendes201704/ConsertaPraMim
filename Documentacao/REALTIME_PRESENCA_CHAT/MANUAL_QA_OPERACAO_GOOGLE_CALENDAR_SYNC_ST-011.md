@@ -164,3 +164,61 @@ Checklist operacional:
 - [ ] QA-GCAL-012-302: validar transicao do sync para `Deleted` apos delete bem-sucedido.
 - [ ] QA-GCAL-012-303: simular falha de delete e validar `SyncStatus=Failed` + `Error` preenchido.
 - [ ] QA-GCAL-012-304: cancelar agendamento sem registro previo de sync e validar criacao de `ServiceAppointmentCalendarSync` com `Deleted`.
+
+## 13. Evolucao ST-012 (Task 6)
+
+Compensacao no fluxo de create/fallback:
+
+- Se create no Google falhar (create inicial ou fallback apos `google_calendar_event_not_found`), o sync deve ficar em `Failed`.
+- Nao e permitido manter `GoogleEventId` residual de tentativa anterior nesse cenario de falha de create/fallback.
+- O erro deve ser persistido em `Error` para reprocessamento posterior.
+
+Checklist operacional:
+
+- [ ] QA-GCAL-012-401: simular falha de create inicial e validar `SyncStatus=Failed`, `GoogleEventId=null`, `Error` preenchido.
+- [ ] QA-GCAL-012-402: simular update `event_not_found` + falha no fallback create e validar limpeza de `GoogleEventId`.
+
+## 14. Evolucao ST-012 (Task 7)
+
+Descricao padronizada de negocio no evento Google Calendar:
+
+- Campos minimos no `Description`:
+  - `Protocolo`
+  - `Pedido`
+  - `Agendamento`
+  - `Cliente`
+  - `Prestador`
+  - `Categoria`
+  - `Endereco`
+  - `Motivo`
+
+Checklist operacional:
+
+- [ ] QA-GCAL-012-501: validar descricao no evento criado via chatbot contendo todos os campos de negocio.
+- [ ] QA-GCAL-012-502: validar descricao no evento atualizado por reagendamento mantendo o mesmo padrao.
+
+## 15. Evolucao ST-012 (Task 8)
+
+Cobertura unitaria adicional da sincronizacao:
+
+- Idempotencia por `IdempotencyKey` em create.
+- Falha de create com compensacao (`Failed` + limpeza de `GoogleEventId`).
+- Payload com descricao de negocio validado via asserts de conteudo.
+
+Checklist operacional:
+
+- [ ] QA-GCAL-012-601: executar testes unitarios focados de sync e validar green para sucesso/falha/idempotencia.
+
+## 16. Evolucao ST-012 (Task 9)
+
+Cobertura de integracao com cliente fake Google Calendar:
+
+- `create`: batch de agendamento via chatbot gerando sync `Synced`.
+- `update`: aceite de reagendamento chamando update no fake.
+- `delete`: cancelamento chamando delete no fake e finalizando em `Deleted`.
+
+Checklist operacional:
+
+- [ ] QA-GCAL-012-701: fluxo de create em integracao com fake calendar.
+- [ ] QA-GCAL-012-702: fluxo de update em integracao com fake calendar.
+- [ ] QA-GCAL-012-703: fluxo de delete em integracao com fake calendar.

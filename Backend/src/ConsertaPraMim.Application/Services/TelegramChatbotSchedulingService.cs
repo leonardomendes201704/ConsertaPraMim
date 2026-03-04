@@ -575,7 +575,7 @@ public sealed class TelegramChatbotSchedulingService : ITelegramChatbotSchedulin
                     Title: BuildCalendarEventTitle(protocol),
                     StartsAtUtc: NormalizeToUtc(appointment.WindowStartUtc),
                     EndsAtUtc: NormalizeToUtc(appointment.WindowEndUtc),
-                    Description: BuildCalendarEventDescription(protocol, appointment),
+                    Description: BuildCalendarEventDescription(protocol, serviceRequest, appointment),
                     Location: BuildCalendarEventLocation(serviceRequest),
                     Metadata: BuildCalendarMetadata(protocol, appointment),
                     IdempotencyKey: BuildCalendarEventIdempotencyKey(appointment.Id)));
@@ -618,6 +618,8 @@ public sealed class TelegramChatbotSchedulingService : ITelegramChatbotSchedulin
     {
         sync.SyncStatus = ServiceAppointmentCalendarSyncStatus.Failed;
         sync.LastSyncAtUtc = DateTime.UtcNow;
+        // Create falhou: nao manter eventId residual para evitar falso positivo de sincronizacao.
+        sync.GoogleEventId = null;
         sync.Error = TruncateError(ComposeSyncError(errorCode, errorMessage));
         await _serviceAppointmentCalendarSyncRepository.UpdateAsync(sync);
     }
@@ -641,13 +643,36 @@ public sealed class TelegramChatbotSchedulingService : ITelegramChatbotSchedulin
         return $"ConsertaPraMim - Visita #{protocol}";
     }
 
-    private static string BuildCalendarEventDescription(string protocol, ServiceAppointmentDto appointment)
+    private static string BuildCalendarEventDescription(
+        string protocol,
+        ServiceRequest serviceRequest,
+        ServiceAppointmentDto appointment)
     {
         var reason = string.IsNullOrWhiteSpace(appointment.Reason)
             ? "Agendamento gerado pelo fluxo do chatbot."
             : appointment.Reason.Trim();
 
-        return $"Protocolo #{protocol}. {reason}";
+        var clientDisplay = string.IsNullOrWhiteSpace(serviceRequest.Client?.Name)
+            ? appointment.ClientId.ToString("N")
+            : $"{serviceRequest.Client!.Name.Trim()} ({appointment.ClientId:N})";
+
+        var providerDisplay = appointment.ProviderId.ToString("N");
+
+        var categoryDisplay = ResolveCategoryDisplay(serviceRequest);
+        var addressDisplay = BuildCalendarEventLocation(serviceRequest) ?? "Nao informado";
+
+        return string.Join(
+            Environment.NewLine,
+            [
+                $"Protocolo: #{protocol}",
+                $"Pedido: {appointment.ServiceRequestId:N}",
+                $"Agendamento: {appointment.Id:N}",
+                $"Cliente: {clientDisplay}",
+                $"Prestador: {providerDisplay}",
+                $"Categoria: {categoryDisplay}",
+                $"Endereco: {addressDisplay}",
+                $"Motivo: {reason}"
+            ]);
     }
 
     private static string? BuildCalendarEventLocation(ServiceRequest serviceRequest)

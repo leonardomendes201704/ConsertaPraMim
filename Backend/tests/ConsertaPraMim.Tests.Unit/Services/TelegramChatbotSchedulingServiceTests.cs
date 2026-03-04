@@ -520,6 +520,11 @@ public class TelegramChatbotSchedulingServiceTests
             service => service.CreateEventAsync(
                 It.Is<GoogleCalendarUpsertRequest>(payload =>
                     payload.IdempotencyKey == $"cpm-apt-{appointmentId:N}" &&
+                    payload.Description != null &&
+                    payload.Description.Contains("Protocolo:", StringComparison.OrdinalIgnoreCase) &&
+                    payload.Description.Contains("Cliente:", StringComparison.OrdinalIgnoreCase) &&
+                    payload.Description.Contains("Prestador:", StringComparison.OrdinalIgnoreCase) &&
+                    payload.Description.Contains("Endereco:", StringComparison.OrdinalIgnoreCase) &&
                     payload.Metadata != null &&
                     payload.Metadata.ContainsKey("appointment_id") &&
                     payload.Metadata["appointment_id"] == appointmentId.ToString("N")),
@@ -748,6 +753,109 @@ public class TelegramChatbotSchedulingServiceTests
                 sync.Error != null &&
                 sync.Error.Contains("google_calendar_create_failed", StringComparison.OrdinalIgnoreCase))),
             Times.Once);
+    }
+
+    [Fact(DisplayName = "Telegram scheduling | Batch | Deve limpar googleEventId residual quando create no Google falhar")]
+    public async Task ScheduleVisitsAsync_ShouldClearResidualGoogleEventId_WhenGoogleCreateFails()
+    {
+        var clientId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var providerId = Guid.NewGuid();
+        var appointmentId = Guid.NewGuid();
+
+        var serviceRequest = new ServiceRequest
+        {
+            Id = requestId,
+            ClientId = clientId,
+            Status = ServiceRequestStatus.Created,
+            Category = ServiceCategory.Appliances,
+            Latitude = -23.5505,
+            Longitude = -46.6333,
+            Client = new User
+            {
+                Id = clientId,
+                ClientProfileType = ClientProfileType.Pf
+            }
+        };
+
+        var requestRepositoryMock = new Mock<IServiceRequestRepository>();
+        requestRepositoryMock
+            .Setup(repository => repository.GetByIdAsync(requestId))
+            .ReturnsAsync(serviceRequest);
+
+        var userRepositoryMock = new Mock<IUserRepository>();
+        userRepositoryMock
+            .Setup(repository => repository.GetAllAsync())
+            .ReturnsAsync([BuildProvider(
+                name: "Prestador",
+                latitude: -23.5510,
+                longitude: -46.6330,
+                radiusKm: 10,
+                categories: [ServiceCategory.Appliances],
+                rating: 4.8,
+                reviewCount: 20,
+                providerId: providerId)]);
+
+        var existingSync = new ServiceAppointmentCalendarSync
+        {
+            AppointmentId = appointmentId,
+            GoogleEventId = "evt-obsoleto",
+            SyncStatus = ServiceAppointmentCalendarSyncStatus.Failed,
+            Error = "stale"
+        };
+
+        var calendarSyncRepositoryMock = new Mock<IServiceAppointmentCalendarSyncRepository>();
+        calendarSyncRepositoryMock
+            .Setup(repository => repository.GetByAppointmentIdAsync(appointmentId))
+            .ReturnsAsync(existingSync);
+
+        var service = BuildService(
+            requestRepositoryMock,
+            userRepositoryMock,
+            out _,
+            out var appointmentServiceMock,
+            out var googleCalendarServiceMock,
+            customCalendarSyncRepositoryMock: calendarSyncRepositoryMock);
+
+        appointmentServiceMock
+            .Setup(appointments => appointments.CreateAsync(
+                clientId,
+                "Client",
+                It.IsAny<CreateServiceAppointmentRequestDto>()))
+            .ReturnsAsync(new ServiceAppointmentOperationResultDto(
+                Success: true,
+                Appointment: BuildAppointmentDto(appointmentId, requestId, clientId, providerId)));
+
+        googleCalendarServiceMock
+            .Setup(service => service.CreateEventAsync(
+                It.IsAny<GoogleCalendarUpsertRequest>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new GoogleCalendarUpsertResult(
+                Success: false,
+                ErrorCode: "google_calendar_create_failed",
+                ErrorMessage: "Falha no Google."));
+
+        var request = new TelegramChatbotBatchScheduleRequestDto(
+            ClientId: clientId,
+            ServiceRequestId: requestId,
+            Visits:
+            [
+                BuildVisitRequest(
+                    providerId,
+                    DateTime.UtcNow.Date.AddDays(3).AddHours(9),
+                    DateTime.UtcNow.Date.AddDays(3).AddHours(11))
+            ]);
+
+        var result = await service.ScheduleVisitsAsync(request);
+
+        Assert.True(result.Success);
+        calendarSyncRepositoryMock.Verify(
+            repository => repository.UpdateAsync(It.IsAny<ServiceAppointmentCalendarSync>()),
+            Times.Exactly(2));
+        Assert.Equal(ServiceAppointmentCalendarSyncStatus.Failed, existingSync.SyncStatus);
+        Assert.Null(existingSync.GoogleEventId);
+        Assert.NotNull(existingSync.Error);
+        Assert.Contains("google_calendar_create_failed", existingSync.Error, StringComparison.OrdinalIgnoreCase);
     }
 
     private static TelegramChatbotSchedulingService BuildService(

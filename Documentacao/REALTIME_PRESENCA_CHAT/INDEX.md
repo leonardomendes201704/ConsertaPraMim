@@ -14,7 +14,7 @@
 
 ### In Progress
 
-- [ST-012 - Sincronizacao automatica de agendamento com Google Calendar](STORIES/IN_PROGRESS/ST-012-sync-automatica-agendamento-google-calendar.md)
+- (sem itens no momento)
 
 ### Done
 
@@ -29,6 +29,7 @@
 - [ST-009 - Consulta natural de status, pedidos e agenda](STORIES/DONE/ST-009-consulta-natural-de-status-pedidos-e-agenda.md)
 - [ST-010 - Guardrails, observabilidade, QA e rollout do chatbot](STORIES/DONE/ST-010-guardrails-observabilidade-qa-e-rollout-chatbot.md)
 - [ST-011 - Fundacao Google Calendar com Service Account e calendario unico](STORIES/DONE/ST-011-fundacao-google-calendar-service-account-calendario-unico.md)
+- [ST-012 - Sincronizacao automatica de agendamento com Google Calendar](STORIES/DONE/ST-012-sync-automatica-agendamento-google-calendar.md)
 
 ## Manual QA/Operacao
 

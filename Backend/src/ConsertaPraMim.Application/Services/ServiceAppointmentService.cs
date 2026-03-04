@@ -5709,6 +5709,7 @@ public class ServiceAppointmentService : IServiceAppointmentService
         }
 
         ServiceAppointmentCalendarSync? sync = null;
+        var clearGoogleEventIdOnFailure = false;
         try
         {
             var syncRepository = _serviceAppointmentCalendarSyncRepository;
@@ -5744,15 +5745,17 @@ public class ServiceAppointmentService : IServiceAppointmentService
                         "google_calendar_event_not_found",
                         StringComparison.OrdinalIgnoreCase))
                 {
+                    clearGoogleEventIdOnFailure = true;
                     upsertResult = await calendarService.CreateEventAsync(payload);
                 }
             }
             else
             {
+                clearGoogleEventIdOnFailure = true;
                 upsertResult = await calendarService.CreateEventAsync(payload);
             }
 
-            await ApplyCalendarSyncUpsertResultAsync(sync, upsertResult);
+            await ApplyCalendarSyncUpsertResultAsync(sync, upsertResult, clearGoogleEventIdOnFailure);
         }
         catch (Exception ex)
         {
@@ -5765,6 +5768,12 @@ public class ServiceAppointmentService : IServiceAppointmentService
             {
                 sync.SyncStatus = ServiceAppointmentCalendarSyncStatus.Failed;
                 sync.LastSyncAtUtc = DateTime.UtcNow;
+                if (clearGoogleEventIdOnFailure)
+                {
+                    // Quando o fluxo de create/fallback falha, nao manter eventId obsoleto.
+                    sync.GoogleEventId = null;
+                }
+
                 sync.Error = TruncateCalendarSyncError(
                     ComposeCalendarSyncError(
                         "google_calendar_unexpected_error",
@@ -5780,7 +5789,8 @@ public class ServiceAppointmentService : IServiceAppointmentService
 
     private async Task ApplyCalendarSyncUpsertResultAsync(
         ServiceAppointmentCalendarSync sync,
-        GoogleCalendarUpsertResult upsertResult)
+        GoogleCalendarUpsertResult upsertResult,
+        bool clearGoogleEventIdOnFailure = false)
     {
         if (_serviceAppointmentCalendarSyncRepository is null)
         {
@@ -5803,6 +5813,11 @@ public class ServiceAppointmentService : IServiceAppointmentService
 
         sync.SyncStatus = ServiceAppointmentCalendarSyncStatus.Failed;
         sync.LastSyncAtUtc = DateTime.UtcNow;
+        if (clearGoogleEventIdOnFailure)
+        {
+            sync.GoogleEventId = null;
+        }
+
         sync.Error = TruncateCalendarSyncError(
             ComposeCalendarSyncError(
                 upsertResult.ErrorCode,
@@ -5815,12 +5830,18 @@ public class ServiceAppointmentService : IServiceAppointmentService
         var serviceRequest = appointment.ServiceRequest ??
                              await _serviceRequestRepository.GetByIdAsync(appointment.ServiceRequestId);
         var protocol = BuildCalendarProtocol(appointment.ServiceRequestId);
+        var client = serviceRequest?.Client ?? await _userRepository.GetByIdAsync(appointment.ClientId);
+        var provider = serviceRequest?.Appointments
+            ?.Where(item => item.ProviderId == appointment.ProviderId)
+            .Select(item => item.Provider)
+            .FirstOrDefault(item => item != null) ??
+            await _userRepository.GetByIdAsync(appointment.ProviderId);
 
         return new GoogleCalendarUpsertRequest(
             Title: $"ConsertaPraMim - Visita #{protocol}",
             StartsAtUtc: NormalizeToUtc(appointment.WindowStartUtc),
             EndsAtUtc: NormalizeToUtc(appointment.WindowEndUtc),
-            Description: BuildCalendarDescription(protocol, appointment),
+            Description: BuildCalendarDescription(protocol, appointment, serviceRequest, client, provider),
             Location: BuildCalendarLocation(serviceRequest),
             Metadata: BuildCalendarMetadata(protocol, appointment),
             IdempotencyKey: BuildCalendarEventIdempotencyKey(appointment.Id));
@@ -5841,12 +5862,59 @@ public class ServiceAppointmentService : IServiceAppointmentService
         };
     }
 
-    private static string BuildCalendarDescription(string protocol, ServiceAppointment appointment)
+    private static string BuildCalendarDescription(
+        string protocol,
+        ServiceAppointment appointment,
+        ServiceRequest? serviceRequest,
+        User? client,
+        User? provider)
     {
         var reason = string.IsNullOrWhiteSpace(appointment.Reason)
             ? "Agendamento atualizado automaticamente pelo sistema."
             : appointment.Reason.Trim();
-        return $"Protocolo #{protocol}. {reason}";
+
+        var clientDisplay = BuildCalendarPartyDisplay(client, appointment.ClientId);
+        var providerDisplay = BuildCalendarPartyDisplay(provider, appointment.ProviderId);
+        var categoryDisplay = BuildCalendarCategoryDisplay(serviceRequest);
+        var addressDisplay = BuildCalendarLocation(serviceRequest) ?? "Nao informado";
+
+        return string.Join(
+            Environment.NewLine,
+            [
+                $"Protocolo: #{protocol}",
+                $"Pedido: {appointment.ServiceRequestId:N}",
+                $"Agendamento: {appointment.Id:N}",
+                $"Cliente: {clientDisplay}",
+                $"Prestador: {providerDisplay}",
+                $"Categoria: {categoryDisplay}",
+                $"Endereco: {addressDisplay}",
+                $"Motivo: {reason}"
+            ]);
+    }
+
+    private static string BuildCalendarPartyDisplay(User? user, Guid userId)
+    {
+        if (!string.IsNullOrWhiteSpace(user?.Name))
+        {
+            return $"{user!.Name.Trim()} ({userId:N})";
+        }
+
+        return userId.ToString("N");
+    }
+
+    private static string BuildCalendarCategoryDisplay(ServiceRequest? serviceRequest)
+    {
+        if (serviceRequest == null)
+        {
+            return "Nao informado";
+        }
+
+        if (!string.IsNullOrWhiteSpace(serviceRequest.CategoryDefinition?.Name))
+        {
+            return serviceRequest.CategoryDefinition!.Name.Trim();
+        }
+
+        return serviceRequest.Category.ToString();
     }
 
     private static string? BuildCalendarLocation(ServiceRequest? serviceRequest)

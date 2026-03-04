@@ -10,6 +10,12 @@
 
 ## Released
 
+- [2026-03-04] [ST-012] Fechamento da sincronizacao Google Calendar com compensacao, descricao de negocio e cobertura de testes
+- Tipo: feat
+- Resumo: a ST-012 foi concluida com reforco de compensacao para falha de create/fallback (limpeza de `GoogleEventId` residual), padronizacao da descricao dos eventos com contexto de negocio, ampliacao de testes unitarios de sucesso/falha/idempotencia e novos testes de integracao com fake Google client para cenarios de create/update/delete.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/Services/TelegramChatbotSchedulingService.cs`, `Backend/src/ConsertaPraMim.Application/Services/ServiceAppointmentService.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramChatbotSchedulingServiceTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/ServiceAppointmentServiceTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Integration/Controllers/TelegramChatbotControllerSqliteIntegrationTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Integration/Services/ServiceAppointmentServiceSqliteIntegrationTests.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/DONE/ST-012-sync-automatica-agendamento-google-calendar.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_GOOGLE_CALENDAR_SYNC_ST-011.md`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-012-sync-agendamento-google-calendar/fluxo-sync-agendamento-google-calendar.mmd`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-012-sync-agendamento-google-calendar/sequencia-sync-agendamento-google-calendar.mmd`
+- Risco/Impacto: medio
+
 - [2026-03-03] [WEB-CLIENT][PAYMENTS] Correcao de timezone na exibicao de atualizacao de pagamento
 - Tipo: fix
 - Resumo: a tela `ServiceRequests/Details` do portal cliente passou a interpretar timestamps de pagamento como UTC de forma explicita e exibir datas/horarios no fuso de negocio `America/Sao_Paulo`, eliminando desvio de `+3h/-3h` na linha `Metodo: PIX · Atualizado`.

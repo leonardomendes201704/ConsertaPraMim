@@ -1,6 +1,6 @@
 # ST-012 - Sincronizacao automatica de agendamento com Google Calendar
 
-Status: In Progress  
+Status: Done  
 Epic: EPIC-003
 
 ## Objetivo
@@ -22,10 +22,10 @@ Garantir que agendamentos confirmados, atualizados e cancelados no sistema sejam
 - [x] Implementar fluxo `create event` com chave idempotente por `appointmentId`.
 - [x] Implementar fluxo `update event` para mudancas de data/horario/prestador.
 - [x] Implementar fluxo `delete event` no cancelamento do agendamento.
-- [ ] Garantir compensacao: se create no Google falhar, nao marcar agendamento como sincronizado.
-- [ ] Padronizar descricao do evento com dados de negocio (cliente, prestador, protocolo, endereco resumido).
-- [ ] Criar testes unitarios para service de sincronizacao (success/failure/idempotencia).
-- [ ] Criar testes de integracao com client fake para cenarios de create/update/delete.
+- [x] Garantir compensacao: se create no Google falhar, nao marcar agendamento como sincronizado.
+- [x] Padronizar descricao do evento com dados de negocio (cliente, prestador, protocolo, endereco resumido).
+- [x] Criar testes unitarios para service de sincronizacao (success/failure/idempotencia).
+- [x] Criar testes de integracao com client fake para cenarios de create/update/delete.
 
 ## Progresso atual
 
@@ -43,3 +43,7 @@ Garantir que agendamentos confirmados, atualizados e cancelados no sistema sejam
 - `ServiceAppointmentService.CancelAsync` passou a sincronizar `delete event` no Google Calendar apos cancelamento local bem-sucedido.
 - Se houver `GoogleEventId`, a API chama `DeleteEventAsync`; em sucesso, sync fica `Deleted`; em falha, sync fica `Failed` com trilha de erro.
 - Se nao houver registro de sync previo para o `AppointmentId`, o fluxo cria `ServiceAppointmentCalendarSync` diretamente com `Deleted` para rastreabilidade.
+- Compensacao reforcada para fluxo de create/fallback: quando create falha, o sync fica `Failed` sem manter `GoogleEventId` residual.
+- Descricao do evento no Google Calendar padronizada com dados de negocio: protocolo, ids de pedido/agendamento, cliente, prestador, categoria, endereco resumido e motivo.
+- Cobertura unitaria expandida para validar idempotencia, compensacao de falha com limpeza de `GoogleEventId` e payload descritivo completo.
+- Cobertura de integracao adicionada com fake de Google Calendar para cenarios de create (batch Telegram), update (aceite de reagendamento) e delete (cancelamento).
