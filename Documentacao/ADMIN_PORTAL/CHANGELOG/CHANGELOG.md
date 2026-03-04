@@ -114,6 +114,12 @@
 
 ## Released
 
+- [2026-03-04] [ST-012] Create de evento Google Calendar com idempotencia por appointmentId
+- Tipo: feat
+- Resumo: o fluxo de agendamento do chatbot passou a executar `CreateEventAsync` no Google Calendar apos persistencia local, usando chave idempotente `cpm-apt-{appointmentId}`; em sucesso o sync e marcado como `Synced` com `GoogleEventId`, e em falha e marcado como `Failed` com trilha de erro para reprocessamento sem bloquear o agendamento local.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/Services/TelegramChatbotSchedulingService.cs`, `Backend/src/ConsertaPraMim.Application/Interfaces/IGoogleCalendarService.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Services/GoogleCalendarService.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramChatbotSchedulingServiceTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/GoogleCalendarServiceTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Integration/Controllers/TelegramChatbotControllerSqliteIntegrationTests.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-012-sync-automatica-agendamento-google-calendar.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_GOOGLE_CALENDAR_SYNC_ST-011.md`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-012-sync-agendamento-google-calendar/sequencia-sync-agendamento-google-calendar.mmd`
+- Risco/Impacto: medio
+
 - [2026-03-04] [ST-012] Orquestracao de agendamento marcada para sync pendente no Google Calendar
 - Tipo: feat
 - Resumo: `TelegramChatbotSchedulingService` passou a persistir trilha de sincronizacao apos `CreateAsync` bem-sucedido: cria registro `ServiceAppointmentCalendarSync` com `Pending` quando inexistente ou atualiza registro existente para `Pending` limpando `Error`, garantindo fila consistente para os proximos passos de sync com Google.

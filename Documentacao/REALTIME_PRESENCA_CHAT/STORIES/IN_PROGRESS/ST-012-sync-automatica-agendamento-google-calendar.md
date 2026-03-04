@@ -19,7 +19,7 @@ Garantir que agendamentos confirmados, atualizados e cancelados no sistema sejam
 
 - [x] Criar entidade de mapeamento `ServiceAppointmentCalendarSync` (`AppointmentId`, `GoogleEventId`, `SyncStatus`, `LastSyncAtUtc`, `Error`).
 - [x] Integrar sincronizacao na orquestracao de agendamento apos persistencia local bem-sucedida.
-- [ ] Implementar fluxo `create event` com chave idempotente por `appointmentId`.
+- [x] Implementar fluxo `create event` com chave idempotente por `appointmentId`.
 - [ ] Implementar fluxo `update event` para mudancas de data/horario/prestador.
 - [ ] Implementar fluxo `delete event` no cancelamento do agendamento.
 - [ ] Garantir compensacao: se create no Google falhar, nao marcar agendamento como sincronizado.
@@ -35,3 +35,5 @@ Garantir que agendamentos confirmados, atualizados e cancelados no sistema sejam
 - Migration `AddServiceAppointmentCalendarSync` gerada para provisionar a tabela no banco.
 - `TelegramChatbotSchedulingService` passou a criar/atualizar registro de sync como `Pending` imediatamente apos `CreateAsync` de agendamento concluido com sucesso.
 - Cobertura unitaria adicionada para garantir `AddAsync` (novo registro) e `UpdateAsync` (registro existente) no repositorio de sincronizacao.
+- Fluxo de `create event` integrado ao agendamento: apos `Pending`, o servico chama `IGoogleCalendarService.CreateEventAsync` com `IdempotencyKey` derivada de `appointmentId` (`cpm-apt-{guid}`).
+- Em sucesso, sync passa para `Synced` com `GoogleEventId`; em falha de create, sync passa para `Failed` com trilha de erro para reprocessamento.

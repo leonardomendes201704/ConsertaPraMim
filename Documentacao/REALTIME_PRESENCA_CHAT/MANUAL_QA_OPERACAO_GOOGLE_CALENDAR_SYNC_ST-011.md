@@ -105,3 +105,26 @@ Checklist operacional:
 - [ ] QA-GCAL-012-001: agendar visita via endpoint batch do chatbot e validar linha em `ServiceAppointmentCalendarSyncs` para o `AppointmentId` retornado com `SyncStatus=Pending`.
 - [ ] QA-GCAL-012-002: simular registro existente com `Failed` e repetir fluxo com mesmo `AppointmentId` (teste unitario/mocado), validando transicao para `Pending`.
 - [ ] QA-GCAL-012-003: validar cenario de falha de criacao de agendamento (`slot_unavailable`) sem insercao indevida em `ServiceAppointmentCalendarSyncs`.
+
+## 10. Evolucao ST-012 (Task 3)
+
+Fluxo de criacao de evento Google Calendar apos agendamento local:
+
+- Apos persistir o agendamento e marcar `Pending`, a API executa `CreateEventAsync` no Google Calendar.
+- A chave de idempotencia e sempre derivada de `AppointmentId` no formato `cpm-apt-{guid_sem_hifen}`.
+- Em sucesso de create:
+  - `SyncStatus` -> `Synced`
+  - `GoogleEventId` preenchido
+  - `Error` limpo
+  - `LastSyncAtUtc` atualizado
+- Em falha de create:
+  - `SyncStatus` -> `Failed`
+  - `GoogleEventId` nao e marcado como sincronizado indevidamente
+  - `Error` recebe trilha (`errorCode:errorMessage`) para reprocessamento
+
+Checklist operacional:
+
+- [ ] QA-GCAL-012-101: agendar visita e validar chamada create no Google com `IdempotencyKey=cpm-apt-{appointmentId:N}`.
+- [ ] QA-GCAL-012-102: repetir create para mesma chave idempotente e validar ausencia de duplicacao no Google.
+- [ ] QA-GCAL-012-103: simular falha de create no Google e validar `ServiceAppointmentCalendarSyncs.SyncStatus=Failed` + `Error` preenchido.
+- [ ] QA-GCAL-012-104: simular create com sucesso e validar `ServiceAppointmentCalendarSyncs.SyncStatus=Synced` + `GoogleEventId` preenchido.

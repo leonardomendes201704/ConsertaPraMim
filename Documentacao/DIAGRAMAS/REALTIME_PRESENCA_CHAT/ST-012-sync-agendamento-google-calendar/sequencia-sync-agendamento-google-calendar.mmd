@@ -2,6 +2,7 @@ sequenceDiagram
     participant App as TelegramChatbotSchedulingService
     participant Appointment as IServiceAppointmentService
     participant Repo as IServiceAppointmentCalendarSyncRepository
+    participant GCal as IGoogleCalendarService
     participant Db as ServiceAppointmentCalendarSyncs
 
     App->>Appointment: CreateAsync(...)
@@ -19,6 +20,21 @@ sequenceDiagram
             Repo-->>App: ok
         else sync ja existe
             App->>Repo: UpdateAsync(sync: Pending, Error=null)
+            Repo->>Db: Update
+            Db-->>Repo: ok
+            Repo-->>App: ok
+        end
+
+        App->>GCal: CreateEventAsync(Title,Window,Metadata,IdempotencyKey=appointmentId)
+        alt create ok
+            GCal-->>App: Success + GoogleEventId
+            App->>Repo: UpdateAsync(sync: Synced, GoogleEventId, LastSyncAtUtc)
+            Repo->>Db: Update
+            Db-->>Repo: ok
+            Repo-->>App: ok
+        else create falha
+            GCal-->>App: ErrorCode/ErrorMessage
+            App->>Repo: UpdateAsync(sync: Failed, Error, LastSyncAtUtc)
             Repo->>Db: Update
             Db-->>Repo: ok
             Repo-->>App: ok

@@ -59,6 +59,18 @@ public sealed class GoogleCalendarService : IGoogleCalendarService
                 HtmlLink: created.HtmlLink);
         }
         catch (GoogleApiException ex)
+            when (ex.HttpStatusCode == HttpStatusCode.Conflict && !string.IsNullOrWhiteSpace(calendarEvent.Id))
+        {
+            _logger.LogInformation(
+                ex,
+                "Evento do Google Calendar ja existe para a chave idempotente. EventId={EventId}",
+                calendarEvent.Id);
+
+            return new GoogleCalendarUpsertResult(
+                Success: true,
+                EventId: calendarEvent.Id);
+        }
+        catch (GoogleApiException ex)
         {
             _logger.LogError(
                 ex,
@@ -234,6 +246,14 @@ public sealed class GoogleCalendarService : IGoogleCalendarService
                 ErrorMessage: "Intervalo de evento invalido (fim deve ser maior que inicio).");
         }
 
+        if (!IsValidIdempotencyKey(request.IdempotencyKey))
+        {
+            return new GoogleCalendarUpsertResult(
+                Success: false,
+                ErrorCode: "google_calendar_invalid_idempotency_key",
+                ErrorMessage: "IdempotencyKey invalido (use 5-128 chars com [a-z0-9_-]).");
+        }
+
         return null;
     }
 
@@ -250,6 +270,7 @@ public sealed class GoogleCalendarService : IGoogleCalendarService
             Summary = request.Title.Trim(),
             Description = description,
             Location = location,
+            Id = NormalizeIdempotencyKey(request.IdempotencyKey),
             Start = BuildEventDateTime(startsAtUtc),
             End = BuildEventDateTime(endsAtUtc)
         };
@@ -343,6 +364,39 @@ public sealed class GoogleCalendarService : IGoogleCalendarService
         }
 
         return builder.ToString().Trim();
+    }
+
+    private static bool IsValidIdempotencyKey(string? idempotencyKey)
+    {
+        if (string.IsNullOrWhiteSpace(idempotencyKey))
+        {
+            return true;
+        }
+
+        var normalized = idempotencyKey.Trim();
+        if (normalized.Length is < 5 or > 128)
+        {
+            return false;
+        }
+
+        foreach (var ch in normalized)
+        {
+            var isLowerLetter = ch is >= 'a' and <= 'z';
+            var isDigit = ch is >= '0' and <= '9';
+            if (!isLowerLetter && !isDigit && ch != '-' && ch != '_')
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static string? NormalizeIdempotencyKey(string? idempotencyKey)
+    {
+        return string.IsNullOrWhiteSpace(idempotencyKey)
+            ? null
+            : idempotencyKey.Trim();
     }
 
     private CalendarService GetCalendarService()

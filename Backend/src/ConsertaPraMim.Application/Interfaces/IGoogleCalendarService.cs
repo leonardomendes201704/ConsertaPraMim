@@ -22,7 +22,8 @@ public record GoogleCalendarUpsertRequest(
     DateTime EndsAtUtc,
     string? Description = null,
     string? Location = null,
-    IReadOnlyDictionary<string, string>? Metadata = null);
+    IReadOnlyDictionary<string, string>? Metadata = null,
+    string? IdempotencyKey = null);
 
 public record GoogleCalendarUpsertResult(
     bool Success,

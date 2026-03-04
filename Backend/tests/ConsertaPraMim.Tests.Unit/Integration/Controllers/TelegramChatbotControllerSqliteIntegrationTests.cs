@@ -12,6 +12,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
 namespace ConsertaPraMim.Tests.Unit.Integration.Controllers;
@@ -348,6 +349,14 @@ public class TelegramChatbotControllerSqliteIntegrationTests
     {
         var conversationRepository = new ChatbotConversationRepository(context);
         var conversationService = new TelegramChatbotConversationService(conversationRepository);
+        var googleCalendarServiceMock = new Mock<IGoogleCalendarService>();
+        googleCalendarServiceMock
+            .Setup(service => service.CreateEventAsync(
+                It.IsAny<GoogleCalendarUpsertRequest>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new GoogleCalendarUpsertResult(
+                Success: true,
+                EventId: $"cpm-int-{Guid.NewGuid():N}"));
 
         var schedulingService = new TelegramChatbotSchedulingService(
             new ServiceRequestRepository(context),
@@ -355,7 +364,9 @@ public class TelegramChatbotControllerSqliteIntegrationTests
             new ProposalRepository(context),
             new ServiceAppointmentRepository(context),
             new ServiceAppointmentCalendarSyncRepository(context),
-            new Mock<IServiceAppointmentService>().Object);
+            new Mock<IServiceAppointmentService>().Object,
+            googleCalendarServiceMock.Object,
+            NullLogger<TelegramChatbotSchedulingService>.Instance);
 
         var controller = new TelegramChatbotController(conversationService, schedulingService)
         {

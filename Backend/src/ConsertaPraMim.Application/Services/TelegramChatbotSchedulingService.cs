@@ -3,6 +3,7 @@ using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
 using ConsertaPraMim.Domain.Repositories;
+using Microsoft.Extensions.Logging;
 
 namespace ConsertaPraMim.Application.Services;
 
@@ -14,6 +15,8 @@ public sealed class TelegramChatbotSchedulingService : ITelegramChatbotSchedulin
     private readonly IServiceAppointmentRepository _serviceAppointmentRepository;
     private readonly IServiceAppointmentCalendarSyncRepository _serviceAppointmentCalendarSyncRepository;
     private readonly IServiceAppointmentService _serviceAppointmentService;
+    private readonly IGoogleCalendarService _googleCalendarService;
+    private readonly ILogger<TelegramChatbotSchedulingService> _logger;
 
     public TelegramChatbotSchedulingService(
         IServiceRequestRepository serviceRequestRepository,
@@ -21,7 +24,9 @@ public sealed class TelegramChatbotSchedulingService : ITelegramChatbotSchedulin
         IProposalRepository proposalRepository,
         IServiceAppointmentRepository serviceAppointmentRepository,
         IServiceAppointmentCalendarSyncRepository serviceAppointmentCalendarSyncRepository,
-        IServiceAppointmentService serviceAppointmentService)
+        IServiceAppointmentService serviceAppointmentService,
+        IGoogleCalendarService googleCalendarService,
+        ILogger<TelegramChatbotSchedulingService> logger)
     {
         _serviceRequestRepository = serviceRequestRepository;
         _userRepository = userRepository;
@@ -29,6 +34,8 @@ public sealed class TelegramChatbotSchedulingService : ITelegramChatbotSchedulin
         _serviceAppointmentRepository = serviceAppointmentRepository;
         _serviceAppointmentCalendarSyncRepository = serviceAppointmentCalendarSyncRepository;
         _serviceAppointmentService = serviceAppointmentService;
+        _googleCalendarService = googleCalendarService;
+        _logger = logger;
     }
 
     public async Task<TelegramChatbotEligibleProvidersResultDto> GetEligibleProvidersAsync(
@@ -497,7 +504,8 @@ public sealed class TelegramChatbotSchedulingService : ITelegramChatbotSchedulin
 
             if (createResult.Success && createResult.Appointment != null)
             {
-                await UpsertCalendarSyncPendingAsync(createResult.Appointment.Id);
+                var sync = await UpsertCalendarSyncPendingAsync(createResult.Appointment.Id);
+                await TrySyncCreateAppointmentToGoogleCalendarAsync(serviceRequest, createResult.Appointment, sync);
                 successCount++;
                 results.Add(new TelegramChatbotBatchScheduleVisitResultDto(
                     ProviderId: visit.ProviderId,
@@ -527,29 +535,167 @@ public sealed class TelegramChatbotSchedulingService : ITelegramChatbotSchedulin
                 : "Uma ou mais visitas nao puderam ser agendadas.");
     }
 
-    private async Task UpsertCalendarSyncPendingAsync(Guid appointmentId)
+    private async Task<ServiceAppointmentCalendarSync> UpsertCalendarSyncPendingAsync(Guid appointmentId)
     {
         if (appointmentId == Guid.Empty)
         {
-            return;
+            throw new ArgumentException("AppointmentId invalido para trilha de sync.", nameof(appointmentId));
         }
 
         var existingSync = await _serviceAppointmentCalendarSyncRepository.GetByAppointmentIdAsync(appointmentId);
         if (existingSync == null)
         {
-            await _serviceAppointmentCalendarSyncRepository.AddAsync(new ServiceAppointmentCalendarSync
+            var newSync = new ServiceAppointmentCalendarSync
             {
                 AppointmentId = appointmentId,
                 SyncStatus = ServiceAppointmentCalendarSyncStatus.Pending,
                 Error = null
-            });
+            };
+            await _serviceAppointmentCalendarSyncRepository.AddAsync(newSync);
 
-            return;
+            return newSync;
         }
 
         existingSync.SyncStatus = ServiceAppointmentCalendarSyncStatus.Pending;
         existingSync.Error = null;
         await _serviceAppointmentCalendarSyncRepository.UpdateAsync(existingSync);
+        return existingSync;
+    }
+
+    private async Task TrySyncCreateAppointmentToGoogleCalendarAsync(
+        ServiceRequest serviceRequest,
+        ServiceAppointmentDto appointment,
+        ServiceAppointmentCalendarSync sync)
+    {
+        try
+        {
+            var protocol = BuildProtocol(appointment.ServiceRequestId);
+            var createResult = await _googleCalendarService.CreateEventAsync(
+                new GoogleCalendarUpsertRequest(
+                    Title: BuildCalendarEventTitle(protocol),
+                    StartsAtUtc: NormalizeToUtc(appointment.WindowStartUtc),
+                    EndsAtUtc: NormalizeToUtc(appointment.WindowEndUtc),
+                    Description: BuildCalendarEventDescription(protocol, appointment),
+                    Location: BuildCalendarEventLocation(serviceRequest),
+                    Metadata: BuildCalendarMetadata(protocol, appointment),
+                    IdempotencyKey: BuildCalendarEventIdempotencyKey(appointment.Id)));
+
+            if (createResult.Success)
+            {
+                sync.SyncStatus = ServiceAppointmentCalendarSyncStatus.Synced;
+                sync.GoogleEventId = string.IsNullOrWhiteSpace(createResult.EventId)
+                    ? sync.GoogleEventId
+                    : createResult.EventId.Trim();
+                sync.LastSyncAtUtc = DateTime.UtcNow;
+                sync.Error = null;
+                await _serviceAppointmentCalendarSyncRepository.UpdateAsync(sync);
+                return;
+            }
+
+            await MarkCalendarSyncAsFailedAsync(
+                sync,
+                createResult.ErrorCode,
+                createResult.ErrorMessage);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Falha inesperada ao sincronizar create no Google Calendar. AppointmentId={AppointmentId}",
+                appointment.Id);
+
+            await MarkCalendarSyncAsFailedAsync(
+                sync,
+                "google_calendar_unexpected_error",
+                "Erro inesperado ao criar evento no Google Calendar.");
+        }
+    }
+
+    private async Task MarkCalendarSyncAsFailedAsync(
+        ServiceAppointmentCalendarSync sync,
+        string? errorCode,
+        string? errorMessage)
+    {
+        sync.SyncStatus = ServiceAppointmentCalendarSyncStatus.Failed;
+        sync.LastSyncAtUtc = DateTime.UtcNow;
+        sync.Error = TruncateError(ComposeSyncError(errorCode, errorMessage));
+        await _serviceAppointmentCalendarSyncRepository.UpdateAsync(sync);
+    }
+
+    private static IReadOnlyDictionary<string, string> BuildCalendarMetadata(
+        string protocol,
+        ServiceAppointmentDto appointment)
+    {
+        return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["appointment_id"] = appointment.Id.ToString("N"),
+            ["service_request_id"] = appointment.ServiceRequestId.ToString("N"),
+            ["client_id"] = appointment.ClientId.ToString("N"),
+            ["provider_id"] = appointment.ProviderId.ToString("N"),
+            ["protocol"] = protocol
+        };
+    }
+
+    private static string BuildCalendarEventTitle(string protocol)
+    {
+        return $"ConsertaPraMim - Visita #{protocol}";
+    }
+
+    private static string BuildCalendarEventDescription(string protocol, ServiceAppointmentDto appointment)
+    {
+        var reason = string.IsNullOrWhiteSpace(appointment.Reason)
+            ? "Agendamento gerado pelo fluxo do chatbot."
+            : appointment.Reason.Trim();
+
+        return $"Protocolo #{protocol}. {reason}";
+    }
+
+    private static string? BuildCalendarEventLocation(ServiceRequest serviceRequest)
+    {
+        var parts = new[]
+        {
+            serviceRequest.AddressStreet?.Trim(),
+            serviceRequest.AddressCity?.Trim(),
+            serviceRequest.AddressZip?.Trim()
+        }.Where(value => !string.IsNullOrWhiteSpace(value)).ToList();
+
+        return parts.Count == 0 ? null : string.Join(" - ", parts);
+    }
+
+    private static string BuildCalendarEventIdempotencyKey(Guid appointmentId)
+    {
+        return $"cpm-apt-{appointmentId:N}";
+    }
+
+    private static string ComposeSyncError(string? errorCode, string? errorMessage)
+    {
+        if (string.IsNullOrWhiteSpace(errorCode) && string.IsNullOrWhiteSpace(errorMessage))
+        {
+            return "Erro nao identificado durante sync com Google Calendar.";
+        }
+
+        if (string.IsNullOrWhiteSpace(errorCode))
+        {
+            return errorMessage!.Trim();
+        }
+
+        if (string.IsNullOrWhiteSpace(errorMessage))
+        {
+            return errorCode.Trim();
+        }
+
+        return $"{errorCode.Trim()}: {errorMessage.Trim()}";
+    }
+
+    private static string TruncateError(string value)
+    {
+        const int maxLength = 1200;
+        if (value.Length <= maxLength)
+        {
+            return value;
+        }
+
+        return value[..maxLength];
     }
 
     private static TelegramChatbotOrderSummaryDto BuildOrderSummary(

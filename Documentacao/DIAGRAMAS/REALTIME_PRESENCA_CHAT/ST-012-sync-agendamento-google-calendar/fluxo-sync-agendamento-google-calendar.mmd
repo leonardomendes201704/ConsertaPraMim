@@ -6,5 +6,10 @@ flowchart TD
     E --> F{Registro de sync existe?}
     F -->|Nao| G[Inserir sync com Pending e Error null]
     F -->|Sim| H[Atualizar sync existente para Pending e limpar Error]
-    G --> I[Retornar visita agendada no lote]
+    G --> I[Chamar Google CreateEventAsync com IdempotencyKey cpm-apt-appointmentId]
     H --> I
+    I --> J{Google create com sucesso?}
+    J -->|Sim| K[Atualizar sync para Synced com GoogleEventId]
+    J -->|Nao| L[Atualizar sync para Failed com Error]
+    K --> M[Retornar visita agendada no lote]
+    L --> M
