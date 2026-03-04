@@ -29,6 +29,7 @@ Diagramas publicados nesta trilha:
 - `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-003-telegram-bridge-web-whatsapp-realtime/`
 - `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-004-fundacao-api-chatbot-telegram-persistencia/`
 - `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-011-fundacao-google-calendar-sync/`
+- `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-012-sync-agendamento-google-calendar/`
 
 ## Convencao de IDs
 

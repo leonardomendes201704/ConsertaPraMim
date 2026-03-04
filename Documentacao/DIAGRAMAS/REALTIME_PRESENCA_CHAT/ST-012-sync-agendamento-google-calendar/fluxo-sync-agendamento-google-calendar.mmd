@@ -1,0 +1,9 @@
+flowchart TD
+    A[Agendamento criado/atualizado/cancelado] --> B[Servico de orquestracao consulta mapeamento]
+    B --> C{Existe registro em ServiceAppointmentCalendarSyncs?}
+    C -->|Nao| D[Criar registro com SyncStatus=Pending]
+    C -->|Sim| E[Atualizar status, data e erro]
+    D --> F[Persistir AppointmentId unico]
+    E --> F
+    F --> G[Persistir GoogleEventId quando houver]
+    G --> H[Consultar por status/LastSyncAtUtc para reprocessamento]

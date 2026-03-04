@@ -10,10 +10,11 @@
 
 ### Backlog
 
-- [ST-012 - Sincronizacao automatica de agendamento com Google Calendar](STORIES/BACKLOG/ST-012-sync-automatica-agendamento-google-calendar.md)
 - [ST-013 - Observabilidade, reprocessamento, QA e rollout da sincronizacao Google Calendar](STORIES/BACKLOG/ST-013-observabilidade-reprocessamento-qa-rollout-google-calendar.md)
 
 ### In Progress
+
+- [ST-012 - Sincronizacao automatica de agendamento com Google Calendar](STORIES/IN_PROGRESS/ST-012-sync-automatica-agendamento-google-calendar.md)
 
 ### Done
 
@@ -50,3 +51,4 @@
 - [ST-009 - Consulta natural de status, pedidos e agenda](../DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-009-consulta-natural-status-pedidos-agenda/README.md)
 - [ST-010 - Guardrails, observabilidade e rollout do chatbot](../DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-010-guardrails-observabilidade-rollout-chatbot/README.md)
 - [ST-011 - Fundacao Google Calendar Sync](../DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-011-fundacao-google-calendar-sync/README.md)
+- [ST-012 - Sync automatica de agendamento Google Calendar](../DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-012-sync-agendamento-google-calendar/README.md)

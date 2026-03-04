@@ -1,0 +1,21 @@
+sequenceDiagram
+    participant App as Scheduling Service
+    participant Repo as IServiceAppointmentCalendarSyncRepository
+    participant Db as ServiceAppointmentCalendarSyncs
+
+    App->>Repo: GetByAppointmentIdAsync(appointmentId)
+    Repo->>Db: Select por AppointmentId
+    Db-->>Repo: registro ou null
+    Repo-->>App: resultado
+
+    alt nao existe
+        App->>Repo: AddAsync(sync: Pending)
+        Repo->>Db: Insert
+        Db-->>Repo: ok
+        Repo-->>App: ok
+    else existe
+        App->>Repo: UpdateAsync(sync: Synced/Failed/Deleted)
+        Repo->>Db: Update (GoogleEventId, LastSyncAtUtc, Error, SyncStatus)
+        Db-->>Repo: ok
+        Repo-->>App: ok
+    end

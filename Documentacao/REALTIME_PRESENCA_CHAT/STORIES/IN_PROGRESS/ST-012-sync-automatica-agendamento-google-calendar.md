@@ -1,6 +1,6 @@
 # ST-012 - Sincronizacao automatica de agendamento com Google Calendar
 
-Status: Backlog  
+Status: In Progress  
 Epic: EPIC-003
 
 ## Objetivo
@@ -17,7 +17,7 @@ Garantir que agendamentos confirmados, atualizados e cancelados no sistema sejam
 
 ## Tasks
 
-- [ ] Criar entidade de mapeamento `ServiceAppointmentCalendarSync` (`AppointmentId`, `GoogleEventId`, `SyncStatus`, `LastSyncAtUtc`, `Error`).
+- [x] Criar entidade de mapeamento `ServiceAppointmentCalendarSync` (`AppointmentId`, `GoogleEventId`, `SyncStatus`, `LastSyncAtUtc`, `Error`).
 - [ ] Integrar sincronizacao na orquestracao de agendamento apos persistencia local bem-sucedida.
 - [ ] Implementar fluxo `create event` com chave idempotente por `appointmentId`.
 - [ ] Implementar fluxo `update event` para mudancas de data/horario/prestador.
@@ -27,3 +27,9 @@ Garantir que agendamentos confirmados, atualizados e cancelados no sistema sejam
 - [ ] Criar testes unitarios para service de sincronizacao (success/failure/idempotencia).
 - [ ] Criar testes de integracao com client fake para cenarios de create/update/delete.
 
+## Progresso atual
+
+- Entidade `ServiceAppointmentCalendarSync` criada no dominio com status de sincronizacao e trilha de erro.
+- Repositorio dedicado criado para leitura/escrita do mapeamento por `AppointmentId` e `GoogleEventId`.
+- `DbContext` atualizado com `DbSet`, relacionamentos, indices e constraints de consistencia.
+- Migration `AddServiceAppointmentCalendarSync` gerada para provisionar a tabela no banco.

@@ -77,3 +77,17 @@ Regras:
 
 - Verificar se janela de agendamento foi persistida em UTC no sistema.
 - Verificar `GoogleCalendarSync:Timezone` configurado para `America/Sao_Paulo`.
+
+## 8. Evolucao ST-012 (Task 1)
+
+Estrutura de persistencia adicionada para trilha de sincronizacao:
+
+- Tabela: `ServiceAppointmentCalendarSyncs`
+- Campos principais: `AppointmentId`, `GoogleEventId`, `SyncStatus`, `LastSyncAtUtc`, `Error`
+- Regra: `AppointmentId` unico por agendamento
+- Regra: `GoogleEventId` unico quando informado
+
+Validacao operacional:
+
+- Confirmar migration `AddServiceAppointmentCalendarSync` aplicada no ambiente.
+- Conferir criacao de indices `IX_ServiceAppointmentCalendarSyncs_AppointmentId` e `IX_ServiceAppointmentCalendarSyncs_SyncStatus_LastSyncAtUtc`.

@@ -39,6 +39,7 @@ public class ConsertaPraMimDbContext : DbContext
     public DbSet<ProviderAvailabilityRule> ProviderAvailabilityRules { get; set; }
     public DbSet<ProviderAvailabilityException> ProviderAvailabilityExceptions { get; set; }
     public DbSet<ServiceAppointment> ServiceAppointments { get; set; }
+    public DbSet<ServiceAppointmentCalendarSync> ServiceAppointmentCalendarSyncs { get; set; }
     public DbSet<ServiceAppointmentNoShowRiskPolicy> ServiceAppointmentNoShowRiskPolicies { get; set; }
     public DbSet<ServiceAppointmentNoShowQueueItem> ServiceAppointmentNoShowQueueItems { get; set; }
     public DbSet<NoShowAlertThresholdConfiguration> NoShowAlertThresholdConfigurations { get; set; }
@@ -1119,6 +1120,40 @@ public class ConsertaPraMimDbContext : DbContext
             {
                 t.HasCheckConstraint("CK_ServiceAppointments_WindowStartBeforeEnd", "[WindowEndUtc] > [WindowStartUtc]");
                 t.HasCheckConstraint("CK_ServiceAppointments_NoShowRiskScore_Range", "[NoShowRiskScore] IS NULL OR ([NoShowRiskScore] BETWEEN 0 AND 100)");
+            });
+
+        modelBuilder.Entity<ServiceAppointmentCalendarSync>()
+            .HasOne(x => x.Appointment)
+            .WithOne(a => a.CalendarSync)
+            .HasForeignKey<ServiceAppointmentCalendarSync>(x => x.AppointmentId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ServiceAppointmentCalendarSync>()
+            .Property(x => x.GoogleEventId)
+            .HasMaxLength(200);
+
+        modelBuilder.Entity<ServiceAppointmentCalendarSync>()
+            .Property(x => x.Error)
+            .HasMaxLength(1200);
+
+        modelBuilder.Entity<ServiceAppointmentCalendarSync>()
+            .HasIndex(x => x.AppointmentId)
+            .IsUnique();
+
+        modelBuilder.Entity<ServiceAppointmentCalendarSync>()
+            .HasIndex(x => x.GoogleEventId)
+            .IsUnique()
+            .HasFilter("[GoogleEventId] IS NOT NULL");
+
+        modelBuilder.Entity<ServiceAppointmentCalendarSync>()
+            .HasIndex(x => new { x.SyncStatus, x.LastSyncAtUtc });
+
+        modelBuilder.Entity<ServiceAppointmentCalendarSync>()
+            .ToTable(t =>
+            {
+                t.HasCheckConstraint(
+                    "CK_ServiceAppointmentCalendarSyncs_SyncStatus_Valid",
+                    "[SyncStatus] IN (1,2,3,4)");
             });
 
         modelBuilder.Entity<ServiceScopeChangeRequest>()

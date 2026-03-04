@@ -114,6 +114,12 @@
 
 ## Released
 
+- [2026-03-04] [ST-012] Fundacao de persistencia para sincronizacao de agendamentos Google Calendar
+- Tipo: feat
+- Resumo: criada a entidade de mapeamento `ServiceAppointmentCalendarSync` com repositorio dedicado, relacao 1:1 com `ServiceAppointment`, indices de idempotencia (`AppointmentId` unico e `GoogleEventId` unico quando preenchido), status de sincronizacao e migration `AddServiceAppointmentCalendarSync` para persistencia da trilha.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Domain/Entities/ServiceAppointmentCalendarSync.cs`, `Backend/src/ConsertaPraMim.Domain/Entities/ServiceAppointment.cs`, `Backend/src/ConsertaPraMim.Domain/Repositories/IServiceAppointmentCalendarSyncRepository.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Repositories/ServiceAppointmentCalendarSyncRepository.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Data/ConsertaPraMimDbContext.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Migrations/20260304152621_AddServiceAppointmentCalendarSync.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Migrations/ConsertaPraMimDbContextModelSnapshot.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-012-sync-automatica-agendamento-google-calendar.md`
+- Risco/Impacto: medio
+
 - [2026-03-04] [ST-011] Fundacao tecnica da integracao Google Calendar via Service Account
 - Tipo: feat
 - Resumo: adicionada base de integracao na API com `IGoogleCalendarService`, options `GoogleCalendarSync` e validacao de startup (`ValidateOnStart`) para bloquear configuracao invalida quando habilitada; servico implementa `create/update/delete` de eventos com autenticacao por Service Account, payload padrao (titulo/descricao/local/metadados) e conversao de janelas UTC para timezone de negocio (`America/Sao_Paulo`).
