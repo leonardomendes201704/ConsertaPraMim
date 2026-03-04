@@ -1,5 +1,6 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Globalization;
 using System.Text.Json;
 using ConsertaPraMim.Web.TelegramBridge.Models;
 
@@ -284,6 +285,34 @@ public sealed class TelegramChatbotApiClient : ITelegramChatbotApiClient
             apiToken,
             $"/api/telegram-chatbot/service-requests/{serviceRequestId:D}/eligible-providers?take={normalizedTake}",
             cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<TelegramServiceAppointmentSlotDto>?> GetProviderAvailableSlotsAsync(
+        string apiToken,
+        Guid providerId,
+        DateTime fromUtc,
+        DateTime toUtc,
+        int? slotDurationMinutes = null,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedFromUtc = NormalizeToUtc(fromUtc);
+        var normalizedToUtc = NormalizeToUtc(toUtc);
+
+        var fromToken = Uri.EscapeDataString(normalizedFromUtc.ToString("O", CultureInfo.InvariantCulture));
+        var toToken = Uri.EscapeDataString(normalizedToUtc.ToString("O", CultureInfo.InvariantCulture));
+
+        var path = $"/api/service-appointments/slots?providerId={providerId:D}&fromUtc={fromToken}&toUtc={toToken}";
+        if (slotDurationMinutes.HasValue)
+        {
+            path += $"&slotDurationMinutes={Math.Clamp(slotDurationMinutes.Value, 15, 480)}";
+        }
+
+        var slots = await GetAsync<List<TelegramServiceAppointmentSlotDto>>(
+            apiToken,
+            path,
+            cancellationToken);
+
+        return slots;
     }
 
     public async Task<TelegramChatbotBatchScheduleResultDto?> ScheduleVisitsBatchAsync(
@@ -591,6 +620,16 @@ public sealed class TelegramChatbotApiClient : ITelegramChatbotApiClient
         return string.IsNullOrWhiteSpace(second)
             ? string.Empty
             : second.Trim();
+    }
+
+    private static DateTime NormalizeToUtc(DateTime value)
+    {
+        return value.Kind switch
+        {
+            DateTimeKind.Utc => value,
+            DateTimeKind.Local => value.ToUniversalTime(),
+            _ => DateTime.SpecifyKind(value, DateTimeKind.Utc)
+        };
     }
 
     private sealed class TelegramChatbotConversationApiResponse

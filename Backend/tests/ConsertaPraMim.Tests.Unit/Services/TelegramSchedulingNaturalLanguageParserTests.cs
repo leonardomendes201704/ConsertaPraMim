@@ -45,6 +45,26 @@ public class TelegramSchedulingNaturalLanguageParserTests
         Assert.Equal(new DateTime(2026, 3, 6, 12, 0, 0, DateTimeKind.Utc), result.Windows[2].WindowStartUtc);
     }
 
+    [Fact(DisplayName = "Telegram scheduling parser | Deve respeitar semana que vem para todos os dias informados")]
+    public void Parse_ShouldShiftAllDaysToNextWeek_WhenMessageContainsSemanaQueVem()
+    {
+        var parser = new TelegramSchedulingNaturalLanguageParser();
+        var nowUtc = new DateTime(2026, 3, 4, 13, 0, 0, DateTimeKind.Utc);
+
+        var result = parser.Parse(
+            "pode agendar para quarta, quinta e sexta feira da semana q vem, na parte da manha",
+            nowUtc);
+
+        Assert.True(result.IsSchedulingIntent);
+        Assert.Equal(3, result.RequestedVisits);
+        Assert.Null(result.ErrorCode);
+        Assert.Equal(3, result.Windows.Count);
+
+        Assert.Equal(new DateTime(2026, 3, 11, 12, 0, 0, DateTimeKind.Utc), result.Windows[0].WindowStartUtc);
+        Assert.Equal(new DateTime(2026, 3, 12, 12, 0, 0, DateTimeKind.Utc), result.Windows[1].WindowStartUtc);
+        Assert.Equal(new DateTime(2026, 3, 13, 12, 0, 0, DateTimeKind.Utc), result.Windows[2].WindowStartUtc);
+    }
+
     [Fact(DisplayName = "Telegram scheduling parser | Deve retornar erro quando dia informado sem periodo")]
     public void Parse_ShouldReturnMissingPeriod_WhenPeriodIsNotInformed()
     {

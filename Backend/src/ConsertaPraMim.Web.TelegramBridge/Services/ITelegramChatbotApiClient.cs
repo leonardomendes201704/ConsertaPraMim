@@ -87,6 +87,14 @@ public interface ITelegramChatbotApiClient
         int take = 5,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<TelegramServiceAppointmentSlotDto>?> GetProviderAvailableSlotsAsync(
+        string apiToken,
+        Guid providerId,
+        DateTime fromUtc,
+        DateTime toUtc,
+        int? slotDurationMinutes = null,
+        CancellationToken cancellationToken = default);
+
     Task<TelegramChatbotBatchScheduleResultDto?> ScheduleVisitsBatchAsync(
         string apiToken,
         Guid serviceRequestId,

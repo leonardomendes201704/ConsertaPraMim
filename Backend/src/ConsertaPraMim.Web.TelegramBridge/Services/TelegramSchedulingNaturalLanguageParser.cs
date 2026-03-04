@@ -137,6 +137,7 @@ public sealed class TelegramSchedulingNaturalLanguageParser
     {
         var uniqueDates = new HashSet<DateOnly>();
         var candidates = new List<TelegramSchedulingDayCandidate>();
+        var useNextWeek = ShouldUseNextWeek(normalizedMessage);
 
         foreach (Match match in DayRegex.Matches(normalizedMessage))
         {
@@ -146,7 +147,7 @@ public sealed class TelegramSchedulingNaturalLanguageParser
                 continue;
             }
 
-            var localDate = ResolveNextDate(nowInSaoPaulo, dayOfWeek);
+            var localDate = ResolveNextDate(nowInSaoPaulo, dayOfWeek, useNextWeek);
             if (!uniqueDates.Add(localDate))
             {
                 continue;
@@ -231,6 +232,32 @@ public sealed class TelegramSchedulingNaturalLanguageParser
         }
 
         return DateOnly.FromDateTime(nowInSaoPaulo.Date.AddDays(daysAhead));
+    }
+
+    private static DateOnly ResolveNextDate(
+        DateTime nowInSaoPaulo,
+        DayOfWeek target,
+        bool useNextWeek)
+    {
+        var daysAhead = ((int)target - (int)nowInSaoPaulo.DayOfWeek + 7) % 7;
+        if (daysAhead == 0)
+        {
+            daysAhead = 7;
+        }
+
+        if (useNextWeek && daysAhead < 7)
+        {
+            daysAhead += 7;
+        }
+
+        return DateOnly.FromDateTime(nowInSaoPaulo.Date.AddDays(daysAhead));
+    }
+
+    private static bool ShouldUseNextWeek(string normalizedMessage)
+    {
+        return normalizedMessage.Contains("semana que vem", StringComparison.Ordinal)
+               || normalizedMessage.Contains("semana q vem", StringComparison.Ordinal)
+               || normalizedMessage.Contains("proxima semana", StringComparison.Ordinal);
     }
 
     private static TelegramSchedulingPeriod? ResolvePeriod(string normalizedMessage)

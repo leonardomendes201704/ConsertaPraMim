@@ -189,20 +189,6 @@ public class TelegramChatbotOrchestratorTests
             .ReturnsAsync(new TelegramCreatedServiceRequestDto(createdRequestId))
             .Verifiable();
 
-        apiClientMock
-            .Setup(client => client.GetEligibleProvidersAsync(
-                It.IsAny<string>(),
-                createdRequestId,
-                5,
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new TelegramChatbotEligibleProvidersResultDto(
-                Success: true,
-                ServiceRequestId: createdRequestId,
-                Providers:
-                [
-                    new TelegramChatbotEligibleProviderDto(Guid.NewGuid(), "Tecnico A", 1.5, 4.9, 32, 20, [4])
-                ]));
-
         var options = Options.Create(new TelegramBridgeAiOptions
         {
             Enabled = true,
@@ -237,7 +223,7 @@ public class TelegramChatbotOrchestratorTests
         Assert.NotNull(reply);
         Assert.Equal("schedule_visits", reply!.Intent);
         Assert.Equal("collect_visit_windows", reply.NextStep);
-        Assert.Contains("Encontrei estes prestadores", reply.MessageText, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("me diga os dias e o periodo", reply.MessageText, StringComparison.OrdinalIgnoreCase);
 
         apiClientMock.Verify();
     }
@@ -307,6 +293,20 @@ public class TelegramChatbotOrchestratorTests
                     new TelegramChatbotEligibleProviderDto(providerA, "Tecnico A", 1.2, 4.8, 120, 15, [4]),
                     new TelegramChatbotEligibleProviderDto(providerB, "Tecnico B", 2.1, 4.7, 98, 20, [4])
                 ]));
+
+        apiClientMock
+            .Setup(client => client.GetProviderAvailableSlotsAsync(
+                It.IsAny<string>(),
+                It.IsAny<Guid>(),
+                It.IsAny<DateTime>(),
+                It.IsAny<DateTime>(),
+                It.IsAny<int?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string token, Guid providerId, DateTime fromUtc, DateTime toUtc, int? durationMinutes, CancellationToken cancellationToken) =>
+                (IReadOnlyList<TelegramServiceAppointmentSlotDto>)
+                [
+                    new TelegramServiceAppointmentSlotDto(fromUtc, toUtc)
+                ]);
 
         apiClientMock
             .Setup(client => client.ScheduleVisitsBatchAsync(

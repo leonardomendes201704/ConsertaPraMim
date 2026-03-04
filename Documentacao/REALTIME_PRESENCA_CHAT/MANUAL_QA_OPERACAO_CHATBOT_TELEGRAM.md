@@ -47,6 +47,8 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
   - Agendamento em lote valida limite de ate 3 visitas, dias distintos e devolve status por visita (sucesso/falha) para replanejamento conversacional.
   - Parser de linguagem natural da agenda criado na bridge para interpretar dia da semana + periodo/horario e gerar janelas UTC.
   - Parser passou a inferir intencao de agenda tambem por sinais de dia + periodo, mesmo sem palavra-chave explicita de agendamento na frase do cliente.
+  - Parser passou a respeitar "semana q vem/proxima semana" para todos os dias informados na frase.
+  - Orquestrador passou a pedir primeiro dias/periodo e consultar slots reais (`/api/service-appointments/slots`) antes de montar o lote de agendamento.
   - Orquestrador agora fecha o ciclo ST-008: apos criar pedido, lista prestadores elegiveis, persiste sugestoes/decisoes em snapshots/actions e dispara agendamento em lote com resposta natural de sucesso parcial/total.
 
 ## 3. Validacoes executadas no ciclo atual
@@ -118,6 +120,10 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
 - Validacao automatizada ST-008 hotfix (inferencia de agenda sem palavra-chave):
   - `TelegramSchedulingNaturalLanguageParserTests` cobre cenario "quarta, quinta e sexta de manha" sem o verbo "agendar", garantindo parse para 3 janelas UTC.
   - `TelegramChatbotOrchestratorTests` valida que o orquestrador ainda dispara `schedule-visits-batch` quando a frase do cliente traz dias/periodo, mas nao traz palavra-chave explicita.
+- Validacao automatizada ST-008 hotfix (janela primeiro + disponibilidade real):
+  - `TelegramSchedulingNaturalLanguageParserTests` cobre frase com "semana q vem", garantindo shift consistente de todos os dias para a semana seguinte.
+  - `TelegramChatbotOrchestratorTests` valida fluxo de abertura de pedido pedindo primeiro dias/periodo (sem listar prestadores de forma prematura).
+  - `TelegramChatbotOrchestratorTests` valida consulta de slots por prestador/janela antes da chamada de `schedule-visits-batch`.
 - Validacao documental ST-007 task 8:
   - Publicado diagrama Mermaid de fluxo da triagem natural com abertura automatica de pedido e persistencia de trilha.
 - Validacao documental ST-007 task 9:
@@ -188,6 +194,13 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
 - Consultar `ServiceAppointments` e `Proposals` por `ServiceRequestId` para confirmar ausencia de registros efetivos.
 - Validar build com hotfix ST-008 de inferencia por sinais de dia/periodo (sem exigir palavra-chave "agendar").
 - Reexecutar QA com frase natural sem verbo de agendamento (ex.: "quarta, quinta e sexta de manha") e confirmar criacao em `Proposals` + `ServiceAppointments`.
+- Confirmar se as regras de disponibilidade (`ProviderAvailabilityRules`) ja existiam no momento da tentativa; se forem criadas apos a tentativa, o retorno correto do lote e `slot_unavailable`.
+
+### 5.5 Sugestao de prestador sem considerar horario informado
+
+- Validar se o ambiente esta com build contendo o hotfix de ST-008 que pergunta janela primeiro e consulta `/api/service-appointments/slots` antes de montar o lote.
+- Confirmar nos logs de acao a sequencia: `open_service_request_api` -> `schedule_matching_lookup` -> consulta de slots -> `schedule_batch_create`.
+- Se o cliente pedir "semana que vem", validar no payload do lote que todos os dias foram deslocados para a semana seguinte (nao misturar semana atual e seguinte).
 
 ## 6. Historico de revisoes
 
@@ -227,3 +240,4 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
 - 2026-03-03: encerramento da ST-008 com move da story para `DONE` e atualizacao do board da trilha realtime.
 - 2026-03-03: hotfix ST-008 para remover loop de resposta "pedido ja registrado" apos criacao do pedido; triagem nao intercepta mais mensagens gerais com pedido ja aberto e o orquestrador passou a responder consultas de status/agendamento/prestadores com base no contexto historico do pedido.
 - 2026-03-04: hotfix ST-008 para inferir agenda por sinais de dia/periodo sem palavra-chave explicita, evitando confirmacao sem persistencia quando o cliente responde em linguagem natural curta.
+- 2026-03-04: hotfix ST-008 para coletar janela antes de sugerir prestadores, validar slots reais por prestador/janela e corrigir parse de "semana q vem".

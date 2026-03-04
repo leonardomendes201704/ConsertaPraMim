@@ -73,3 +73,7 @@ public sealed record TelegramChatbotBatchScheduleResultDto(
     IReadOnlyList<TelegramChatbotBatchScheduleVisitResultDto> Results,
     string? ErrorCode = null,
     string? ErrorMessage = null);
+
+public sealed record TelegramServiceAppointmentSlotDto(
+    DateTime WindowStartUtc,
+    DateTime WindowEndUtc);

@@ -626,7 +626,30 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
             };
         }
 
-        if (!shouldSuggestProviders && !parseResult.IsSchedulingIntent && !isStatusQuery && !isProviderQuery)
+        if (shouldSuggestProviders && !parseResult.IsSchedulingIntent)
+        {
+            return reply with
+            {
+                Intent = ScheduleVisitsIntent,
+                NextStep = "collect_visit_windows",
+                MessageText = BuildVisitWindowQuestionMessage(),
+                EntitiesJson = BuildSchedulingEntitiesJson(serviceRequestId.Value, [], parseResult, null)
+            };
+        }
+
+        if (parseResult.ErrorCode is not null && !isStatusQuery)
+        {
+            return reply with
+            {
+                Intent = ScheduleVisitsIntent,
+                NextStep = parseResult.ErrorCode,
+                MessageText = parseResult.ErrorMessage ?? BuildVisitWindowQuestionMessage(),
+                EntitiesJson = BuildSchedulingEntitiesJson(serviceRequestId.Value, [], parseResult, null)
+            };
+        }
+
+        var shouldLookupProviders = parseResult.IsSchedulingIntent || isStatusQuery || isProviderQuery;
+        if (!shouldLookupProviders)
         {
             return reply;
         }
@@ -699,17 +722,6 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
             };
         }
 
-        if (shouldSuggestProviders && !parseResult.IsSchedulingIntent)
-        {
-            return reply with
-            {
-                Intent = ScheduleVisitsIntent,
-                NextStep = "collect_visit_windows",
-                MessageText = BuildProviderSuggestionMessage(providers),
-                EntitiesJson = BuildSchedulingEntitiesJson(serviceRequestId.Value, providers, parseResult, null)
-            };
-        }
-
         if (isStatusQuery && latestBatchResult is null)
         {
             return reply with
@@ -732,17 +744,6 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
             };
         }
 
-        if (parseResult.ErrorCode is not null && !isStatusQuery)
-        {
-            return reply with
-            {
-                Intent = ScheduleVisitsIntent,
-                NextStep = parseResult.ErrorCode,
-                MessageText = $"{BuildProviderSuggestionMessage(providers)}\n\n{parseResult.ErrorMessage}",
-                EntitiesJson = BuildSchedulingEntitiesJson(serviceRequestId.Value, providers, parseResult, null)
-            };
-        }
-
         var requestedVisits = Math.Clamp(parseResult.RequestedVisits, 1, 3);
         var visitCount = Math.Min(requestedVisits, Math.Min(parseResult.Windows.Count, providers.Count));
         if (visitCount <= 0)
@@ -756,16 +757,41 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
             };
         }
 
-        var visitRequests = new List<TelegramChatbotBatchScheduleVisitRequestDto>(visitCount);
-        for (var index = 0; index < visitCount; index++)
-        {
-            var provider = providers[index];
-            var window = parseResult.Windows[index];
+        var providerAssignments = await ResolveProviderAssignmentsAsync(
+            apiToken,
+            providers,
+            parseResult.Windows.Take(visitCount).ToList(),
+            cancellationToken);
 
+        if (providerAssignments.Count == 0)
+        {
+            return reply with
+            {
+                Intent = ScheduleVisitsIntent,
+                NextStep = "no_provider_slot_for_windows",
+                MessageText = "Nao encontrei janelas livres desses prestadores para os dias/periodos informados. Me diga outros dias/periodos e eu tento novamente.",
+                EntitiesJson = BuildSchedulingEntitiesJson(serviceRequestId.Value, providers, parseResult, null)
+            };
+        }
+
+        if (providerAssignments.Count < visitCount)
+        {
+            return reply with
+            {
+                Intent = ScheduleVisitsIntent,
+                NextStep = "partial_provider_slot_for_windows",
+                MessageText = $"Encontrei disponibilidade para {providerAssignments.Count} de {visitCount} visita(s) nessas janelas. Se quiser manter as 3 visitas, me passe outros dias/periodos.",
+                EntitiesJson = BuildSchedulingEntitiesJson(serviceRequestId.Value, providers, parseResult, null)
+            };
+        }
+
+        var visitRequests = new List<TelegramChatbotBatchScheduleVisitRequestDto>(visitCount);
+        foreach (var assignment in providerAssignments)
+        {
             visitRequests.Add(new TelegramChatbotBatchScheduleVisitRequestDto(
-                ProviderId: provider.ProviderId,
-                WindowStartUtc: window.WindowStartUtc,
-                WindowEndUtc: window.WindowEndUtc,
+                ProviderId: assignment.Provider.ProviderId,
+                WindowStartUtc: assignment.Window.WindowStartUtc,
+                WindowEndUtc: assignment.Window.WindowEndUtc,
                 Reason: "Agendamento solicitado em linguagem natural pelo chatbot Telegram."));
         }
 
@@ -950,6 +976,91 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
             lastStep: batchResult.Success ? "visits_scheduled" : "visits_partial_or_failed",
             conversationStatus: ConversationStatusActive,
             cancellationToken);
+    }
+
+    private async Task<IReadOnlyList<ProviderWindowAssignment>> ResolveProviderAssignmentsAsync(
+        string apiToken,
+        IReadOnlyList<TelegramChatbotEligibleProviderDto> providers,
+        IReadOnlyList<TelegramSchedulingParseVisitWindow> windows,
+        CancellationToken cancellationToken)
+    {
+        var assignments = new List<ProviderWindowAssignment>(windows.Count);
+        var usedProviders = new HashSet<Guid>();
+
+        foreach (var window in windows)
+        {
+            TelegramChatbotEligibleProviderDto? selectedProvider = null;
+            foreach (var provider in providers)
+            {
+                if (usedProviders.Contains(provider.ProviderId))
+                {
+                    continue;
+                }
+
+                if (await IsProviderAvailableForWindowAsync(
+                        apiToken,
+                        provider.ProviderId,
+                        window.WindowStartUtc,
+                        window.WindowEndUtc,
+                        cancellationToken))
+                {
+                    selectedProvider = provider;
+                    break;
+                }
+            }
+
+            if (selectedProvider is null)
+            {
+                continue;
+            }
+
+            usedProviders.Add(selectedProvider.ProviderId);
+            assignments.Add(new ProviderWindowAssignment(selectedProvider, window));
+        }
+
+        return assignments;
+    }
+
+    private async Task<bool> IsProviderAvailableForWindowAsync(
+        string apiToken,
+        Guid providerId,
+        DateTime windowStartUtc,
+        DateTime windowEndUtc,
+        CancellationToken cancellationToken)
+    {
+        var durationMinutes = (int)Math.Round(
+            (NormalizeToUtc(windowEndUtc) - NormalizeToUtc(windowStartUtc)).TotalMinutes,
+            MidpointRounding.AwayFromZero);
+
+        if (durationMinutes <= 0)
+        {
+            return false;
+        }
+
+        var slots = await _telegramChatbotApiClient.GetProviderAvailableSlotsAsync(
+            apiToken,
+            providerId,
+            windowStartUtc,
+            windowEndUtc,
+            durationMinutes,
+            cancellationToken);
+
+        if (slots is null || slots.Count == 0)
+        {
+            return false;
+        }
+
+        var normalizedStart = NormalizeToUtc(windowStartUtc);
+        var normalizedEnd = NormalizeToUtc(windowEndUtc);
+
+        return slots.Any(slot =>
+            NormalizeToUtc(slot.WindowStartUtc) <= normalizedStart &&
+            NormalizeToUtc(slot.WindowEndUtc) >= normalizedEnd);
+    }
+
+    private static string BuildVisitWindowQuestionMessage()
+    {
+        return "Perfeito. Para eu buscar prestadores com agenda livre, me diga os dias e o periodo desejado (ex.: quarta e sexta de manha).";
     }
 
     private static string BuildProviderSuggestionMessage(IReadOnlyList<TelegramChatbotEligibleProviderDto> providers)
@@ -1251,6 +1362,20 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
     private sealed record SchedulingBatchSnapshot(
         Guid ServiceRequestId,
         TelegramChatbotBatchScheduleResultDto Result);
+
+    private sealed record ProviderWindowAssignment(
+        TelegramChatbotEligibleProviderDto Provider,
+        TelegramSchedulingParseVisitWindow Window);
+
+    private static DateTime NormalizeToUtc(DateTime value)
+    {
+        return value.Kind switch
+        {
+            DateTimeKind.Utc => value,
+            DateTimeKind.Local => value.ToUniversalTime(),
+            _ => DateTime.SpecifyKind(value, DateTimeKind.Utc)
+        };
+    }
 
     private static bool TryGetPropertyIgnoreCase(
         JsonElement root,

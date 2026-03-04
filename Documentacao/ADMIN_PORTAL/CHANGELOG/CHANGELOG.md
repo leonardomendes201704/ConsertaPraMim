@@ -114,6 +114,12 @@
 
 ## Released
 
+- [2026-03-04] [ST-008] Hotfix de disponibilidade real antes de sugerir prestadores no chatbot Telegram
+- Tipo: fix
+- Resumo: fluxo de agendamento foi ajustado para pedir primeiro os dias/periodos desejados e somente depois avaliar prestadores; a bridge agora consulta slots reais (`/api/service-appointments/slots`) por prestador/janela antes de montar o lote, evitando sugestao prematura e reduzindo respostas de indisponibilidade apos confirmacao textual. Tambem foi corrigida a interpretacao de "semana q vem" para manter todos os dias na semana seguinte.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramChatbotOrchestrator.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramChatbotApiClient.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/ITelegramChatbotApiClient.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramSchedulingNaturalLanguageParser.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Models/TelegramServiceRequestModels.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramChatbotOrchestratorTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramSchedulingNaturalLanguageParserTests.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md`
+- Risco/Impacto: medio
+
 - [2026-03-04] [ST-008] Hotfix de inferencia de agendamento por sinais de dia/periodo no chatbot Telegram
 - Tipo: fix
 - Resumo: corrigido o parser de agenda para considerar intencao de agendamento quando o cliente informa apenas sinais naturais de data/periodo (ex.: "quarta, quinta e sexta de manha"), mesmo sem palavra-chave explicita como "agendar"; com isso o orquestrador deixa de responder confirmacao sem persistencia e volta a executar o lote real de agendamentos (`schedule-visits-batch`) quando ha dados suficientes.
