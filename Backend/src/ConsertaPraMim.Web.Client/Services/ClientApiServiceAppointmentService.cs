@@ -38,6 +38,24 @@ public class ClientApiServiceAppointmentService : IServiceAppointmentService
         return new ServiceAppointmentSlotsResultDto(false, [], "api_error", response.ErrorMessage);
     }
 
+    public async Task<PublicProvidersAvailabilityWindowDto> GetPublicProvidersAvailableSlotsNext15DaysAsync()
+    {
+        var response = await _apiCaller.SendAsync<PublicProvidersAvailabilityWindowDto>(
+            HttpMethod.Get,
+            "/api/service-appointments/public/providers/slots/next-15-days");
+
+        if (response.Success && response.Payload != null)
+        {
+            return response.Payload;
+        }
+
+        var nowUtc = DateTime.UtcNow;
+        return new PublicProvidersAvailabilityWindowDto(
+            nowUtc,
+            nowUtc.AddDays(15),
+            Array.Empty<PublicProviderAvailabilitySlotsDto>());
+    }
+
     public async Task<ProviderAvailabilityOverviewResultDto> GetProviderAvailabilityOverviewAsync(
         Guid actorUserId,
         string actorRole,

@@ -39,6 +39,25 @@ public class ServiceAppointmentsController : ControllerBase
         _logger = logger ?? NullLogger<ServiceAppointmentsController>.Instance;
     }
 
+    /// <summary>
+    /// Lista os horarios disponiveis de todos os prestadores ativos para os proximos 15 dias.
+    /// </summary>
+    /// <remarks>
+    /// Regras principais:
+    /// - Endpoint publico (nao exige autenticacao).
+    /// - Considera agenda ativa de cada prestador, bloqueios e agendamentos ja reservados.
+    /// - Retorna janelas em UTC para padronizacao entre clientes.
+    /// </remarks>
+    /// <response code="200">Consulta executada com sucesso.</response>
+    [HttpGet("public/providers/slots/next-15-days")]
+    [AllowAnonymous]
+    [ProducesResponseType(typeof(PublicProvidersAvailabilityWindowDto), 200)]
+    public async Task<IActionResult> GetPublicProvidersAvailableSlotsNext15Days()
+    {
+        var result = await _serviceAppointmentService.GetPublicProvidersAvailableSlotsNext15DaysAsync();
+        return Ok(result);
+    }
+
     [HttpGet("slots")]
     public async Task<IActionResult> GetSlots([FromQuery] GetServiceAppointmentSlotsQueryDto query)
     {

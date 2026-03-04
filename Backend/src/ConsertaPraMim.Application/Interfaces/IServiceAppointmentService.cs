@@ -9,6 +9,8 @@ public interface IServiceAppointmentService
         string actorRole,
         GetServiceAppointmentSlotsQueryDto query);
 
+    Task<PublicProvidersAvailabilityWindowDto> GetPublicProvidersAvailableSlotsNext15DaysAsync();
+
     Task<ProviderAvailabilityOverviewResultDto> GetProviderAvailabilityOverviewAsync(
         Guid actorUserId,
         string actorRole,

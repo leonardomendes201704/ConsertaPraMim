@@ -178,6 +178,94 @@ public class ServiceAppointmentServiceTests
     }
 
     /// <summary>
+    /// Cenario: a consulta publica agrega disponibilidade dos prestadores ativos para os proximos 15 dias.
+    /// Passos: o teste configura 2 prestadores (um com regra ativa e outro sem regra) e executa a consulta agregada.
+    /// Resultado esperado: o retorno contem os 2 prestadores, com slots calculados somente para quem possui regra.
+    /// </summary>
+    [Fact(DisplayName = "Servico appointment servico | Obter slots publicos 15 dias | Deve listar disponibilidade agregada por prestador ativo")]
+    public async Task GetPublicProvidersAvailableSlotsNext15DaysAsync_ShouldReturnAggregatedAvailabilityByProvider()
+    {
+        var providerWithRuleId = Guid.NewGuid();
+        var providerWithoutRuleId = Guid.NewGuid();
+        var nextMondayUtc = NextUtcDayOfWeek(DateTime.UtcNow, DayOfWeek.Monday);
+
+        _userRepositoryMock
+            .Setup(r => r.GetAllAsync())
+            .ReturnsAsync(new List<User>
+            {
+                new()
+                {
+                    Id = providerWithRuleId,
+                    Name = "Prestador Alfa",
+                    Role = UserRole.Provider,
+                    IsActive = true
+                },
+                new()
+                {
+                    Id = providerWithoutRuleId,
+                    Name = "Prestador Beta",
+                    Role = UserRole.Provider,
+                    IsActive = true
+                },
+                new()
+                {
+                    Id = Guid.NewGuid(),
+                    Name = "Cliente Zeta",
+                    Role = UserRole.Client,
+                    IsActive = true
+                }
+            });
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetAvailabilityRulesByProviderAsync(providerWithRuleId))
+            .ReturnsAsync(new List<ProviderAvailabilityRule>
+            {
+                new()
+                {
+                    ProviderId = providerWithRuleId,
+                    DayOfWeek = DayOfWeek.Monday,
+                    StartTime = TimeSpan.FromHours(9),
+                    EndTime = TimeSpan.FromHours(10),
+                    SlotDurationMinutes = 60,
+                    IsActive = true
+                }
+            });
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetAvailabilityRulesByProviderAsync(providerWithoutRuleId))
+            .ReturnsAsync(Array.Empty<ProviderAvailabilityRule>());
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetAvailabilityExceptionsByProviderAsync(
+                providerWithRuleId,
+                It.IsAny<DateTime>(),
+                It.IsAny<DateTime>()))
+            .ReturnsAsync(Array.Empty<ProviderAvailabilityException>());
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetProviderAppointmentsByStatusesInRangeAsync(
+                providerWithRuleId,
+                It.IsAny<DateTime>(),
+                It.IsAny<DateTime>(),
+                It.IsAny<IReadOnlyCollection<ServiceAppointmentStatus>>()))
+            .ReturnsAsync(Array.Empty<ServiceAppointment>());
+
+        var result = await _service.GetPublicProvidersAvailableSlotsNext15DaysAsync();
+
+        Assert.Equal(TimeSpan.FromDays(15), result.ToUtc - result.FromUtc);
+        Assert.Equal(2, result.Providers.Count);
+
+        var providerWithRule = result.Providers.Single(p => p.ProviderId == providerWithRuleId);
+        var providerWithoutRule = result.Providers.Single(p => p.ProviderId == providerWithoutRuleId);
+
+        Assert.NotEmpty(providerWithRule.Slots);
+        Assert.All(providerWithRule.Slots, slot => Assert.True(slot.WindowStartUtc >= result.FromUtc && slot.WindowEndUtc <= result.ToUtc));
+        Assert.Contains(providerWithRule.Slots, slot => slot.WindowStartUtc.Date == nextMondayUtc.Date && slot.WindowStartUtc.Hour == 9);
+
+        Assert.Empty(providerWithoutRule.Slots);
+    }
+
+    /// <summary>
     /// Cenario: o cliente tenta criar agendamento com prestador que nao possui proposta aceita na requisicao.
     /// Passos: o teste chama criacao de appointment com proposta nao confirmada para o provider escolhido.
     /// Resultado esperado: a operacao falha com erro de prestador nao atribuido.

@@ -10,6 +10,12 @@
 
 ## Released
 
+- [2026-03-04] [ST-002][API-SERVICE-APPOINTMENTS] Endpoint publico para disponibilidade agregada de prestadores (15 dias)
+- Tipo: feat
+- Resumo: adicionada a rota anonima `GET /api/service-appointments/public/providers/slots/next-15-days` para listar, em uma unica consulta, os horarios disponiveis dos prestadores ativos nos proximos 15 dias; o retorno foi padronizado em UTC com janela `fromUtc/toUtc` e slots por prestador, reutilizando as mesmas regras de disponibilidade, bloqueios e conflitos de agenda do fluxo autenticado.
+- Arquivos principais: `Backend/src/ConsertaPraMim.API/Controllers/ServiceAppointmentsController.cs`, `Backend/src/ConsertaPraMim.Application/Services/ServiceAppointmentService.cs`, `Backend/src/ConsertaPraMim.Application/DTOs/ServiceAppointmentDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Interfaces/IServiceAppointmentService.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ApiEndpointDocumentationCatalog.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/ServiceAppointmentServiceTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Controllers/ServiceAppointmentsControllerTests.cs`, `Documentacao/AGENDA_SERVICOS_JANELAS_LEMBRETES/MANUAL_ADMIN_QA_AGENDA_ST-008.md`, `Documentacao/DIAGRAMAS/AGENDA_SERVICOS_JANELAS_LEMBRETES/ST-008-observabilidade-qa-runbook-agenda/sequencia-consulta-publica-slots-15-dias.mmd`
+- Risco/Impacto: medio
+
 - [2026-03-03] [ST-009][WEB-CLIENT] Ocultacao da secao de cancelamento quando pedido nao elegivel
 - Tipo: fix
 - Resumo: na tela `ServiceRequests/Details` do portal cliente, a secao/card `Cancelar pedido` passou a ser renderizada somente quando o cancelamento e permitido; para estados bloqueados (ex.: pedido concluido), a secao nao aparece mais na interface.
