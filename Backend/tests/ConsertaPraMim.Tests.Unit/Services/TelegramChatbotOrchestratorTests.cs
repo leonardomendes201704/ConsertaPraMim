@@ -357,7 +357,7 @@ public class TelegramChatbotOrchestratorTests
 
         var clientMessage = BuildClientMessage(
             conversationId: 123L,
-            text: "Sim, pode agendar com 2 prestadores na quarta e na sexta feira, no periodo da manha.",
+            text: "Sim, pode ser com 2 prestadores na quarta e na sexta feira, no periodo da manha.",
             messageId: "m-schedule");
 
         var reply = await orchestrator.GenerateAssistantReplyAsync(

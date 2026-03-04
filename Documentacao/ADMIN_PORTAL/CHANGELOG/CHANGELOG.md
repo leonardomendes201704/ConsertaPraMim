@@ -114,6 +114,12 @@
 
 ## Released
 
+- [2026-03-04] [ST-008] Hotfix de inferencia de agendamento por sinais de dia/periodo no chatbot Telegram
+- Tipo: fix
+- Resumo: corrigido o parser de agenda para considerar intencao de agendamento quando o cliente informa apenas sinais naturais de data/periodo (ex.: "quarta, quinta e sexta de manha"), mesmo sem palavra-chave explicita como "agendar"; com isso o orquestrador deixa de responder confirmacao sem persistencia e volta a executar o lote real de agendamentos (`schedule-visits-batch`) quando ha dados suficientes.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramSchedulingNaturalLanguageParser.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramSchedulingNaturalLanguageParserTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramChatbotOrchestratorTests.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md`
+- Risco/Impacto: medio
+
 - [2026-03-03] [ST-008] Hotfix do loop de resposta e consulta de status/agendamento no chatbot Telegram
 - Tipo: fix
 - Resumo: corrigido o comportamento em que o bot repetia "pedido ja registrado" para qualquer mensagem apos criacao do pedido; a triagem agora so continua automaticamente enquanto o pedido nao foi criado, e o orquestrador passou a responder consultas de status/agendamento/prestadores usando o contexto historico (`serviceRequestId`) com fallback para listagem de prestadores quando ainda nao ha visitas confirmadas.

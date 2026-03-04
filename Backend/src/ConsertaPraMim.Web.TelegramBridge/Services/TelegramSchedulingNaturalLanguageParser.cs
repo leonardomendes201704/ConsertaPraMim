@@ -60,7 +60,13 @@ public sealed class TelegramSchedulingNaturalLanguageParser
         }
 
         var normalizedMessage = NormalizeText(clientMessage);
-        if (!SchedulingIntentRegex.IsMatch(normalizedMessage))
+        var nowInSaoPaulo = ConvertUtcToSaoPaulo(nowUtc);
+        var dayCandidates = ResolveRequestedDays(normalizedMessage, nowInSaoPaulo);
+        var period = ResolvePeriod(normalizedMessage);
+
+        var hasSchedulingKeyword = SchedulingIntentRegex.IsMatch(normalizedMessage);
+        var hasSchedulingSignal = hasSchedulingKeyword || dayCandidates.Count > 0 || period is not null;
+        if (!hasSchedulingSignal)
         {
             return new TelegramSchedulingParseResult(
                 IsSchedulingIntent: false,
@@ -68,7 +74,6 @@ public sealed class TelegramSchedulingNaturalLanguageParser
                 Windows: []);
         }
 
-        var period = ResolvePeriod(normalizedMessage);
         if (period is null)
         {
             return new TelegramSchedulingParseResult(
@@ -79,8 +84,6 @@ public sealed class TelegramSchedulingNaturalLanguageParser
                 ErrorMessage: "Informe o periodo/horario desejado para as visitas.");
         }
 
-        var nowInSaoPaulo = ConvertUtcToSaoPaulo(nowUtc);
-        var dayCandidates = ResolveRequestedDays(normalizedMessage, nowInSaoPaulo);
         if (dayCandidates.Count == 0)
         {
             return new TelegramSchedulingParseResult(
