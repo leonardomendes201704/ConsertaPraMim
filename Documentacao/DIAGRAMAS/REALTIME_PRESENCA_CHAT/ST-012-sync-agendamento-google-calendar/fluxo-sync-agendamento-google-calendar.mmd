@@ -13,3 +13,15 @@ flowchart TD
     J -->|Nao| L[Atualizar sync para Failed com Error]
     K --> M[Retornar visita agendada no lote]
     L --> M
+
+    N[RespondRescheduleAsync com Accept=true] --> O[Aplicar nova janela no appointment]
+    O --> P[Buscar sync por AppointmentId]
+    P --> Q{GoogleEventId existe?}
+    Q -->|Sim| R[Chamar UpdateEventAsync com nova janela]
+    Q -->|Nao| S[Chamar CreateEventAsync idempotente]
+    R --> T{Update retornou event_not_found?}
+    T -->|Sim| S
+    T -->|Nao| U{Update/create ok?}
+    S --> U
+    U -->|Sim| V[Atualizar sync para Synced]
+    U -->|Nao| W[Atualizar sync para Failed]

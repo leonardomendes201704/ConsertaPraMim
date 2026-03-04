@@ -43,3 +43,32 @@ sequenceDiagram
         Appointment-->>App: ErrorCode/ErrorMessage
         App-->>App: Nao cria/atualiza sync
     end
+
+    Note over Appointment,GCal: Task 4 - Reagendamento aceito (update)
+    participant Scheduling as ServiceAppointmentService
+    Scheduling->>Appointment: RespondRescheduleAsync(Accept=true)
+    Appointment-->>Scheduling: Appointment com nova janela
+    Scheduling->>Repo: GetByAppointmentIdAsync(appointmentId)
+    Repo->>Db: Select por AppointmentId
+    Db-->>Repo: sync
+    Repo-->>Scheduling: sync atual
+
+    alt sync possui GoogleEventId
+        Scheduling->>GCal: UpdateEventAsync(eventId, nova janela)
+        alt google_calendar_event_not_found
+            GCal-->>Scheduling: not_found
+            Scheduling->>GCal: CreateEventAsync(idempotencyKey=appointmentId)
+            GCal-->>Scheduling: resultado create
+        else update ok/erro
+            GCal-->>Scheduling: resultado update
+        end
+    else sync sem evento
+        Scheduling->>GCal: CreateEventAsync(idempotencyKey=appointmentId)
+        GCal-->>Scheduling: resultado create
+    end
+
+    alt update/create ok
+        Scheduling->>Repo: UpdateAsync(sync: Synced, GoogleEventId, LastSyncAtUtc)
+    else erro update/create
+        Scheduling->>Repo: UpdateAsync(sync: Failed, Error, LastSyncAtUtc)
+    end

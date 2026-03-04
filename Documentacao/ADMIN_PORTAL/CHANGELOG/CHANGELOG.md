@@ -114,6 +114,12 @@
 
 ## Released
 
+- [2026-03-04] [ST-012] Update de evento Google Calendar ao aceitar reagendamento
+- Tipo: feat
+- Resumo: `ServiceAppointmentService.RespondRescheduleAsync` passou a sincronizar atualizacao do evento no Google Calendar quando o reagendamento e aceito, atualizando janela/metadata via `UpdateEventAsync`; quando o evento nao e encontrado (`google_calendar_event_not_found`), o fluxo faz fallback com `CreateEventAsync` idempotente por `appointmentId`, mantendo `ServiceAppointmentCalendarSync` em `Synced` ou `Failed` com trilha de erro.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/Services/ServiceAppointmentService.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/ServiceAppointmentServiceTests.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-012-sync-automatica-agendamento-google-calendar.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_GOOGLE_CALENDAR_SYNC_ST-011.md`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-012-sync-agendamento-google-calendar/fluxo-sync-agendamento-google-calendar.mmd`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-012-sync-agendamento-google-calendar/sequencia-sync-agendamento-google-calendar.mmd`
+- Risco/Impacto: medio
+
 - [2026-03-04] [ST-012] Create de evento Google Calendar com idempotencia por appointmentId
 - Tipo: feat
 - Resumo: o fluxo de agendamento do chatbot passou a executar `CreateEventAsync` no Google Calendar apos persistencia local, usando chave idempotente `cpm-apt-{appointmentId}`; em sucesso o sync e marcado como `Synced` com `GoogleEventId`, e em falha e marcado como `Failed` com trilha de erro para reprocessamento sem bloquear o agendamento local.

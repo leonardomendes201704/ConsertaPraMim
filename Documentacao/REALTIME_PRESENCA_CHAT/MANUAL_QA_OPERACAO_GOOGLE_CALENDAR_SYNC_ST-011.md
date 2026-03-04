@@ -128,3 +128,21 @@ Checklist operacional:
 - [ ] QA-GCAL-012-102: repetir create para mesma chave idempotente e validar ausencia de duplicacao no Google.
 - [ ] QA-GCAL-012-103: simular falha de create no Google e validar `ServiceAppointmentCalendarSyncs.SyncStatus=Failed` + `Error` preenchido.
 - [ ] QA-GCAL-012-104: simular create com sucesso e validar `ServiceAppointmentCalendarSyncs.SyncStatus=Synced` + `GoogleEventId` preenchido.
+
+## 11. Evolucao ST-012 (Task 4)
+
+Sincronizacao de update de evento quando reagendamento e aceito:
+
+- No `RespondRescheduleAsync` (quando `Accept=true`), apos aplicar nova janela no agendamento, a API sincroniza o evento do Google Calendar.
+- Se existir `GoogleEventId`, o fluxo usa `UpdateEventAsync`.
+- Se `UpdateEventAsync` retornar `google_calendar_event_not_found`, o fluxo tenta `CreateEventAsync` com a mesma chave idempotente (`cpm-apt-{appointmentId}`) para recompor o evento.
+- O sync de calendario transita para:
+  - `Synced` quando update/create conclui com sucesso.
+  - `Failed` quando update/create falha, com erro persistido para retry.
+
+Checklist operacional:
+
+- [ ] QA-GCAL-012-201: aceitar reagendamento e validar chamada de `UpdateEventAsync` com nova janela.
+- [ ] QA-GCAL-012-202: simular `google_calendar_event_not_found` no update e validar fallback de create idempotente.
+- [ ] QA-GCAL-012-203: simular erro de update e validar `SyncStatus=Failed` com trilha em `Error`.
+- [ ] QA-GCAL-012-204: validar transicao de sync `Pending -> Synced` apos update bem-sucedido.

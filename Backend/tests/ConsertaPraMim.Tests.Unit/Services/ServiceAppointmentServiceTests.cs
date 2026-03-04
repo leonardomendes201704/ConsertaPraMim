@@ -25,6 +25,8 @@ public class ServiceAppointmentServiceTests
     private readonly Mock<IServiceFinancialPolicyCalculationService> _financialPolicyCalculationServiceMock;
     private readonly Mock<IProviderCreditService> _providerCreditServiceMock;
     private readonly Mock<IAdminAuditLogRepository> _adminAuditLogRepositoryMock;
+    private readonly Mock<IServiceAppointmentCalendarSyncRepository> _serviceAppointmentCalendarSyncRepositoryMock;
+    private readonly Mock<IGoogleCalendarService> _googleCalendarServiceMock;
     private readonly ServiceAppointmentService _service;
 
     public ServiceAppointmentServiceTests()
@@ -43,6 +45,8 @@ public class ServiceAppointmentServiceTests
         _financialPolicyCalculationServiceMock = new Mock<IServiceFinancialPolicyCalculationService>();
         _providerCreditServiceMock = new Mock<IProviderCreditService>();
         _adminAuditLogRepositoryMock = new Mock<IAdminAuditLogRepository>();
+        _serviceAppointmentCalendarSyncRepositoryMock = new Mock<IServiceAppointmentCalendarSyncRepository>();
+        _googleCalendarServiceMock = new Mock<IGoogleCalendarService>();
 
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
@@ -138,6 +142,27 @@ public class ServiceAppointmentServiceTests
                 ErrorCode: "mutation_not_applied",
                 ErrorMessage: "Sem mutacao."));
 
+        _serviceAppointmentCalendarSyncRepositoryMock
+            .Setup(r => r.GetByAppointmentIdAsync(It.IsAny<Guid>()))
+            .ReturnsAsync((ServiceAppointmentCalendarSync?)null);
+        _serviceAppointmentCalendarSyncRepositoryMock
+            .Setup(r => r.AddAsync(It.IsAny<ServiceAppointmentCalendarSync>()))
+            .Returns(Task.CompletedTask);
+        _serviceAppointmentCalendarSyncRepositoryMock
+            .Setup(r => r.UpdateAsync(It.IsAny<ServiceAppointmentCalendarSync>()))
+            .Returns(Task.CompletedTask);
+
+        _googleCalendarServiceMock
+            .Setup(s => s.CreateEventAsync(It.IsAny<GoogleCalendarUpsertRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new GoogleCalendarUpsertResult(
+                Success: true,
+                EventId: $"cpm-test-{Guid.NewGuid():N}"));
+        _googleCalendarServiceMock
+            .Setup(s => s.UpdateEventAsync(It.IsAny<string>(), It.IsAny<GoogleCalendarUpsertRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new GoogleCalendarUpsertResult(
+                Success: true,
+                EventId: $"cpm-test-{Guid.NewGuid():N}"));
+
         _service = new ServiceAppointmentService(
             _appointmentRepositoryMock.Object,
             _requestRepositoryMock.Object,
@@ -153,7 +178,9 @@ public class ServiceAppointmentServiceTests
             _providerCreditServiceMock.Object,
             _adminAuditLogRepositoryMock.Object,
             _serviceWarrantyClaimRepositoryMock.Object,
-            _serviceDisputeCaseRepositoryMock.Object);
+            _serviceDisputeCaseRepositoryMock.Object,
+            serviceAppointmentCalendarSyncRepository: _serviceAppointmentCalendarSyncRepositoryMock.Object,
+            googleCalendarService: _googleCalendarServiceMock.Object);
     }
 
     /// <summary>
@@ -673,6 +700,225 @@ public class ServiceAppointmentServiceTests
             a.ProposedWindowStartUtc == null &&
             a.ProposedWindowEndUtc == null)), Times.Once);
         _appointmentRepositoryMock.Verify(r => r.AddHistoryAsync(It.IsAny<ServiceAppointmentHistory>()), Times.Once);
+    }
+
+    /// <summary>
+    /// Cenario: o reagendamento e aceito e ja existe evento vinculado no Google Calendar.
+    /// Passos: o teste aplica nova janela e valida chamada de update no evento existente.
+    /// Resultado esperado: update no Google com idempotencia por appointment e sync marcado como Synced.
+    /// </summary>
+    [Fact(DisplayName = "Servico appointment servico | Respond reschedule | Deve atualizar evento Google e marcar sync como synced")]
+    public async Task RespondRescheduleAsync_ShouldUpdateGoogleEventAndMarkSyncAsSynced_WhenCounterpartyAccepts()
+    {
+        var clientId = Guid.NewGuid();
+        var providerId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var appointmentId = Guid.NewGuid();
+        var currentWindowStartUtc = NextUtcDayOfWeek(DateTime.UtcNow, DayOfWeek.Monday).AddHours(10);
+        var currentWindowEndUtc = currentWindowStartUtc.AddHours(1);
+        var proposedWindowStartUtc = currentWindowStartUtc.AddHours(3);
+        var proposedWindowEndUtc = proposedWindowStartUtc.AddHours(1);
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetByIdAsync(appointmentId))
+            .ReturnsAsync(new ServiceAppointment
+            {
+                Id = appointmentId,
+                ServiceRequestId = requestId,
+                ClientId = clientId,
+                ProviderId = providerId,
+                Status = ServiceAppointmentStatus.RescheduleRequestedByClient,
+                WindowStartUtc = currentWindowStartUtc,
+                WindowEndUtc = currentWindowEndUtc,
+                ProposedWindowStartUtc = proposedWindowStartUtc,
+                ProposedWindowEndUtc = proposedWindowEndUtc,
+                RescheduleRequestReason = "Troca de compromisso",
+                ServiceRequest = BuildRequest(clientId, providerId, acceptedProposal: true)
+            });
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetAvailabilityRulesByProviderAsync(providerId))
+            .ReturnsAsync(new List<ProviderAvailabilityRule>
+            {
+                new()
+                {
+                    ProviderId = providerId,
+                    DayOfWeek = proposedWindowStartUtc.DayOfWeek,
+                    StartTime = TimeSpan.FromHours(8),
+                    EndTime = TimeSpan.FromHours(22),
+                    SlotDurationMinutes = 30,
+                    IsActive = true
+                }
+            });
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetAvailabilityExceptionsByProviderAsync(
+                providerId,
+                It.IsAny<DateTime>(),
+                It.IsAny<DateTime>()))
+            .ReturnsAsync(Array.Empty<ProviderAvailabilityException>());
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetProviderAppointmentsByStatusesInRangeAsync(
+                providerId,
+                It.IsAny<DateTime>(),
+                It.IsAny<DateTime>(),
+                It.IsAny<IReadOnlyCollection<ServiceAppointmentStatus>>()))
+            .ReturnsAsync(Array.Empty<ServiceAppointment>());
+
+        var existingSync = new ServiceAppointmentCalendarSync
+        {
+            AppointmentId = appointmentId,
+            GoogleEventId = "evt-google-123",
+            SyncStatus = ServiceAppointmentCalendarSyncStatus.Synced
+        };
+        var syncTransitions = new List<ServiceAppointmentCalendarSyncStatus>();
+
+        _serviceAppointmentCalendarSyncRepositoryMock
+            .Setup(r => r.GetByAppointmentIdAsync(appointmentId))
+            .ReturnsAsync(existingSync);
+        _serviceAppointmentCalendarSyncRepositoryMock
+            .Setup(r => r.UpdateAsync(It.IsAny<ServiceAppointmentCalendarSync>()))
+            .Callback<ServiceAppointmentCalendarSync>(sync => syncTransitions.Add(sync.SyncStatus))
+            .Returns(Task.CompletedTask);
+
+        _googleCalendarServiceMock
+            .Setup(s => s.UpdateEventAsync(
+                existingSync.GoogleEventId!,
+                It.IsAny<GoogleCalendarUpsertRequest>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new GoogleCalendarUpsertResult(
+                Success: true,
+                EventId: existingSync.GoogleEventId));
+
+        var result = await _service.RespondRescheduleAsync(
+            providerId,
+            UserRole.Provider.ToString(),
+            appointmentId,
+            new RespondServiceAppointmentRescheduleRequestDto(true));
+
+        Assert.True(result.Success, $"{result.ErrorCode} - {result.ErrorMessage}");
+        _googleCalendarServiceMock.Verify(s => s.UpdateEventAsync(
+                existingSync.GoogleEventId!,
+                It.Is<GoogleCalendarUpsertRequest>(payload =>
+                    payload.StartsAtUtc == proposedWindowStartUtc &&
+                    payload.EndsAtUtc == proposedWindowEndUtc &&
+                    payload.IdempotencyKey == $"cpm-apt-{appointmentId:N}"),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+        _serviceAppointmentCalendarSyncRepositoryMock.Verify(
+            r => r.AddAsync(It.IsAny<ServiceAppointmentCalendarSync>()),
+            Times.Never);
+        Assert.Equal(
+            [ServiceAppointmentCalendarSyncStatus.Pending, ServiceAppointmentCalendarSyncStatus.Synced],
+            syncTransitions);
+    }
+
+    /// <summary>
+    /// Cenario: o reagendamento e aceito, mas update do evento no Google Calendar falha.
+    /// Passos: o teste responde com aceite e simula erro no provider Google.
+    /// Resultado esperado: fluxo principal conclui e sync fica como Failed para reprocessamento.
+    /// </summary>
+    [Fact(DisplayName = "Servico appointment servico | Respond reschedule | Deve marcar sync failed quando update Google falha")]
+    public async Task RespondRescheduleAsync_ShouldMarkCalendarSyncAsFailed_WhenGoogleUpdateFails()
+    {
+        var clientId = Guid.NewGuid();
+        var providerId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var appointmentId = Guid.NewGuid();
+        var currentWindowStartUtc = NextUtcDayOfWeek(DateTime.UtcNow, DayOfWeek.Monday).AddHours(10);
+        var currentWindowEndUtc = currentWindowStartUtc.AddHours(1);
+        var proposedWindowStartUtc = currentWindowStartUtc.AddHours(3);
+        var proposedWindowEndUtc = proposedWindowStartUtc.AddHours(1);
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetByIdAsync(appointmentId))
+            .ReturnsAsync(new ServiceAppointment
+            {
+                Id = appointmentId,
+                ServiceRequestId = requestId,
+                ClientId = clientId,
+                ProviderId = providerId,
+                Status = ServiceAppointmentStatus.RescheduleRequestedByClient,
+                WindowStartUtc = currentWindowStartUtc,
+                WindowEndUtc = currentWindowEndUtc,
+                ProposedWindowStartUtc = proposedWindowStartUtc,
+                ProposedWindowEndUtc = proposedWindowEndUtc,
+                RescheduleRequestReason = "Troca de compromisso",
+                ServiceRequest = BuildRequest(clientId, providerId, acceptedProposal: true)
+            });
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetAvailabilityRulesByProviderAsync(providerId))
+            .ReturnsAsync(new List<ProviderAvailabilityRule>
+            {
+                new()
+                {
+                    ProviderId = providerId,
+                    DayOfWeek = proposedWindowStartUtc.DayOfWeek,
+                    StartTime = TimeSpan.FromHours(8),
+                    EndTime = TimeSpan.FromHours(22),
+                    SlotDurationMinutes = 30,
+                    IsActive = true
+                }
+            });
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetAvailabilityExceptionsByProviderAsync(
+                providerId,
+                It.IsAny<DateTime>(),
+                It.IsAny<DateTime>()))
+            .ReturnsAsync(Array.Empty<ProviderAvailabilityException>());
+
+        _appointmentRepositoryMock
+            .Setup(r => r.GetProviderAppointmentsByStatusesInRangeAsync(
+                providerId,
+                It.IsAny<DateTime>(),
+                It.IsAny<DateTime>(),
+                It.IsAny<IReadOnlyCollection<ServiceAppointmentStatus>>()))
+            .ReturnsAsync(Array.Empty<ServiceAppointment>());
+
+        var existingSync = new ServiceAppointmentCalendarSync
+        {
+            AppointmentId = appointmentId,
+            GoogleEventId = "evt-google-999",
+            SyncStatus = ServiceAppointmentCalendarSyncStatus.Synced
+        };
+        var syncTransitions = new List<ServiceAppointmentCalendarSyncStatus>();
+
+        _serviceAppointmentCalendarSyncRepositoryMock
+            .Setup(r => r.GetByAppointmentIdAsync(appointmentId))
+            .ReturnsAsync(existingSync);
+        _serviceAppointmentCalendarSyncRepositoryMock
+            .Setup(r => r.UpdateAsync(It.IsAny<ServiceAppointmentCalendarSync>()))
+            .Callback<ServiceAppointmentCalendarSync>(sync => syncTransitions.Add(sync.SyncStatus))
+            .Returns(Task.CompletedTask);
+
+        _googleCalendarServiceMock
+            .Setup(s => s.UpdateEventAsync(
+                existingSync.GoogleEventId!,
+                It.IsAny<GoogleCalendarUpsertRequest>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new GoogleCalendarUpsertResult(
+                Success: false,
+                ErrorCode: "google_calendar_update_failed",
+                ErrorMessage: "Falha de conectividade."));
+
+        var result = await _service.RespondRescheduleAsync(
+            providerId,
+            UserRole.Provider.ToString(),
+            appointmentId,
+            new RespondServiceAppointmentRescheduleRequestDto(true));
+
+        Assert.True(result.Success, $"{result.ErrorCode} - {result.ErrorMessage}");
+        _googleCalendarServiceMock.Verify(
+            s => s.CreateEventAsync(It.IsAny<GoogleCalendarUpsertRequest>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        Assert.Equal(
+            [ServiceAppointmentCalendarSyncStatus.Pending, ServiceAppointmentCalendarSyncStatus.Failed],
+            syncTransitions);
+        Assert.NotNull(existingSync.Error);
+        Assert.Contains("google_calendar_update_failed", existingSync.Error, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
