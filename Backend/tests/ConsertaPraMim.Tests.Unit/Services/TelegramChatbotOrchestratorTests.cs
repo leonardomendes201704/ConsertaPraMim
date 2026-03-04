@@ -62,7 +62,8 @@ public class TelegramChatbotOrchestratorTests
             options,
             memoryCache,
             Mock.Of<ILogger<TelegramChatbotOrchestrator>>(),
-            new TelegramServiceRequestTriageEngine());
+            new TelegramServiceRequestTriageEngine(),
+            new TelegramSchedulingNaturalLanguageParser());
 
         var clientMessage = BuildClientMessage(conversationId: 77L, text: "Meu ar esta com erro CH26", messageId: "m-1");
 
@@ -117,7 +118,8 @@ public class TelegramChatbotOrchestratorTests
             options,
             memoryCache,
             Mock.Of<ILogger<TelegramChatbotOrchestrator>>(),
-            new TelegramServiceRequestTriageEngine());
+            new TelegramServiceRequestTriageEngine(),
+            new TelegramSchedulingNaturalLanguageParser());
 
         var clientMessage = BuildClientMessage(conversationId: 88L, text: "Meu ar esta com erro CH26", messageId: "m-2");
 
@@ -187,6 +189,20 @@ public class TelegramChatbotOrchestratorTests
             .ReturnsAsync(new TelegramCreatedServiceRequestDto(createdRequestId))
             .Verifiable();
 
+        apiClientMock
+            .Setup(client => client.GetEligibleProvidersAsync(
+                It.IsAny<string>(),
+                createdRequestId,
+                5,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TelegramChatbotEligibleProvidersResultDto(
+                Success: true,
+                ServiceRequestId: createdRequestId,
+                Providers:
+                [
+                    new TelegramChatbotEligibleProviderDto(Guid.NewGuid(), "Tecnico A", 1.5, 4.9, 32, 20, [4])
+                ]));
+
         var options = Options.Create(new TelegramBridgeAiOptions
         {
             Enabled = true,
@@ -203,7 +219,8 @@ public class TelegramChatbotOrchestratorTests
             options,
             memoryCache,
             Mock.Of<ILogger<TelegramChatbotOrchestrator>>(),
-            new TelegramServiceRequestTriageEngine());
+            new TelegramServiceRequestTriageEngine(),
+            new TelegramSchedulingNaturalLanguageParser());
 
         var clientMessage = BuildClientMessage(
             conversationId: 99L,
@@ -218,14 +235,153 @@ public class TelegramChatbotOrchestratorTests
             CancellationToken.None);
 
         Assert.NotNull(reply);
-        Assert.Equal("open_service_request", reply!.Intent);
-        Assert.Equal("service_request_created", reply.NextStep);
-        Assert.Contains("Registrei seu pedido", reply.MessageText, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("schedule_visits", reply!.Intent);
+        Assert.Equal("collect_visit_windows", reply.NextStep);
+        Assert.Contains("Encontrei estes prestadores", reply.MessageText, StringComparison.OrdinalIgnoreCase);
 
         apiClientMock.Verify();
     }
 
-    private static Mock<ITelegramChatbotApiClient> BuildApiClientMock(Guid conversationId)
+    [Fact(DisplayName = "Telegram IA orchestrator | Schedule visits | Deve agendar lote a partir de linguagem natural")]
+    public async Task GenerateAssistantReplyAsync_ShouldScheduleBatchVisits_WhenMessageContainsNaturalWindows()
+    {
+        var conversationId = Guid.NewGuid();
+        var serviceRequestId = Guid.NewGuid();
+        var providerA = Guid.NewGuid();
+        var providerB = Guid.NewGuid();
+
+        var gatewayMock = new Mock<ITelegramAiGateway>();
+        gatewayMock
+            .Setup(gateway => gateway.GenerateReplyAsync(It.IsAny<TelegramAiGatewayRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TelegramAiGatewayResult(
+                Success: true,
+                OutputText: $"{{\"messageToClient\":\"Perfeito, vou agendar.\",\"intent\":\"schedule_visits\",\"nextStep\":\"collect_visit_windows\",\"confidence\":0.92,\"entities\":{{\"serviceRequestId\":\"{serviceRequestId:D}\"}}}}",
+                InputTokens: 90,
+                OutputTokens: 50,
+                TotalTokens: 140,
+                AttemptCount: 1,
+                LatencyMilliseconds: 80));
+
+        var history = new TelegramChatbotConversationHistoryDto(
+            Conversation: new TelegramChatbotConversationDto(
+                Id: conversationId,
+                ClientId: Guid.NewGuid(),
+                Channel: "telegram",
+                ChannelConversationId: "chat-id",
+                Status: 1,
+                StartedAtUtc: DateTime.UtcNow,
+                LastInteractionAtUtc: DateTime.UtcNow,
+                LastIntent: "open_service_request",
+                LastStep: "service_request_created",
+                MetadataJson: null),
+            Messages: [],
+            ContextSnapshots:
+            [
+                new TelegramChatbotContextSnapshotDto(
+                    Id: Guid.NewGuid(),
+                    ConversationId: conversationId,
+                    ClientId: Guid.NewGuid(),
+                    SnapshotType: "service_request_triage_state",
+                    ContextJson: $"{{\"state\":{{\"serviceRequestId\":\"{serviceRequestId:D}\",\"categoryRaw\":\"ar condicionado\",\"categoryEnum\":\"Appliances\",\"problemDescription\":\"erro CH26\",\"zipCode\":\"04567-000\"}}}}",
+                    PromptVersion: "v1",
+                    ModelName: "gpt-4.1-mini",
+                    PromptTokens: null,
+                    CompletionTokens: null,
+                    TotalTokens: null,
+                    CapturedAtUtc: DateTime.UtcNow.AddMinutes(-1))
+            ],
+            ActionLogs: []);
+
+        var apiClientMock = BuildApiClientMock(conversationId, history);
+        apiClientMock
+            .Setup(client => client.GetEligibleProvidersAsync(
+                It.IsAny<string>(),
+                serviceRequestId,
+                5,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TelegramChatbotEligibleProvidersResultDto(
+                Success: true,
+                ServiceRequestId: serviceRequestId,
+                Providers:
+                [
+                    new TelegramChatbotEligibleProviderDto(providerA, "Tecnico A", 1.2, 4.8, 120, 15, [4]),
+                    new TelegramChatbotEligibleProviderDto(providerB, "Tecnico B", 2.1, 4.7, 98, 20, [4])
+                ]));
+
+        apiClientMock
+            .Setup(client => client.ScheduleVisitsBatchAsync(
+                It.IsAny<string>(),
+                serviceRequestId,
+                It.Is<IReadOnlyList<TelegramChatbotBatchScheduleVisitRequestDto>>(visits =>
+                    visits.Count == 2 &&
+                    visits[0].ProviderId == providerA &&
+                    visits[1].ProviderId == providerB),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TelegramChatbotBatchScheduleResultDto(
+                Success: true,
+                ServiceRequestId: serviceRequestId,
+                Results:
+                [
+                    new TelegramChatbotBatchScheduleVisitResultDto(
+                        ProviderId: providerA,
+                        WindowStartUtc: DateTime.UtcNow.AddDays(1),
+                        WindowEndUtc: DateTime.UtcNow.AddDays(1).AddHours(2),
+                        Success: true,
+                        AppointmentId: Guid.NewGuid()),
+                    new TelegramChatbotBatchScheduleVisitResultDto(
+                        ProviderId: providerB,
+                        WindowStartUtc: DateTime.UtcNow.AddDays(3),
+                        WindowEndUtc: DateTime.UtcNow.AddDays(3).AddHours(2),
+                        Success: true,
+                        AppointmentId: Guid.NewGuid())
+                ]));
+
+        var options = Options.Create(new TelegramBridgeAiOptions
+        {
+            Enabled = true,
+            Provider = "OpenAI",
+            Model = "gpt-4.1-mini",
+            ApiKey = "test-key"
+        });
+
+        using var memoryCache = new MemoryCache(new MemoryCacheOptions());
+
+        var orchestrator = new TelegramChatbotOrchestrator(
+            gatewayMock.Object,
+            apiClientMock.Object,
+            options,
+            memoryCache,
+            Mock.Of<ILogger<TelegramChatbotOrchestrator>>(),
+            new TelegramServiceRequestTriageEngine(),
+            new TelegramSchedulingNaturalLanguageParser());
+
+        var clientMessage = BuildClientMessage(
+            conversationId: 123L,
+            text: "Sim, pode agendar com 2 prestadores na quarta e na sexta feira, no periodo da manha.",
+            messageId: "m-schedule");
+
+        var reply = await orchestrator.GenerateAssistantReplyAsync(
+            "api-token",
+            123L,
+            clientMessage,
+            "Atendimento Cliente",
+            CancellationToken.None);
+
+        Assert.NotNull(reply);
+        Assert.Equal("schedule_visits", reply!.Intent);
+        Assert.Equal("visits_scheduled", reply.NextStep);
+        Assert.Contains("Agendamentos solicitados com sucesso", reply.MessageText, StringComparison.OrdinalIgnoreCase);
+
+        apiClientMock.Verify(client => client.ScheduleVisitsBatchAsync(
+            It.IsAny<string>(),
+            serviceRequestId,
+            It.IsAny<IReadOnlyList<TelegramChatbotBatchScheduleVisitRequestDto>>(),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    private static Mock<ITelegramChatbotApiClient> BuildApiClientMock(
+        Guid conversationId,
+        TelegramChatbotConversationHistoryDto? history = null)
     {
         var apiClientMock = new Mock<ITelegramChatbotApiClient>();
 
@@ -245,7 +401,7 @@ public class TelegramChatbotOrchestratorTests
                 It.IsAny<int>(),
                 It.IsAny<int>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new TelegramChatbotConversationHistoryDto(
+            .ReturnsAsync(history ?? new TelegramChatbotConversationHistoryDto(
                 Conversation: new TelegramChatbotConversationDto(
                     Id: conversationId,
                     ClientId: Guid.NewGuid(),
@@ -312,6 +468,25 @@ public class TelegramChatbotOrchestratorTests
                 It.IsAny<TelegramServiceRequestCreatePayload>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync((TelegramCreatedServiceRequestDto?)null);
+
+        apiClientMock
+            .Setup(client => client.GetEligibleProvidersAsync(
+                It.IsAny<string>(),
+                It.IsAny<Guid>(),
+                It.IsAny<int>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TelegramChatbotEligibleProvidersResultDto(
+                Success: true,
+                ServiceRequestId: Guid.NewGuid(),
+                Providers: []));
+
+        apiClientMock
+            .Setup(client => client.ScheduleVisitsBatchAsync(
+                It.IsAny<string>(),
+                It.IsAny<Guid>(),
+                It.IsAny<IReadOnlyList<TelegramChatbotBatchScheduleVisitRequestDto>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((TelegramChatbotBatchScheduleResultDto?)null);
 
         return apiClientMock;
     }

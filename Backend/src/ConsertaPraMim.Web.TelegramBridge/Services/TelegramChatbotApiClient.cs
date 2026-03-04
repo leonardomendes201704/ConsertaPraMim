@@ -273,6 +273,43 @@ public sealed class TelegramChatbotApiClient : ITelegramChatbotApiClient
         return new TelegramCreatedServiceRequestDto(created.Id);
     }
 
+    public async Task<TelegramChatbotEligibleProvidersResultDto?> GetEligibleProvidersAsync(
+        string apiToken,
+        Guid serviceRequestId,
+        int take = 5,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedTake = Math.Clamp(take, 1, 10);
+        return await GetAsync<TelegramChatbotEligibleProvidersResultDto>(
+            apiToken,
+            $"/api/telegram-chatbot/service-requests/{serviceRequestId:D}/eligible-providers?take={normalizedTake}",
+            cancellationToken);
+    }
+
+    public async Task<TelegramChatbotBatchScheduleResultDto?> ScheduleVisitsBatchAsync(
+        string apiToken,
+        Guid serviceRequestId,
+        IReadOnlyList<TelegramChatbotBatchScheduleVisitRequestDto> visits,
+        CancellationToken cancellationToken = default)
+    {
+        var payload = new
+        {
+            visits = visits.Select(visit => new
+            {
+                providerId = visit.ProviderId,
+                windowStartUtc = visit.WindowStartUtc,
+                windowEndUtc = visit.WindowEndUtc,
+                reason = visit.Reason
+            }).ToList()
+        };
+
+        return await PostAsync<TelegramChatbotBatchScheduleResultDto>(
+            apiToken,
+            $"/api/telegram-chatbot/service-requests/{serviceRequestId:D}/schedule-visits-batch",
+            payload,
+            cancellationToken);
+    }
+
     private async Task<TelegramZipResolution?> ResolveZipAsync(
         string apiToken,
         string zipCode,

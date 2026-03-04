@@ -114,6 +114,12 @@
 
 ## Released
 
+- [2026-03-03] [ST-008] Orquestracao de matching + agendamento natural no Telegram Bridge
+- Tipo: feat
+- Resumo: integrado o fluxo ST-008 no `TelegramChatbotOrchestrator` para, apos criacao de pedido ou solicitacao do cliente, consultar prestadores elegiveis, interpretar janelas em linguagem natural, executar `schedule-visits-batch`, persistir sugestoes/decisoes em `context-snapshots/actions` e responder em linguagem humana com cenarios de sucesso total, parcial ou replanejamento.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramChatbotOrchestrator.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/ITelegramChatbotApiClient.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramChatbotApiClient.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Models/TelegramServiceRequestModels.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Program.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramChatbotOrchestratorTests.cs`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-008-matching-agendamento-multi-visitas/fluxo-matching-agendamento-multi-visitas.mmd`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-008-matching-agendamento-multi-visitas/sequencia-matching-agendamento-multi-visitas.mmd`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-008-matching-prestadores-e-agendamento-multi-visitas.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md`
+- Risco/Impacto: medio
+
 - [2026-03-03] [ST-008] Parser de linguagem natural para janela de agendamento no chatbot Telegram
 - Tipo: feat
 - Resumo: implementado parser dedicado na bridge para interpretar pedido de agenda em linguagem natural (dias da semana, periodo manha/tarde/noite e horario explicito), convertendo para janelas UTC e retornando erros orientados quando faltar dia/periodo ou houver dias insuficientes para a quantidade solicitada.

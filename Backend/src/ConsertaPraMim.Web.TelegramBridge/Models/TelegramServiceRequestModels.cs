@@ -35,3 +35,41 @@ public sealed record TelegramServiceRequestTriageDecision(
     TelegramServiceRequestCreatePayload? CreatePayload);
 
 public sealed record TelegramCreatedServiceRequestDto(Guid Id);
+
+public sealed record TelegramChatbotEligibleProviderDto(
+    Guid ProviderId,
+    string ProviderName,
+    double DistanceKm,
+    double Rating,
+    int ReviewCount,
+    double RadiusKm,
+    IReadOnlyList<int> Categories);
+
+public sealed record TelegramChatbotEligibleProvidersResultDto(
+    bool Success,
+    Guid ServiceRequestId,
+    IReadOnlyList<TelegramChatbotEligibleProviderDto> Providers,
+    string? ErrorCode = null,
+    string? ErrorMessage = null);
+
+public sealed record TelegramChatbotBatchScheduleVisitRequestDto(
+    Guid ProviderId,
+    DateTime WindowStartUtc,
+    DateTime WindowEndUtc,
+    string? Reason = null);
+
+public sealed record TelegramChatbotBatchScheduleVisitResultDto(
+    Guid ProviderId,
+    DateTime WindowStartUtc,
+    DateTime WindowEndUtc,
+    bool Success,
+    Guid? AppointmentId = null,
+    string? ErrorCode = null,
+    string? ErrorMessage = null);
+
+public sealed record TelegramChatbotBatchScheduleResultDto(
+    bool Success,
+    Guid ServiceRequestId,
+    IReadOnlyList<TelegramChatbotBatchScheduleVisitResultDto> Results,
+    string? ErrorCode = null,
+    string? ErrorMessage = null);

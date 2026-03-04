@@ -80,4 +80,16 @@ public interface ITelegramChatbotApiClient
         string apiToken,
         TelegramServiceRequestCreatePayload payload,
         CancellationToken cancellationToken = default);
+
+    Task<TelegramChatbotEligibleProvidersResultDto?> GetEligibleProvidersAsync(
+        string apiToken,
+        Guid serviceRequestId,
+        int take = 5,
+        CancellationToken cancellationToken = default);
+
+    Task<TelegramChatbotBatchScheduleResultDto?> ScheduleVisitsBatchAsync(
+        string apiToken,
+        Guid serviceRequestId,
+        IReadOnlyList<TelegramChatbotBatchScheduleVisitRequestDto> visits,
+        CancellationToken cancellationToken = default);
 }

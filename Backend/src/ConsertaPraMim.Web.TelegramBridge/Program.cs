@@ -73,6 +73,7 @@ builder.Services.AddScoped<ITelegramBridgeAuthApiClient, TelegramBridgeAuthApiCl
 builder.Services.AddScoped<ITelegramChatbotApiClient, TelegramChatbotApiClient>();
 builder.Services.AddSingleton<ITelegramAiGateway, OpenAiTelegramGateway>();
 builder.Services.AddSingleton<TelegramServiceRequestTriageEngine>();
+builder.Services.AddSingleton<TelegramSchedulingNaturalLanguageParser>();
 builder.Services.AddScoped<ITelegramChatbotOrchestrator, TelegramChatbotOrchestrator>();
 builder.Services.AddHostedService<TelegramLongPollingBackgroundService>();
 

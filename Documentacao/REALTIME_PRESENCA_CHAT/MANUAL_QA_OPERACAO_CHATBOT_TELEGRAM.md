@@ -46,6 +46,7 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
   - Endpoint de agendamento em lote iniciado em `POST /api/telegram-chatbot/service-requests/{serviceRequestId}/schedule-visits-batch`.
   - Agendamento em lote valida limite de ate 3 visitas, dias distintos e devolve status por visita (sucesso/falha) para replanejamento conversacional.
   - Parser de linguagem natural da agenda criado na bridge para interpretar dia da semana + periodo/horario e gerar janelas UTC.
+  - Orquestrador agora fecha o ciclo ST-008: apos criar pedido, lista prestadores elegiveis, persiste sugestoes/decisoes em snapshots/actions e dispara agendamento em lote com resposta natural de sucesso parcial/total.
 
 ## 3. Validacoes executadas no ciclo atual
 
@@ -108,6 +109,8 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
   - `TelegramSchedulingNaturalLanguageParserTests` cobre interpretacao de "quarta e sexta de manha", erro sem periodo, erro por dias insuficientes e bypass para mensagem sem intencao de agenda.
 - Validacao documental ST-008 tasks 8 e 9:
   - Publicados diagramas Mermaid de fluxo e sequencia da ST-008 cobrindo matching de prestadores e agendamento em lote multi-visitas.
+- Validacao automatizada ST-008 tasks 5 e 6:
+  - `TelegramChatbotOrchestratorTests` valida fluxo completo de agenda natural (matching + parser + batch), incluindo persistencia de trilha e resposta final de agendamento no chat.
 - Validacao documental ST-007 task 8:
   - Publicado diagrama Mermaid de fluxo da triagem natural com abertura automatica de pedido e persistencia de trilha.
 - Validacao documental ST-007 task 9:
@@ -206,3 +209,4 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
 - 2026-03-03: evolucao da ST-008 com endpoint/servico de agendamento em lote (ate 3 visitas), validacao de dias distintos e retorno consolidado por visita.
 - 2026-03-03: atualizacao da ST-008 com diagramas Mermaid de fluxo/sequencia, validacao documental e atualizacao de indices da trilha.
 - 2026-03-03: evolucao da ST-008 com parser de janela temporal em linguagem natural (dias/periodos/horarios) na bridge e cobertura de testes unitarios dedicada.
+- 2026-03-03: evolucao da ST-008 com integracao do orquestrador ao matching/agendamento em lote, persistencia de sugestoes/decisoes no historico conversacional e mensagens naturais de confirmacao/replanejamento.

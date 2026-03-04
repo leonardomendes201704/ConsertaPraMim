@@ -8,7 +8,9 @@ flowchart TD
     G --> H[Bot apresenta lista de prestadores elegiveis]
 
     H --> I[Cliente escolhe ate 3 visitas em dias distintos]
-    I --> J[POST /api/telegram-chatbot/service-requests/{id}/schedule-visits-batch]
+    I --> I1[Parser natural converte dia/periodo em janelas UTC]
+    I1 --> I2[Persistir snapshot de sugestoes e decisao de agenda]
+    I2 --> J[POST /api/telegram-chatbot/service-requests/{id}/schedule-visits-batch]
     J --> K{Validacoes de lote}
     K -- Falha --> L[Retorna erro: max_visits_exceeded ou duplicate_visit_day]
     K -- Sucesso --> M[Validar elegibilidade de cada prestador]

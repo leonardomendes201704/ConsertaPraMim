@@ -18,8 +18,10 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
     private const int ContextPayloadLimit = 15_000;
     private const int MetadataPayloadLimit = 4_000;
     private const string OpenServiceRequestIntent = "open_service_request";
+    private const string ScheduleVisitsIntent = "schedule_visits";
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+    private static readonly TimeZoneInfo BusinessTimeZone = ResolveBusinessTimeZone();
 
     private static readonly Meter Meter = new("ConsertaPraMim.Web.TelegramBridge.AiOrchestrator", "1.0.0");
     private static readonly Counter<long> RequestCounter = Meter.CreateCounter<long>("telegram_chatbot_ai_requests_total");
@@ -34,6 +36,7 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
     private readonly IMemoryCache _memoryCache;
     private readonly ILogger<TelegramChatbotOrchestrator> _logger;
     private readonly TelegramServiceRequestTriageEngine _serviceRequestTriageEngine;
+    private readonly TelegramSchedulingNaturalLanguageParser _telegramSchedulingNaturalLanguageParser;
 
     public TelegramChatbotOrchestrator(
         ITelegramAiGateway telegramAiGateway,
@@ -41,7 +44,8 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
         IOptions<TelegramBridgeAiOptions> options,
         IMemoryCache memoryCache,
         ILogger<TelegramChatbotOrchestrator> logger,
-        TelegramServiceRequestTriageEngine serviceRequestTriageEngine)
+        TelegramServiceRequestTriageEngine serviceRequestTriageEngine,
+        TelegramSchedulingNaturalLanguageParser telegramSchedulingNaturalLanguageParser)
     {
         _telegramAiGateway = telegramAiGateway;
         _telegramChatbotApiClient = telegramChatbotApiClient;
@@ -49,6 +53,7 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
         _memoryCache = memoryCache;
         _logger = logger;
         _serviceRequestTriageEngine = serviceRequestTriageEngine;
+        _telegramSchedulingNaturalLanguageParser = telegramSchedulingNaturalLanguageParser;
     }
 
     public async Task<TelegramChatbotAssistantReply?> GenerateAssistantReplyAsync(
@@ -152,6 +157,14 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
             reply = BuildAssistantReplyFromGateway(options, gatewayResult, modelName, correlationId);
 
             reply = await ApplyServiceRequestTriageAsync(
+                apiToken,
+                conversationId.Value,
+                history,
+                clientMessage,
+                reply,
+                cancellationToken);
+
+            reply = await ApplySchedulingFlowAsync(
                 apiToken,
                 conversationId.Value,
                 history,
@@ -338,7 +351,9 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
                "Campos obrigatorios: messageToClient, intent, nextStep. " +
                "confidence deve ficar entre 0 e 1 quando informado. " +
                "Quando o cliente quiser abrir pedido, use intent=open_service_request e entities com os campos: " +
-               "category, problemDescription, equipment, brand, model, errorCode, zipCode, street, city, availability.";
+               "category, problemDescription, equipment, brand, model, errorCode, zipCode, street, city, availability. " +
+               "Quando o cliente quiser agendar visitas, use intent=schedule_visits e entities com os campos: " +
+               "requestedVisits, preferredDays, period, preferredProviderIds.";
     }
 
     private static string BuildContextPrompt(
@@ -571,6 +586,497 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
             MessageText = _serviceRequestTriageEngine.BuildCreatedConfirmationMessage(stateWithRequest, createdRequest.Id),
             EntitiesJson = _serviceRequestTriageEngine.SerializeEntitiesFromState(stateWithRequest)
         };
+    }
+
+    private async Task<TelegramChatbotAssistantReply> ApplySchedulingFlowAsync(
+        string apiToken,
+        Guid conversationId,
+        TelegramChatbotConversationHistoryDto? history,
+        ChatMessageDto clientMessage,
+        TelegramChatbotAssistantReply reply,
+        CancellationToken cancellationToken)
+    {
+        var serviceRequestId = TryExtractServiceRequestId(reply.EntitiesJson);
+        if (!serviceRequestId.HasValue)
+        {
+            return reply;
+        }
+
+        var shouldSuggestProviders =
+            reply.NextStep.Equals("service_request_created", StringComparison.OrdinalIgnoreCase);
+
+        var parseResult = _telegramSchedulingNaturalLanguageParser.Parse(clientMessage.Text, DateTime.UtcNow);
+        if (!shouldSuggestProviders && !parseResult.IsSchedulingIntent)
+        {
+            return reply;
+        }
+
+        var providersResult = await _telegramChatbotApiClient.GetEligibleProvidersAsync(
+            apiToken,
+            serviceRequestId.Value,
+            take: 5,
+            cancellationToken);
+
+        if (providersResult is null || !providersResult.Success)
+        {
+            await _telegramChatbotApiClient.RegisterActionAsync(
+                apiToken,
+                conversationId,
+                actionType: "schedule_matching_lookup",
+                status: ActionStatusFailed,
+                intentName: ScheduleVisitsIntent,
+                payloadJson: TrimToLimit(JsonSerializer.Serialize(new
+                {
+                    serviceRequestId = serviceRequestId.Value,
+                    parseResult.IsSchedulingIntent,
+                    parseResult.ErrorCode
+                }, JsonOptions), ContextPayloadLimit),
+                resultJson: null,
+                errorCode: providersResult?.ErrorCode ?? "provider_lookup_failed",
+                errorMessage: providersResult?.ErrorMessage ?? "Nao foi possivel listar prestadores elegiveis.",
+                correlationId: reply.CorrelationId,
+                metadataJson: TrimToLimit(JsonSerializer.Serialize(new
+                {
+                    stage = "st_008",
+                    origin = "telegram_bridge"
+                }, JsonOptions), MetadataPayloadLimit),
+                lastStep: "provider_lookup_failed",
+                conversationStatus: ConversationStatusActive,
+                cancellationToken);
+
+            if (shouldSuggestProviders)
+            {
+                return reply with
+                {
+                    Intent = ScheduleVisitsIntent,
+                    NextStep = "retry_provider_matching",
+                    MessageText = "Seu pedido foi registrado. Tive instabilidade para listar prestadores agora, mas posso tentar novamente em seguida.",
+                    EntitiesJson = BuildSchedulingEntitiesJson(serviceRequestId.Value, [], parseResult, null)
+                };
+            }
+
+            return reply;
+        }
+
+        var providers = providersResult.Providers;
+
+        await PersistProviderSuggestionsAsync(
+            apiToken,
+            conversationId,
+            serviceRequestId.Value,
+            providers,
+            reply,
+            cancellationToken);
+
+        if (providers.Count == 0)
+        {
+            return reply with
+            {
+                Intent = ScheduleVisitsIntent,
+                NextStep = "no_provider_available",
+                MessageText = "Registrei seu pedido, mas ainda nao encontrei prestadores disponiveis na sua regiao. Posso buscar novamente em alguns minutos.",
+                EntitiesJson = BuildSchedulingEntitiesJson(serviceRequestId.Value, providers, parseResult, null)
+            };
+        }
+
+        if (shouldSuggestProviders && !parseResult.IsSchedulingIntent)
+        {
+            return reply with
+            {
+                Intent = ScheduleVisitsIntent,
+                NextStep = "collect_visit_windows",
+                MessageText = BuildProviderSuggestionMessage(providers),
+                EntitiesJson = BuildSchedulingEntitiesJson(serviceRequestId.Value, providers, parseResult, null)
+            };
+        }
+
+        if (parseResult.ErrorCode is not null)
+        {
+            return reply with
+            {
+                Intent = ScheduleVisitsIntent,
+                NextStep = parseResult.ErrorCode,
+                MessageText = $"{BuildProviderSuggestionMessage(providers)}\n\n{parseResult.ErrorMessage}",
+                EntitiesJson = BuildSchedulingEntitiesJson(serviceRequestId.Value, providers, parseResult, null)
+            };
+        }
+
+        var requestedVisits = Math.Clamp(parseResult.RequestedVisits, 1, 3);
+        var visitCount = Math.Min(requestedVisits, Math.Min(parseResult.Windows.Count, providers.Count));
+        if (visitCount <= 0)
+        {
+            return reply with
+            {
+                Intent = ScheduleVisitsIntent,
+                NextStep = "collect_visit_windows",
+                MessageText = BuildProviderSuggestionMessage(providers),
+                EntitiesJson = BuildSchedulingEntitiesJson(serviceRequestId.Value, providers, parseResult, null)
+            };
+        }
+
+        var visitRequests = new List<TelegramChatbotBatchScheduleVisitRequestDto>(visitCount);
+        for (var index = 0; index < visitCount; index++)
+        {
+            var provider = providers[index];
+            var window = parseResult.Windows[index];
+
+            visitRequests.Add(new TelegramChatbotBatchScheduleVisitRequestDto(
+                ProviderId: provider.ProviderId,
+                WindowStartUtc: window.WindowStartUtc,
+                WindowEndUtc: window.WindowEndUtc,
+                Reason: "Agendamento solicitado em linguagem natural pelo chatbot Telegram."));
+        }
+
+        var batchResult = await _telegramChatbotApiClient.ScheduleVisitsBatchAsync(
+            apiToken,
+            serviceRequestId.Value,
+            visitRequests,
+            cancellationToken);
+
+        if (batchResult is null)
+        {
+            await _telegramChatbotApiClient.RegisterActionAsync(
+                apiToken,
+                conversationId,
+                actionType: "schedule_batch_create",
+                status: ActionStatusFailed,
+                intentName: ScheduleVisitsIntent,
+                payloadJson: TrimToLimit(JsonSerializer.Serialize(new
+                {
+                    serviceRequestId = serviceRequestId.Value,
+                    visits = visitRequests
+                }, JsonOptions), ContextPayloadLimit),
+                resultJson: null,
+                errorCode: "schedule_batch_failed",
+                errorMessage: "Nao foi possivel processar o agendamento em lote.",
+                correlationId: reply.CorrelationId,
+                metadataJson: TrimToLimit(JsonSerializer.Serialize(new
+                {
+                    stage = "st_008",
+                    origin = "telegram_bridge"
+                }, JsonOptions), MetadataPayloadLimit),
+                lastStep: "schedule_batch_failed",
+                conversationStatus: ConversationStatusActive,
+                cancellationToken);
+
+            return reply with
+            {
+                Intent = ScheduleVisitsIntent,
+                NextStep = "retry_schedule_batch",
+                MessageText = "Entendi os dias e periodos, mas tive instabilidade para concluir os agendamentos agora. Posso tentar novamente em seguida.",
+                EntitiesJson = BuildSchedulingEntitiesJson(serviceRequestId.Value, providers, parseResult, null),
+                UsedFallback = true
+            };
+        }
+
+        await PersistSchedulingBatchResultAsync(
+            apiToken,
+            conversationId,
+            serviceRequestId.Value,
+            visitRequests,
+            batchResult,
+            reply,
+            cancellationToken);
+
+        var nextStep = batchResult.Success
+            ? "visits_scheduled"
+            : "visits_partial_or_failed";
+
+        return reply with
+        {
+            Intent = ScheduleVisitsIntent,
+            NextStep = nextStep,
+            MessageText = BuildBatchSchedulingMessage(providers, batchResult),
+            EntitiesJson = BuildSchedulingEntitiesJson(serviceRequestId.Value, providers, parseResult, batchResult)
+        };
+    }
+
+    private async Task PersistProviderSuggestionsAsync(
+        string apiToken,
+        Guid conversationId,
+        Guid serviceRequestId,
+        IReadOnlyList<TelegramChatbotEligibleProviderDto> providers,
+        TelegramChatbotAssistantReply reply,
+        CancellationToken cancellationToken)
+    {
+        var snapshotPayload = new
+        {
+            capturedAtUtc = DateTime.UtcNow,
+            serviceRequestId,
+            suggestedProviders = providers.Select(item => new
+            {
+                item.ProviderId,
+                item.ProviderName,
+                item.DistanceKm,
+                item.Rating,
+                item.ReviewCount
+            }).ToList()
+        };
+
+        await _telegramChatbotApiClient.RegisterContextSnapshotAsync(
+            apiToken,
+            conversationId,
+            snapshotType: "scheduling_provider_suggestions",
+            contextJson: TrimToLimit(JsonSerializer.Serialize(snapshotPayload, JsonOptions), ContextPayloadLimit) ?? "{}",
+            promptVersion: reply.PromptVersion,
+            modelName: reply.ModelName,
+            promptTokens: reply.PromptTokens,
+            completionTokens: reply.CompletionTokens,
+            totalTokens: reply.TotalTokens,
+            intentName: ScheduleVisitsIntent,
+            lastStep: "providers_suggested",
+            cancellationToken);
+
+        await _telegramChatbotApiClient.RegisterActionAsync(
+            apiToken,
+            conversationId,
+            actionType: "schedule_matching_lookup",
+            status: ActionStatusSucceeded,
+            intentName: ScheduleVisitsIntent,
+            payloadJson: TrimToLimit(JsonSerializer.Serialize(new
+            {
+                serviceRequestId
+            }, JsonOptions), ContextPayloadLimit),
+            resultJson: TrimToLimit(JsonSerializer.Serialize(new
+            {
+                providerCount = providers.Count
+            }, JsonOptions), ContextPayloadLimit),
+            errorCode: null,
+            errorMessage: null,
+            correlationId: reply.CorrelationId,
+            metadataJson: TrimToLimit(JsonSerializer.Serialize(new
+            {
+                stage = "st_008",
+                origin = "telegram_bridge"
+            }, JsonOptions), MetadataPayloadLimit),
+            lastStep: "providers_suggested",
+            conversationStatus: ConversationStatusActive,
+            cancellationToken);
+    }
+
+    private async Task PersistSchedulingBatchResultAsync(
+        string apiToken,
+        Guid conversationId,
+        Guid serviceRequestId,
+        IReadOnlyList<TelegramChatbotBatchScheduleVisitRequestDto> visitRequests,
+        TelegramChatbotBatchScheduleResultDto batchResult,
+        TelegramChatbotAssistantReply reply,
+        CancellationToken cancellationToken)
+    {
+        var snapshotPayload = new
+        {
+            capturedAtUtc = DateTime.UtcNow,
+            serviceRequestId,
+            request = visitRequests,
+            result = batchResult
+        };
+
+        await _telegramChatbotApiClient.RegisterContextSnapshotAsync(
+            apiToken,
+            conversationId,
+            snapshotType: "scheduling_batch_result",
+            contextJson: TrimToLimit(JsonSerializer.Serialize(snapshotPayload, JsonOptions), ContextPayloadLimit) ?? "{}",
+            promptVersion: reply.PromptVersion,
+            modelName: reply.ModelName,
+            promptTokens: reply.PromptTokens,
+            completionTokens: reply.CompletionTokens,
+            totalTokens: reply.TotalTokens,
+            intentName: ScheduleVisitsIntent,
+            lastStep: batchResult.Success ? "visits_scheduled" : "visits_partial_or_failed",
+            cancellationToken);
+
+        await _telegramChatbotApiClient.RegisterActionAsync(
+            apiToken,
+            conversationId,
+            actionType: "schedule_batch_create",
+            status: batchResult.Success ? ActionStatusSucceeded : ActionStatusFailed,
+            intentName: ScheduleVisitsIntent,
+            payloadJson: TrimToLimit(JsonSerializer.Serialize(new
+            {
+                serviceRequestId,
+                visits = visitRequests
+            }, JsonOptions), ContextPayloadLimit),
+            resultJson: TrimToLimit(JsonSerializer.Serialize(batchResult, JsonOptions), ContextPayloadLimit),
+            errorCode: batchResult.ErrorCode,
+            errorMessage: batchResult.ErrorMessage,
+            correlationId: reply.CorrelationId,
+            metadataJson: TrimToLimit(JsonSerializer.Serialize(new
+            {
+                stage = "st_008",
+                origin = "telegram_bridge"
+            }, JsonOptions), MetadataPayloadLimit),
+            lastStep: batchResult.Success ? "visits_scheduled" : "visits_partial_or_failed",
+            conversationStatus: ConversationStatusActive,
+            cancellationToken);
+    }
+
+    private static string BuildProviderSuggestionMessage(IReadOnlyList<TelegramChatbotEligibleProviderDto> providers)
+    {
+        var topProviders = providers
+            .Take(3)
+            .Select((item, index) =>
+                $"{index + 1}. {item.ProviderName} ({item.DistanceKm:0.0} km, nota {item.Rating:0.0})")
+            .ToList();
+
+        return "Encontrei estes prestadores disponiveis na sua regiao:\n" +
+               string.Join("\n", topProviders) +
+               "\n\nSe quiser, posso agendar ate 3 visitas em dias diferentes. Me diga os dias e o periodo (ex.: quarta e sexta de manha).";
+    }
+
+    private static string BuildBatchSchedulingMessage(
+        IReadOnlyList<TelegramChatbotEligibleProviderDto> providers,
+        TelegramChatbotBatchScheduleResultDto batchResult)
+    {
+        var providerNames = providers.ToDictionary(item => item.ProviderId, item => item.ProviderName);
+        var successLines = new List<string>();
+        var failureLines = new List<string>();
+
+        foreach (var item in batchResult.Results)
+        {
+            var providerName = providerNames.TryGetValue(item.ProviderId, out var resolvedName)
+                ? resolvedName
+                : "Prestador";
+
+            var windowLabel = BuildWindowLabel(item.WindowStartUtc, item.WindowEndUtc);
+            if (item.Success)
+            {
+                successLines.Add($"- {providerName}: {windowLabel}");
+            }
+            else
+            {
+                var reason = string.IsNullOrWhiteSpace(item.ErrorMessage)
+                    ? "indisponibilidade de agenda"
+                    : item.ErrorMessage.Trim();
+                failureLines.Add($"- {providerName}: {reason}");
+            }
+        }
+
+        if (successLines.Count > 0 && failureLines.Count == 0)
+        {
+            return "Perfeito! Agendamentos solicitados com sucesso:\n" +
+                   string.Join("\n", successLines) +
+                   "\n\nVou acompanhar a confirmacao e te aviso por aqui.";
+        }
+
+        if (successLines.Count > 0)
+        {
+            return "Consegui agendar parte das visitas:\n" +
+                   string.Join("\n", successLines) +
+                   "\n\nAs demais tiveram conflito:\n" +
+                   string.Join("\n", failureLines) +
+                   "\n\nSe quiser, me diga novos dias/periodos para tentar novamente.";
+        }
+
+        return "Nao consegui confirmar os agendamentos nessas janelas:\n" +
+               string.Join("\n", failureLines) +
+               "\n\nMe passe novos dias/periodos e eu tento novamente.";
+    }
+
+    private static string BuildWindowLabel(DateTime windowStartUtc, DateTime windowEndUtc)
+    {
+        var startUtc = windowStartUtc.Kind == DateTimeKind.Utc
+            ? windowStartUtc
+            : DateTime.SpecifyKind(windowStartUtc, DateTimeKind.Utc);
+        var endUtc = windowEndUtc.Kind == DateTimeKind.Utc
+            ? windowEndUtc
+            : DateTime.SpecifyKind(windowEndUtc, DateTimeKind.Utc);
+
+        var startLocal = TimeZoneInfo.ConvertTimeFromUtc(startUtc, BusinessTimeZone);
+        var endLocal = TimeZoneInfo.ConvertTimeFromUtc(endUtc, BusinessTimeZone);
+        return $"{startLocal:ddd dd/MM HH:mm} - {endLocal:HH:mm} (America/Sao_Paulo)";
+    }
+
+    private static string BuildSchedulingEntitiesJson(
+        Guid serviceRequestId,
+        IReadOnlyList<TelegramChatbotEligibleProviderDto> providers,
+        TelegramSchedulingParseResult parseResult,
+        TelegramChatbotBatchScheduleResultDto? batchResult)
+    {
+        var payload = new
+        {
+            serviceRequestId,
+            requestedVisits = parseResult.RequestedVisits,
+            parseResult.ErrorCode,
+            parseResult.ErrorMessage,
+            windows = parseResult.Windows.Select(item => new
+            {
+                item.DayLabel,
+                item.PeriodLabel,
+                item.WindowStartUtc,
+                item.WindowEndUtc
+            }).ToList(),
+            suggestedProviders = providers.Select(item => new
+            {
+                item.ProviderId,
+                item.ProviderName,
+                item.DistanceKm,
+                item.Rating
+            }).ToList(),
+            batch = batchResult
+        };
+
+        return JsonSerializer.Serialize(payload, JsonOptions);
+    }
+
+    private static Guid? TryExtractServiceRequestId(string? entitiesJson)
+    {
+        if (string.IsNullOrWhiteSpace(entitiesJson))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(entitiesJson);
+            if (!TryGetPropertyIgnoreCase(document.RootElement, "serviceRequestId", out var requestIdElement))
+            {
+                return null;
+            }
+
+            var raw = requestIdElement.ValueKind switch
+            {
+                JsonValueKind.String => requestIdElement.GetString(),
+                JsonValueKind.Number => requestIdElement.GetRawText(),
+                _ => null
+            };
+
+            return Guid.TryParse(raw, out var requestId)
+                ? requestId
+                : (Guid?)null;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+    }
+
+    private static bool TryGetPropertyIgnoreCase(
+        JsonElement root,
+        string propertyName,
+        out JsonElement value)
+    {
+        if (root.ValueKind != JsonValueKind.Object)
+        {
+            value = default;
+            return false;
+        }
+
+        if (root.TryGetProperty(propertyName, out value))
+        {
+            return true;
+        }
+
+        foreach (var property in root.EnumerateObject())
+        {
+            if (property.Name.Equals(propertyName, StringComparison.OrdinalIgnoreCase))
+            {
+                value = property.Value;
+                return true;
+            }
+        }
+
+        value = default;
+        return false;
     }
 
     private async Task PersistServiceRequestTriageStateAsync(
@@ -810,6 +1316,29 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
             FailureCounter.Add(1,
                 new KeyValuePair<string, object?>("model", modelName),
                 new KeyValuePair<string, object?>("error_code", gatewayResult.ErrorCode ?? "unknown"));
+        }
+    }
+
+    private static TimeZoneInfo ResolveBusinessTimeZone()
+    {
+        try
+        {
+            return TimeZoneInfo.FindSystemTimeZoneById("America/Sao_Paulo");
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            try
+            {
+                return TimeZoneInfo.FindSystemTimeZoneById("E. South America Standard Time");
+            }
+            catch (TimeZoneNotFoundException)
+            {
+                return TimeZoneInfo.Utc;
+            }
+        }
+        catch (InvalidTimeZoneException)
+        {
+            return TimeZoneInfo.Utc;
         }
     }
 
