@@ -1,0 +1,35 @@
+flowchart TD
+    A[Cliente envia mensagem no chat] --> B[ChatApi registra inbound + anexos]
+    B --> C[Orquestrador avalia feature flag de rollout]
+
+    C -->|Bloqueado por ambiente/percentual| D[Fallback catalogado com handoff humano]
+    D --> E[Persistir action guardrail/rollout]
+    E --> F[Publicar no chat]
+
+    C -->|Liberado| G[Montar prompt com politicas + guardrails]
+    G --> H[Chamar OpenAI Responses]
+    H --> I{OpenAI sucesso?}
+
+    I -->|Nao| J[Catalogo de erro/fallback padronizado]
+    J --> K[Persistir erro + incidente]
+    K --> F
+
+    I -->|Sim| L[Aplicar fluxos de triagem/consulta/agendamento]
+    L --> M[Aplicar policy de guardrail runtime]
+    M --> N{Violou regra?}
+
+    N -->|Sim| O[Substituir resposta por handoff seguro]
+    O --> P[Persistir snapshot/action guardrail]
+    P --> Q[Responder cliente]
+
+    N -->|Nao| R[Persistir trilha orquestracao + contexto]
+    R --> Q
+
+    Q --> S[Emitir metricas tecnicas e de negocio]
+    S --> T[Atualizar agregador de observabilidade]
+    T --> U[Dashboard operacional /api/chatbot-observability/dashboard]
+
+    U --> V{Sinais criticos?}
+    V -->|Sim| W[Executar runbook: rollout 0% ou kill switch]
+    W --> X[Comunicar incidente e acompanhar recuperacao]
+    V -->|Nao| Y[Operacao normal com monitoramento continuo]

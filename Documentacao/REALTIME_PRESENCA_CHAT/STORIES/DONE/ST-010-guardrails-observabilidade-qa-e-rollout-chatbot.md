@@ -1,6 +1,6 @@
 # ST-010 - Guardrails, observabilidade, QA e rollout do chatbot
 
-Status: In Progress  
+Status: Done  
 Epic: EPIC-002
 
 ## Objetivo
@@ -23,8 +23,8 @@ Fechar o ciclo de confiabilidade da solucao com guardrails de IA, monitoramento,
 - [x] Instrumentar metricas de negocio e tecnicas (taxa de resolucao, latencia, custo IA, erro por endpoint).
 - [x] Publicar dashboard operacional para acompanhamento do chatbot.
 - [x] Implementar feature flag por ambiente para liberar chatbot gradualmente.
-- [ ] Criar plano de testes QA (smoke, regressao, carga basica e cenarios de falha).
-- [ ] Criar/atualizar manual QA/Operacao e runbook de incidentes/rollback.
-- [ ] Atualizar changelog e status das stories no fechamento de cada entrega.
-- [ ] Criar/atualizar diagrama de fluxo Mermaid da funcionalidade.
-- [ ] Criar/atualizar diagrama de sequencia Mermaid da funcionalidade.
+- [x] Criar plano de testes QA (smoke, regressao, carga basica e cenarios de falha).
+- [x] Criar/atualizar manual QA/Operacao e runbook de incidentes/rollback.
+- [x] Atualizar changelog e status das stories no fechamento de cada entrega.
+- [x] Criar/atualizar diagrama de fluxo Mermaid da funcionalidade.
+- [x] Criar/atualizar diagrama de sequencia Mermaid da funcionalidade.

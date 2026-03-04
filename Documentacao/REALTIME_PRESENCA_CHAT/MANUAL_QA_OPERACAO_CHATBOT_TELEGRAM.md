@@ -58,12 +58,15 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
   - Referencia contextual implementada por protocolo/pedido atual (`query_reference_state`) para consultas sequenciais no mesmo atendimento.
   - Respostas amigaveis para vazio/erro aplicadas em pedidos, status, detalhes e agenda.
   - Trilha auditavel de consulta implementada com snapshots (`query_intent_result`, `query_reference_state`) e action logs (`query_*`) no historico conversacional.
-- ST-010 em andamento (tasks 1 a 5 concluidas):
+- ST-010 concluida:
   - Politica de guardrails conversacionais aplicada no orquestrador para emergencia (`guardrail_emergency`), tema fora de escopo (`guardrail_out_of_scope`) e bloqueio de pedido de dado sensivel (`guardrail_sensitive_data`).
   - Catalogo unificado de erros/fallback (`TelegramChatbotErrorCatalog`) implantado para respostas padronizadas por `errorCode` com `nextStep` e handoff humano quando necessario.
   - Observabilidade ponta a ponta implantada no bridge com consolidacao de trafego, IA, negocio, dependencias, top erros e incidentes recentes.
   - Dashboard operacional publicado em `GET /api/chatbot-observability/dashboard` (com token por header em ambientes nao-dev).
   - Feature flag de rollout gradual por ambiente/chat (`TelegramChatbotRollout`) implantada com allow/block list e percentual deterministico por chat.
+  - Plano QA formalizado com smoke/regressao/carga/falha e criterios objetivos de rollout/rollback.
+  - Runbook de incidente e rollback publicado para operacao (`RUNBOOK_INCIDENTES_ROLLBACK_CHATBOT_TELEGRAM_ST-010.md`).
+  - Diagramas Mermaid de fluxo e sequencia da ST-010 publicados.
 
 ## 3. Validacoes executadas no ciclo atual
 
@@ -145,7 +148,7 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
   - `TelegramChatbotSchedulingServiceTests` cobre listagem paginada de pedidos com proxima visita e bloqueio de detalhe quando o cliente nao e dono do pedido.
   - `TelegramChatbotOrchestratorTests` cobre intents `list_orders`, `get_order_status`, `get_order_details`, `list_appointments`, pagina seguinte ("mostrar mais pedidos") e referencia contextual por protocolo/pedido atual.
   - `TelegramChatbotControllerSqliteIntegrationTests` cobre listagem de pedidos/agenda por cliente autenticado e bloqueio de acesso cruzado no endpoint de status.
-- Validacao automatizada ST-010 (tasks 1 a 5):
+- Validacao automatizada ST-010:
   - `TelegramChatbotGuardrailPolicyTests` cobre gatilhos de emergencia, fora de escopo, dado sensivel e fluxo seguro sem intervencao.
   - `TelegramChatbotFeatureFlagServiceTests` cobre bloqueio global, allow list, rollout percentual e bloqueio por ambiente nao permitido.
   - `TelegramChatbotObservabilityServiceTests` cobre agregacao de metricas de trafego, IA, negocio, dependencias e incidentes do dashboard operacional.
@@ -184,15 +187,60 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
     - regras de completude, merge de contexto e mapeamento da triagem para abertura de pedido (`TelegramServiceRequestTriageEngineTests`);
     - integracao da criacao automatica de pedido dentro do orquestrador (`TelegramChatbotOrchestratorTests`).
 
-## 4. Checklist smoke inicial (em evolucao)
+## 4. Plano QA e rollout ST-010
 
-- [ ] QA-CBT-001: persistencia de conversa vinculada ao `ClientId` autenticado.
-- [ ] QA-CBT-002: registro de mensagem inbound/outbound com `timestamp` UTC.
-- [ ] QA-CBT-003: bloqueio de acesso cruzado entre clientes em historico/conversa.
-- [ ] QA-CBT-004: registro de log de acao conversacional com trilha auditavel.
-- [ ] QA-CBT-005: endpoint de sessao retorna a mesma conversa para mesmo (`ClientId`, `Channel`, `ChannelConversationId`).
-- [ ] QA-CBT-006: endpoint de historico nao retorna conversa de outro cliente (esperado `404`).
-- [ ] QA-CBT-007: rota `/Account/Login` renderiza formulario de email/senha sem executar `chat.js`.
+### 4.1 Smoke obrigatorio (cada deploy)
+
+- [ ] QA-CBT-001: login do cliente abre conversa unica e envia mensagem sem erro no console.
+- [ ] QA-CBT-002: mensagem de risco (ex.: "vazamento de gas") aciona `guardrail_emergency` com handoff humano.
+- [ ] QA-CBT-003: mensagem fora de escopo (ex.: "investimento") aciona `guardrail_out_of_scope`.
+- [ ] QA-CBT-004: resposta da IA nao solicita senha/cvv/cartao completo (`guardrail_sensitive_data`).
+- [ ] QA-CBT-005: dashboard `GET /api/chatbot-observability/dashboard` retorna snapshot com `Traffic`, `Ai`, `Business`, `Dependencies`, `TopErrors`, `RecentIncidents`.
+- [ ] QA-CBT-006: feature flag por percentual bloqueia/permite chats conforme bucket configurado.
+
+### 4.2 Regressao funcional (por release)
+
+- [ ] QA-CBT-101: abertura automatica de pedido continua funcionando (ST-007).
+- [ ] QA-CBT-102: matching + agendamento multi-visitas com validacao de disponibilidade continua funcionando (ST-008).
+- [ ] QA-CBT-103: consultas naturais (`list_orders`, `get_order_status`, `get_order_details`, `list_appointments`) continuam funcionando (ST-009).
+- [ ] QA-CBT-104: guardrail de confirmacao de agendamento sem persistencia continua ativo (`awaiting_provider_confirmation`).
+
+### 4.3 Carga basica
+
+- [ ] QA-CBT-201: executar 30 mensagens consecutivas no mesmo chat sem degradar `Ai.P95LatencyMs` acima de 2500 ms.
+- [ ] QA-CBT-202: validar que `Ai.Failures` e `TopErrors` aumentam de forma coerente quando simulado timeout de dependencia.
+- [ ] QA-CBT-203: validar que dashboard continua respondendo durante carga basica (sem timeout HTTP).
+
+### 4.4 Cenarios de falha e contingencia
+
+- [ ] QA-CBT-301: simular indisponibilidade OpenAI e validar fallback catalogado + incidente `openai_gateway`.
+- [ ] QA-CBT-302: simular falha de `GetEligibleProvidersAsync` e validar erro `provider_lookup_failed`.
+- [ ] QA-CBT-303: simular falha de `ScheduleVisitsBatchAsync` e validar mensagem de tentativa posterior.
+- [ ] QA-CBT-304: forcar `TelegramBridgeAi:Enabled=false` e validar kill switch sem resposta automatica.
+- [ ] QA-CBT-305: aplicar `TelegramChatbotRollout:RolloutPercentage=0` e validar bloqueio gradual com resposta assistida.
+
+### 4.5 Rollout controlado
+
+1. Liberar em `Development` (100%) e executar smoke completo.
+2. Liberar em `Staging` com `RolloutPercentage=10`, monitorar 30 min.
+3. Elevar para `30%` e monitorar 30 min.
+4. Elevar para `60%` e monitorar 30 min.
+5. Liberar `100%` somente com `Ai.Failures < 5%` e sem incidentes `P0/P1`.
+
+### 4.6 Gatilhos de rollback
+
+- `Ai.Failures >= 20%` por 10 minutos.
+- `Ai.P95LatencyMs >= 4000` por 10 minutos.
+- erro critico de guardrail (resposta insegura confirmada por QA/operacao).
+- confirmacao incorreta de agendamento sem persistencia em producao.
+
+### 4.7 Procedimento de rollback
+
+1. Aplicar `TelegramChatbotRollout:RolloutPercentage=0` imediatamente.
+2. Se o impacto persistir, aplicar `TelegramBridgeAi:Enabled=false` (kill switch global).
+3. Reiniciar bridge e validar estabilidade.
+4. Registrar incidente e seguir runbook:
+   - `Documentacao/REALTIME_PRESENCA_CHAT/RUNBOOKS/RUNBOOK_INCIDENTES_ROLLBACK_CHATBOT_TELEGRAM_ST-010.md`.
 
 ## 5. Troubleshooting inicial
 
@@ -234,6 +282,19 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
 - Conferir se existe snapshot `query_reference_state` recente na conversa com `currentServiceRequestId` ou `lastListedOrders`.
 - Quando o cliente citar apenas protocolo curto (`#XXXXXXXX`), validar se o protocolo esta presente em `lastListedOrders` da conversa; sem esse contexto, o orquestrador cai no fallback de listar pedidos.
 - Revisar action logs `query_get_order_status` e `query_get_order_details` para identificar erros `query_order_status_failed`/`query_order_details_failed`.
+
+### 5.7 Dashboard operacional retorna 403
+
+- Em ambiente nao-dev, validar header `X-Chatbot-Observability-Token` com valor igual a `TelegramChatbotObservability:DashboardToken`.
+- Confirmar se `TelegramChatbotObservability:EnableDashboardEndpoint=true`.
+- Em `Development`, confirmar se `AllowDashboardWithoutTokenInDevelopment=true`.
+
+### 5.8 Chat sem resposta automatica apos login
+
+- Validar `TelegramBridgeAi:Enabled=true`.
+- Validar decisao de rollout no log (`rollout_not_enabled`, `rollout_outside_percentage`, `rollout_chat_blocked`).
+- Confirmar configuracao de ambiente em `TelegramChatbotRollout:EnabledEnvironments`.
+- Se necessario para teste controlado, adicionar o chat em `TelegramChatbotRollout:AllowedChatIds`.
 
 ## 6. Historico de revisoes
 
@@ -278,3 +339,5 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
 - 2026-03-04: inicio da ST-009 com contratos/endpoints de consulta natural (`service-requests`, `status`, `details`, `appointments`) e cobertura inicial de testes de servico para listagem/status de pedidos.
 - 2026-03-04: conclusao da ST-009 com orquestrador de consultas naturais (resumo/paginacao, referencia contextual por protocolo/pedido atual, fallback amigavel sem dados, trilha auditavel `query_*`), testes unitarios/integracao adicionais e diagramas Mermaid de fluxo/sequencia da funcionalidade.
 - 2026-03-04: inicio da ST-010 com guardrails conversacionais, catalogo de erros/fallback padronizado, observabilidade operacional (dashboard + metricas de negocio/tecnicas) e feature flag de rollout gradual por ambiente/chat.
+- 2026-03-04: atualizacao ST-010 com plano QA (smoke/regressao/carga/falha), rollout gradual com gatilhos de rollback e runbook de incidentes operacionais do chatbot.
+- 2026-03-04: encerramento ST-010 com diagramas Mermaid de guardrails/observabilidade/rollout, move da story para `DONE` e atualizacao do indice da trilha.

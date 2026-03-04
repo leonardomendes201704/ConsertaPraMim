@@ -11,8 +11,6 @@
 
 ### In Progress
 
-- [ST-010 - Guardrails, observabilidade, QA e rollout do chatbot](STORIES/IN_PROGRESS/ST-010-guardrails-observabilidade-qa-e-rollout-chatbot.md)
-
 ### Done
 
 - [ST-001 - Status operacional do prestador (Ausente, Online, EmAtendimento)](STORIES/DONE/ST-001-status-operacional-prestador.md)
@@ -24,11 +22,16 @@
 - [ST-007 - Triagem natural e abertura automatica de pedido](STORIES/DONE/ST-007-triagem-natural-e-abertura-automatica-de-pedido.md)
 - [ST-008 - Matching de prestadores e agendamento multi-visitas](STORIES/DONE/ST-008-matching-prestadores-e-agendamento-multi-visitas.md)
 - [ST-009 - Consulta natural de status, pedidos e agenda](STORIES/DONE/ST-009-consulta-natural-de-status-pedidos-e-agenda.md)
+- [ST-010 - Guardrails, observabilidade, QA e rollout do chatbot](STORIES/DONE/ST-010-guardrails-observabilidade-qa-e-rollout-chatbot.md)
 
 ## Manual QA/Operacao
 
 - [ST-003 - Manual QA/Operacao Telegram Bridge](MANUAL_QA_OPERACAO_TELEGRAM_BRIDGE_ST-003.md)
 - [ST-004 a ST-010 - Manual QA/Operacao Chatbot Telegram](MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md)
+
+## Runbooks
+
+- [ST-010 - Runbook de incidentes e rollback do chatbot Telegram](RUNBOOKS/RUNBOOK_INCIDENTES_ROLLBACK_CHATBOT_TELEGRAM_ST-010.md)
 
 ## Diagramas
 
@@ -39,3 +42,4 @@
 - [ST-007 - Triagem natural e abertura automatica de pedido](../DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-007-triagem-abertura-automatica-pedido/README.md)
 - [ST-008 - Matching de prestadores e agendamento multi-visitas](../DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-008-matching-agendamento-multi-visitas/README.md)
 - [ST-009 - Consulta natural de status, pedidos e agenda](../DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-009-consulta-natural-status-pedidos-agenda/README.md)
+- [ST-010 - Guardrails, observabilidade e rollout do chatbot](../DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-010-guardrails-observabilidade-rollout-chatbot/README.md)
