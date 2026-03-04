@@ -1,0 +1,55 @@
+sequenceDiagram
+    participant Bridge as Telegram Bridge
+    participant API as TelegramChatbotController
+    participant Service as TelegramChatbotConversationService
+    participant Repo as ChatbotConversationRepository
+    participant DB as SQL Server
+
+    Bridge->>API: POST /api/telegram-chatbot/session
+    API->>Service: OpenOrResumeConversationAsync(clientId, channel, channelConversationId)
+    Service->>Repo: GetByClientAndChannelAsync(...)
+    Repo->>DB: SELECT conversation by client+channel+conversationId
+    alt conversa nao existe
+        Service->>Repo: AddConversationAsync(...)
+        Repo->>DB: INSERT ChatbotConversations (UTC)
+    else conversa existente
+        Service->>Repo: UpdateConversationAsync(...)
+        Repo->>DB: UPDATE ChatbotConversations (UTC)
+    end
+    API-->>Bridge: 200 conversation dto (UTC)
+
+    Bridge->>API: POST /api/telegram-chatbot/messages
+    API->>Service: RegisterMessageAsync(...)
+    Service->>Repo: GetByIdForUpdateAsync(conversationId)
+    Repo->>DB: SELECT conversation
+    alt clientId nao pertence a conversa
+        API-->>Bridge: 404 conversation not found
+    else clientId valido
+        Service->>Repo: AddMessageAsync(...)
+        Repo->>DB: INSERT ChatbotMessages + UPDATE conversation
+        API-->>Bridge: 200 message dto (UTC)
+    end
+
+    Bridge->>API: POST /api/telegram-chatbot/context-snapshots
+    API->>Service: RegisterContextSnapshotAsync(...)
+    Service->>Repo: AddContextSnapshotAsync(...)
+    Repo->>DB: INSERT ChatbotContextSnapshots + UPDATE conversation
+    API-->>Bridge: 200 snapshot dto (UTC)
+
+    Bridge->>API: POST /api/telegram-chatbot/actions
+    API->>Service: RegisterActionLogAsync(...)
+    Service->>Repo: AddActionLogAsync(...)
+    Repo->>DB: INSERT ChatbotActionLogs + UPDATE conversation
+    API-->>Bridge: 200 action dto (UTC)
+
+    Bridge->>API: GET /api/telegram-chatbot/conversations/{id}/history
+    API->>Service: GetConversationHistoryAsync(conversationId, clientId)
+    Service->>Repo: GetByIdAsync(...)
+    Repo->>DB: SELECT conversation
+    alt conversa de outro cliente
+        API-->>Bridge: 404 conversation not found
+    else conversa do cliente autenticado
+        Service->>Repo: GetMessagesAsync + GetContextSnapshotsAsync + GetActionLogsAsync
+        Repo->>DB: SELECT historico ordenado por data
+        API-->>Bridge: 200 history dto (UTC)
+    end

@@ -49,6 +49,7 @@ public class ServiceAppointment : BaseEntity
     public DateTime? RejectedAtUtc { get; set; }
     public DateTime? CancelledAtUtc { get; set; }
     public DateTime? CompletedAtUtc { get; set; }
+    public ServiceAppointmentCalendarSync? CalendarSync { get; set; }
 
     public ICollection<ServiceAppointmentHistory> History { get; set; } = new List<ServiceAppointmentHistory>();
     public ICollection<ServiceAppointmentChecklistResponse> ChecklistResponses { get; set; } = new List<ServiceAppointmentChecklistResponse>();

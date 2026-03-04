@@ -809,6 +809,266 @@ namespace ConsertaPraMim.Infrastructure.Migrations
                     b.ToTable("ChatMessages");
                 });
 
+            modelBuilder.Entity("ConsertaPraMim.Domain.Entities.ChatbotActionLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ActionType")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<Guid>("ClientId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ConversationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CorrelationId")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ErrorCode")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasMaxLength(1200)
+                        .HasColumnType("nvarchar(1200)");
+
+                    b.Property<string>("IntentName")
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("MetadataJson")
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("PayloadJson")
+                        .HasMaxLength(16000)
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ResultJson")
+                        .HasMaxLength(16000)
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClientId", "OccurredAtUtc");
+
+                    b.HasIndex("ConversationId", "OccurredAtUtc");
+
+                    b.ToTable("ChatbotActionLogs", t =>
+                        {
+                            t.HasCheckConstraint("CK_ChatbotActionLogs_Status_Valid", "[Status] IN (1,2,3)");
+                        });
+                });
+
+            modelBuilder.Entity("ConsertaPraMim.Domain.Entities.ChatbotContextSnapshot", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CapturedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("ClientId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int?>("CompletionTokens")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ContextJson")
+                        .IsRequired()
+                        .HasMaxLength(16000)
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("ConversationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ModelName")
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<int?>("PromptTokens")
+                        .HasColumnType("int");
+
+                    b.Property<string>("PromptVersion")
+                        .HasMaxLength(60)
+                        .HasColumnType("nvarchar(60)");
+
+                    b.Property<string>("SnapshotType")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<int?>("TotalTokens")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClientId", "CapturedAtUtc");
+
+                    b.HasIndex("ConversationId", "CapturedAtUtc");
+
+                    b.ToTable("ChatbotContextSnapshots", t =>
+                        {
+                            t.HasCheckConstraint("CK_ChatbotContextSnapshots_Tokens_NonNegative", "([PromptTokens] IS NULL OR [PromptTokens] >= 0) AND ([CompletionTokens] IS NULL OR [CompletionTokens] >= 0) AND ([TotalTokens] IS NULL OR [TotalTokens] >= 0)");
+                        });
+                });
+
+            modelBuilder.Entity("ConsertaPraMim.Domain.Entities.ChatbotConversation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Channel")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<string>("ChannelConversationId")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<Guid>("ClientId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("LastIntent")
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<DateTime>("LastInteractionAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("LastStep")
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("MetadataJson")
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<DateTime>("StartedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClientId", "Channel", "ChannelConversationId")
+                        .IsUnique();
+
+                    b.HasIndex("ClientId", "Status", "LastInteractionAtUtc");
+
+                    b.ToTable("ChatbotConversations", t =>
+                        {
+                            t.HasCheckConstraint("CK_ChatbotConversations_Status_Valid", "[Status] IN (1,2)");
+                        });
+                });
+
+            modelBuilder.Entity("ConsertaPraMim.Domain.Entities.ChatbotMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ChannelMessageId")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<Guid>("ClientId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int?>("CompletionTokens")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Content")
+                        .HasMaxLength(8000)
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("ConversationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Direction")
+                        .HasColumnType("int");
+
+                    b.Property<string>("IntentName")
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("MetadataJson")
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<string>("ModelName")
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<int?>("PromptTokens")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("SentAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<int?>("TotalTokens")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClientId", "SentAtUtc");
+
+                    b.HasIndex("ConversationId", "SentAtUtc");
+
+                    b.ToTable("ChatbotMessages", t =>
+                        {
+                            t.HasCheckConstraint("CK_ChatbotMessages_Direction_Valid", "[Direction] IN (1,2,3)");
+
+                            t.HasCheckConstraint("CK_ChatbotMessages_Tokens_NonNegative", "([PromptTokens] IS NULL OR [PromptTokens] >= 0) AND ([CompletionTokens] IS NULL OR [CompletionTokens] >= 0) AND ([TotalTokens] IS NULL OR [TotalTokens] >= 0)");
+                        });
+                });
+
             modelBuilder.Entity("ConsertaPraMim.Domain.Entities.LegalTermsDocument", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2259,6 +2519,52 @@ namespace ConsertaPraMim.Infrastructure.Migrations
                             t.HasCheckConstraint("CK_ServiceAppointments_NoShowRiskScore_Range", "[NoShowRiskScore] IS NULL OR ([NoShowRiskScore] BETWEEN 0 AND 100)");
 
                             t.HasCheckConstraint("CK_ServiceAppointments_WindowStartBeforeEnd", "[WindowEndUtc] > [WindowStartUtc]");
+                        });
+                });
+
+            modelBuilder.Entity("ConsertaPraMim.Domain.Entities.ServiceAppointmentCalendarSync", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("AppointmentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Error")
+                        .HasMaxLength(1200)
+                        .HasColumnType("nvarchar(1200)");
+
+                    b.Property<string>("GoogleEventId")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime?>("LastSyncAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("SyncStatus")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AppointmentId")
+                        .IsUnique();
+
+                    b.HasIndex("GoogleEventId")
+                        .IsUnique()
+                        .HasFilter("[GoogleEventId] IS NOT NULL");
+
+                    b.HasIndex("SyncStatus", "LastSyncAtUtc");
+
+                    b.ToTable("ServiceAppointmentCalendarSyncs", t =>
+                        {
+                            t.HasCheckConstraint("CK_ServiceAppointmentCalendarSyncs_SyncStatus_Valid", "[SyncStatus] IN (1,2,3,4)");
                         });
                 });
 
@@ -3933,6 +4239,74 @@ namespace ConsertaPraMim.Infrastructure.Migrations
                     b.Navigation("Sender");
                 });
 
+            modelBuilder.Entity("ConsertaPraMim.Domain.Entities.ChatbotActionLog", b =>
+                {
+                    b.HasOne("ConsertaPraMim.Domain.Entities.User", "Client")
+                        .WithMany()
+                        .HasForeignKey("ClientId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ConsertaPraMim.Domain.Entities.ChatbotConversation", "Conversation")
+                        .WithMany("ActionLogs")
+                        .HasForeignKey("ConversationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Client");
+
+                    b.Navigation("Conversation");
+                });
+
+            modelBuilder.Entity("ConsertaPraMim.Domain.Entities.ChatbotContextSnapshot", b =>
+                {
+                    b.HasOne("ConsertaPraMim.Domain.Entities.User", "Client")
+                        .WithMany()
+                        .HasForeignKey("ClientId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ConsertaPraMim.Domain.Entities.ChatbotConversation", "Conversation")
+                        .WithMany("ContextSnapshots")
+                        .HasForeignKey("ConversationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Client");
+
+                    b.Navigation("Conversation");
+                });
+
+            modelBuilder.Entity("ConsertaPraMim.Domain.Entities.ChatbotConversation", b =>
+                {
+                    b.HasOne("ConsertaPraMim.Domain.Entities.User", "Client")
+                        .WithMany()
+                        .HasForeignKey("ClientId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Client");
+                });
+
+            modelBuilder.Entity("ConsertaPraMim.Domain.Entities.ChatbotMessage", b =>
+                {
+                    b.HasOne("ConsertaPraMim.Domain.Entities.User", "Client")
+                        .WithMany()
+                        .HasForeignKey("ClientId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ConsertaPraMim.Domain.Entities.ChatbotConversation", "Conversation")
+                        .WithMany("Messages")
+                        .HasForeignKey("ConversationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Client");
+
+                    b.Navigation("Conversation");
+                });
+
             modelBuilder.Entity("ConsertaPraMim.Domain.Entities.MobilePushDevice", b =>
                 {
                     b.HasOne("ConsertaPraMim.Domain.Entities.User", "User")
@@ -4157,6 +4531,17 @@ namespace ConsertaPraMim.Infrastructure.Migrations
                     b.Navigation("Provider");
 
                     b.Navigation("ServiceRequest");
+                });
+
+            modelBuilder.Entity("ConsertaPraMim.Domain.Entities.ServiceAppointmentCalendarSync", b =>
+                {
+                    b.HasOne("ConsertaPraMim.Domain.Entities.ServiceAppointment", "Appointment")
+                        .WithOne("CalendarSync")
+                        .HasForeignKey("ConsertaPraMim.Domain.Entities.ServiceAppointmentCalendarSync", "AppointmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Appointment");
                 });
 
             modelBuilder.Entity("ConsertaPraMim.Domain.Entities.ServiceAppointmentChecklistHistory", b =>
@@ -4620,6 +5005,15 @@ namespace ConsertaPraMim.Infrastructure.Migrations
                     b.Navigation("Attachments");
                 });
 
+            modelBuilder.Entity("ConsertaPraMim.Domain.Entities.ChatbotConversation", b =>
+                {
+                    b.Navigation("ActionLogs");
+
+                    b.Navigation("ContextSnapshots");
+
+                    b.Navigation("Messages");
+                });
+
             modelBuilder.Entity("ConsertaPraMim.Domain.Entities.LegalTermsDocument", b =>
                 {
                     b.Navigation("Acceptances");
@@ -4649,6 +5043,8 @@ namespace ConsertaPraMim.Infrastructure.Migrations
 
             modelBuilder.Entity("ConsertaPraMim.Domain.Entities.ServiceAppointment", b =>
                 {
+                    b.Navigation("CalendarSync");
+
                     b.Navigation("ChecklistHistory");
 
                     b.Navigation("ChecklistResponses");

@@ -1,0 +1,34 @@
+sequenceDiagram
+    participant Cliente as Cliente
+    participant Bridge as Telegram Bridge
+    participant Orch as TelegramChatbotOrchestrator
+    participant ApiClient as TelegramChatbotApiClient
+    participant ChatbotApi as API /api/telegram-chatbot
+    participant Scheduling as TelegramChatbotSchedulingService
+
+    Cliente->>Bridge: "quais pedidos eu tenho?"
+    Bridge->>Orch: GenerateAssistantReply()
+    Orch->>ApiClient: GetConversationHistory()
+    Orch->>Orch: ResolveQueryIntentDecision(list_orders)
+    Orch->>ApiClient: GET /service-requests?take=3&skip=0
+    ApiClient->>ChatbotApi: GET /api/telegram-chatbot/service-requests
+    ChatbotApi->>Scheduling: GetClientOrdersAsync(clientId, skip, take)
+    Scheduling-->>ChatbotApi: OrdersResult paginado
+    ChatbotApi-->>ApiClient: 200 OrdersResult
+    ApiClient-->>Orch: OrdersResult
+    Orch->>ApiClient: POST /context-snapshots (query_intent_result)
+    Orch->>ApiClient: POST /context-snapshots (query_reference_state)
+    Orch->>ApiClient: POST /actions (query_list_orders)
+    Orch-->>Bridge: Mensagem resumida + "mostrar mais"
+    Bridge-->>Cliente: Resposta natural
+
+    Cliente->>Bridge: "mostrar mais pedidos"
+    Bridge->>Orch: GenerateAssistantReply()
+    Orch->>Orch: Usa query_reference_state (skip/take)
+    Orch->>ApiClient: GET /service-requests?take=3&skip=3
+    ApiClient->>ChatbotApi: GET /api/telegram-chatbot/service-requests
+    ChatbotApi->>Scheduling: GetClientOrdersAsync(clientId, 3, 3)
+    Scheduling-->>ChatbotApi: OrdersResult pagina seguinte
+    ChatbotApi-->>ApiClient: 200 OrdersResult
+    ApiClient-->>Orch: OrdersResult
+    Orch-->>Cliente: Resposta de pagina seguinte

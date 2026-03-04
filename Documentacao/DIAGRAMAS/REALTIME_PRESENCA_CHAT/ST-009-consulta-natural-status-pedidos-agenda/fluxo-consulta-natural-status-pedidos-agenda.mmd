@@ -1,0 +1,42 @@
+flowchart TD
+    A[Cliente envia pergunta em linguagem natural] --> B[Orquestrador IA identifica intent de consulta]
+    B --> C{Intent}
+
+    C -->|list_orders| D[GET /api/telegram-chatbot/service-requests]
+    C -->|get_order_status| E[Resolver pedido atual ou protocolo citado]
+    C -->|get_order_details| F[Resolver pedido atual ou protocolo citado]
+    C -->|list_appointments| G[GET /api/telegram-chatbot/appointments]
+
+    E --> H[GET /api/telegram-chatbot/service-requests/{id}/status]
+    F --> I[GET /api/telegram-chatbot/service-requests/{id}/details]
+
+    D --> J{Tem dados?}
+    G --> K{Tem dados?}
+    H --> L{Pedido valido?}
+    I --> M{Pedido valido?}
+
+    J -->|Nao| N[Resposta amigavel: sem pedidos]
+    J -->|Sim| O[Resumo paginado + sugestao mostrar mais]
+
+    K -->|Nao| P[Resposta amigavel: sem agendamentos]
+    K -->|Sim| Q[Resumo paginado de agenda + sugestao mostrar mais]
+
+    L -->|Nao| R[Resposta amigavel: pedido nao localizado/acesso negado]
+    L -->|Sim| S[Resumo de status + proxima visita]
+
+    M -->|Nao| T[Resposta amigavel: detalhe indisponivel]
+    M -->|Sim| U[Resumo de detalhe: status/propostas/visitas]
+
+    O --> V[Persistir query_intent_result + query_reference_state]
+    Q --> V
+    S --> V
+    U --> V
+    N --> W[Persistir trilha de consulta com no_data]
+    P --> W
+    R --> W
+    T --> W
+
+    V --> X[Registrar action log de sucesso da consulta]
+    W --> Y[Registrar action log de falha/sem dados]
+    X --> Z[Bot responde no chat em tempo real]
+    Y --> Z

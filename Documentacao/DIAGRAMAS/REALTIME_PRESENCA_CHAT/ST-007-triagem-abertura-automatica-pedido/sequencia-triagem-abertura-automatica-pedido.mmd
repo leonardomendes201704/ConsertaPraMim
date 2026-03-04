@@ -1,0 +1,39 @@
+﻿sequenceDiagram
+    participant Cliente as Cliente
+    participant ChatApi as ChatApiController
+    participant Orch as TelegramChatbotOrchestrator
+    participant Engine as TelegramServiceRequestTriageEngine
+    participant ChatbotApi as ConsertaPraMim.API /api/telegram-chatbot/*
+    participant RequestsApi as ConsertaPraMim.API /api/service-requests
+    participant Hub as SignalR Hub
+
+    Cliente->>ChatApi: POST /api/chats/{chatId}/messages
+    ChatApi->>ChatbotApi: POST /api/telegram-chatbot/messages (incoming)
+    ChatApi->>Orch: GenerateAssistantReplyAsync(...)
+
+    Orch->>ChatbotApi: POST /api/telegram-chatbot/session
+    Orch->>ChatbotApi: GET /api/telegram-chatbot/conversations/{id}/history
+    Orch->>Engine: Evaluate(history, aiReply, clientMessage)
+
+    alt dados incompletos
+        Engine-->>Orch: MissingFields + FollowUp
+        Orch->>ChatbotApi: POST /api/telegram-chatbot/context-snapshots (service_request_triage_state)
+        Orch-->>ChatApi: resposta de follow-up (coletar campo faltante)
+    else dados completos
+        Engine-->>Orch: CreatePayload
+        Orch->>RequestsApi: POST /api/service-requests
+        alt pedido criado
+            RequestsApi-->>Orch: 201 { id }
+            Orch->>ChatbotApi: POST /api/telegram-chatbot/context-snapshots (service_request_open_payload)
+            Orch->>ChatbotApi: POST /api/telegram-chatbot/actions (open_service_request_api Succeeded)
+            Orch-->>ChatApi: confirmacao amigavel com protocolo
+        else erro ao criar pedido
+            RequestsApi-->>Orch: erro
+            Orch->>ChatbotApi: POST /api/telegram-chatbot/actions (open_service_request_api Failed)
+            Orch-->>ChatApi: mensagem segura de retry
+        end
+    end
+
+    ChatApi->>ChatbotApi: POST /api/telegram-chatbot/messages (assistant outgoing)
+    ChatApi->>Hub: BroadcastConversationMessage
+    Hub-->>Cliente: timeline atualizada em tempo real

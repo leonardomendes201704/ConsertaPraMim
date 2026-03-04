@@ -1,0 +1,28 @@
+﻿flowchart TD
+    A[Cliente envia mensagem natural no chat] --> B[Orquestrador OpenAI gera resposta estruturada]
+    B --> C[Engine ST-007 analisa intent e entidades]
+
+    C --> D{Intent de abertura de pedido?}
+    D -- Nao --> E[Fluxo conversacional segue sem abrir pedido]
+    D -- Sim --> F[Merge com estado de triagem anterior por conversa]
+
+    F --> G{Dados minimos completos?}
+    G -- Nao --> H[Identifica campo faltante]
+    H --> I[Resposta de follow-up para coletar categoria, descricao ou CEP]
+    I --> J[Persistir snapshot service_request_triage_state]
+
+    G -- Sim --> K[Mapear entidades para DTO CreateServiceRequest]
+    K --> L[POST /api/service-requests]
+
+    L --> M{Criacao bem-sucedida?}
+    M -- Nao --> N[Registrar action open_service_request_api Failed]
+    N --> O[Mensagem segura de retry ao cliente]
+
+    M -- Sim --> P[Registrar action open_service_request_api Succeeded]
+    P --> Q[Persistir snapshot service_request_open_payload]
+    Q --> R[Atualizar estado com serviceRequestId]
+    R --> S[Enviar confirmacao amigavel com resumo e protocolo]
+
+    J --> T[Timeline realtime atualizada]
+    O --> T
+    S --> T

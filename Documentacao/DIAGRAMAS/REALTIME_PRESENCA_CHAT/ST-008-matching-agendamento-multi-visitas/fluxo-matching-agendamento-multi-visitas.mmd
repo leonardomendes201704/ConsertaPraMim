@@ -1,0 +1,24 @@
+flowchart TD
+    A[Pedido aberto na ST-007] --> B[Chatbot solicita matching de prestadores]
+    B --> C[GET /api/telegram-chatbot/service-requests/{id}/eligible-providers]
+    C --> D{Pedido pertence ao cliente autenticado?}
+    D -- Nao --> E[Retorna forbidden/request_not_found]
+    D -- Sim --> F[Filtrar prestadores ativos por categoria e cobertura]
+    F --> G[Aplicar compatibilidade PF/PJ e ordenar por distancia/rating]
+    G --> H[Bot apresenta lista de prestadores elegiveis]
+
+    H --> I[Cliente escolhe ate 3 visitas em dias distintos]
+    I --> I1[Parser natural converte dia/periodo em janelas UTC]
+    I1 --> I2[Persistir snapshot de sugestoes e decisao de agenda]
+    I2 --> J[POST /api/telegram-chatbot/service-requests/{id}/schedule-visits-batch]
+    J --> K{Validacoes de lote}
+    K -- Falha --> L[Retorna erro: max_visits_exceeded ou duplicate_visit_day]
+    K -- Sucesso --> M[Validar elegibilidade de cada prestador]
+    M --> N[Garantir proposta aceita para habilitar agenda]
+    N --> O[Criar agendamento por visita em ServiceAppointmentService]
+    O --> P{Cada visita criada?}
+    P -- Sim --> Q[Resultado por visita: Success + appointmentId]
+    P -- Nao --> R[Resultado por visita: erro de conflito/indisponibilidade]
+    Q --> S[Bot confirma visitas criadas e sugere ajustes quando necessario]
+    R --> S
+    L --> S

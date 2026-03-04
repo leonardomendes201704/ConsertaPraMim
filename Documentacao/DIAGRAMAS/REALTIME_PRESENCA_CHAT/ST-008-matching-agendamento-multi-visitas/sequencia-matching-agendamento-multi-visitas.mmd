@@ -1,0 +1,32 @@
+sequenceDiagram
+    participant Cliente as Cliente
+    participant Bridge as Telegram Bridge
+    participant Orch as Orquestrador IA
+    participant Parser as Parser Natural Agenda
+    participant ChatbotApi as API /api/telegram-chatbot
+    participant Scheduling as TelegramChatbotSchedulingService
+    participant Appointment as ServiceAppointmentService
+
+    Cliente->>Bridge: Mensagem: "pode agendar 2 visitas quarta e sexta de manha"
+    Bridge->>Orch: Processar linguagem natural e entidades
+    Orch->>ChatbotApi: GET /service-requests/{id}/eligible-providers
+    ChatbotApi->>Scheduling: GetEligibleProvidersAsync(clientId, requestId)
+    Scheduling-->>ChatbotApi: Lista de prestadores elegiveis
+    ChatbotApi-->>Orch: Providers priorizados
+    Orch->>Parser: Parse(message, nowUtc)
+    Parser-->>Orch: janelas UTC + quantidade de visitas
+    Orch->>ChatbotApi: POST /context-snapshots (scheduling_provider_suggestions)
+    Orch->>ChatbotApi: POST /actions (schedule_matching_lookup)
+
+    Orch->>ChatbotApi: POST /service-requests/{id}/schedule-visits-batch
+    ChatbotApi->>Scheduling: ScheduleVisitsAsync(batchRequest)
+    loop para cada visita solicitada
+        Scheduling->>Appointment: CreateAsync(clientId, "Client", window/provider)
+        Appointment-->>Scheduling: Success ou erro (slot_unavailable, etc)
+    end
+    Scheduling-->>ChatbotApi: Resultado consolidado por visita
+    ChatbotApi-->>Orch: payload success/parcial/falha
+    Orch->>ChatbotApi: POST /context-snapshots (scheduling_batch_result)
+    Orch->>ChatbotApi: POST /actions (schedule_batch_create)
+    Orch-->>Bridge: Resposta natural com confirmacoes e replanejamento
+    Bridge-->>Cliente: Conversa atualizada em tempo real

@@ -212,6 +212,14 @@ public enum ServiceAppointmentActorRole
     Admin = 3
 }
 
+public enum ServiceAppointmentCalendarSyncStatus
+{
+    Pending = 1,
+    Synced = 2,
+    Failed = 3,
+    Deleted = 4
+}
+
 public enum AppointmentReminderChannel
 {
     InApp = 1,
