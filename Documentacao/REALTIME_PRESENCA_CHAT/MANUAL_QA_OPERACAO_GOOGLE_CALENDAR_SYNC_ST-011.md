@@ -146,3 +146,21 @@ Checklist operacional:
 - [ ] QA-GCAL-012-202: simular `google_calendar_event_not_found` no update e validar fallback de create idempotente.
 - [ ] QA-GCAL-012-203: simular erro de update e validar `SyncStatus=Failed` com trilha em `Error`.
 - [ ] QA-GCAL-012-204: validar transicao de sync `Pending -> Synced` apos update bem-sucedido.
+
+## 12. Evolucao ST-012 (Task 5)
+
+Sincronizacao de delete de evento quando o agendamento e cancelado:
+
+- No `ServiceAppointmentService.CancelAsync`, apos persistir cancelamento local e cancelar lembretes, a API executa sync de delete no Google Calendar.
+- Se houver `GoogleEventId`, o fluxo chama `DeleteEventAsync(eventId)`:
+  - sucesso -> `SyncStatus=Deleted`, `Error=null`, `LastSyncAtUtc` atualizado.
+  - falha -> `SyncStatus=Failed`, `Error` preenchido com trilha (`errorCode:errorMessage`), sem quebrar o cancelamento local.
+- Se nao existir registro de sync para o `AppointmentId`, a API cria `ServiceAppointmentCalendarSync` com `Deleted` para manter rastreabilidade.
+- Se existir sync sem `GoogleEventId`, o registro e normalizado para `Deleted` sem chamada externa.
+
+Checklist operacional:
+
+- [ ] QA-GCAL-012-301: cancelar agendamento com `GoogleEventId` existente e validar chamada de `DeleteEventAsync`.
+- [ ] QA-GCAL-012-302: validar transicao do sync para `Deleted` apos delete bem-sucedido.
+- [ ] QA-GCAL-012-303: simular falha de delete e validar `SyncStatus=Failed` + `Error` preenchido.
+- [ ] QA-GCAL-012-304: cancelar agendamento sem registro previo de sync e validar criacao de `ServiceAppointmentCalendarSync` com `Deleted`.

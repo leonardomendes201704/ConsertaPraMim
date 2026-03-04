@@ -21,7 +21,7 @@ Garantir que agendamentos confirmados, atualizados e cancelados no sistema sejam
 - [x] Integrar sincronizacao na orquestracao de agendamento apos persistencia local bem-sucedida.
 - [x] Implementar fluxo `create event` com chave idempotente por `appointmentId`.
 - [x] Implementar fluxo `update event` para mudancas de data/horario/prestador.
-- [ ] Implementar fluxo `delete event` no cancelamento do agendamento.
+- [x] Implementar fluxo `delete event` no cancelamento do agendamento.
 - [ ] Garantir compensacao: se create no Google falhar, nao marcar agendamento como sincronizado.
 - [ ] Padronizar descricao do evento com dados de negocio (cliente, prestador, protocolo, endereco resumido).
 - [ ] Criar testes unitarios para service de sincronizacao (success/failure/idempotencia).
@@ -40,3 +40,6 @@ Garantir que agendamentos confirmados, atualizados e cancelados no sistema sejam
 - `ServiceAppointmentService.RespondRescheduleAsync` passou a sincronizar atualizacao de evento no Google Calendar ao aceitar reagendamento (nova data/horario).
 - Quando existe `GoogleEventId`, a integracao executa `UpdateEventAsync`; se o evento nao for encontrado, o fluxo reconstroi com `CreateEventAsync` usando a mesma chave idempotente.
 - Em update/create bem-sucedido apos reagendamento, sync fica `Synced`; em falha, sync fica `Failed` com erro persistido para reprocessamento.
+- `ServiceAppointmentService.CancelAsync` passou a sincronizar `delete event` no Google Calendar apos cancelamento local bem-sucedido.
+- Se houver `GoogleEventId`, a API chama `DeleteEventAsync`; em sucesso, sync fica `Deleted`; em falha, sync fica `Failed` com trilha de erro.
+- Se nao houver registro de sync previo para o `AppointmentId`, o fluxo cria `ServiceAppointmentCalendarSync` diretamente com `Deleted` para rastreabilidade.

@@ -1281,6 +1281,8 @@ public class ServiceAppointmentService : IServiceAppointmentService
             appointment.Id,
             $"cancelamento_{actorRole}");
 
+        await SyncCalendarOnCancellationAsync(appointment);
+
         var loaded = await _serviceAppointmentRepository.GetByIdAsync(appointment.Id) ?? appointment;
         return new ServiceAppointmentOperationResultDto(true, MapToDto(loaded));
     }
@@ -5604,6 +5606,90 @@ public class ServiceAppointmentService : IServiceAppointmentService
         appointment.RescheduleRequestedAtUtc = null;
         appointment.RescheduleRequestedByRole = null;
         appointment.RescheduleRequestReason = null;
+    }
+
+    private async Task SyncCalendarOnCancellationAsync(ServiceAppointment appointment)
+    {
+        if (_serviceAppointmentCalendarSyncRepository is null || _googleCalendarService is null)
+        {
+            return;
+        }
+
+        if (appointment.Id == Guid.Empty)
+        {
+            return;
+        }
+
+        ServiceAppointmentCalendarSync? sync = null;
+        try
+        {
+            var syncRepository = _serviceAppointmentCalendarSyncRepository;
+            var calendarService = _googleCalendarService;
+
+            sync = await syncRepository.GetByAppointmentIdAsync(appointment.Id);
+            if (sync == null)
+            {
+                sync = new ServiceAppointmentCalendarSync
+                {
+                    AppointmentId = appointment.Id,
+                    SyncStatus = ServiceAppointmentCalendarSyncStatus.Deleted,
+                    LastSyncAtUtc = DateTime.UtcNow,
+                    Error = null
+                };
+                await syncRepository.AddAsync(sync);
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(sync.GoogleEventId))
+            {
+                sync.SyncStatus = ServiceAppointmentCalendarSyncStatus.Deleted;
+                sync.LastSyncAtUtc = DateTime.UtcNow;
+                sync.Error = null;
+                await syncRepository.UpdateAsync(sync);
+                return;
+            }
+
+            var deleteResult = await calendarService.DeleteEventAsync(sync.GoogleEventId.Trim());
+            if (deleteResult.Success)
+            {
+                sync.SyncStatus = ServiceAppointmentCalendarSyncStatus.Deleted;
+                sync.LastSyncAtUtc = DateTime.UtcNow;
+                sync.Error = null;
+            }
+            else
+            {
+                sync.SyncStatus = ServiceAppointmentCalendarSyncStatus.Failed;
+                sync.LastSyncAtUtc = DateTime.UtcNow;
+                sync.Error = TruncateCalendarSyncError(
+                    ComposeCalendarSyncError(
+                        deleteResult.ErrorCode,
+                        deleteResult.ErrorMessage));
+            }
+
+            await syncRepository.UpdateAsync(sync);
+        }
+        catch (Exception ex)
+        {
+            if (sync == null)
+            {
+                return;
+            }
+
+            try
+            {
+                sync.SyncStatus = ServiceAppointmentCalendarSyncStatus.Failed;
+                sync.LastSyncAtUtc = DateTime.UtcNow;
+                sync.Error = TruncateCalendarSyncError(
+                    ComposeCalendarSyncError(
+                        "google_calendar_delete_unexpected_error",
+                        ex.Message));
+                await _serviceAppointmentCalendarSyncRepository.UpdateAsync(sync);
+            }
+            catch
+            {
+                // best effort: nao interrompe cancelamento por falha de sync.
+            }
+        }
     }
 
     private async Task SyncCalendarOnRescheduleAcceptanceAsync(ServiceAppointment appointment)

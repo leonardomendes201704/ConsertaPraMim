@@ -72,3 +72,26 @@ sequenceDiagram
     else erro update/create
         Scheduling->>Repo: UpdateAsync(sync: Failed, Error, LastSyncAtUtc)
     end
+
+    Note over Scheduling,GCal: Task 5 - Cancelamento (delete)
+    Scheduling->>Appointment: CancelAsync(...)
+    Appointment-->>Scheduling: Cancelamento local persistido
+    Scheduling->>Repo: GetByAppointmentIdAsync(appointmentId)
+    Repo->>Db: Select por AppointmentId
+    Db-->>Repo: sync ou null
+    Repo-->>Scheduling: resultado
+
+    alt sync inexistente
+        Scheduling->>Repo: AddAsync(sync: Deleted, LastSyncAtUtc)
+    else sync sem GoogleEventId
+        Scheduling->>Repo: UpdateAsync(sync: Deleted, LastSyncAtUtc)
+    else sync com GoogleEventId
+        Scheduling->>GCal: DeleteEventAsync(googleEventId)
+        alt delete ok
+            GCal-->>Scheduling: Success
+            Scheduling->>Repo: UpdateAsync(sync: Deleted, Error=null, LastSyncAtUtc)
+        else delete falha
+            GCal-->>Scheduling: ErrorCode/ErrorMessage
+            Scheduling->>Repo: UpdateAsync(sync: Failed, Error, LastSyncAtUtc)
+        end
+    end

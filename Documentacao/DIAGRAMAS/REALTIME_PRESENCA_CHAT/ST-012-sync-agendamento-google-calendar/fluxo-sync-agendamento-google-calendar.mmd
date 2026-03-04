@@ -25,3 +25,13 @@ flowchart TD
     S --> U
     U -->|Sim| V[Atualizar sync para Synced]
     U -->|Nao| W[Atualizar sync para Failed]
+
+    X[CancelAsync apos persistir cancelamento local] --> Y[Buscar sync por AppointmentId]
+    Y --> Z{Sync existe?}
+    Z -->|Nao| ZA[Criar sync com Deleted]
+    Z -->|Sim| ZB{GoogleEventId existe?}
+    ZB -->|Nao| ZC[Atualizar sync para Deleted]
+    ZB -->|Sim| ZD[Chamar DeleteEventAsync no Google]
+    ZD --> ZE{Delete ok?}
+    ZE -->|Sim| ZF[Atualizar sync para Deleted]
+    ZE -->|Nao| ZG[Atualizar sync para Failed com Error]
