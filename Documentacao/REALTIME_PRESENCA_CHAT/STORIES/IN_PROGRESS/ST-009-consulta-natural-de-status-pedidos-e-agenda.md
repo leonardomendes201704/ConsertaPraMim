@@ -1,6 +1,6 @@
 # ST-009 - Consulta natural de status, pedidos e agenda
 
-Status: Backlog  
+Status: In Progress  
 Epic: EPIC-002
 
 ## Objetivo
@@ -18,8 +18,8 @@ Permitir que o cliente consulte pedidos, status, propostas e agendamentos pelo T
 
 ## Tasks
 
-- [ ] Definir intents de consulta (`GetOrderStatus`, `ListOrders`, `ListAppointments`, `GetOrderDetails`).
-- [ ] Criar/ajustar endpoints API para consulta consolidada de pedidos/agendamentos por cliente.
+- [x] Definir intents de consulta (`GetOrderStatus`, `ListOrders`, `ListAppointments`, `GetOrderDetails`).
+- [x] Criar/ajustar endpoints API para consulta consolidada de pedidos/agendamentos por cliente.
 - [ ] Implementar politicas de resumo e paginacao para respostas conversacionais.
 - [ ] Implementar deteccao de referencia contextual (pedido atual, ultimo pedido citado).
 - [ ] Implementar resposta amigavel para casos sem dados encontrados.

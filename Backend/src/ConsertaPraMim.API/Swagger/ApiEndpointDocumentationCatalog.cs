@@ -261,6 +261,42 @@ public static class ApiEndpointDocumentationCatalog
                     ExpectedOutcome: "Conversa ativa e pronta para registrar mensagens, contexto da IA e eventos de negocio.");
             }
 
+            if (httpMethod == "GET" &&
+                path.Contains("/api/telegram-chatbot/service-requests", StringComparison.Ordinal) &&
+                !path.Contains("/eligible-providers", StringComparison.Ordinal) &&
+                !path.Contains("/details", StringComparison.Ordinal) &&
+                !path.Contains("/status", StringComparison.Ordinal))
+            {
+                return new OperationNarrativeContext(
+                    BusinessObjective: "Listar pedidos do cliente autenticado para acompanhamento em linguagem natural no chatbot.",
+                    Scenario: "Cliente pergunta 'quais pedidos eu tenho?' e o bot consulta carteira paginada sem expor dados de terceiros.",
+                    ExpectedOutcome: "Lista objetiva de pedidos com protocolo, status, sinais de proposta e proxima visita para continuidade da conversa.");
+            }
+
+            if (httpMethod == "GET" && path.Contains("/details", StringComparison.Ordinal))
+            {
+                return new OperationNarrativeContext(
+                    BusinessObjective: "Trazer detalhe consolidado de um pedido especifico para respostas contextuais do chatbot.",
+                    Scenario: "Cliente pede aprofundamento de um protocolo citado na conversa ('me mostra detalhes desse pedido').",
+                    ExpectedOutcome: "Retorno de status, propostas e visitas do pedido, respeitando ownership por `ClientId`.");
+            }
+
+            if (httpMethod == "GET" && path.Contains("/status", StringComparison.Ordinal))
+            {
+                return new OperationNarrativeContext(
+                    BusinessObjective: "Consultar status sintetico de um pedido especifico para resposta rapida no chatbot.",
+                    Scenario: "Cliente pergunta 'como esta meu pedido?' e o bot precisa retornar estado atual com proximos passos.",
+                    ExpectedOutcome: "Resumo de status do pedido com contagem de propostas/agendamentos e proxima visita quando existir.");
+            }
+
+            if (httpMethod == "GET" && path.Contains("/api/telegram-chatbot/appointments", StringComparison.Ordinal))
+            {
+                return new OperationNarrativeContext(
+                    BusinessObjective: "Listar agenda do cliente autenticado para consultas naturais de visitas no chatbot.",
+                    Scenario: "Cliente pergunta 'quais agendamentos tenho?' e o bot consulta agenda paginada por janela temporal opcional.",
+                    ExpectedOutcome: "Lista de visitas com protocolo vinculado, prestador e janelas UTC para continuidade da jornada.");
+            }
+
             if (httpMethod == "GET" && path.Contains("/eligible-providers", StringComparison.Ordinal))
             {
                 return new OperationNarrativeContext(

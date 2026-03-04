@@ -114,6 +114,12 @@
 
 ## Released
 
+- [2026-03-04] [ST-009] API de consulta natural de pedidos, status e agenda para chatbot Telegram
+- Tipo: feat
+- Resumo: adicionados contratos e endpoints de consulta no dominio `TelegramChatbot` para listar pedidos do cliente, consultar status/detalhes de pedido especifico e listar agendamentos com paginacao e escopo por `ClientId`, preparando a base da ST-009 para respostas conversacionais no orquestrador.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/TelegramChatbotSchedulingDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Interfaces/ITelegramChatbotSchedulingService.cs`, `Backend/src/ConsertaPraMim.Application/Services/TelegramChatbotSchedulingService.cs`, `Backend/src/ConsertaPraMim.API/Controllers/TelegramChatbotController.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ApiEndpointDocumentationCatalog.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramChatbotSchedulingServiceTests.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-009-consulta-natural-de-status-pedidos-e-agenda.md`, `Documentacao/REALTIME_PRESENCA_CHAT/INDEX.md`
+- Risco/Impacto: medio
+
 - [2026-03-04] [ST-008] Guardrail de confirmacao de agenda sem persistencia no chatbot Telegram
 - Tipo: fix
 - Resumo: adicionado guardrail no orquestrador da bridge para bloquear respostas de "agendamento confirmado" quando nao existe lote persistido com sucesso no historico da conversa; nesses casos o bot responde com `awaiting_provider_confirmation`, informando que ainda depende de acao do prestador e que retornara com detalhes apos confirmacao.

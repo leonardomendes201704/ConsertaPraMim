@@ -173,6 +173,158 @@ public class TelegramChatbotController : ControllerBase
     }
 
     /// <summary>
+    /// Lista pedidos do cliente autenticado para consultas naturais no chatbot.
+    /// </summary>
+    /// <param name="take">Quantidade maxima por pagina (1 a 20).</param>
+    /// <param name="skip">Quantidade de registros para paginacao.</param>
+    /// <response code="200">Lista de pedidos retornada com sucesso.</response>
+    /// <response code="401">Token ausente/invalido.</response>
+    /// <response code="403">Usuario autenticado sem role Client.</response>
+    [HttpGet("service-requests")]
+    [ProducesResponseType(typeof(TelegramChatbotOrdersResultDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetClientOrders(
+        [FromQuery] int take = 5,
+        [FromQuery] int skip = 0)
+    {
+        var clientId = TryGetAuthenticatedClientId();
+        if (!clientId.HasValue)
+        {
+            return Unauthorized(new
+            {
+                errorCode = "telegram_chatbot_invalid_client_claim",
+                message = "Nao foi possivel identificar o cliente autenticado."
+            });
+        }
+
+        var result = await _telegramChatbotSchedulingService.GetClientOrdersAsync(clientId.Value, skip, take);
+        return result.Success
+            ? Ok(result)
+            : BadRequest(new { errorCode = result.ErrorCode, message = result.ErrorMessage });
+    }
+
+    /// <summary>
+    /// Consulta status consolidado de um pedido especifico do cliente autenticado.
+    /// </summary>
+    /// <param name="serviceRequestId">Identificador do pedido.</param>
+    /// <response code="200">Status retornado com sucesso.</response>
+    /// <response code="401">Token ausente/invalido.</response>
+    /// <response code="403">Cliente sem acesso ao pedido informado.</response>
+    /// <response code="404">Pedido nao encontrado.</response>
+    [HttpGet("service-requests/{serviceRequestId:guid}/status")]
+    [ProducesResponseType(typeof(TelegramChatbotOrderStatusResultDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetOrderStatus([FromRoute] Guid serviceRequestId)
+    {
+        var clientId = TryGetAuthenticatedClientId();
+        if (!clientId.HasValue)
+        {
+            return Unauthorized(new
+            {
+                errorCode = "telegram_chatbot_invalid_client_claim",
+                message = "Nao foi possivel identificar o cliente autenticado."
+            });
+        }
+
+        var result = await _telegramChatbotSchedulingService.GetOrderStatusAsync(clientId.Value, serviceRequestId);
+        if (result.Success)
+        {
+            return Ok(result);
+        }
+
+        return result.ErrorCode switch
+        {
+            "request_not_found" => NotFound(new { errorCode = result.ErrorCode, message = result.ErrorMessage }),
+            "forbidden" => Forbid(),
+            _ => BadRequest(new { errorCode = result.ErrorCode, message = result.ErrorMessage })
+        };
+    }
+
+    /// <summary>
+    /// Consulta detalhes completos de um pedido especifico do cliente autenticado.
+    /// </summary>
+    /// <param name="serviceRequestId">Identificador do pedido.</param>
+    /// <response code="200">Detalhes retornados com sucesso.</response>
+    /// <response code="401">Token ausente/invalido.</response>
+    /// <response code="403">Cliente sem acesso ao pedido informado.</response>
+    /// <response code="404">Pedido nao encontrado.</response>
+    [HttpGet("service-requests/{serviceRequestId:guid}/details")]
+    [ProducesResponseType(typeof(TelegramChatbotOrderDetailsResultDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetOrderDetails([FromRoute] Guid serviceRequestId)
+    {
+        var clientId = TryGetAuthenticatedClientId();
+        if (!clientId.HasValue)
+        {
+            return Unauthorized(new
+            {
+                errorCode = "telegram_chatbot_invalid_client_claim",
+                message = "Nao foi possivel identificar o cliente autenticado."
+            });
+        }
+
+        var result = await _telegramChatbotSchedulingService.GetOrderDetailsAsync(clientId.Value, serviceRequestId);
+        if (result.Success)
+        {
+            return Ok(result);
+        }
+
+        return result.ErrorCode switch
+        {
+            "request_not_found" => NotFound(new { errorCode = result.ErrorCode, message = result.ErrorMessage }),
+            "forbidden" => Forbid(),
+            _ => BadRequest(new { errorCode = result.ErrorCode, message = result.ErrorMessage })
+        };
+    }
+
+    /// <summary>
+    /// Lista agendamentos do cliente autenticado para consultas de agenda em linguagem natural.
+    /// </summary>
+    /// <param name="fromUtc">Data/hora inicial opcional (UTC).</param>
+    /// <param name="toUtc">Data/hora final opcional (UTC).</param>
+    /// <param name="take">Quantidade maxima por pagina (1 a 20).</param>
+    /// <param name="skip">Quantidade de registros para paginacao.</param>
+    /// <response code="200">Lista de agendamentos retornada com sucesso.</response>
+    /// <response code="401">Token ausente/invalido.</response>
+    /// <response code="403">Usuario autenticado sem role Client.</response>
+    [HttpGet("appointments")]
+    [ProducesResponseType(typeof(TelegramChatbotAppointmentsResultDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetClientAppointments(
+        [FromQuery] DateTime? fromUtc = null,
+        [FromQuery] DateTime? toUtc = null,
+        [FromQuery] int take = 5,
+        [FromQuery] int skip = 0)
+    {
+        var clientId = TryGetAuthenticatedClientId();
+        if (!clientId.HasValue)
+        {
+            return Unauthorized(new
+            {
+                errorCode = "telegram_chatbot_invalid_client_claim",
+                message = "Nao foi possivel identificar o cliente autenticado."
+            });
+        }
+
+        var result = await _telegramChatbotSchedulingService.GetClientAppointmentsAsync(
+            clientId.Value,
+            fromUtc,
+            toUtc,
+            skip,
+            take);
+
+        return result.Success
+            ? Ok(result)
+            : BadRequest(new { errorCode = result.ErrorCode, message = result.ErrorMessage });
+    }
+
+    /// <summary>
     /// Registra uma mensagem da conversa (entrada, saida ou sistema).
     /// </summary>
     /// <param name="request">Payload da mensagem da conversa.</param>
@@ -545,6 +697,60 @@ public class TelegramChatbotController : ControllerBase
                 Results: [],
                 ErrorCode: "telegram_chatbot_scheduling_service_unavailable",
                 ErrorMessage: "Servico de agendamento do chatbot indisponivel."));
+        }
+
+        public Task<TelegramChatbotOrdersResultDto> GetClientOrdersAsync(Guid clientId, int skip = 0, int take = 5)
+        {
+            return Task.FromResult(new TelegramChatbotOrdersResultDto(
+                Success: false,
+                Orders: [],
+                TotalCount: 0,
+                Skip: skip,
+                Take: take,
+                HasMore: false,
+                ErrorCode: "telegram_chatbot_scheduling_service_unavailable",
+                ErrorMessage: "Servico de consulta de pedidos do chatbot indisponivel."));
+        }
+
+        public Task<TelegramChatbotOrderStatusResultDto> GetOrderStatusAsync(Guid clientId, Guid serviceRequestId)
+        {
+            return Task.FromResult(new TelegramChatbotOrderStatusResultDto(
+                Success: false,
+                ServiceRequestId: serviceRequestId,
+                Protocol: string.Empty,
+                Status: string.Empty,
+                ProposalsCount: 0,
+                AcceptedProposalsCount: 0,
+                AppointmentsCount: 0,
+                ErrorCode: "telegram_chatbot_scheduling_service_unavailable",
+                ErrorMessage: "Servico de consulta de status do chatbot indisponivel."));
+        }
+
+        public Task<TelegramChatbotOrderDetailsResultDto> GetOrderDetailsAsync(Guid clientId, Guid serviceRequestId)
+        {
+            return Task.FromResult(new TelegramChatbotOrderDetailsResultDto(
+                Success: false,
+                ServiceRequestId: serviceRequestId,
+                ErrorCode: "telegram_chatbot_scheduling_service_unavailable",
+                ErrorMessage: "Servico de consulta de detalhes do chatbot indisponivel."));
+        }
+
+        public Task<TelegramChatbotAppointmentsResultDto> GetClientAppointmentsAsync(
+            Guid clientId,
+            DateTime? fromUtc = null,
+            DateTime? toUtc = null,
+            int skip = 0,
+            int take = 5)
+        {
+            return Task.FromResult(new TelegramChatbotAppointmentsResultDto(
+                Success: false,
+                Appointments: [],
+                TotalCount: 0,
+                Skip: skip,
+                Take: take,
+                HasMore: false,
+                ErrorCode: "telegram_chatbot_scheduling_service_unavailable",
+                ErrorMessage: "Servico de consulta de agenda do chatbot indisponivel."));
         }
     }
 }

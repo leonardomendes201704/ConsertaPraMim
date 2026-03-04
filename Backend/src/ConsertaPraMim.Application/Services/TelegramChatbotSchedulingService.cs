@@ -11,17 +11,20 @@ public sealed class TelegramChatbotSchedulingService : ITelegramChatbotSchedulin
     private readonly IServiceRequestRepository _serviceRequestRepository;
     private readonly IUserRepository _userRepository;
     private readonly IProposalRepository _proposalRepository;
+    private readonly IServiceAppointmentRepository _serviceAppointmentRepository;
     private readonly IServiceAppointmentService _serviceAppointmentService;
 
     public TelegramChatbotSchedulingService(
         IServiceRequestRepository serviceRequestRepository,
         IUserRepository userRepository,
         IProposalRepository proposalRepository,
+        IServiceAppointmentRepository serviceAppointmentRepository,
         IServiceAppointmentService serviceAppointmentService)
     {
         _serviceRequestRepository = serviceRequestRepository;
         _userRepository = userRepository;
         _proposalRepository = proposalRepository;
+        _serviceAppointmentRepository = serviceAppointmentRepository;
         _serviceAppointmentService = serviceAppointmentService;
     }
 
@@ -100,6 +103,259 @@ public sealed class TelegramChatbotSchedulingService : ITelegramChatbotSchedulin
             Success: true,
             ServiceRequestId: serviceRequestId,
             Providers: eligible);
+    }
+
+    public async Task<TelegramChatbotOrdersResultDto> GetClientOrdersAsync(
+        Guid clientId,
+        int skip = 0,
+        int take = 5)
+    {
+        if (clientId == Guid.Empty)
+        {
+            return new TelegramChatbotOrdersResultDto(
+                Success: false,
+                Orders: [],
+                TotalCount: 0,
+                Skip: 0,
+                Take: 0,
+                HasMore: false,
+                ErrorCode: "invalid_client",
+                ErrorMessage: "Cliente invalido para consulta de pedidos.");
+        }
+
+        var normalizedSkip = Math.Max(0, skip);
+        var normalizedTake = Math.Clamp(take, 1, 20);
+
+        var allOrders = (await _serviceRequestRepository.GetByClientIdAsync(clientId)).ToList();
+        var totalCount = allOrders.Count;
+        if (totalCount == 0 || normalizedSkip >= totalCount)
+        {
+            return new TelegramChatbotOrdersResultDto(
+                Success: true,
+                Orders: [],
+                TotalCount: totalCount,
+                Skip: normalizedSkip,
+                Take: normalizedTake,
+                HasMore: false);
+        }
+
+        var allAppointments = await _serviceAppointmentRepository.GetByClientAsync(clientId);
+        var appointmentsByRequest = allAppointments
+            .GroupBy(item => item.ServiceRequestId)
+            .ToDictionary(group => group.Key, group => (IReadOnlyList<ServiceAppointment>)group.ToList());
+
+        var page = allOrders
+            .Skip(normalizedSkip)
+            .Take(normalizedTake)
+            .Select(order =>
+            {
+                var orderAppointments = appointmentsByRequest.TryGetValue(order.Id, out var grouped)
+                    ? grouped
+                    : [];
+
+                return BuildOrderSummary(order, orderAppointments);
+            })
+            .ToList();
+
+        return new TelegramChatbotOrdersResultDto(
+            Success: true,
+            Orders: page,
+            TotalCount: totalCount,
+            Skip: normalizedSkip,
+            Take: normalizedTake,
+            HasMore: normalizedSkip + page.Count < totalCount);
+    }
+
+    public async Task<TelegramChatbotOrderStatusResultDto> GetOrderStatusAsync(
+        Guid clientId,
+        Guid serviceRequestId)
+    {
+        if (clientId == Guid.Empty || serviceRequestId == Guid.Empty)
+        {
+            return new TelegramChatbotOrderStatusResultDto(
+                Success: false,
+                ServiceRequestId: serviceRequestId,
+                Protocol: BuildProtocol(serviceRequestId),
+                Status: string.Empty,
+                ProposalsCount: 0,
+                AcceptedProposalsCount: 0,
+                AppointmentsCount: 0,
+                ErrorCode: "invalid_request",
+                ErrorMessage: "Parametros invalidos para consulta de status.");
+        }
+
+        var request = await _serviceRequestRepository.GetByIdAsync(serviceRequestId);
+        if (request == null)
+        {
+            return new TelegramChatbotOrderStatusResultDto(
+                Success: false,
+                ServiceRequestId: serviceRequestId,
+                Protocol: BuildProtocol(serviceRequestId),
+                Status: string.Empty,
+                ProposalsCount: 0,
+                AcceptedProposalsCount: 0,
+                AppointmentsCount: 0,
+                ErrorCode: "request_not_found",
+                ErrorMessage: "Pedido nao encontrado.");
+        }
+
+        if (request.ClientId != clientId)
+        {
+            return new TelegramChatbotOrderStatusResultDto(
+                Success: false,
+                ServiceRequestId: serviceRequestId,
+                Protocol: BuildProtocol(serviceRequestId),
+                Status: string.Empty,
+                ProposalsCount: 0,
+                AcceptedProposalsCount: 0,
+                AppointmentsCount: 0,
+                ErrorCode: "forbidden",
+                ErrorMessage: "Cliente sem acesso ao pedido informado.");
+        }
+
+        var orderedAppointments = request.Appointments
+            .OrderBy(item => NormalizeToUtc(item.WindowStartUtc))
+            .ToList();
+
+        var nextAppointment = ResolveNextAppointment(orderedAppointments);
+
+        return new TelegramChatbotOrderStatusResultDto(
+            Success: true,
+            ServiceRequestId: request.Id,
+            Protocol: BuildProtocol(request.Id),
+            Status: request.Status.ToString(),
+            ProposalsCount: request.Proposals.Count(item => !item.IsInvalidated),
+            AcceptedProposalsCount: request.Proposals.Count(item => !item.IsInvalidated && item.Accepted),
+            AppointmentsCount: orderedAppointments.Count,
+            NextAppointment: nextAppointment is null
+                ? null
+                : BuildOrderAppointment(nextAppointment));
+    }
+
+    public async Task<TelegramChatbotOrderDetailsResultDto> GetOrderDetailsAsync(
+        Guid clientId,
+        Guid serviceRequestId)
+    {
+        if (clientId == Guid.Empty || serviceRequestId == Guid.Empty)
+        {
+            return new TelegramChatbotOrderDetailsResultDto(
+                Success: false,
+                ServiceRequestId: serviceRequestId,
+                ErrorCode: "invalid_request",
+                ErrorMessage: "Parametros invalidos para consulta de detalhes.");
+        }
+
+        var request = await _serviceRequestRepository.GetByIdAsync(serviceRequestId);
+        if (request == null)
+        {
+            return new TelegramChatbotOrderDetailsResultDto(
+                Success: false,
+                ServiceRequestId: serviceRequestId,
+                ErrorCode: "request_not_found",
+                ErrorMessage: "Pedido nao encontrado.");
+        }
+
+        if (request.ClientId != clientId)
+        {
+            return new TelegramChatbotOrderDetailsResultDto(
+                Success: false,
+                ServiceRequestId: serviceRequestId,
+                ErrorCode: "forbidden",
+                ErrorMessage: "Cliente sem acesso ao pedido informado.");
+        }
+
+        var proposals = request.Proposals
+            .Where(item => !item.IsInvalidated)
+            .OrderByDescending(item => item.Accepted)
+            .ThenByDescending(item => item.CreatedAt)
+            .Select(item => new TelegramChatbotOrderProposalDto(
+                ProposalId: item.Id,
+                ProviderId: item.ProviderId,
+                ProviderName: ResolveProviderName(item.Provider?.Name),
+                EstimatedValue: item.EstimatedValue,
+                Accepted: item.Accepted,
+                CreatedAtUtc: NormalizeToUtc(item.CreatedAt)))
+            .ToList();
+
+        var appointments = request.Appointments
+            .OrderByDescending(item => NormalizeToUtc(item.WindowStartUtc))
+            .Select(BuildOrderAppointment)
+            .ToList();
+
+        var details = new TelegramChatbotOrderDetailsDto(
+            ServiceRequestId: request.Id,
+            Protocol: BuildProtocol(request.Id),
+            Status: request.Status.ToString(),
+            Category: ResolveCategoryDisplay(request),
+            Description: request.Description,
+            Street: request.AddressStreet,
+            City: request.AddressCity,
+            Zip: request.AddressZip,
+            CreatedAtUtc: NormalizeToUtc(request.CreatedAt),
+            Proposals: proposals,
+            Appointments: appointments);
+
+        return new TelegramChatbotOrderDetailsResultDto(
+            Success: true,
+            ServiceRequestId: request.Id,
+            Details: details);
+    }
+
+    public async Task<TelegramChatbotAppointmentsResultDto> GetClientAppointmentsAsync(
+        Guid clientId,
+        DateTime? fromUtc = null,
+        DateTime? toUtc = null,
+        int skip = 0,
+        int take = 5)
+    {
+        if (clientId == Guid.Empty)
+        {
+            return new TelegramChatbotAppointmentsResultDto(
+                Success: false,
+                Appointments: [],
+                TotalCount: 0,
+                Skip: 0,
+                Take: 0,
+                HasMore: false,
+                ErrorCode: "invalid_client",
+                ErrorMessage: "Cliente invalido para consulta de agendamentos.");
+        }
+
+        var normalizedSkip = Math.Max(0, skip);
+        var normalizedTake = Math.Clamp(take, 1, 20);
+        DateTime? normalizedFromUtc = fromUtc.HasValue ? NormalizeToUtc(fromUtc.Value) : null;
+        DateTime? normalizedToUtc = toUtc.HasValue ? NormalizeToUtc(toUtc.Value) : null;
+
+        var allAppointments = await _serviceAppointmentRepository.GetByClientAsync(
+            clientId,
+            normalizedFromUtc,
+            normalizedToUtc);
+
+        var totalCount = allAppointments.Count;
+        if (totalCount == 0 || normalizedSkip >= totalCount)
+        {
+            return new TelegramChatbotAppointmentsResultDto(
+                Success: true,
+                Appointments: [],
+                TotalCount: totalCount,
+                Skip: normalizedSkip,
+                Take: normalizedTake,
+                HasMore: false);
+        }
+
+        var page = allAppointments
+            .Skip(normalizedSkip)
+            .Take(normalizedTake)
+            .Select(BuildAppointmentSummary)
+            .ToList();
+
+        return new TelegramChatbotAppointmentsResultDto(
+            Success: true,
+            Appointments: page,
+            TotalCount: totalCount,
+            Skip: normalizedSkip,
+            Take: normalizedTake,
+            HasMore: normalizedSkip + page.Count < totalCount);
     }
 
     public async Task<TelegramChatbotBatchScheduleResultDto> ScheduleVisitsAsync(
@@ -265,6 +521,96 @@ public sealed class TelegramChatbotSchedulingService : ITelegramChatbotSchedulin
             ErrorMessage: successCount == request.Visits.Count
                 ? null
                 : "Uma ou mais visitas nao puderam ser agendadas.");
+    }
+
+    private static TelegramChatbotOrderSummaryDto BuildOrderSummary(
+        ServiceRequest request,
+        IReadOnlyList<ServiceAppointment> appointments)
+    {
+        var nextAppointment = ResolveNextAppointment(appointments);
+
+        return new TelegramChatbotOrderSummaryDto(
+            ServiceRequestId: request.Id,
+            Protocol: BuildProtocol(request.Id),
+            Status: request.Status.ToString(),
+            Category: ResolveCategoryDisplay(request),
+            Description: request.Description,
+            City: request.AddressCity,
+            CreatedAtUtc: NormalizeToUtc(request.CreatedAt),
+            ProposalsCount: request.Proposals.Count(item => !item.IsInvalidated),
+            AcceptedProposalsCount: request.Proposals.Count(item => !item.IsInvalidated && item.Accepted),
+            AppointmentsCount: appointments.Count,
+            NextAppointmentStartUtc: nextAppointment is null
+                ? null
+                : NormalizeToUtc(nextAppointment.WindowStartUtc),
+            NextAppointmentEndUtc: nextAppointment is null
+                ? null
+                : NormalizeToUtc(nextAppointment.WindowEndUtc),
+            NextAppointmentStatus: nextAppointment?.Status.ToString());
+    }
+
+    private static TelegramChatbotAppointmentSummaryDto BuildAppointmentSummary(ServiceAppointment appointment)
+    {
+        return new TelegramChatbotAppointmentSummaryDto(
+            AppointmentId: appointment.Id,
+            ServiceRequestId: appointment.ServiceRequestId,
+            Protocol: BuildProtocol(appointment.ServiceRequestId),
+            ProviderId: appointment.ProviderId,
+            ProviderName: ResolveProviderName(appointment.Provider?.Name),
+            Status: appointment.Status.ToString(),
+            WindowStartUtc: NormalizeToUtc(appointment.WindowStartUtc),
+            WindowEndUtc: NormalizeToUtc(appointment.WindowEndUtc),
+            Reason: appointment.Reason);
+    }
+
+    private static TelegramChatbotOrderAppointmentDto BuildOrderAppointment(ServiceAppointment appointment)
+    {
+        return new TelegramChatbotOrderAppointmentDto(
+            AppointmentId: appointment.Id,
+            ProviderId: appointment.ProviderId,
+            ProviderName: ResolveProviderName(appointment.Provider?.Name),
+            Status: appointment.Status.ToString(),
+            WindowStartUtc: NormalizeToUtc(appointment.WindowStartUtc),
+            WindowEndUtc: NormalizeToUtc(appointment.WindowEndUtc));
+    }
+
+    private static ServiceAppointment? ResolveNextAppointment(IEnumerable<ServiceAppointment> appointments)
+    {
+        var nowUtc = DateTime.UtcNow;
+        return appointments
+                   .Where(item => NormalizeToUtc(item.WindowEndUtc) >= nowUtc)
+                   .OrderBy(item => NormalizeToUtc(item.WindowStartUtc))
+                   .FirstOrDefault()
+               ?? appointments
+                   .OrderByDescending(item => NormalizeToUtc(item.WindowStartUtc))
+                   .FirstOrDefault();
+    }
+
+    private static string ResolveCategoryDisplay(ServiceRequest request)
+    {
+        if (!string.IsNullOrWhiteSpace(request.CategoryDefinition?.Name))
+        {
+            return request.CategoryDefinition.Name;
+        }
+
+        return request.Category.ToPtBr();
+    }
+
+    private static string ResolveProviderName(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? "Prestador"
+            : value.Trim();
+    }
+
+    private static string BuildProtocol(Guid serviceRequestId)
+    {
+        if (serviceRequestId == Guid.Empty)
+        {
+            return string.Empty;
+        }
+
+        return serviceRequestId.ToString("N")[..8];
     }
 
     private static bool IsEligibleProvider(User provider)

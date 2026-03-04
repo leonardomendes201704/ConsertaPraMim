@@ -10,6 +10,118 @@ namespace ConsertaPraMim.Tests.Unit.Services;
 
 public class TelegramChatbotSchedulingServiceTests
 {
+    [Fact(DisplayName = "Telegram scheduling | Query | Deve listar pedidos do cliente com paginacao e proxima visita")]
+    public async Task GetClientOrdersAsync_ShouldReturnPagedOrdersWithUpcomingAppointment()
+    {
+        var clientId = Guid.NewGuid();
+        var requestA = new ServiceRequest
+        {
+            Id = Guid.NewGuid(),
+            ClientId = clientId,
+            Status = ServiceRequestStatus.Scheduled,
+            Category = ServiceCategory.Plumbing,
+            Description = "Torneira pingando",
+            AddressCity = "Praia Grande",
+            AddressStreet = "Rua A",
+            AddressZip = "11704150",
+            CreatedAt = DateTime.UtcNow.AddDays(-2),
+            Proposals =
+            [
+                new Proposal
+                {
+                    Id = Guid.NewGuid(),
+                    ProviderId = Guid.NewGuid(),
+                    Accepted = true
+                }
+            ]
+        };
+
+        var requestB = new ServiceRequest
+        {
+            Id = Guid.NewGuid(),
+            ClientId = clientId,
+            Status = ServiceRequestStatus.Matching,
+            Category = ServiceCategory.Appliances,
+            Description = "Ar com erro CH26",
+            AddressCity = "Santos",
+            AddressStreet = "Rua B",
+            AddressZip = "11000000",
+            CreatedAt = DateTime.UtcNow.AddDays(-1)
+        };
+
+        var requestRepositoryMock = new Mock<IServiceRequestRepository>();
+        requestRepositoryMock
+            .Setup(repository => repository.GetByClientIdAsync(clientId))
+            .ReturnsAsync([requestA, requestB]);
+
+        var appointmentRepositoryMock = new Mock<IServiceAppointmentRepository>();
+        appointmentRepositoryMock
+            .Setup(repository => repository.GetByClientAsync(clientId, null, null))
+            .ReturnsAsync(
+            [
+                new ServiceAppointment
+                {
+                    Id = Guid.NewGuid(),
+                    ServiceRequestId = requestA.Id,
+                    ClientId = clientId,
+                    ProviderId = Guid.NewGuid(),
+                    Status = ServiceAppointmentStatus.Confirmed,
+                    WindowStartUtc = DateTime.UtcNow.AddDays(1),
+                    WindowEndUtc = DateTime.UtcNow.AddDays(1).AddHours(2)
+                }
+            ]);
+
+        var service = BuildService(
+            requestRepositoryMock,
+            new Mock<IUserRepository>(),
+            out _,
+            out _,
+            out _,
+            appointmentRepositoryMock);
+
+        var result = await service.GetClientOrdersAsync(clientId, skip: 0, take: 2);
+
+        Assert.True(result.Success);
+        Assert.Equal(2, result.TotalCount);
+        Assert.Equal(2, result.Orders.Count);
+        Assert.False(result.HasMore);
+        var orderWithVisit = result.Orders.First(item => item.ServiceRequestId == requestA.Id);
+        Assert.Equal("Scheduled", orderWithVisit.Status);
+        Assert.Equal("Confirmed", orderWithVisit.NextAppointmentStatus);
+    }
+
+    [Fact(DisplayName = "Telegram scheduling | Query | Deve bloquear detalhe de pedido quando cliente nao e dono")]
+    public async Task GetOrderDetailsAsync_ShouldReturnForbidden_WhenClientDoesNotOwnRequest()
+    {
+        var requestId = Guid.NewGuid();
+
+        var requestRepositoryMock = new Mock<IServiceRequestRepository>();
+        requestRepositoryMock
+            .Setup(repository => repository.GetByIdAsync(requestId))
+            .ReturnsAsync(new ServiceRequest
+            {
+                Id = requestId,
+                ClientId = Guid.NewGuid(),
+                Status = ServiceRequestStatus.Created,
+                Category = ServiceCategory.Plumbing,
+                Description = "Teste",
+                AddressStreet = "Rua X",
+                AddressCity = "Cidade X",
+                AddressZip = "11000000"
+            });
+
+        var service = BuildService(
+            requestRepositoryMock,
+            new Mock<IUserRepository>(),
+            out _,
+            out _);
+
+        var result = await service.GetOrderDetailsAsync(Guid.NewGuid(), requestId);
+
+        Assert.False(result.Success);
+        Assert.Equal("forbidden", result.ErrorCode);
+    }
+
     [Fact(DisplayName = "Telegram scheduling | Matching | Deve listar prestadores elegiveis ordenados por distancia")]
     public async Task GetEligibleProvidersAsync_ShouldReturnEligibleProvidersOrderedByDistance()
     {
@@ -307,13 +419,37 @@ public class TelegramChatbotSchedulingServiceTests
         out Mock<IProposalRepository> proposalRepositoryMock,
         out Mock<IServiceAppointmentService> appointmentServiceMock)
     {
+        return BuildService(
+            requestRepositoryMock,
+            userRepositoryMock,
+            out proposalRepositoryMock,
+            out _,
+            out appointmentServiceMock);
+    }
+
+    private static TelegramChatbotSchedulingService BuildService(
+        Mock<IServiceRequestRepository> requestRepositoryMock,
+        Mock<IUserRepository> userRepositoryMock,
+        out Mock<IProposalRepository> proposalRepositoryMock,
+        out Mock<IServiceAppointmentRepository> appointmentRepositoryMock,
+        out Mock<IServiceAppointmentService> appointmentServiceMock,
+        Mock<IServiceAppointmentRepository>? customAppointmentRepositoryMock = null)
+    {
         proposalRepositoryMock = new Mock<IProposalRepository>();
+        appointmentRepositoryMock = customAppointmentRepositoryMock ?? new Mock<IServiceAppointmentRepository>();
+        if (customAppointmentRepositoryMock is null)
+        {
+            appointmentRepositoryMock
+                .Setup(repository => repository.GetByClientAsync(It.IsAny<Guid>(), It.IsAny<DateTime?>(), It.IsAny<DateTime?>()))
+                .ReturnsAsync([]);
+        }
         appointmentServiceMock = new Mock<IServiceAppointmentService>();
 
         return new TelegramChatbotSchedulingService(
             requestRepositoryMock.Object,
             userRepositoryMock.Object,
             proposalRepositoryMock.Object,
+            appointmentRepositoryMock.Object,
             appointmentServiceMock.Object);
     }
 
