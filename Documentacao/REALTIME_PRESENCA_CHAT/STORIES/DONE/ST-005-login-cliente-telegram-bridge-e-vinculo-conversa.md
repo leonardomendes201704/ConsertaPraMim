@@ -29,3 +29,4 @@ Adicionar autenticacao de cliente no `ConsertaPraMim.Web.TelegramBridge` com ema
 - [x] Criar testes unitarios/integracao para autenticao e autorizacao basica.
 - [x] Criar/atualizar diagrama de fluxo Mermaid da funcionalidade.
 - [x] Criar/atualizar diagrama de sequencia Mermaid da funcionalidade.
+- [x] Aplicar hotfix de UX no composer para envio de mensagem ao pressionar `Enter`.

@@ -17,15 +17,18 @@ Padronizar como operar e validar o painel `ConsertaPraMim.Web.TelegramBridge`, c
 1. Abrir o painel web e informar o `Chat ID` no formulario lateral.
 2. Clicar em `Abrir` para iniciar/fixar a conversa.
 3. Enviar mensagem textual e confirmar entrega no Telegram.
-4. Enviar anexos pelo botao `+` e confirmar recebimento no Telegram.
-5. Responder pelo Telegram e verificar entrada automatica no painel (sem refresh).
-6. Em caso de necessidade de auditoria, coletar arquivo salvo em `wwwroot/uploads/telegram-bridge`.
+4. Validar envio pelo teclado: `Enter` envia mensagem e `Shift+Enter` quebra linha.
+5. Enviar anexos pelo botao `+` e confirmar recebimento no Telegram.
+6. Responder pelo Telegram e verificar entrada automatica no painel (sem refresh).
+7. Em caso de necessidade de auditoria, coletar arquivo salvo em `wwwroot/uploads/telegram-bridge`.
 
 ## 4. Checklist QA (smoke)
 
 - [ ] QA-TGB-001: painel carrega lista de conversas sem erro JavaScript.
 - [ ] QA-TGB-002: abrir conversa por `Chat ID` cria item na sidebar.
 - [ ] QA-TGB-003: envio de mensagem textual aparece no painel e no Telegram.
+- [ ] QA-TGB-003A: `Enter` envia mensagem quando o botao `Enviar` esta habilitado.
+- [ ] QA-TGB-003B: `Shift+Enter` nao envia e permite quebra de linha no composer.
 - [ ] QA-TGB-004: envio de imagem aparece no painel e no Telegram.
 - [ ] QA-TGB-005: envio de documento aparece no painel e no Telegram.
 - [ ] QA-TGB-006: resposta no Telegram aparece no painel em tempo real.

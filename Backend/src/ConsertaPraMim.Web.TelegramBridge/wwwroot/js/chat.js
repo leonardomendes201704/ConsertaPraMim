@@ -441,6 +441,35 @@
         adjustHeight();
     }
 
+    function wireSendOnEnter() {
+        if (!elements.messageInput || !elements.sendMessageForm) {
+            return;
+        }
+
+        elements.messageInput.addEventListener("keydown", function (event) {
+            if (event.key !== "Enter") {
+                return;
+            }
+
+            if (event.shiftKey || event.ctrlKey || event.altKey || event.metaKey || event.isComposing) {
+                return;
+            }
+
+            event.preventDefault();
+
+            if (elements.sendMessageButton.disabled) {
+                return;
+            }
+
+            if (typeof elements.sendMessageForm.requestSubmit === "function") {
+                elements.sendMessageForm.requestSubmit(elements.sendMessageButton);
+                return;
+            }
+
+            elements.sendMessageForm.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+        });
+    }
+
     async function setupHub() {
         if (!window.signalR) {
             setConnectionBadge("SignalR indisponivel", false);
@@ -490,6 +519,7 @@
     async function bootstrap() {
         try {
             wireComposerAutogrow();
+            wireSendOnEnter();
 
             elements.sendMessageForm.addEventListener("submit", function (event) {
                 handleSendMessage(event).catch(function (error) {

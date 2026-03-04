@@ -114,6 +114,24 @@
 
 ## Released
 
+- [2026-03-04] [ST-005] UX do composer no Telegram Bridge com envio por Enter
+- Tipo: fix
+- Resumo: ajustado o composer do chat web para enviar mensagem ao pressionar `Enter`, preservando quebra de linha com `Shift+Enter`, com atualizacao da story ST-005 e manual QA/operacao da bridge.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/wwwroot/js/chat.js`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/DONE/ST-005-login-cliente-telegram-bridge-e-vinculo-conversa.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_TELEGRAM_BRIDGE_ST-003.md`
+- Risco/Impacto: baixo
+
+- [2026-03-04] [EPIC-003] Planejamento da integracao Google Calendar para agendamentos
+- Tipo: docs
+- Resumo: criada a trilha documental inicial para sincronizacao de agendamentos com Google Calendar (epic, stories e tasks), incluindo orientacao operacional de Service Account e calendario unico.
+- Arquivos principais: `Documentacao/REALTIME_PRESENCA_CHAT/EPICS/EPIC-003-sincronizacao-agendamento-google-calendar.md`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/BACKLOG/ST-011-fundacao-google-calendar-service-account-calendario-unico.md`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/BACKLOG/ST-012-sync-automatica-agendamento-google-calendar.md`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/BACKLOG/ST-013-observabilidade-reprocessamento-qa-rollout-google-calendar.md`, `Documentacao/REALTIME_PRESENCA_CHAT/INDEX.md`
+- Risco/Impacto: baixo
+
+- [2026-03-04] [OPS-CHATBOT] Sanitizacao de credenciais de teste no Telegram Bridge
+- Tipo: fix
+- Resumo: removidos valores sensiveis em texto puro dos `appsettings` do Telegram Bridge e substituidos por placeholder para carregamento via user-secrets/variaveis de ambiente.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/appsettings.json`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/appsettings.Development.json`
+- Risco/Impacto: baixo
+
 - [2026-03-04] [ST-010] Guardrails, rollout gradual e observabilidade operacional do chatbot Telegram
 - Tipo: feat
 - Resumo: implementados guardrails conversacionais com handoff humano (`emergencia`, `fora de escopo`, `dados sensiveis`), catalogo padronizado de erros/fallback por `errorCode`, feature flag de rollout gradual por ambiente/chat (`allow/block list` + percentual deterministico), instrumentacao de observabilidade (trafego, IA, negocio, dependencias, incidentes) e endpoint de dashboard operacional `GET /api/chatbot-observability/dashboard` com controle de token fora de desenvolvimento.

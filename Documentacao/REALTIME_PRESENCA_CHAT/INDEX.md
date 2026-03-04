@@ -4,10 +4,15 @@
 
 - [EPIC-001 - Presenca operacional do prestador e leitura de mensagens](EPICS/EPIC-001-presenca-operacional-e-leitura-chat.md)
 - [EPIC-002 - Chatbot Telegram com IA para triagem, pedido e agendamento](EPICS/EPIC-002-chatbot-telegram-ia-pedidos-agendamento.md)
+- [EPIC-003 - Sincronizacao de agendamentos com Google Calendar](EPICS/EPIC-003-sincronizacao-agendamento-google-calendar.md)
 
 ## Stories
 
 ### Backlog
+
+- [ST-011 - Fundacao Google Calendar com Service Account e calendario unico](STORIES/BACKLOG/ST-011-fundacao-google-calendar-service-account-calendario-unico.md)
+- [ST-012 - Sincronizacao automatica de agendamento com Google Calendar](STORIES/BACKLOG/ST-012-sync-automatica-agendamento-google-calendar.md)
+- [ST-013 - Observabilidade, reprocessamento, QA e rollout da sincronizacao Google Calendar](STORIES/BACKLOG/ST-013-observabilidade-reprocessamento-qa-rollout-google-calendar.md)
 
 ### In Progress
 
