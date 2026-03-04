@@ -1,3 +1,5 @@
+using ConsertaPraMim.Application.DTOs;
+using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Application.Services;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
@@ -64,9 +66,11 @@ public class TelegramChatbotSchedulingServiceTests
             .Setup(repository => repository.GetAllAsync())
             .ReturnsAsync([nearProvider, farProvider, wrongCategoryProvider]);
 
-        var service = new TelegramChatbotSchedulingService(
-            requestRepositoryMock.Object,
-            userRepositoryMock.Object);
+        var service = BuildService(
+            requestRepositoryMock,
+            userRepositoryMock,
+            out _,
+            out _);
 
         var result = await service.GetEligibleProvidersAsync(clientId, requestId, take: 5);
 
@@ -91,9 +95,11 @@ public class TelegramChatbotSchedulingServiceTests
             });
 
         var userRepositoryMock = new Mock<IUserRepository>();
-        var service = new TelegramChatbotSchedulingService(
-            requestRepositoryMock.Object,
-            userRepositoryMock.Object);
+        var service = BuildService(
+            requestRepositoryMock,
+            userRepositoryMock,
+            out _,
+            out _);
 
         var result = await service.GetEligibleProvidersAsync(Guid.NewGuid(), requestId, take: 5);
 
@@ -118,14 +124,209 @@ public class TelegramChatbotSchedulingServiceTests
             });
 
         var userRepositoryMock = new Mock<IUserRepository>();
-        var service = new TelegramChatbotSchedulingService(
-            requestRepositoryMock.Object,
-            userRepositoryMock.Object);
+        var service = BuildService(
+            requestRepositoryMock,
+            userRepositoryMock,
+            out _,
+            out _);
 
         var result = await service.GetEligibleProvidersAsync(clientId, requestId, take: 5);
 
         Assert.False(result.Success);
         Assert.Equal("request_closed", result.ErrorCode);
+    }
+
+    [Fact(DisplayName = "Telegram scheduling | Batch | Deve bloquear mais de 3 visitas")]
+    public async Task ScheduleVisitsAsync_ShouldFail_WhenMoreThanThreeVisitsAreProvided()
+    {
+        var request = new TelegramChatbotBatchScheduleRequestDto(
+            ClientId: Guid.NewGuid(),
+            ServiceRequestId: Guid.NewGuid(),
+            Visits:
+            [
+                BuildVisitRequest(Guid.NewGuid(), DateTime.UtcNow.AddDays(1), DateTime.UtcNow.AddDays(1).AddHours(2)),
+                BuildVisitRequest(Guid.NewGuid(), DateTime.UtcNow.AddDays(2), DateTime.UtcNow.AddDays(2).AddHours(2)),
+                BuildVisitRequest(Guid.NewGuid(), DateTime.UtcNow.AddDays(3), DateTime.UtcNow.AddDays(3).AddHours(2)),
+                BuildVisitRequest(Guid.NewGuid(), DateTime.UtcNow.AddDays(4), DateTime.UtcNow.AddDays(4).AddHours(2))
+            ]);
+
+        var service = BuildService(
+            new Mock<IServiceRequestRepository>(),
+            new Mock<IUserRepository>(),
+            out _,
+            out _);
+
+        var result = await service.ScheduleVisitsAsync(request);
+
+        Assert.False(result.Success);
+        Assert.Equal("max_visits_exceeded", result.ErrorCode);
+    }
+
+    [Fact(DisplayName = "Telegram scheduling | Batch | Deve bloquear visitas no mesmo dia")]
+    public async Task ScheduleVisitsAsync_ShouldFail_WhenVisitsRepeatTheSameDay()
+    {
+        var clientId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var serviceRequest = new ServiceRequest
+        {
+            Id = requestId,
+            ClientId = clientId,
+            Status = ServiceRequestStatus.Created,
+            Category = ServiceCategory.Appliances,
+            Latitude = -23.5505,
+            Longitude = -46.6333,
+            Client = new User
+            {
+                Id = clientId,
+                ClientProfileType = ClientProfileType.Pf
+            }
+        };
+
+        var requestRepositoryMock = new Mock<IServiceRequestRepository>();
+        requestRepositoryMock
+            .Setup(repository => repository.GetByIdAsync(requestId))
+            .ReturnsAsync(serviceRequest);
+
+        var userRepositoryMock = new Mock<IUserRepository>();
+        userRepositoryMock
+            .Setup(repository => repository.GetAllAsync())
+            .ReturnsAsync([BuildProvider(
+                name: "Prestador",
+                latitude: -23.5510,
+                longitude: -46.6330,
+                radiusKm: 10,
+                categories: [ServiceCategory.Appliances],
+                rating: 4.8,
+                reviewCount: 20)]);
+
+        var service = BuildService(
+            requestRepositoryMock,
+            userRepositoryMock,
+            out _,
+            out _);
+
+        var day = DateTime.UtcNow.Date.AddDays(2);
+        var request = new TelegramChatbotBatchScheduleRequestDto(
+            ClientId: clientId,
+            ServiceRequestId: requestId,
+            Visits:
+            [
+                BuildVisitRequest(Guid.NewGuid(), day.AddHours(9), day.AddHours(11)),
+                BuildVisitRequest(Guid.NewGuid(), day.AddHours(13), day.AddHours(15))
+            ]);
+
+        var result = await service.ScheduleVisitsAsync(request);
+
+        Assert.False(result.Success);
+        Assert.Equal("duplicate_visit_day", result.ErrorCode);
+    }
+
+    [Fact(DisplayName = "Telegram scheduling | Batch | Deve retornar falha por visita quando create do agendamento conflita")]
+    public async Task ScheduleVisitsAsync_ShouldReturnPerVisitFailure_WhenAppointmentCreationFails()
+    {
+        var clientId = Guid.NewGuid();
+        var requestId = Guid.NewGuid();
+        var providerId = Guid.NewGuid();
+
+        var serviceRequest = new ServiceRequest
+        {
+            Id = requestId,
+            ClientId = clientId,
+            Status = ServiceRequestStatus.Created,
+            Category = ServiceCategory.Appliances,
+            Latitude = -23.5505,
+            Longitude = -46.6333,
+            Client = new User
+            {
+                Id = clientId,
+                ClientProfileType = ClientProfileType.Pf
+            }
+        };
+
+        var requestRepositoryMock = new Mock<IServiceRequestRepository>();
+        requestRepositoryMock
+            .Setup(repository => repository.GetByIdAsync(requestId))
+            .ReturnsAsync(serviceRequest);
+
+        var userRepositoryMock = new Mock<IUserRepository>();
+        userRepositoryMock
+            .Setup(repository => repository.GetAllAsync())
+            .ReturnsAsync([BuildProvider(
+                name: "Prestador",
+                latitude: -23.5510,
+                longitude: -46.6330,
+                radiusKm: 10,
+                categories: [ServiceCategory.Appliances],
+                rating: 4.8,
+                reviewCount: 20,
+                providerId: providerId)]);
+
+        var service = BuildService(
+            requestRepositoryMock,
+            userRepositoryMock,
+            out var proposalRepositoryMock,
+            out var appointmentServiceMock);
+
+        appointmentServiceMock
+            .Setup(appointments => appointments.CreateAsync(
+                clientId,
+                "Client",
+                It.IsAny<CreateServiceAppointmentRequestDto>()))
+            .ReturnsAsync(new ServiceAppointmentOperationResultDto(
+                Success: false,
+                ErrorCode: "slot_unavailable",
+                ErrorMessage: "A janela escolhida nao esta disponivel para o prestador."));
+
+        var request = new TelegramChatbotBatchScheduleRequestDto(
+            ClientId: clientId,
+            ServiceRequestId: requestId,
+            Visits:
+            [
+                BuildVisitRequest(
+                    providerId,
+                    DateTime.UtcNow.Date.AddDays(3).AddHours(9),
+                    DateTime.UtcNow.Date.AddDays(3).AddHours(11))
+            ]);
+
+        var result = await service.ScheduleVisitsAsync(request);
+
+        Assert.False(result.Success);
+        Assert.Single(result.Results);
+        Assert.False(result.Results[0].Success);
+        Assert.Equal("slot_unavailable", result.Results[0].ErrorCode);
+
+        proposalRepositoryMock.Verify(repository => repository.AddAsync(It.IsAny<Proposal>()), Times.Once);
+        appointmentServiceMock.Verify(
+            appointments => appointments.CreateAsync(clientId, "Client", It.IsAny<CreateServiceAppointmentRequestDto>()),
+            Times.Once);
+    }
+
+    private static TelegramChatbotSchedulingService BuildService(
+        Mock<IServiceRequestRepository> requestRepositoryMock,
+        Mock<IUserRepository> userRepositoryMock,
+        out Mock<IProposalRepository> proposalRepositoryMock,
+        out Mock<IServiceAppointmentService> appointmentServiceMock)
+    {
+        proposalRepositoryMock = new Mock<IProposalRepository>();
+        appointmentServiceMock = new Mock<IServiceAppointmentService>();
+
+        return new TelegramChatbotSchedulingService(
+            requestRepositoryMock.Object,
+            userRepositoryMock.Object,
+            proposalRepositoryMock.Object,
+            appointmentServiceMock.Object);
+    }
+
+    private static TelegramChatbotBatchScheduleVisitRequestDto BuildVisitRequest(
+        Guid providerId,
+        DateTime windowStartUtc,
+        DateTime windowEndUtc)
+    {
+        return new TelegramChatbotBatchScheduleVisitRequestDto(
+            ProviderId: providerId,
+            WindowStartUtc: windowStartUtc,
+            WindowEndUtc: windowEndUtc,
+            Reason: "Teste");
     }
 
     private static User BuildProvider(
@@ -135,16 +336,19 @@ public class TelegramChatbotSchedulingServiceTests
         double radiusKm,
         IReadOnlyList<ServiceCategory> categories,
         double rating,
-        int reviewCount)
+        int reviewCount,
+        Guid? providerId = null)
     {
+        var id = providerId ?? Guid.NewGuid();
         return new User
         {
-            Id = Guid.NewGuid(),
+            Id = id,
             Name = name,
             Role = UserRole.Provider,
             IsActive = true,
             ProviderProfile = new ProviderProfile
             {
+                UserId = id,
                 BaseLatitude = latitude,
                 BaseLongitude = longitude,
                 RadiusKm = radiusKm,

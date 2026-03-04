@@ -124,6 +124,55 @@ public class TelegramChatbotController : ControllerBase
     }
 
     /// <summary>
+    /// Solicita agendamento em lote (ate 3 visitas) para prestadores sugeridos no fluxo do chatbot.
+    /// </summary>
+    /// <param name="serviceRequestId">Identificador do pedido do cliente autenticado.</param>
+    /// <param name="request">Lista de visitas com prestador e janela desejada.</param>
+    /// <response code="200">Agendamento em lote processado (sucesso total ou parcial).</response>
+    /// <response code="401">Token ausente/invalido.</response>
+    /// <response code="403">Cliente sem acesso ao pedido informado.</response>
+    /// <response code="404">Pedido nao encontrado.</response>
+    [HttpPost("service-requests/{serviceRequestId:guid}/schedule-visits-batch")]
+    [ProducesResponseType(typeof(TelegramChatbotBatchScheduleResultDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> ScheduleVisitsBatch(
+        [FromRoute] Guid serviceRequestId,
+        [FromBody] TelegramChatbotBatchScheduleVisitsRequest request)
+    {
+        var clientId = TryGetAuthenticatedClientId();
+        if (!clientId.HasValue)
+        {
+            return Unauthorized(new
+            {
+                errorCode = "telegram_chatbot_invalid_client_claim",
+                message = "Nao foi possivel identificar o cliente autenticado."
+            });
+        }
+
+        var batchRequest = new TelegramChatbotBatchScheduleRequestDto(
+            ClientId: clientId.Value,
+            ServiceRequestId: serviceRequestId,
+            Visits: request.Visits
+                .Select(visit => new TelegramChatbotBatchScheduleVisitRequestDto(
+                    ProviderId: visit.ProviderId,
+                    WindowStartUtc: visit.WindowStartUtc,
+                    WindowEndUtc: visit.WindowEndUtc,
+                    Reason: visit.Reason))
+                .ToList());
+
+        var result = await _telegramChatbotSchedulingService.ScheduleVisitsAsync(batchRequest);
+
+        return result.ErrorCode switch
+        {
+            "request_not_found" => NotFound(new { errorCode = result.ErrorCode, message = result.ErrorMessage }),
+            "forbidden" => Forbid(),
+            _ => Ok(result)
+        };
+    }
+
+    /// <summary>
     /// Registra uma mensagem da conversa (entrada, saida ou sistema).
     /// </summary>
     /// <param name="request">Payload da mensagem da conversa.</param>
@@ -486,6 +535,16 @@ public class TelegramChatbotController : ControllerBase
                 Providers: [],
                 ErrorCode: "telegram_chatbot_scheduling_service_unavailable",
                 ErrorMessage: "Servico de matching do chatbot indisponivel."));
+        }
+
+        public Task<TelegramChatbotBatchScheduleResultDto> ScheduleVisitsAsync(TelegramChatbotBatchScheduleRequestDto request)
+        {
+            return Task.FromResult(new TelegramChatbotBatchScheduleResultDto(
+                Success: false,
+                ServiceRequestId: request.ServiceRequestId,
+                Results: [],
+                ErrorCode: "telegram_chatbot_scheduling_service_unavailable",
+                ErrorMessage: "Servico de agendamento do chatbot indisponivel."));
         }
     }
 }

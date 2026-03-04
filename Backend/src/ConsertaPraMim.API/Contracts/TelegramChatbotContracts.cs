@@ -160,3 +160,26 @@ public sealed class TelegramChatbotUpdateConversationStateRequest
 
     public DateTime? InteractionAtUtc { get; init; }
 }
+
+public sealed class TelegramChatbotBatchScheduleVisitsRequest
+{
+    [Required]
+    [MinLength(1)]
+    [MaxLength(3)]
+    public IReadOnlyList<TelegramChatbotBatchScheduleVisitRequestItem> Visits { get; init; } = [];
+}
+
+public sealed class TelegramChatbotBatchScheduleVisitRequestItem
+{
+    [Required]
+    public Guid ProviderId { get; init; }
+
+    [Required]
+    public DateTime WindowStartUtc { get; init; }
+
+    [Required]
+    public DateTime WindowEndUtc { get; init; }
+
+    [MaxLength(240)]
+    public string? Reason { get; init; }
+}

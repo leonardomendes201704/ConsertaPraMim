@@ -8,4 +8,7 @@ public interface ITelegramChatbotSchedulingService
         Guid clientId,
         Guid serviceRequestId,
         int take = 5);
+
+    Task<TelegramChatbotBatchScheduleResultDto> ScheduleVisitsAsync(
+        TelegramChatbotBatchScheduleRequestDto request);
 }

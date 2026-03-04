@@ -114,6 +114,12 @@
 
 ## Released
 
+- [2026-03-03] [ST-008] Agendamento em lote de visitas (ate 3) para o chatbot Telegram
+- Tipo: feat
+- Resumo: evoluido o fluxo ST-008 com endpoint `POST /api/telegram-chatbot/service-requests/{serviceRequestId}/schedule-visits-batch`, incluindo validacoes de ownership do cliente, limite de ate 3 visitas, bloqueio de dias duplicados e retorno consolidado por visita para suporte a replanejamento conversacional.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/TelegramChatbotSchedulingDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Interfaces/ITelegramChatbotSchedulingService.cs`, `Backend/src/ConsertaPraMim.Application/Services/TelegramChatbotSchedulingService.cs`, `Backend/src/ConsertaPraMim.API/Contracts/TelegramChatbotContracts.cs`, `Backend/src/ConsertaPraMim.API/Controllers/TelegramChatbotController.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ApiEndpointDocumentationCatalog.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramChatbotSchedulingServiceTests.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-008-matching-prestadores-e-agendamento-multi-visitas.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md`, `Documentacao/REALTIME_PRESENCA_CHAT/INDEX.md`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-008-matching-agendamento-multi-visitas/README.md`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-008-matching-agendamento-multi-visitas/fluxo-matching-agendamento-multi-visitas.mmd`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-008-matching-agendamento-multi-visitas/sequencia-matching-agendamento-multi-visitas.mmd`, `Documentacao/DIAGRAMAS/INDEX.md`
+- Risco/Impacto: medio
+
 - [2026-03-03] [ST-008] Endpoint de matching de prestadores elegiveis para o chatbot Telegram
 - Tipo: feat
 - Resumo: iniciado o fluxo ST-008 com servico de aplicacao dedicado ao chatbot para listar prestadores elegiveis por pedido e cobertura, incluindo endpoint `GET /api/telegram-chatbot/service-requests/{serviceRequestId}/eligible-providers` com validacao de ownership por `ClientId`.

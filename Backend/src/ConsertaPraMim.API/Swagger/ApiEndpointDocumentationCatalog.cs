@@ -269,6 +269,14 @@ public static class ApiEndpointDocumentationCatalog
                     ExpectedOutcome: "Retorno priorizado de prestadores elegiveis com distancia/cobertura para continuidade do fluxo conversacional.");
             }
 
+            if (httpMethod == "POST" && path.Contains("/schedule-visits-batch", StringComparison.Ordinal))
+            {
+                return new OperationNarrativeContext(
+                    BusinessObjective: "Criar agendamentos em lote (1 a 3 visitas) para o pedido no fluxo conversacional do chatbot.",
+                    Scenario: "Cliente escolhe dias/periodos em linguagem natural e o bot consolida tentativas de agenda com validacao de limite, conflitos e disponibilidade.",
+                    ExpectedOutcome: "Resposta consolidada por visita (sucesso/falha) para permitir confirmacao ou replanejamento no mesmo atendimento.");
+            }
+
             if (httpMethod == "POST" && path.Contains("/messages", StringComparison.Ordinal))
             {
                 return new OperationNarrativeContext(

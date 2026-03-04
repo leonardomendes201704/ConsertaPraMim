@@ -43,6 +43,8 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
 - ST-008 em andamento:
   - Endpoint do chatbot para matching foi iniciado em `GET /api/telegram-chatbot/service-requests/{serviceRequestId}/eligible-providers`.
   - Matching considera categoria do pedido, cobertura geografica (raio/distancia), preferencia PF/PJ e status ativo do prestador.
+  - Endpoint de agendamento em lote iniciado em `POST /api/telegram-chatbot/service-requests/{serviceRequestId}/schedule-visits-batch`.
+  - Agendamento em lote valida limite de ate 3 visitas, dias distintos e devolve status por visita (sucesso/falha) para replanejamento conversacional.
 
 ## 3. Validacoes executadas no ciclo atual
 
@@ -97,6 +99,12 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
 - Validacao funcional manual ST-008 task 1:
   - `GET /api/telegram-chatbot/service-requests/{serviceRequestId}/eligible-providers` retorna apenas prestadores elegiveis para o `ClientId` autenticado.
   - Resultado vem ordenado por distancia e limitado pelo parametro `take` (1..10).
+- Validacao funcional manual ST-008 task 2:
+  - `POST /api/telegram-chatbot/service-requests/{serviceRequestId}/schedule-visits-batch` aceita no maximo 3 visitas por solicitacao.
+  - Requisicoes com visitas no mesmo dia retornam `duplicate_visit_day`.
+  - Conflitos de slot/indisponibilidade retornam erro por item no resultado do lote.
+- Validacao documental ST-008 tasks 8 e 9:
+  - Publicados diagramas Mermaid de fluxo e sequencia da ST-008 cobrindo matching de prestadores e agendamento em lote multi-visitas.
 - Validacao documental ST-007 task 8:
   - Publicado diagrama Mermaid de fluxo da triagem natural com abertura automatica de pedido e persistencia de trilha.
 - Validacao documental ST-007 task 9:
@@ -192,3 +200,5 @@ Padronizar QA e operacao para o fluxo de chatbot Telegram mediado por IA, inclui
 - 2026-03-03: atualizacao da ST-007 (Task 9) com diagrama Mermaid de sequencia da triagem, encerramento da story em `DONE` e atualizacao dos indices da trilha.
 - 2026-03-03: hotfix ST-007 aplicado para compatibilizar `category` numerico no payload de criacao de pedido e adicionar pre-resolucao de CEP via `zip-resolution` no Telegram Bridge.
 - 2026-03-03: inicio da ST-008 com servico/endpoint de matching de prestadores elegiveis por pedido no dominio `TelegramChatbot`.
+- 2026-03-03: evolucao da ST-008 com endpoint/servico de agendamento em lote (ate 3 visitas), validacao de dias distintos e retorno consolidado por visita.
+- 2026-03-03: atualizacao da ST-008 com diagramas Mermaid de fluxo/sequencia, validacao documental e atualizacao de indices da trilha.
