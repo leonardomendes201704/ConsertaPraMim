@@ -39,6 +39,7 @@
 - `ST-016` - Esteira de mediacao admin e decisoes financeiras.
 - `ST-017` - Observabilidade, compliance e antifraude de disputas.
 - `ST-018` - Bloqueio de novo pedido por avaliacao pendente do cliente.
+- `ST-019` - Exposicao publica da galeria de fotos do prestador em Base64.
 
 ## Guias tecnicos
 
@@ -52,3 +53,5 @@
 - `RUNBOOK_QA_AVALIACAO_BILATERAL_ST-013.md` - roteiro QA de avaliacao bilateral, moderacao e reputacao.
 - `RUNBOOK_FRAUDE_COMPLIANCE_DISPUTAS_ST-017.md` - procedimento operacional de antifraude, trilha auditavel e compliance no modulo de disputas.
 - `VALIDACAO_PERFORMANCE_NO_SHOW_ST-008.md` - validacao de performance das consultas do painel em base maior.
+- `RUNBOOK_QA_GALERIA_PUBLICA_BASE64_ST-019.md` - roteiro QA e troubleshooting do endpoint publico de fotos da galeria em Base64.
+- `../DIAGRAMAS/OPERACAO_SERVICO_POS_AGENDAMENTO/ST-019-galeria-publica-base64-prestador/fluxo-galeria-publica-base64-prestador.mmd` - fluxo Mermaid da resolucao e retorno das fotos por album.

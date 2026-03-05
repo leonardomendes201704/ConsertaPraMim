@@ -325,6 +325,16 @@ public static class ApiEndpointDocumentationCatalog
                 ExpectedOutcome: "Resposta consolidada por prestador com janela UTC (`fromUtc`/`toUtc`) e lista ordenada de horarios disponiveis para agendamento.");
         }
 
+        if (path.Contains("/api/provider-gallery/public/providers/", StringComparison.Ordinal) &&
+            path.Contains("/albums/photos/base64", StringComparison.Ordinal) &&
+            httpMethod == "GET")
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Disponibilizar fotos do portifolio do prestador em Base64 para consumo publico de canais externos e integrações sem sessao autenticada.",
+                Scenario: "Cliente bot/app integra em uma unica chamada todas as fotos dos albuns do prestador, agrupadas por album e com fallback para arquivos indisponiveis.",
+                ExpectedOutcome: "Resposta publica com fotos de imagem (`image/*`) codificadas em Base64, totalizadores do lote e contador de arquivos indisponiveis para observabilidade.");
+        }
+
         if (path.Contains("/slots", StringComparison.Ordinal))
         {
             return new OperationNarrativeContext(
