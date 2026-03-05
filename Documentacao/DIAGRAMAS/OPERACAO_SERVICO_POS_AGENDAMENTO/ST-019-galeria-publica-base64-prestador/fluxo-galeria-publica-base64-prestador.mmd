@@ -1,0 +1,11 @@
+flowchart TD
+    A[Cliente externo chama endpoint publico] --> B[API valida providerId]
+    B -->|Invalido| C[Retorna 400 invalid_provider]
+    B -->|Valido| D[Carrega overview da galeria do prestador]
+    D --> E[Filtra apenas itens de imagem]
+    E --> F[Resolve caminho local em uploads/provider-gallery]
+    F -->|Arquivo encontrado| G[Converte bytes para Base64]
+    F -->|Arquivo ausente| H[Incrementa unavailablePhotosCount]
+    G --> I[Agrupa fotos por album]
+    H --> I
+    I --> J[Retorna 200 com albums, photos, totalPhotos e unavailablePhotosCount]

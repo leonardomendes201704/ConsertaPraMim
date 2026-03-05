@@ -10,6 +10,12 @@
 
 ## Released
 
+- [2026-03-05] [ST-019][API-PROVIDER-GALLERY] Endpoint publico de fotos da galeria em Base64 por prestador
+- Tipo: feat
+- Resumo: adicionada a rota anonima `GET /api/provider-gallery/public/providers/{providerId}/albums/photos/base64` para retornar todas as fotos (`image/*`) dos albuns do prestador agrupadas por album, com conteudo em Base64 e contadores de fotos indisponiveis quando o arquivo fisico nao existir no storage.
+- Arquivos principais: `Backend/src/ConsertaPraMim.API/Controllers/ProviderGalleryController.cs`, `Backend/src/ConsertaPraMim.Application/DTOs/ProviderGalleryDTOs.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ApiEndpointDocumentationCatalog.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Controllers/ProviderGalleryControllerTests.cs`, `Documentacao/OPERACAO_SERVICO_POS_AGENDAMENTO/RUNBOOK_QA_GALERIA_PUBLICA_BASE64_ST-019.md`, `Documentacao/DIAGRAMAS/OPERACAO_SERVICO_POS_AGENDAMENTO/ST-019-galeria-publica-base64-prestador/fluxo-galeria-publica-base64-prestador.mmd`
+- Risco/Impacto: medio
+
 - [2026-03-04] [ST-002][API-SERVICE-APPOINTMENTS] Endpoint publico para disponibilidade agregada de prestadores (15 dias)
 - Tipo: feat
 - Resumo: adicionada a rota anonima `GET /api/service-appointments/public/providers/slots/next-15-days` para listar, em uma unica consulta, os horarios disponiveis dos prestadores ativos nos proximos 15 dias; o retorno foi padronizado em UTC com janela `fromUtc/toUtc` e slots por prestador, reutilizando as mesmas regras de disponibilidade, bloqueios e conflitos de agenda do fluxo autenticado.
