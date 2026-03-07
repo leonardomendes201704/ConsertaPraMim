@@ -19,6 +19,7 @@ using System.Globalization;
 using Microsoft.AspNetCore.Localization;
 using System.Threading.RateLimiting;
 using ConsertaPraMim.API.Swagger;
+using Microsoft.AspNetCore.HttpOverrides;
 //teste de deploy automatico
 var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddSystemSettingsOverridesFromDatabase();
@@ -111,6 +112,15 @@ builder.Services.AddHostedService<AdminMailboxSyncWorker>();
 builder.Services.AddHostedService<AdminGrowthAiHourlyDigestWorker>();
 builder.Services.AddHostedService<MobilePushDevicesCleanupWorker>();
 builder.Services.AddSingleton<IAdminMonitoringRealtimeNotifier, AdminMonitoringRealtimeNotifier>();
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders =
+        ForwardedHeaders.XForwardedFor |
+        ForwardedHeaders.XForwardedProto |
+        ForwardedHeaders.XForwardedHost;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
 
 ICorsRuntimeSettings? corsRuntimeSettings = null;
 builder.Services.AddCors(options =>
@@ -258,6 +268,7 @@ builder.Services.AddRateLimiter(options =>
 });
 
 var app = builder.Build();
+app.UseForwardedHeaders();
 corsRuntimeSettings = app.Services.GetRequiredService<ICorsRuntimeSettings>();
 var swaggerEnabledInProduction = builder.Configuration.GetValue<bool>("Swagger:EnabledInProduction");
 var enforceHttpsRedirection = builder.Configuration.GetValue<bool>("Security:EnforceHttpsRedirection");

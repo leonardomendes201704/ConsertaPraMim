@@ -6,14 +6,25 @@ services:
       dockerfile: docker/vps/Dockerfile.api
     restart: unless-stopped
     ports:
-      - "${API_PORT:-5193}:8080"
+      - "127.0.0.1:${API_PORT:-5193}:8080"
     environment:
       ASPNETCORE_ENVIRONMENT: "${APP_ENVIRONMENT:-Development}"
       ASPNETCORE_URLS: "http://+:8080"
+      VPS_PUBLIC_HOST: "${VPS_PUBLIC_HOST}"
+      ADMIN_PORT: "${ADMIN_PORT:-5151}"
+      CLIENT_PORT: "${CLIENT_PORT:-5069}"
+      PROVIDER_PORT: "${PROVIDER_PORT:-5140}"
+      MOBILE_CLIENT_WEBVIEW_PORT: "${MOBILE_CLIENT_WEBVIEW_PORT:-5181}"
+      MOBILE_PROVIDER_WEBVIEW_PORT: "${MOBILE_PROVIDER_WEBVIEW_PORT:-5182}"
+      MOBILE_ADMIN_WEBVIEW_PORT: "${MOBILE_ADMIN_WEBVIEW_PORT:-5183}"
+      Security__EnforceHttpsRedirection: "${ENFORCE_API_HTTPS_REDIRECTION:-true}"
       DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: "false"
       LANG: "pt_BR.UTF-8"
       LC_ALL: "pt_BR.UTF-8"
       ConnectionStrings__DefaultConnection: "Server=${DB_HOST:-mssql},1433;Database=${DB_NAME};User Id=${DB_USER};Password='${DB_PASSWORD}';TrustServerCertificate=True;Encrypt=True;MultipleActiveResultSets=True;Connection Timeout=30;"
+      Portals__AdminUrl: "${PUBLIC_ADMIN_URL:-http://${VPS_PUBLIC_HOST}:${ADMIN_PORT:-5151}}"
+      Portals__ClientUrl: "${PUBLIC_CLIENT_URL:-http://${VPS_PUBLIC_HOST}:${CLIENT_PORT:-5069}}"
+      Portals__ProviderUrl: "${PUBLIC_PROVIDER_URL:-http://${VPS_PUBLIC_HOST}:${PROVIDER_PORT:-5140}}"
       JwtSettings__SecretKey: "${JWT_SECRET_KEY}"
       JwtSettings__Issuer: "ConsertaPraMim"
       JwtSettings__Audience: "ConsertaPraMimWebApps"
@@ -22,9 +33,9 @@ services:
       Seed__CreateDefaultAdmin: "true"
       Seed__DefaultPassword: "${SEED_DEFAULT_PASSWORD}"
       Seed__ResetSecurityCode: "${SEED_RESET_SECURITY_CODE:-}"
-      Cors__AllowedOrigins__0: "http://${VPS_PUBLIC_HOST}:${ADMIN_PORT:-5151}"
-      Cors__AllowedOrigins__1: "http://${VPS_PUBLIC_HOST}:${CLIENT_PORT:-5069}"
-      Cors__AllowedOrigins__2: "http://${VPS_PUBLIC_HOST}:${PROVIDER_PORT:-5140}"
+      Cors__AllowedOrigins__0: "${PUBLIC_ADMIN_URL:-http://${VPS_PUBLIC_HOST}:${ADMIN_PORT:-5151}}"
+      Cors__AllowedOrigins__1: "${PUBLIC_CLIENT_URL:-http://${VPS_PUBLIC_HOST}:${CLIENT_PORT:-5069}}"
+      Cors__AllowedOrigins__2: "${PUBLIC_PROVIDER_URL:-http://${VPS_PUBLIC_HOST}:${PROVIDER_PORT:-5140}}"
       Cors__AllowedOrigins__3: "http://localhost:${ADMIN_PORT:-5151}"
       Cors__AllowedOrigins__4: "http://localhost:${CLIENT_PORT:-5069}"
       Cors__AllowedOrigins__5: "http://localhost:${PROVIDER_PORT:-5140}"
@@ -34,6 +45,7 @@ services:
       Cors__AllowedOrigins__9: "http://localhost:${MOBILE_CLIENT_WEBVIEW_PORT:-5181}"
       Cors__AllowedOrigins__10: "http://localhost:${MOBILE_PROVIDER_WEBVIEW_PORT:-5182}"
       Cors__AllowedOrigins__11: "http://localhost:${MOBILE_ADMIN_WEBVIEW_PORT:-5183}"
+      Cors__AllowedOrigins__12: "https://localhost"
       PushNotifications__Firebase__ServiceAccountPath: "${FIREBASE_SERVICE_ACCOUNT_PATH:-}"
       PushNotifications__Firebase__ServiceAccountJsonBase64: "${FIREBASE_SERVICE_ACCOUNT_JSON_BASE64:-}"
       PushNotifications__Firebase__ProjectId: "${FIREBASE_PROJECT_ID:-}"
@@ -53,14 +65,16 @@ services:
     depends_on:
       - api
     ports:
-      - "${ADMIN_PORT:-5151}:${ADMIN_PORT:-5151}"
+      - "127.0.0.1:${ADMIN_PORT:-5151}:${ADMIN_PORT:-5151}"
     environment:
       ASPNETCORE_ENVIRONMENT: "${APP_ENVIRONMENT:-Development}"
       ASPNETCORE_URLS: "http://+:${ADMIN_PORT:-5151}"
       DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: "false"
       LANG: "pt_BR.UTF-8"
       LC_ALL: "pt_BR.UTF-8"
-      ApiBaseUrl: "http://${VPS_PUBLIC_HOST}:${API_PORT:-5193}"
+      ApiBaseUrl: "${PUBLIC_API_URL:-http://${VPS_PUBLIC_HOST}:${API_PORT:-5193}}"
+      Portals__ClientUrl: "${PUBLIC_CLIENT_URL:-http://${VPS_PUBLIC_HOST}:${CLIENT_PORT:-5069}}"
+      Portals__ProviderUrl: "${PUBLIC_PROVIDER_URL:-http://${VPS_PUBLIC_HOST}:${PROVIDER_PORT:-5140}}"
       AdminWiki__DocumentationRootPath: "/app/Documentacao"
       JwtSettings__SecretKey: "${JWT_SECRET_KEY}"
       JwtSettings__Issuer: "ConsertaPraMim"
@@ -79,14 +93,14 @@ services:
     depends_on:
       - api
     ports:
-      - "${CLIENT_PORT:-5069}:${CLIENT_PORT:-5069}"
+      - "127.0.0.1:${CLIENT_PORT:-5069}:${CLIENT_PORT:-5069}"
     environment:
       ASPNETCORE_ENVIRONMENT: "${APP_ENVIRONMENT:-Development}"
       ASPNETCORE_URLS: "http://+:${CLIENT_PORT:-5069}"
       DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: "false"
       LANG: "pt_BR.UTF-8"
       LC_ALL: "pt_BR.UTF-8"
-      ApiBaseUrl: "http://${VPS_PUBLIC_HOST}:${API_PORT:-5193}"
+      ApiBaseUrl: "${PUBLIC_API_URL:-http://${VPS_PUBLIC_HOST}:${API_PORT:-5193}}"
       JwtSettings__SecretKey: "${JWT_SECRET_KEY}"
       JwtSettings__Issuer: "ConsertaPraMim"
       JwtSettings__Audience: "ConsertaPraMimWebApps"
@@ -105,11 +119,11 @@ services:
     depends_on:
       - api
     ports:
-      - "${PROVIDER_PORT:-5140}:${PROVIDER_PORT:-5140}"
+      - "127.0.0.1:${PROVIDER_PORT:-5140}:${PROVIDER_PORT:-5140}"
     environment:
       ASPNETCORE_ENVIRONMENT: "${APP_ENVIRONMENT:-Development}"
       ASPNETCORE_URLS: "http://+:${PROVIDER_PORT:-5140}"
-      ApiBaseUrl: "http://${VPS_PUBLIC_HOST}:${API_PORT:-5193}"
+      ApiBaseUrl: "${PUBLIC_API_URL:-http://${VPS_PUBLIC_HOST}:${API_PORT:-5193}}"
       JwtSettings__SecretKey: "${JWT_SECRET_KEY}"
       JwtSettings__Issuer: "ConsertaPraMim"
       JwtSettings__Audience: "ConsertaPraMimWebApps"
@@ -128,7 +142,7 @@ services:
       context: ..
       dockerfile: Backend/docker/vps/Dockerfile.mobile.webview.client
       args:
-        VITE_API_BASE_URL: "http://${VPS_PUBLIC_HOST}:${API_PORT:-5193}"
+        VITE_API_BASE_URL: "${PUBLIC_API_URL:-http://${VPS_PUBLIC_HOST}:${API_PORT:-5193}}"
     restart: unless-stopped
     depends_on:
       - api
@@ -143,7 +157,7 @@ services:
       context: ..
       dockerfile: Backend/docker/vps/Dockerfile.mobile.webview.provider
       args:
-        VITE_API_BASE_URL: "http://${VPS_PUBLIC_HOST}:${API_PORT:-5193}"
+        VITE_API_BASE_URL: "${PUBLIC_API_URL:-http://${VPS_PUBLIC_HOST}:${API_PORT:-5193}}"
     restart: unless-stopped
     depends_on:
       - api
@@ -158,7 +172,7 @@ services:
       context: ..
       dockerfile: Backend/docker/vps/Dockerfile.mobile.webview.admin
       args:
-        VITE_API_BASE_URL: "http://${VPS_PUBLIC_HOST}:${API_PORT:-5193}"
+        VITE_API_BASE_URL: "${PUBLIC_API_URL:-http://${VPS_PUBLIC_HOST}:${API_PORT:-5193}}"
     restart: unless-stopped
     depends_on:
       - api

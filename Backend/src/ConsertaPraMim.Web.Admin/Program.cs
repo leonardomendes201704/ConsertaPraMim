@@ -1,5 +1,6 @@
 using ConsertaPraMim.Web.Admin.Services;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using System.Globalization;
 using Microsoft.AspNetCore.Localization;
@@ -33,6 +34,16 @@ builder.Services.AddScoped<IAdminDiagramsService, AdminDiagramsService>();
 builder.Services.AddScoped<IAdminRoadmapService, AdminRoadmapService>();
 var apiOrigin = ResolveOrigin(builder.Configuration["ApiBaseUrl"]);
 
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders =
+        ForwardedHeaders.XForwardedFor |
+        ForwardedHeaders.XForwardedProto |
+        ForwardedHeaders.XForwardedHost;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
@@ -54,6 +65,8 @@ var localizationOptions = new RequestLocalizationOptions
     SupportedCultures = new List<CultureInfo> { ptBrCulture },
     SupportedUICultures = new List<CultureInfo> { ptBrCulture }
 };
+
+app.UseForwardedHeaders();
 
 if (!app.Environment.IsDevelopment())
 {

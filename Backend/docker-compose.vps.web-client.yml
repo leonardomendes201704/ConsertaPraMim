@@ -8,14 +8,14 @@ services:
       dockerfile: docker/vps/Dockerfile.web.client
     restart: unless-stopped
     ports:
-      - "${CLIENT_PORT:-5069}:${CLIENT_PORT:-5069}"
+      - "127.0.0.1:${CLIENT_PORT:-5069}:${CLIENT_PORT:-5069}"
     environment:
       ASPNETCORE_ENVIRONMENT: "${APP_ENVIRONMENT:-Development}"
       ASPNETCORE_URLS: "http://+:${CLIENT_PORT:-5069}"
       DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: "false"
       LANG: "pt_BR.UTF-8"
       LC_ALL: "pt_BR.UTF-8"
-      ApiBaseUrl: "http://${VPS_PUBLIC_HOST}:${API_PORT:-5193}"
+      ApiBaseUrl: "${PUBLIC_API_URL:-http://${VPS_PUBLIC_HOST}:${API_PORT:-5193}}"
       JwtSettings__SecretKey: "${JWT_SECRET_KEY}"
       JwtSettings__Issuer: "ConsertaPraMim"
       JwtSettings__Audience: "ConsertaPraMimWebApps"

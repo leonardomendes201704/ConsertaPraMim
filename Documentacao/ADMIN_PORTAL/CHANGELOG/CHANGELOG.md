@@ -10,6 +10,12 @@
 
 ## Released
 
+- [2026-03-07] [OPS-HTTPS-VPS] Reverse proxy HTTPS para API e portais web na VPS
+- Tipo: feat
+- Resumo: a stack de deploy da VPS passou a suportar publicacao segura via Nginx + Certbot para API, portal admin, portal cliente e portal prestador, com `ForwardedHeaders` nos apps ASP.NET, bind local em `127.0.0.1`, URLs publicas HTTPS parametrizadas no compose e workflow ajustado para gerar `.env.vps` com os novos hosts publicos.
+- Arquivos principais: `Backend/src/ConsertaPraMim.API/Program.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Program.cs`, `Backend/src/ConsertaPraMim.Web.Client/Program.cs`, `Backend/src/ConsertaPraMim.Web.Provider/Program.cs`, `Backend/docker-compose.vps.api.yml`, `Backend/docker-compose.vps.web-admin.yml`, `Backend/docker-compose.vps.web-client.yml`, `Backend/docker-compose.vps.web-provider.yml`, `Backend/docker-compose.vps.yml`, `Backend/docker/vps/nginx.portals.https.conf.example`, `Backend/DEPLOY_VPS.md`, `.github/workflows/deploy-vps.yml`
+- Risco/Impacto: alto
+
 - [2026-03-05] [ST-019][API-PROVIDER-GALLERY] Endpoint publico de fotos da galeria em Base64 por prestador
 - Tipo: feat
 - Resumo: adicionada a rota anonima `GET /api/provider-gallery/public/providers/{providerId}/albums/photos/base64` para retornar todas as fotos (`image/*`) dos albuns do prestador agrupadas por album, com conteudo em Base64 e contadores de fotos indisponiveis quando o arquivo fisico nao existir no storage.

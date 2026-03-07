@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.Globalization;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.HttpOverrides;
 
 var builder = WebApplication.CreateBuilder(args);
 var ptBrCulture = new CultureInfo("pt-BR");
@@ -51,6 +52,16 @@ builder.Services.AddScoped<IPaymentCheckoutService, ClientApiPaymentCheckoutServ
 builder.Services.AddScoped<IPaymentWebhookService, ClientApiPaymentWebhookService>();
 var apiOrigin = ResolveOrigin(builder.Configuration["ApiBaseUrl"]);
 
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders =
+        ForwardedHeaders.XForwardedFor |
+        ForwardedHeaders.XForwardedProto |
+        ForwardedHeaders.XForwardedHost;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
 // Cookie Authentication
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
@@ -68,6 +79,8 @@ var localizationOptions = new RequestLocalizationOptions
     SupportedCultures = new List<CultureInfo> { ptBrCulture },
     SupportedUICultures = new List<CultureInfo> { ptBrCulture }
 };
+
+app.UseForwardedHeaders();
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())

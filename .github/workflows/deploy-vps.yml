@@ -389,6 +389,11 @@ jobs:
           cat > Backend/.env.vps <<EOF
           APP_ENVIRONMENT=$APP_ENVIRONMENT_VALUE
           VPS_PUBLIC_HOST=${{ secrets.VPS_PUBLIC_HOST }}
+          PUBLIC_API_URL=${{ secrets.PUBLIC_API_URL }}
+          PUBLIC_ADMIN_URL=${{ secrets.PUBLIC_ADMIN_URL }}
+          PUBLIC_CLIENT_URL=${{ secrets.PUBLIC_CLIENT_URL }}
+          PUBLIC_PROVIDER_URL=${{ secrets.PUBLIC_PROVIDER_URL }}
+          ENFORCE_API_HTTPS_REDIRECTION=${{ secrets.ENFORCE_API_HTTPS_REDIRECTION }}
           API_PORT=${{ env.API_PORT }}
           ADMIN_PORT=${{ env.ADMIN_PORT }}
           CLIENT_PORT=${{ env.CLIENT_PORT }}
@@ -431,15 +436,7 @@ jobs:
         id: health
         shell: bash
         run: |
-          host="${{ secrets.VPS_PUBLIC_HOST }}"
-          host="${host%/}"
-          if [[ "$host" =~ ^https?:// ]]; then
-            base="$host"
-          else
-            base="http://$host"
-          fi
-
-          endpoint="$base:${{ env.API_PORT }}/health"
+          endpoint="http://127.0.0.1:${{ env.API_PORT }}/health"
           echo "endpoint=$endpoint" >> "$GITHUB_OUTPUT"
 
           attempts=12
@@ -487,6 +484,11 @@ jobs:
           cat > Backend/.env.vps <<EOF
           APP_ENVIRONMENT=$APP_ENVIRONMENT_VALUE
           VPS_PUBLIC_HOST=${{ secrets.VPS_PUBLIC_HOST }}
+          PUBLIC_API_URL=${{ secrets.PUBLIC_API_URL }}
+          PUBLIC_ADMIN_URL=${{ secrets.PUBLIC_ADMIN_URL }}
+          PUBLIC_CLIENT_URL=${{ secrets.PUBLIC_CLIENT_URL }}
+          PUBLIC_PROVIDER_URL=${{ secrets.PUBLIC_PROVIDER_URL }}
+          ENFORCE_API_HTTPS_REDIRECTION=${{ secrets.ENFORCE_API_HTTPS_REDIRECTION }}
           API_PORT=${{ env.API_PORT }}
           ADMIN_PORT=${{ env.ADMIN_PORT }}
           CLIENT_PORT=${{ env.CLIENT_PORT }}
@@ -529,15 +531,7 @@ jobs:
         id: health
         shell: bash
         run: |
-          host="${{ secrets.VPS_PUBLIC_HOST }}"
-          host="${host%/}"
-          if [[ "$host" =~ ^https?:// ]]; then
-            base="$host"
-          else
-            base="http://$host"
-          fi
-
-          endpoint="$base:${{ env.ADMIN_PORT }}/Account/Login"
+          endpoint="http://127.0.0.1:${{ env.ADMIN_PORT }}/Account/Login"
           echo "endpoint=$endpoint" >> "$GITHUB_OUTPUT"
 
           attempts=12
@@ -585,6 +579,11 @@ jobs:
           cat > Backend/.env.vps <<EOF
           APP_ENVIRONMENT=$APP_ENVIRONMENT_VALUE
           VPS_PUBLIC_HOST=${{ secrets.VPS_PUBLIC_HOST }}
+          PUBLIC_API_URL=${{ secrets.PUBLIC_API_URL }}
+          PUBLIC_ADMIN_URL=${{ secrets.PUBLIC_ADMIN_URL }}
+          PUBLIC_CLIENT_URL=${{ secrets.PUBLIC_CLIENT_URL }}
+          PUBLIC_PROVIDER_URL=${{ secrets.PUBLIC_PROVIDER_URL }}
+          ENFORCE_API_HTTPS_REDIRECTION=${{ secrets.ENFORCE_API_HTTPS_REDIRECTION }}
           API_PORT=${{ env.API_PORT }}
           ADMIN_PORT=${{ env.ADMIN_PORT }}
           CLIENT_PORT=${{ env.CLIENT_PORT }}
@@ -627,15 +626,7 @@ jobs:
         id: health
         shell: bash
         run: |
-          host="${{ secrets.VPS_PUBLIC_HOST }}"
-          host="${host%/}"
-          if [[ "$host" =~ ^https?:// ]]; then
-            base="$host"
-          else
-            base="http://$host"
-          fi
-
-          endpoint="$base:${{ env.CLIENT_PORT }}/Account/Login"
+          endpoint="http://127.0.0.1:${{ env.CLIENT_PORT }}/Account/Login"
           echo "endpoint=$endpoint" >> "$GITHUB_OUTPUT"
 
           attempts=12
@@ -683,6 +674,11 @@ jobs:
           cat > Backend/.env.vps <<EOF
           APP_ENVIRONMENT=$APP_ENVIRONMENT_VALUE
           VPS_PUBLIC_HOST=${{ secrets.VPS_PUBLIC_HOST }}
+          PUBLIC_API_URL=${{ secrets.PUBLIC_API_URL }}
+          PUBLIC_ADMIN_URL=${{ secrets.PUBLIC_ADMIN_URL }}
+          PUBLIC_CLIENT_URL=${{ secrets.PUBLIC_CLIENT_URL }}
+          PUBLIC_PROVIDER_URL=${{ secrets.PUBLIC_PROVIDER_URL }}
+          ENFORCE_API_HTTPS_REDIRECTION=${{ secrets.ENFORCE_API_HTTPS_REDIRECTION }}
           API_PORT=${{ env.API_PORT }}
           ADMIN_PORT=${{ env.ADMIN_PORT }}
           CLIENT_PORT=${{ env.CLIENT_PORT }}
@@ -725,15 +721,7 @@ jobs:
         id: health
         shell: bash
         run: |
-          host="${{ secrets.VPS_PUBLIC_HOST }}"
-          host="${host%/}"
-          if [[ "$host" =~ ^https?:// ]]; then
-            base="$host"
-          else
-            base="http://$host"
-          fi
-
-          endpoint="$base:${{ env.PROVIDER_PORT }}/Account/Login"
+          endpoint="http://127.0.0.1:${{ env.PROVIDER_PORT }}/Account/Login"
           echo "endpoint=$endpoint" >> "$GITHUB_OUTPUT"
 
           attempts=12
@@ -788,6 +776,11 @@ jobs:
           cat > Backend/.env.vps <<EOF
           APP_ENVIRONMENT=$APP_ENVIRONMENT_VALUE
           VPS_PUBLIC_HOST=${{ secrets.VPS_PUBLIC_HOST }}
+          PUBLIC_API_URL=${{ secrets.PUBLIC_API_URL }}
+          PUBLIC_ADMIN_URL=${{ secrets.PUBLIC_ADMIN_URL }}
+          PUBLIC_CLIENT_URL=${{ secrets.PUBLIC_CLIENT_URL }}
+          PUBLIC_PROVIDER_URL=${{ secrets.PUBLIC_PROVIDER_URL }}
+          ENFORCE_API_HTTPS_REDIRECTION=${{ secrets.ENFORCE_API_HTTPS_REDIRECTION }}
           API_PORT=${{ env.API_PORT }}
           ADMIN_PORT=${{ env.ADMIN_PORT }}
           CLIENT_PORT=${{ env.CLIENT_PORT }}
@@ -830,15 +823,7 @@ jobs:
         id: health
         shell: bash
         run: |
-          host="${{ secrets.VPS_PUBLIC_HOST }}"
-          host="${host%/}"
-          if [[ "$host" =~ ^https?:// ]]; then
-            base="$host"
-          else
-            base="http://$host"
-          fi
-
-          endpoint="$base:${{ env.MOBILE_CLIENT_WEBVIEW_PORT }}/"
+          endpoint="http://127.0.0.1:${{ env.MOBILE_CLIENT_WEBVIEW_PORT }}/"
           echo "endpoint=$endpoint" >> "$GITHUB_OUTPUT"
 
           attempts=12
@@ -893,6 +878,11 @@ jobs:
           cat > Backend/.env.vps <<EOF
           APP_ENVIRONMENT=$APP_ENVIRONMENT_VALUE
           VPS_PUBLIC_HOST=${{ secrets.VPS_PUBLIC_HOST }}
+          PUBLIC_API_URL=${{ secrets.PUBLIC_API_URL }}
+          PUBLIC_ADMIN_URL=${{ secrets.PUBLIC_ADMIN_URL }}
+          PUBLIC_CLIENT_URL=${{ secrets.PUBLIC_CLIENT_URL }}
+          PUBLIC_PROVIDER_URL=${{ secrets.PUBLIC_PROVIDER_URL }}
+          ENFORCE_API_HTTPS_REDIRECTION=${{ secrets.ENFORCE_API_HTTPS_REDIRECTION }}
           API_PORT=${{ env.API_PORT }}
           ADMIN_PORT=${{ env.ADMIN_PORT }}
           CLIENT_PORT=${{ env.CLIENT_PORT }}
@@ -935,15 +925,7 @@ jobs:
         id: health
         shell: bash
         run: |
-          host="${{ secrets.VPS_PUBLIC_HOST }}"
-          host="${host%/}"
-          if [[ "$host" =~ ^https?:// ]]; then
-            base="$host"
-          else
-            base="http://$host"
-          fi
-
-          endpoint="$base:${{ env.MOBILE_PROVIDER_WEBVIEW_PORT }}/"
+          endpoint="http://127.0.0.1:${{ env.MOBILE_PROVIDER_WEBVIEW_PORT }}/"
           echo "endpoint=$endpoint" >> "$GITHUB_OUTPUT"
 
           attempts=12
@@ -998,6 +980,11 @@ jobs:
           cat > Backend/.env.vps <<EOF
           APP_ENVIRONMENT=$APP_ENVIRONMENT_VALUE
           VPS_PUBLIC_HOST=${{ secrets.VPS_PUBLIC_HOST }}
+          PUBLIC_API_URL=${{ secrets.PUBLIC_API_URL }}
+          PUBLIC_ADMIN_URL=${{ secrets.PUBLIC_ADMIN_URL }}
+          PUBLIC_CLIENT_URL=${{ secrets.PUBLIC_CLIENT_URL }}
+          PUBLIC_PROVIDER_URL=${{ secrets.PUBLIC_PROVIDER_URL }}
+          ENFORCE_API_HTTPS_REDIRECTION=${{ secrets.ENFORCE_API_HTTPS_REDIRECTION }}
           API_PORT=${{ env.API_PORT }}
           ADMIN_PORT=${{ env.ADMIN_PORT }}
           CLIENT_PORT=${{ env.CLIENT_PORT }}
@@ -1040,15 +1027,7 @@ jobs:
         id: health
         shell: bash
         run: |
-          host="${{ secrets.VPS_PUBLIC_HOST }}"
-          host="${host%/}"
-          if [[ "$host" =~ ^https?:// ]]; then
-            base="$host"
-          else
-            base="http://$host"
-          fi
-
-          endpoint="$base:${{ env.MOBILE_ADMIN_WEBVIEW_PORT }}/"
+          endpoint="http://127.0.0.1:${{ env.MOBILE_ADMIN_WEBVIEW_PORT }}/"
           echo "endpoint=$endpoint" >> "$GITHUB_OUTPUT"
 
           attempts=12

@@ -1,4 +1,4 @@
-# Deploy na VPS (projetos Docker separados)
+# Deploy na VPS com HTTPS
 
 Este guia publica 7 projetos Docker independentes:
 - API (`backend-api`)
@@ -18,7 +18,42 @@ Arquivos compose:
 - `Backend/docker-compose.vps.mobile-webview-provider.yml`
 - `Backend/docker-compose.vps.mobile-webview-admin.yml`
 
-## 1) Preparacao na VPS (primeira vez)
+Arquivos de apoio para HTTPS:
+- `Backend/docker/vps/nginx.portals.https.conf.example`
+- `Backend/.env.vps.example`
+
+## Topologia recomendada
+
+Os portais web e a API devem ficar atras de Nginx em `80/443`, com os containers publicados apenas em `127.0.0.1`.
+
+URLs publicas recomendadas:
+- `https://admin.consertapramim.com`
+- `https://cliente.consertapramim.com`
+- `https://prestador.consertapramim.com`
+- `https://api.consertapramim.com`
+
+Mapeamento interno esperado:
+- `admin.consertapramim.com` -> `127.0.0.1:5151`
+- `cliente.consertapramim.com` -> `127.0.0.1:5069`
+- `prestador.consertapramim.com` -> `127.0.0.1:5140`
+- `api.consertapramim.com` -> `127.0.0.1:5193`
+
+Observacao operacional:
+- os apps ASP.NET agora usam `ForwardedHeaders` para interpretar corretamente `X-Forwarded-Proto`, `X-Forwarded-For` e `X-Forwarded-Host` atras do Nginx;
+- a API passou a aceitar redirecionamento HTTPS controlado por `ENFORCE_API_HTTPS_REDIRECTION=true`;
+- os `healthchecks` do workflow validam os servicos pela malha local (`127.0.0.1`) na propria VPS.
+
+## 1) DNS na Hostinger
+
+Crie quatro registros `A` apontando para a IP publica da VPS:
+- `admin.consertapramim.com`
+- `cliente.consertapramim.com`
+- `prestador.consertapramim.com`
+- `api.consertapramim.com`
+
+Opcionalmente, mantenha `www.consertapramim.com` para landing institucional ou redirecionamento. Os portais web nao devem mais ser publicados como `http://www.consertapramim.com:5151`.
+
+## 2) Preparacao na VPS
 
 ```bash
 cd ~
@@ -30,21 +65,109 @@ chmod +x scripts/deploy/vps-deploy.sh scripts/deploy/vps-deploy-service.sh
 ```
 
 Preencha no `Backend/.env.vps` pelo menos:
-- `APP_ENVIRONMENT` (`Production` na VPS)
-- `VPS_PUBLIC_HOST`
+- `APP_ENVIRONMENT=Production`
+- `VPS_PUBLIC_HOST` (host ou IP cru, sem `http://` ou `https://`)
+- `PUBLIC_API_URL`
+- `PUBLIC_ADMIN_URL`
+- `PUBLIC_CLIENT_URL`
+- `PUBLIC_PROVIDER_URL`
 - `DB_PASSWORD`
 - `DB_HOST` (normalmente `mssql`)
 - `JWT_SECRET_KEY`
 - `SEED_DEFAULT_PASSWORD`
 
-## 2) Deploy manual completo (7 projetos)
+Exemplo minimo:
+
+```env
+APP_ENVIRONMENT=Production
+VPS_PUBLIC_HOST=SEU_IP_OU_HOST_DA_VPS
+
+PUBLIC_API_URL=https://api.consertapramim.com
+PUBLIC_ADMIN_URL=https://admin.consertapramim.com
+PUBLIC_CLIENT_URL=https://cliente.consertapramim.com
+PUBLIC_PROVIDER_URL=https://prestador.consertapramim.com
+ENFORCE_API_HTTPS_REDIRECTION=true
+
+API_PORT=5193
+ADMIN_PORT=5151
+CLIENT_PORT=5069
+PROVIDER_PORT=5140
+
+DB_NAME=ConsertaPraMimDb
+DB_USER=sa
+DB_PASSWORD=ALTERAR_AQUI
+DB_HOST=mssql
+
+JWT_SECRET_KEY=ALTERAR_PARA_UMA_CHAVE_BEM_FORTE_COM_32+_CARACTERES
+SEED_DEFAULT_PASSWORD=ALTERAR_AQUI
+```
+
+## 3) Instalar Nginx e Certbot na VPS
+
+Firewall recomendado:
+- deixar abertas publicamente apenas `80` e `443`;
+- manter `5151`, `5069`, `5140` e `5193` bloqueadas externamente, porque os containers passam a atender via `127.0.0.1`.
+
+Ubuntu/Debian:
+
+```bash
+sudo apt update
+sudo apt install -y nginx python3 python3-venv libaugeas0
+sudo python3 -m venv /opt/certbot
+sudo /opt/certbot/bin/pip install --upgrade pip certbot certbot-nginx
+sudo ln -sf /opt/certbot/bin/certbot /usr/bin/certbot
+```
+
+## 4) Configurar o Nginx
+
+Copie o template de apoio para a configuracao real:
+
+```bash
+sudo cp Backend/docker/vps/nginx.portals.https.conf.example /etc/nginx/sites-available/consertapramim.conf
+sudo nano /etc/nginx/sites-available/consertapramim.conf
+```
+
+Substitua os placeholders:
+- `__ADMIN_DOMAIN__` -> `admin.consertapramim.com`
+- `__CLIENT_DOMAIN__` -> `cliente.consertapramim.com`
+- `__PROVIDER_DOMAIN__` -> `prestador.consertapramim.com`
+- `__API_DOMAIN__` -> `api.consertapramim.com`
+
+Ative o site e recarregue:
+
+```bash
+sudo ln -sf /etc/nginx/sites-available/consertapramim.conf /etc/nginx/sites-enabled/consertapramim.conf
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+## 5) Emitir os certificados HTTPS
+
+```bash
+sudo certbot --nginx \
+  -d admin.consertapramim.com \
+  -d cliente.consertapramim.com \
+  -d prestador.consertapramim.com \
+  -d api.consertapramim.com
+```
+
+Valide a renovacao automatica:
+
+```bash
+sudo systemctl list-timers | grep certbot
+sudo certbot renew --dry-run
+```
+
+## 6) Deploy manual dos containers
+
+Deploy completo:
 
 ```bash
 cd ~/ConsertaPraMimWeb
 MSSQL_CONTAINER_NAME=mssql-mssql-1 MSSQL_HOST_ALIAS=mssql scripts/deploy/vps-deploy.sh
 ```
 
-## 3) Deploy manual de um projeto especifico
+Deploy por servico:
 
 ```bash
 cd ~/ConsertaPraMimWeb
@@ -58,33 +181,67 @@ MSSQL_CONTAINER_NAME=mssql-mssql-1 MSSQL_HOST_ALIAS=mssql scripts/deploy/vps-dep
 ```
 
 Observacao operacional:
-- o script `scripts/deploy/vps-deploy-service.sh` agora faz `build` primeiro e, antes do `up`, remove o container fixo existente do servico alvo (`cpm-api`, `cpm-web-admin`, etc.) para evitar conflito de `container_name` durante recriacao.
-- isso elimina a falha `The container name ... is already in use` quando o container atual veio de um projeto compose anterior/legado.
+- o script `scripts/deploy/vps-deploy-service.sh` faz `build` antes do `up` e remove o container fixo existente (`cpm-api`, `cpm-web-admin`, etc.) para evitar conflito de `container_name`;
+- os servicos `api`, `web-admin`, `web-client` e `web-provider` ficam publicados apenas em `127.0.0.1`, por isso o acesso externo precisa passar pelo Nginx.
 
-## 4) CI/CD (runner) com deploy seletivo por alteracao
+## 7) Validacao pos-deploy
+
+Validacao interna na VPS:
+
+```bash
+curl -I http://127.0.0.1:5193/health
+curl -I http://127.0.0.1:5151/Account/Login
+curl -I http://127.0.0.1:5069/Account/Login
+curl -I http://127.0.0.1:5140/Account/Login
+```
+
+Validacao publica:
+
+```bash
+curl -I https://api.consertapramim.com/health
+curl -I https://admin.consertapramim.com/Account/Login
+curl -I https://cliente.consertapramim.com/Account/Login
+curl -I https://prestador.consertapramim.com/Account/Login
+```
+
+Validacao funcional no navegador:
+- abrir `https://admin.consertapramim.com`;
+- abrir `https://cliente.consertapramim.com`;
+- abrir `https://prestador.consertapramim.com`;
+- confirmar que chat/upload/SignalR nao apresentam `mixed content` no console;
+- confirmar que o Swagger da API abre em `https://api.consertapramim.com/swagger` quando habilitado.
+
+## 8) CI/CD com deploy seletivo
 
 Workflow: `.github/workflows/deploy-vps.yml`
 
 Comportamento:
 - `push` para `main/master`: deploya apenas o(s) projeto(s) alterado(s)
-- `pull_request` para `main/master`: deploya apenas o(s) projeto(s) alterado(s) (quando PR do mesmo repositorio)
 - `workflow_dispatch`: deploya todos os projetos
 - se alterar arquivos globais de infra/deploy, deploya todos
 
-Secrets necessarios:
+Secrets obrigatorios:
 - `VPS_PUBLIC_HOST`
 - `VPS_DB_PASSWORD`
 - `JWT_SECRET_KEY`
 - `SEED_DEFAULT_PASSWORD`
+- `VPS_SSH_KEY`
 
 Secrets opcionais:
-- `VPS_APP_ENVIRONMENT` (default `Development`)
+- `VPS_APP_ENVIRONMENT` (default `Production`)
 - `VPS_DB_HOST` (default `mssql`)
 - `VPS_MSSQL_CONTAINER_NAME` (default `mssql`)
 - `VPS_MSSQL_HOST_ALIAS` (default `mssql`)
 - `FIREBASE_SERVICE_ACCOUNT_PATH`
+- `PUBLIC_API_URL`
+- `PUBLIC_ADMIN_URL`
+- `PUBLIC_CLIENT_URL`
+- `PUBLIC_PROVIDER_URL`
+- `ENFORCE_API_HTTPS_REDIRECTION`
 
-## 5) Operacao por projeto
+Se os secrets `PUBLIC_*_URL` nao forem preenchidos, os compose mantem fallback para o modelo legado em `http://host:porta`.
+
+## 9) Operacao por projeto
 
 Status:
 
