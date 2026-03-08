@@ -39,6 +39,17 @@ public class AdminPublicUrlResolverTests
         Assert.Equal("https://api.consertapramim.com/swagger", resolved);
     }
 
+    [Fact(DisplayName = "Admin public url resolver | Api base url | Deve inferir host publico da API quando base usa IP legado")]
+    public void ResolveApiBaseUrl_ShouldInferApiSiblingDomain_WhenCandidateUsesLegacyIp()
+    {
+        var resolved = AdminPublicUrlResolver.ResolveApiBaseUrl(
+            "http://187.77.48.150:5193",
+            "admin.consertapramim.com",
+            "http://localhost:5193");
+
+        Assert.Equal("https://api.consertapramim.com", resolved);
+    }
+
     [Fact(DisplayName = "Admin public url resolver | Portal url | Deve manter localhost em ambiente local")]
     public void ResolvePortalUrl_ShouldKeepLocalhost_WhenRequestIsLocal()
     {

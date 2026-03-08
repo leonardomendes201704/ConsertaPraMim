@@ -1,28 +1,12 @@
+@using ConsertaPraMim.Web.Provider.Services
 @inject IConfiguration Configuration
 @inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
 @{
-    var browserApiBaseUrl = (Configuration["BrowserApiBaseUrl"] ?? Configuration["ApiBaseUrl"] ?? string.Empty).TrimEnd('/');
-    if (!string.IsNullOrWhiteSpace(browserApiBaseUrl) && Uri.TryCreate(browserApiBaseUrl, UriKind.Absolute, out var apiBaseUri))
-    {
-        var requestHost = (Context.Request.Host.Host ?? string.Empty).Trim();
-        var isRequestFromLocalhost =
-            requestHost.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
-            requestHost.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
-            requestHost.Equals("::1", StringComparison.OrdinalIgnoreCase);
-        var isConfiguredLocalhost =
-            apiBaseUri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
-            apiBaseUri.Host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
-            apiBaseUri.Host.Equals("::1", StringComparison.OrdinalIgnoreCase);
-
-        if (!isRequestFromLocalhost && isConfiguredLocalhost)
-        {
-            var browserApiBuilder = new UriBuilder(apiBaseUri)
-            {
-                Host = requestHost
-            };
-            browserApiBaseUrl = browserApiBuilder.Uri.GetLeftPart(UriPartial.Authority);
-        }
-    }
+    var requestHost = (Context.Request.Host.Host ?? string.Empty).Trim();
+    var browserApiBaseUrl = ProviderPublicUrlResolver.ResolveApiBaseUrl(
+        Configuration["BrowserApiBaseUrl"] ?? Configuration["ApiBaseUrl"],
+        requestHost,
+        "http://localhost:5193");
     var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
     var apiToken = User.FindFirst(ConsertaPraMim.Web.Provider.Security.WebProviderClaimTypes.ApiToken)?.Value ?? string.Empty;
     var csrfToken = Antiforgery.GetAndStoreTokens(Context).RequestToken ?? string.Empty;

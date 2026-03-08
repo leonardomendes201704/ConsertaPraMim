@@ -32,7 +32,7 @@ builder.Services.AddScoped<IAdminWikiService, AdminWikiService>();
 builder.Services.AddScoped<IAdminChangeLogsService, AdminChangeLogsService>();
 builder.Services.AddScoped<IAdminDiagramsService, AdminDiagramsService>();
 builder.Services.AddScoped<IAdminRoadmapService, AdminRoadmapService>();
-var apiOrigin = ResolveOrigin(builder.Configuration["BrowserApiBaseUrl"] ?? builder.Configuration["ApiBaseUrl"]);
+var configuredBrowserApiBaseUrl = builder.Configuration["BrowserApiBaseUrl"] ?? builder.Configuration["ApiBaseUrl"];
 
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
@@ -79,6 +79,12 @@ app.UseRequestLocalization(localizationOptions);
 
 app.Use(async (context, next) =>
 {
+    var resolvedBrowserApiBaseUrl = AdminPublicUrlResolver.ResolveApiBaseUrl(
+        configuredBrowserApiBaseUrl,
+        context.Request.Host.Host,
+        "http://localhost:5193");
+    var apiOrigin = ResolveOrigin(resolvedBrowserApiBaseUrl);
+
     context.Response.Headers["X-Content-Type-Options"] = "nosniff";
     context.Response.Headers["X-Frame-Options"] = "DENY";
     context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";

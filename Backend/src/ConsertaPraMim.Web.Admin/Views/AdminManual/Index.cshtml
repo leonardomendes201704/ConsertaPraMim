@@ -868,6 +868,8 @@
                     <li>Relatorio consolidado de creditos com filtros e paginação retornando dados coerentes.</li>
                     <li>Atalho `Swagger API` abre documentacao OpenAPI em nova aba.</li>
                     <li>Atalhos `Portal Cliente`, `Portal Prestador` e `Swagger API` no menu lateral devem abrir os dominios publicos HTTPS (`cliente.consertapramim.com`, `prestador.consertapramim.com`, `api.consertapramim.com/swagger`), nunca IP/porta legado da VPS.</li>
+                    <li>Portal admin em HTTPS nao pode bloquear `notificationHub`/SignalR por `Content-Security-Policy`; o `connect-src` deve permitir `https://api.consertapramim.com` e `wss://api.consertapramim.com` quando o acesso ocorrer por `admin.consertapramim.com`.</li>
+                    <li>Portal cliente em HTTPS nao pode registrar `Mixed Content` ou bloqueio de SignalR; `notificationHub`, `chatHub` e uploads do chat devem usar `https://api.consertapramim.com`/`wss://api.consertapramim.com`, nunca o IP HTTP legado da VPS.</li>
                     <li>Swagger exibe documentacao completa por endpoint (negocio + tecnico + cURL) sem lacunas de `summary`/`description`.</li>
                     <li>Endpoint `GET /api/admin/growth/funnel` retorna funil com SLA e alertas sem erro de autorizacao.</li>
                     <li>Endpoint `GET /api/admin/growth/executive-cockpit` retorna North Star, metas trimestrais e tendencia semanal sem erro de autorizacao.</li>
@@ -901,6 +903,7 @@
                     <li>Na home do portal prestador, o widget `Mapa de Cobertura e Oportunidades` deve ocupar toda a largura util do card, manter proporcao 1:1 no modo padrao, mostrar apenas pedidos dentro do raio atual de atendimento do prestador e iniciar o zoom enquadrando o proprio circulo de cobertura; a lista de oportunidades do bloco deve permanecer sincronizada com esse mesmo recorte.</li>
                     <li>Na tela `Configuracoes` do portal prestador, o mapa da base tambem deve iniciar enquadrando o raio atual de atendimento e reajustar o enquadramento quando o slider de raio for alterado.</li>
                     <li>Na tela `Configuracoes` do portal prestador, latitude/longitude automaticas nao devem aparecer como campos visiveis; a localizacao continua sendo gerida pelo CEP e pelo mapa.</li>
+                    <li>Na tela `Configuracoes` do portal prestador em HTTPS, o console do navegador nao pode registrar `Mixed Content`; `statusEndpoint`, `notificationHub` e `chatHub` devem usar `https://api.consertapramim.com`/`wss://api.consertapramim.com`, nunca o IP HTTP legado da VPS.</li>
                     <li>Endpoint `POST /api/reviews/admin/repurchase/run` executa dry-run e rodada real retornando elegiveis/supressoes sem erro de autorizacao.</li>
                     <li>Dashboard exibe `Taxa de Recompra` e `NPS Operacional` com valores coerentes ao payload de `GET /api/admin/dashboard`.</li>
                     <li>Runbook `RUNBOOK_MELHORIA_BAIXA_AVALIACAO_ST-050.md` esta publicado no `INDEX` e cobre gatilhos/SLA/owner para baixa avaliacao.</li>
@@ -968,6 +971,21 @@
                         <td>Prestador nao consegue salvar perfil</td>
                         <td>Excede limite operacional do plano</td>
                         <td>Revisar regras do plano em `Planos e Ofertas`.</td>
+                    </tr>
+                    <tr>
+                        <td>Portal prestador (`/Profile`) registra `Mixed Content` no console</td>
+                        <td>`BrowserApiBaseUrl`/`ApiBaseUrl` chegou no front com IP HTTP legado ou o CSP nao contemplou o host publico HTTPS da API</td>
+                        <td>Validar `window.providerLayoutConfig.apiBaseUrl`, confirmar `https://api.consertapramim.com` no HTML renderizado, revisar `INTERNAL_API_URL`/`PUBLIC_API_URL` da VPS e reexecutar o deploy do `web-provider`.</td>
+                    </tr>
+                    <tr>
+                        <td>Portal admin bloqueia `notificationHub` por `Content-Security-Policy`</td>
+                        <td>O layout resolveu `https://api.consertapramim.com`, mas o middleware do admin ainda montou `connect-src` com `ApiBaseUrl` legado (`http://IP:5193`)</td>
+                        <td>Validar o header `Content-Security-Policy`, confirmar `https://api.consertapramim.com` e `wss://api.consertapramim.com` em `connect-src`, revisar `PUBLIC_API_URL` na VPS e redeployar `web-admin`.</td>
+                    </tr>
+                    <tr>
+                        <td>Portal cliente registra `Mixed Content` em `notificationHub` ou `chatHub`</td>
+                        <td>O front do cliente herdou `BrowserApiBaseUrl`/`ApiBaseUrl` com IP HTTP legado ou o middleware montou CSP sem a URL publica HTTPS da API</td>
+                        <td>Validar `window.clientLayoutConfig.browserApiBaseUrl`, conferir `https://api.consertapramim.com` no HTML renderizado, revisar `PUBLIC_API_URL` na VPS e redeployar `web-client`.</td>
                     </tr>
                     <tr>
                         <td>Dados desatualizados no dashboard</td>
@@ -1079,6 +1097,21 @@
                     </tr>
                 </thead>
                 <tbody>
+                    <tr>
+                        <td>08/03/2026</td>
+                        <td>OPS-VPS-CLIENT-MIXED-CONTENT</td>
+                        <td>Portal cliente passou a resolver a URL publica HTTPS da API por host da requisicao antes de montar o layout browser-side e o `Content-Security-Policy`, eliminando `Mixed Content` em `notificationHub` e `chatHub` quando a configuracao ainda trouxer IP HTTP legado.</td>
+                    </tr>
+                    <tr>
+                        <td>08/03/2026</td>
+                        <td>OPS-VPS-ADMIN-CSP</td>
+                        <td>Portal admin passou a montar o `Content-Security-Policy` com a URL publica HTTPS da API resolvida por request, liberando `notificationHub`/SignalR em `https://api.consertapramim.com`; a tela `Monitoramento` tambem deixou de herdar IP HTTP legado no browser.</td>
+                    </tr>
+                    <tr>
+                        <td>08/03/2026</td>
+                        <td>OPS-VPS-PROVIDER-MIXED-CONTENT</td>
+                        <td>Portal do prestador passou a resolver a URL publica HTTPS da API a partir do host da requisicao quando a configuracao ainda trouxer `localhost` ou IP legado; o manual ganhou checklist e troubleshooting para `Profile` sem `Mixed Content` em `statusEndpoint`, `notificationHub` e `chatHub`.</td>
+                    </tr>
                     <tr>
                         <td>07/03/2026</td>
                         <td>OPS-VPS-MENU-LINKS</td>

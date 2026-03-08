@@ -1,32 +1,15 @@
 @using ConsertaPraMim.Web.Admin.Security
+@using ConsertaPraMim.Web.Admin.Services
 @inject IConfiguration Configuration
 @model ConsertaPraMim.Web.Admin.Models.AdminMonitoringIndexViewModel
 @{
     ViewData["Title"] = "Monitoramento";
     var filters = Model.Filters;
 
-    var browserApiBaseUrl = (Configuration["BrowserApiBaseUrl"] ?? Configuration["ApiBaseUrl"] ?? string.Empty).TrimEnd('/');
-    if (!string.IsNullOrWhiteSpace(browserApiBaseUrl) && Uri.TryCreate(browserApiBaseUrl, UriKind.Absolute, out var apiBaseUri))
-    {
-        var requestHost = (Context.Request.Host.Host ?? string.Empty).Trim();
-        var isRequestFromLocalhost =
-            requestHost.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
-            requestHost.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
-            requestHost.Equals("::1", StringComparison.OrdinalIgnoreCase);
-        var isConfiguredLocalhost =
-            apiBaseUri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
-            apiBaseUri.Host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
-            apiBaseUri.Host.Equals("::1", StringComparison.OrdinalIgnoreCase);
-
-        if (!isRequestFromLocalhost && isConfiguredLocalhost)
-        {
-            var browserApiBuilder = new UriBuilder(apiBaseUri)
-            {
-                Host = requestHost
-            };
-            browserApiBaseUrl = browserApiBuilder.Uri.GetLeftPart(UriPartial.Authority);
-        }
-    }
+    var browserApiBaseUrl = AdminPublicUrlResolver.ResolveApiBaseUrl(
+        Configuration["BrowserApiBaseUrl"] ?? Configuration["ApiBaseUrl"],
+        (Context.Request.Host.Host ?? string.Empty).Trim(),
+        "http://localhost:5193");
 
     var apiToken = User.FindFirst(AdminClaimTypes.ApiToken)?.Value ?? string.Empty;
 }

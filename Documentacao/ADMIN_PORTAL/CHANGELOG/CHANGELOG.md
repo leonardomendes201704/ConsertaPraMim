@@ -10,6 +10,24 @@
 
 ## Released
 
+- [2026-03-08] [OPS-VPS-CLIENT-MIXED-CONTENT] URL publica HTTPS da API no portal cliente
+- Tipo: fix
+- Resumo: o portal cliente passou a resolver a URL publica HTTPS da API por host da requisicao antes de montar o layout browser-side e o `Content-Security-Policy`, eliminando `Mixed Content` em `notificationHub` e `chatHub` quando a configuracao ainda trouxer `localhost` ou o IP HTTP legado da VPS.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Client/Services/ClientPublicUrlResolver.cs`, `Backend/src/ConsertaPraMim.Web.Client/Program.cs`, `Backend/src/ConsertaPraMim.Web.Client/Views/Shared/_Layout.cshtml`, `Backend/src/ConsertaPraMim.Web.Client/Views/ServiceRequests/Details.cshtml`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/ClientPublicUrlResolverTests.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: medio
+
+- [2026-03-08] [OPS-VPS-ADMIN-CSP] CSP do portal admin alinhado com a URL publica HTTPS da API
+- Tipo: fix
+- Resumo: o portal admin passou a resolver a URL publica HTTPS da API por host da requisicao antes de montar o `Content-Security-Policy`, eliminando o bloqueio de `notificationHub`/SignalR causado por `connect-src` com IP HTTP legado; a tela `AdminMonitoring` tambem passou a consumir a mesma URL publica resolvida no browser.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Program.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminMonitoring/Index.cshtml`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminPublicUrlResolverTests.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: medio
+
+- [2026-03-08] [OPS-VPS-PROVIDER-MIXED-CONTENT] URL publica HTTPS da API no portal prestador
+- Tipo: fix
+- Resumo: o portal do prestador passou a resolver a URL publica HTTPS da API a partir do host da requisicao quando a configuracao browser ainda trouxer `localhost` ou o IP HTTP legado da VPS; a correcao elimina `Mixed Content` em `Profile`, `notificationHub` e `chatHub`, mantendo o fallback local para desenvolvimento.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Provider/Services/ProviderPublicUrlResolver.cs`, `Backend/src/ConsertaPraMim.Web.Provider/Views/Shared/_Layout.cshtml`, `Backend/src/ConsertaPraMim.Web.Provider/Views/Profile/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Provider/Program.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/ProviderPublicUrlResolverTests.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: medio
+
 - [2026-03-07] [OPS-VPS-MENU-LINKS] Links publicos HTTPS no menu lateral do portal admin
 - Tipo: fix
 - Resumo: os atalhos `Portal Cliente`, `Portal Prestador` e `Swagger API` do menu lateral do portal admin passaram a priorizar URLs publicas HTTPS com dominio (`cliente.consertapramim.com`, `prestador.consertapramim.com`, `api.consertapramim.com/swagger`), evitando sobrescrita por IP/porta legado vindo de configuracao runtime.
