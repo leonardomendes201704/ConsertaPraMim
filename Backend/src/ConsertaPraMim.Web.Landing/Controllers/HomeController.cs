@@ -9,6 +9,7 @@ public sealed class HomeController : Controller
     private const string DefaultCanonicalUrl = "https://www.consertapramim.com";
     private const string DefaultOgTitle = "ConsertaPraMim – Encontre profissionais de confiança";
     private const string DefaultOgDescription = "Conectamos você a profissionais de manutenção e reparos perto de você.";
+    private const string DefaultOgImagePath = "/og-logo-consertapramim.png";
 
     private readonly LandingSiteOptions _options;
 
@@ -75,7 +76,7 @@ public sealed class HomeController : Controller
         ViewData["CanonicalUrl"] = canonicalUrlWithSlash;
         ViewData["OpenGraphTitle"] = DefaultOgTitle;
         ViewData["OpenGraphDescription"] = DefaultOgDescription;
-        ViewData["OpenGraphImage"] = canonicalUrl.TrimEnd('/') + "/og-image.jpg";
+        ViewData["OpenGraphImage"] = canonicalUrl.TrimEnd('/') + DefaultOgImagePath;
         ViewData["OpenGraphUrl"] = currentUrl;
         ViewData["OpenGraphType"] = "website";
         ViewData["TwitterCard"] = "summary_large_image";

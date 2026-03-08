@@ -1,4 +1,4 @@
-(function () {
+﻿(function () {
     const pageConfigSource = document.body;
     const navToggle = document.querySelector("[data-nav-toggle]");
     const nav = document.querySelector("[data-nav]");
@@ -16,6 +16,8 @@
     const leadPanels = document.querySelectorAll("[data-lead-panel]");
     const leadTriggers = document.querySelectorAll("[data-lead-trigger]");
     const leadForms = document.querySelectorAll("[data-lead-form]");
+    const leadToast = document.querySelector("[data-lead-toast]");
+    let leadToastTimer = 0;
 
     if (navToggle && nav) {
         navToggle.addEventListener("click", function () {
@@ -68,6 +70,25 @@
             : leadShell.getAttribute("data-client-title") || "";
     }
 
+    function clearFeedback(form) {
+        const feedback = form.querySelector("[data-lead-feedback]");
+        if (!feedback) {
+            return;
+        }
+
+        feedback.textContent = "";
+        feedback.className = "lead-feedback";
+    }
+
+    function setFeedbackMessage(feedback, type, message) {
+        if (!feedback) {
+            return;
+        }
+
+        feedback.textContent = message;
+        feedback.className = `lead-feedback is-${type}`;
+    }
+
     function activateLeadOrigin(origin) {
         const normalizedOrigin = origin === "provider" ? "provider" : "client";
 
@@ -87,6 +108,10 @@
             panel.hidden = !isActive;
             panel.classList.toggle("is-active", isActive);
         });
+
+        leadForms.forEach(function (form) {
+            clearFeedback(form);
+        });
     }
 
     function focusFirstInputInActivePanel() {
@@ -101,6 +126,41 @@
                 focusTarget.focus();
             }, 60);
         }
+    }
+
+    function hideLeadToast() {
+        if (!leadToast) {
+            return;
+        }
+
+        leadToast.classList.remove("is-visible");
+        window.setTimeout(function () {
+            leadToast.hidden = true;
+        }, 220);
+    }
+
+    function showLeadToast(message, type) {
+        if (!leadToast) {
+            return;
+        }
+
+        if (leadToastTimer) {
+            window.clearTimeout(leadToastTimer);
+            leadToastTimer = 0;
+        }
+
+        leadToast.hidden = false;
+        leadToast.textContent = message;
+        leadToast.className = `lead-toast is-${type}`;
+
+        window.requestAnimationFrame(function () {
+            leadToast.classList.add("is-visible");
+        });
+
+        leadToastTimer = window.setTimeout(function () {
+            hideLeadToast();
+            leadToastTimer = 0;
+        }, 3600);
     }
 
     function openLeadCapture(origin) {
@@ -129,6 +189,12 @@
     if (leadModalElement) {
         leadModalElement.addEventListener("shown.bs.modal", function () {
             focusFirstInputInActivePanel();
+        });
+
+        leadModalElement.addEventListener("hidden.bs.modal", function () {
+            leadForms.forEach(function (form) {
+                clearFeedback(form);
+            });
         });
     }
 
@@ -207,7 +273,7 @@
 
     function readProblemDetails(payload) {
         if (!payload || typeof payload !== "object") {
-            return "Não foi possível enviar o formulário agora.";
+            return "Não foi possível enviar seus dados agora. Tente novamente em instantes.";
         }
 
         if (typeof payload.detail === "string" && payload.detail.trim()) {
@@ -235,19 +301,34 @@
             }
         }
 
-        return "Não foi possível enviar o formulário agora.";
+        return "Não foi possível enviar seus dados agora. Tente novamente em instantes.";
+    }
+
+    function getFriendlyErrorMessage(error) {
+        if (error instanceof Error) {
+            const message = (error.message || "").trim();
+            if (!message) {
+                return "Não foi possível enviar seus dados agora. Tente novamente em instantes.";
+            }
+
+            if (/failed to fetch|networkerror|load failed/i.test(message)) {
+                return "Não foi possível enviar seus dados agora. Verifique sua conexão e tente novamente em instantes.";
+            }
+
+            return message;
+        }
+
+        return "Não foi possível enviar seus dados agora. Tente novamente em instantes.";
     }
 
     async function submitLeadForm(form) {
         const feedback = form.querySelector("[data-lead-feedback]");
         const submitButton = form.querySelector("button[type='submit']");
         const payload = buildPayload(form);
+        const successMessage = "Dados enviados com sucesso!";
 
         if (!config.leadCaptureUrl) {
-            if (feedback) {
-                feedback.textContent = "Configuração de envio indisponível no momento.";
-                feedback.className = "lead-feedback is-error";
-            }
+            setFeedbackMessage(feedback, "error", "O envio está temporariamente indisponível. Tente novamente em instantes.");
             return;
         }
 
@@ -255,10 +336,7 @@
             submitButton.disabled = true;
         }
 
-        if (feedback) {
-            feedback.textContent = "Enviando...";
-            feedback.className = "lead-feedback is-loading";
-        }
+        setFeedbackMessage(feedback, "loading", "Enviando seus dados...");
 
         try {
             const response = await window.fetch(config.leadCaptureUrl, {
@@ -276,19 +354,16 @@
             }
 
             form.reset();
-            if (feedback) {
-                feedback.textContent = body && typeof body.message === "string"
-                    ? body.message
-                    : "Recebemos seu contato com sucesso.";
-                feedback.className = "lead-feedback is-success";
+            setFeedbackMessage(feedback, "success", successMessage);
+            showLeadToast(successMessage, "success");
+
+            if (leadModal) {
+                window.setTimeout(function () {
+                    leadModal.hide();
+                }, 450);
             }
         } catch (error) {
-            if (feedback) {
-                feedback.textContent = error instanceof Error && error.message
-                    ? error.message
-                    : "Não foi possível enviar o formulário agora.";
-                feedback.className = "lead-feedback is-error";
-            }
+            setFeedbackMessage(feedback, "error", getFriendlyErrorMessage(error));
         } finally {
             if (submitButton) {
                 submitButton.disabled = false;

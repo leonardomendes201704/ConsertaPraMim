@@ -29,10 +29,37 @@ public class LandingPageRegressionTests
         Assert.Contains("data-lead-capture-url=", layoutContent);
         Assert.Contains("data-initial-lead-origin=", layoutContent);
         Assert.Contains("~/images/logo-top-bar-consertapramim.png", layoutContent);
+        Assert.Contains("~/og-logo-consertapramim.png", layoutContent);
+        Assert.DoesNotContain("~/favicon.ico", layoutContent);
         Assert.DoesNotContain("<span class=\"brand-copy\">", layoutContent);
         Assert.DoesNotContain("class=\"brand-mark\"", layoutContent);
         Assert.DoesNotContain("window.landingConfig", layoutContent);
         Assert.DoesNotContain("<script>", layoutContent);
+    }
+
+    [Fact(DisplayName = "Landing | JS | Deve usar mensagens amigaveis e fechar modal apos sucesso")]
+    public void SiteJs_ShouldUseFriendlyMessagesAndCloseModalAfterSuccess()
+    {
+        var jsContent = File.ReadAllText(GetProjectPath(
+            "Backend",
+            "src",
+            "ConsertaPraMim.Web.Landing",
+            "wwwroot",
+            "js",
+            "site.js"));
+        var indexContent = File.ReadAllText(GetProjectPath(
+            "Backend",
+            "src",
+            "ConsertaPraMim.Web.Landing",
+            "Views",
+            "Home",
+            "Index.cshtml"));
+
+        Assert.Contains("Dados enviados com sucesso!", jsContent);
+        Assert.Contains("Verifique sua conexão e tente novamente em instantes.", jsContent);
+        Assert.Contains("leadModal.hide()", jsContent);
+        Assert.Contains("data-lead-toast", indexContent);
+        Assert.DoesNotContain("Failed to fetch", jsContent);
     }
 
     [Fact(DisplayName = "Landing | CSS | Deve respeitar hidden na secao de captacao")]

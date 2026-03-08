@@ -48,7 +48,7 @@ Validar na VPS:
 curl -I http://127.0.0.1:5088/health
 curl -I https://www.consertapramim.com
 curl -I https://www.consertapramim.com/health
-curl -I https://www.consertapramim.com/og-image.jpg
+curl -I https://www.consertapramim.com/og-logo-consertapramim.png
 curl -I https://www.consertapramim.com/Cliente
 curl -I https://www.consertapramim.com/Prestador
 curl -I https://consertapramim.com
@@ -59,7 +59,7 @@ Esperado:
 - `127.0.0.1:5088/health` -> `200`
 - `https://www.consertapramim.com` -> `200`
 - `https://www.consertapramim.com/health` -> `200`
-- `https://www.consertapramim.com/og-image.jpg` -> `200`
+- `https://www.consertapramim.com/og-logo-consertapramim.png` -> `200`
 - `https://www.consertapramim.com/Cliente` -> `200`
 - `https://www.consertapramim.com/Prestador` -> `200`
 - `https://consertapramim.com` -> `301` ou `308` para `https://www.consertapramim.com`
@@ -81,8 +81,9 @@ Esperado:
    - `og:url`
    - `og:type`
    - `twitter:card=summary_large_image`
-   - `og:image` apontando para `https://www.consertapramim.com/og-image.jpg`
-6. Validar que `og-image.jpg` abre publicamente e responde `200`.
+   - `og:image` apontando para `https://www.consertapramim.com/og-logo-consertapramim.png`
+   - `rel="icon"` apontando para `https://www.consertapramim.com/og-logo-consertapramim.png`
+6. Validar que `og-logo-consertapramim.png` abre publicamente e responde `200`.
 7. Validar as duas cards principais da home:
    - `Para Clientes`
    - `Para Profissionais`
@@ -120,16 +121,27 @@ Esperado:
    - tecla `ESC`.
    Esperado: modal fecha sem navegar nem recarregar a pagina.
 16. Preencher e enviar um lead `Cliente` com sucesso.
+    Esperado:
+   - o feedback visual `Dados enviados com sucesso!` aparece;
+   - o modal fecha automaticamente;
+   - um aviso visual de sucesso permanece visivel por alguns segundos fora do modal.
 17. Preencher e enviar um lead `Prestador` com sucesso.
+    Esperado:
+   - o feedback visual `Dados enviados com sucesso!` aparece;
+   - o modal fecha automaticamente;
+   - um aviso visual de sucesso permanece visivel por alguns segundos fora do modal.
 18. Confirmar ausencia de erros de `Mixed Content`, `Content-Security-Policy` e `CORS` no console.
 19. Confirmar que nao ha bloqueio de `inline script` no console ao carregar a pagina.
-20. Confirmar presencia dos links de rodape:
+20. Induzir falha de rede ou API indisponivel e validar:
+   - o texto tecnico `Failed to fetch` nao aparece para o usuario;
+   - o formulario exibe mensagem amigavel orientando nova tentativa.
+21. Confirmar presencia dos links de rodape:
    - `Cliente`
    - `Prestador`
    - `Admin`
    - `Swagger`
-21. Validar `https://www.consertapramim.com/robots.txt`.
-22. Validar `https://www.consertapramim.com/sitemap.xml`.
+22. Validar `https://www.consertapramim.com/robots.txt`.
+23. Validar `https://www.consertapramim.com/sitemap.xml`.
 
 ## Dados esperados por lead
 
@@ -190,9 +202,10 @@ Esperado:
 7. Existem deep links dedicados para abrir o modal direto:
    - `/Cliente`
    - `/Prestador`
-8. O `head` da home inclui metadados `Open Graph` e `Twitter Card` apontando para `og-image.jpg`.
-9. Footer enxuto com links uteis e copyright.
-10. Link `Contato` do header reaproveita o mesmo fluxo de captacao do CTA de cliente.
+8. O `head` da home inclui metadados `Open Graph` e `Twitter Card` apontando para `og-logo-consertapramim.png`.
+9. O favicon da home usa a mesma arte `og-logo-consertapramim.png` para manter consistencia entre aba do navegador e preview social.
+10. Footer enxuto com links uteis e copyright.
+11. Link `Contato` do header reaproveita o mesmo fluxo de captacao do CTA de cliente.
 
 ## Troubleshooting
 
@@ -209,6 +222,10 @@ Conferir no browser se o `<body>` possui o atributo `data-lead-capture-url`, se 
 ### `/Cliente` ou `/Prestador` nao abrem o modal automaticamente
 
 Validar se o `<body>` publicado contem `data-initial-lead-origin="client"` ou `data-initial-lead-origin="provider"` nessas rotas e se o `site.js` publicado executa `openLeadCapture(...)` no carregamento quando esse atributo existir.
+
+### O formulario retorna erro tecnico de rede para o usuario
+
+Validar se `PUBLIC_API_URL` aponta para `https://api.consertapramim.com`, se o endpoint `POST /api/landing-leads/public` responde via browser e se o `site.js` publicado converte indisponibilidade de rede para uma mensagem amigavel. O usuario nao deve ver `Failed to fetch`.
 
 ### O modal de captacao abre carregado ou os formularios ficam visiveis na home
 
@@ -254,6 +271,7 @@ Verificar:
 
 ```bash
 curl -I https://www.consertapramim.com/og-image.jpg
+curl -I https://www.consertapramim.com/og-logo-consertapramim.png
 ```
 
 Esperado:
@@ -286,8 +304,9 @@ curl -I https://www.consertapramim.com/images/landing-client-card.png
 curl -I https://www.consertapramim.com/images/landing-provider-card.png
 curl -I https://www.consertapramim.com/images/logo-top-bar-consertapramim.png
 curl -I https://www.consertapramim.com/og-image.jpg
+curl -I https://www.consertapramim.com/og-logo-consertapramim.png
 ```
 
 Esperado:
-- os arquivos `landing-client-card.png`, `landing-provider-card.png`, `logo-top-bar-consertapramim.png` e `og-image.jpg` existem no publish
+- os arquivos `landing-client-card.png`, `landing-provider-card.png`, `logo-top-bar-consertapramim.png`, `og-image.jpg` e `og-logo-consertapramim.png` existem no publish
 - todos respondem `200`

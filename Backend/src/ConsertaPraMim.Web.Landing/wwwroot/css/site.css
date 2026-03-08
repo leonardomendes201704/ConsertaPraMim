@@ -736,6 +736,35 @@ code {
     color: #b42318;
 }
 
+.lead-toast {
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    z-index: 1200;
+    display: inline-flex;
+    align-items: center;
+    max-width: min(420px, calc(100vw - 32px));
+    padding: 16px 18px;
+    border-radius: 16px;
+    background: rgba(19, 122, 65, 0.96);
+    color: #fff;
+    box-shadow: var(--shadow-lg);
+    font-weight: 700;
+    line-height: 1.4;
+    opacity: 0;
+    transform: translateY(12px);
+    transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.lead-toast.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.lead-toast.is-error {
+    background: rgba(180, 35, 24, 0.96);
+}
+
 .info-card {
     padding: 28px;
 }
@@ -930,6 +959,13 @@ code {
     .lead-modal-body {
         padding-left: 18px;
         padding-right: 18px;
+    }
+
+    .lead-toast {
+        right: 16px;
+        left: 16px;
+        bottom: 16px;
+        max-width: none;
     }
 }
 

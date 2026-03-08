@@ -20,6 +20,7 @@ public class LandingHomeControllerTests
         Assert.Equal("ConsertaPraMim – Encontre profissionais de confiança", controller.ViewData["Title"]);
         Assert.Equal("https://www.consertapramim.com/", controller.ViewData["CanonicalUrl"]);
         Assert.Equal("https://www.consertapramim.com/", controller.ViewData["OpenGraphUrl"]);
+        Assert.Equal("https://www.consertapramim.com/og-logo-consertapramim.png", controller.ViewData["OpenGraphImage"]);
         Assert.Null(model.InitialLeadOrigin);
     }
 
@@ -35,6 +36,7 @@ public class LandingHomeControllerTests
         Assert.Equal("client", model.InitialLeadOrigin);
         Assert.Equal("client", controller.ViewData["InitialLeadOrigin"]);
         Assert.Equal("https://www.consertapramim.com/Cliente", controller.ViewData["OpenGraphUrl"]);
+        Assert.Equal("https://www.consertapramim.com/og-logo-consertapramim.png", controller.ViewData["OpenGraphImage"]);
     }
 
     [Fact(DisplayName = "Landing | HomeController | Prestador deve abrir o fluxo direto do lead de prestador")]
@@ -49,6 +51,7 @@ public class LandingHomeControllerTests
         Assert.Equal("provider", model.InitialLeadOrigin);
         Assert.Equal("provider", controller.ViewData["InitialLeadOrigin"]);
         Assert.Equal("https://www.consertapramim.com/Prestador", controller.ViewData["OpenGraphUrl"]);
+        Assert.Equal("https://www.consertapramim.com/og-logo-consertapramim.png", controller.ViewData["OpenGraphImage"]);
     }
 
     private static HomeController CreateController()

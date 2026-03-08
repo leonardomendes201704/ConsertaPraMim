@@ -10,6 +10,24 @@
 
 ## Released
 
+- [2026-03-08] [LANDING-LEADS-FEEDBACK] Mensagens amigaveis e confirmacao visual no envio de leads
+- Tipo: fix
+- Resumo: o envio dos formularios `Cliente` e `Prestador` da landing passou a traduzir falhas tecnicas de rede para mensagens amigaveis, exibir confirmacao visual `Dados enviados com sucesso!` e fechar automaticamente o modal apos submissao bem-sucedida.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/js/site.js`, `Backend/src/ConsertaPraMim.Web.Landing/Views/Home/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/css/site.css`, `Backend/tests/ConsertaPraMim.Tests.Unit/Frontend/LandingPageRegressionTests.cs`, `Documentacao/LANDING_PAGE/MANUAL_QA_OPERACAO_LANDING.md`
+- Risco/Impacto: baixo
+
+- [2026-03-08] [LANDING-FAVICON-LOGO] Favicon da landing com logo quadrada oficial
+- Tipo: fix
+- Resumo: a landing passou a usar `og-logo-consertapramim.png` tambem como favicon e `apple-touch-icon`, alinhando a identidade visual da aba do navegador com o preview social publicado em `Open Graph` e `Twitter Card`.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Landing/Views/Shared/_Layout.cshtml`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/og-logo-consertapramim.png`, `Backend/tests/ConsertaPraMim.Tests.Unit/Frontend/LandingPageRegressionTests.cs`, `Documentacao/LANDING_PAGE/MANUAL_QA_OPERACAO_LANDING.md`
+- Risco/Impacto: baixo
+
+- [2026-03-08] [LANDING-OG-LOGO] Preview social da landing com logo quadrada oficial
+- Tipo: fix
+- Resumo: a landing passou a apontar `og:image` e `twitter:image` para a arte `og-logo-consertapramim.png`, baseada na logo quadrada oficial, para melhorar a visualizacao do preview no WhatsApp e outras plataformas que consomem `Open Graph`.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Landing/Controllers/HomeController.cs`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/og-logo-consertapramim.png`, `Backend/tests/ConsertaPraMim.Tests.Unit/Controllers/LandingHomeControllerTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Frontend/LandingPageRegressionTests.cs`, `Documentacao/LANDING_PAGE/MANUAL_QA_OPERACAO_LANDING.md`
+- Risco/Impacto: baixo
+
 - [2026-03-08] [LANDING-TOPBAR-BRANDING] Wordmark oficial na topbar da landing
 - Tipo: feat
 - Resumo: a topbar da landing passou a usar a arte oficial `logo-top-bar-consertapramim.png` como wordmark unico da marca, removendo o texto duplicado ao lado do logo e alinhando a identidade visual publicada em `www.consertapramim.com`.
