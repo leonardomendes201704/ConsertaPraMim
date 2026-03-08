@@ -71,24 +71,29 @@ Esperado:
 5. Validar as duas cards principais da home:
    - `Para Clientes`
    - `Para Profissionais`
-6. Clicar em `Encontrar profissional` e validar:
+6. Antes de qualquer clique, validar:
+   - a secao `#captacao` aparece apenas com o texto introdutorio;
+   - o container com abas/formularios permanece oculto;
+   - nenhum formulario `Cliente`/`Prestador` fica visivel no carregamento inicial.
+7. Clicar em `Encontrar profissional` e validar:
    - a pagina rola ate a secao de captacao;
    - o formulario `Cliente` fica visivel;
    - o formulario `Prestador` permanece oculto/inativo.
-7. Clicar em `Cadastrar-se como parceiro` e validar o espelho do fluxo para `Prestador`.
-8. Clicar em `Contato` no header e validar:
+8. Clicar em `Cadastrar-se como parceiro` e validar o espelho do fluxo para `Prestador`.
+9. Clicar em `Contato` no header e validar:
    - rolagem ate `#captacao`;
    - abertura do formulario `Cliente`.
-9. Preencher e enviar um lead `Cliente` com sucesso.
-10. Preencher e enviar um lead `Prestador` com sucesso.
-11. Confirmar ausencia de erros de `Mixed Content`, `Content-Security-Policy` e `CORS` no console.
-12. Confirmar presencia dos links de rodape:
+10. Preencher e enviar um lead `Cliente` com sucesso.
+11. Preencher e enviar um lead `Prestador` com sucesso.
+12. Confirmar ausencia de erros de `Mixed Content`, `Content-Security-Policy` e `CORS` no console.
+13. Confirmar que nao ha bloqueio de `inline script` no console ao carregar a pagina.
+14. Confirmar presencia dos links de rodape:
    - `Cliente`
    - `Prestador`
    - `Admin`
    - `Swagger`
-13. Validar `https://www.consertapramim.com/robots.txt`.
-14. Validar `https://www.consertapramim.com/sitemap.xml`.
+15. Validar `https://www.consertapramim.com/robots.txt`.
+16. Validar `https://www.consertapramim.com/sitemap.xml`.
 
 ## Dados esperados por lead
 
@@ -156,7 +161,19 @@ Verificar se o JS da landing carregou corretamente:
 curl -I https://www.consertapramim.com/js/site.js
 ```
 
-Conferir no browser se existe `window.landingConfig` e se o listener dos botoes foi registrado.
+Conferir no browser se o `<body>` possui o atributo `data-lead-capture-url` e se o listener dos botoes foi registrado.
+
+### Os dois formularios aparecem abertos no carregamento inicial
+
+Conferir se o CSS publicado contem a regra:
+
+```css
+[hidden] {
+    display: none !important;
+}
+```
+
+Se a regra nao estiver no asset final, recrear o container `web-landing` para invalidar cache do publish.
 
 ### `Failed to fetch` ou erro de CORS ao enviar lead
 
@@ -170,7 +187,10 @@ Na VPS, confirmar `PUBLIC_LANDING_URL` no compose da API e recrear o servico se 
 
 ### Erro de CSP ao enviar lead
 
-Conferir o header `Content-Security-Policy` da landing e validar se `connect-src` inclui `https://api.consertapramim.com`.
+Conferir o header `Content-Security-Policy` da landing e validar se:
+
+- `connect-src` inclui `https://api.consertapramim.com`
+- nao existe mais `<script>` inline para `window.landingConfig` no HTML publicado
 
 ### Lead nao aparece no banco
 

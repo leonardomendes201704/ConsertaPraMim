@@ -10,6 +10,12 @@
 
 ## Released
 
+- [2026-03-08] [LANDING-LEADS-UX-CSP] Formularios da landing ocultos no load e sem script inline
+- Tipo: fix
+- Resumo: a landing publica passou a respeitar o estado oculto da secao de captacao no carregamento inicial, exibindo apenas o formulario correspondente ao CTA acionado (`Cliente` ou `Prestador`); a configuracao do endpoint de captura deixou de ser injetada por `<script>` inline e passou a usar `data-*` no `body`, eliminando bloqueio de `Content-Security-Policy` com `script-src 'self'`.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Landing/Views/Shared/_Layout.cshtml`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/js/site.js`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/css/site.css`, `Backend/tests/ConsertaPraMim.Tests.Unit/Frontend/LandingPageRegressionTests.cs`, `Documentacao/LANDING_PAGE/MANUAL_QA_OPERACAO_LANDING.md`
+- Risco/Impacto: medio
+
 - [2026-03-08] [ST-058][ADMIN-LANDING-LEADS] Modulo administrativo para leads captados na landing
 - Tipo: feat
 - Resumo: o portal admin passou a ter o item de menu `Leads Landing`, com grid paginado, filtros em drawer offcanvas por origem/busca/cidade/UF/periodo, totalizadores por origem e tela de detalhe para consulta da localidade real do lead (`bairro - cidade/UF`), contexto comercial, UTM e metadados tecnicos capturados na landing; a API recebeu endpoints administrativos autenticados para listagem e detalhe desse backlog comercial.

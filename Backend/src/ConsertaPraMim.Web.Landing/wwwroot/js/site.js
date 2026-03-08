@@ -1,7 +1,10 @@
-﻿(function () {
+(function () {
+    const pageConfigSource = document.body;
     const navToggle = document.querySelector("[data-nav-toggle]");
     const nav = document.querySelector("[data-nav]");
-    const config = window.landingConfig || {};
+    const config = {
+        leadCaptureUrl: pageConfigSource ? pageConfigSource.getAttribute("data-lead-capture-url") || "" : ""
+    };
     const leadShell = document.querySelector("[data-lead-shell]");
     const leadPanels = document.querySelectorAll("[data-lead-panel]");
     const leadTabs = document.querySelectorAll("[data-lead-tab]");
