@@ -72,8 +72,7 @@ namespace ConsertaPraMim.Infrastructure.Migrations
                 table: "LandingAccessEvents",
                 type: "nvarchar(80)",
                 maxLength: 80,
-                nullable: false,
-                defaultValue: "");
+                nullable: true);
 
             migrationBuilder.CreateTable(
                 name: "LandingTelemetryEvents",
@@ -145,6 +144,25 @@ namespace ConsertaPraMim.Infrastructure.Migrations
                 name: "IX_LandingAccessEvents_SessionId_CreatedAt",
                 table: "LandingAccessEvents",
                 columns: new[] { "SessionId", "CreatedAt" });
+
+            migrationBuilder.Sql(
+                """
+                UPDATE [LandingAccessEvents]
+                SET [SessionId] = CONCAT(N'legacy-', CONVERT(nvarchar(36), [Id]))
+                WHERE [SessionId] IS NULL OR LTRIM(RTRIM([SessionId])) = N'';
+                """);
+
+            migrationBuilder.AlterColumn<string>(
+                name: "SessionId",
+                table: "LandingAccessEvents",
+                type: "nvarchar(80)",
+                maxLength: 80,
+                nullable: false,
+                defaultValue: "",
+                oldClrType: typeof(string),
+                oldType: "nvarchar(80)",
+                oldMaxLength: 80,
+                oldNullable: true);
 
             migrationBuilder.AddCheckConstraint(
                 name: "CK_LandingAccessEvents_SessionId_NotEmpty",
