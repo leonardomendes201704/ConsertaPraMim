@@ -71,7 +71,7 @@ Esperado:
 2. Abrir `https://www.consertapramim.com` em viewport mobile.
 3. Confirmar que o menu mobile abre/fecha.
 4. Confirmar que o header exibe:
-   - marca `ConsertaPraMim`
+   - wordmark `ConsertaPraMim` em imagem unica na topbar, sem texto duplicado ao lado
    - links `Início`, `Sobre`, `Contato`
    - CTA `Entrar`
 5. Confirmar no `view-source` da home:
@@ -88,8 +88,8 @@ Esperado:
    - `Para Profissionais`
 8. Validar a seção `Testemunhos` logo abaixo do bloco institucional:
    - existem duas colunas visíveis;
-   - a coluna de clientes exibe 10 depoimentos;
-   - a coluna de prestadores exibe 10 depoimentos;
+   - a coluna de clientes exibe 5 depoimentos;
+   - a coluna de prestadores exibe 5 depoimentos;
    - os cards permanecem legíveis em desktop e mobile.
 9. Antes de qualquer clique, validar:
    - nenhum modal de captacao aparece aberto no carregamento inicial;
@@ -179,11 +179,12 @@ Esperado:
 ## Layout esperado da home
 
 1. Header claro com navegacao simples e CTA destacado a direita.
+   - a marca usa a imagem `logo-top-bar-consertapramim.png` como wordmark unico
 2. Hero centralizado com titulo `Bem-vindo ao ConsertaPraMim`.
 3. Dois cards de entrada em destaque:
    - cliente com CTA que abre o formulario de lead `Cliente`
    - profissional com CTA que abre o formulario de lead `Prestador`
-4. Secao `Testemunhos` logo abaixo do bloco institucional, com 10 depoimentos de clientes e 10 de prestadores.
+4. Secao `Testemunhos` logo abaixo do bloco institucional, com 5 depoimentos de clientes e 5 de prestadores.
 5. O modal de captacao permanece fechado no carregamento inicial e abre apenas quando um CTA principal for acionado.
 6. O bloco `Contato` e o formulario correspondente aparecem juntos dentro do modal, sem toggles intermediarios.
 7. Existem deep links dedicados para abrir o modal direto:
@@ -283,9 +284,10 @@ docker exec cpm-web-landing ls -la /app/wwwroot
 docker exec cpm-web-landing ls -la /app/wwwroot/images
 curl -I https://www.consertapramim.com/images/landing-client-card.png
 curl -I https://www.consertapramim.com/images/landing-provider-card.png
+curl -I https://www.consertapramim.com/images/logo-top-bar-consertapramim.png
 curl -I https://www.consertapramim.com/og-image.jpg
 ```
 
 Esperado:
-- os arquivos `landing-client-card.png`, `landing-provider-card.png` e `og-image.jpg` existem no publish
+- os arquivos `landing-client-card.png`, `landing-provider-card.png`, `logo-top-bar-consertapramim.png` e `og-image.jpg` existem no publish
 - todos respondem `200`

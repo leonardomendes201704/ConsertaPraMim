@@ -95,24 +95,15 @@ code {
 .brand {
     display: inline-flex;
     align-items: center;
-    gap: 18px;
     color: var(--ink);
+    flex: 0 0 auto;
 }
 
-.brand-mark {
-    width: 34px;
-    height: 42px;
-    display: inline-block;
-    background: linear-gradient(180deg, #0f5bbb 0%, #0a4ea5 100%);
-    clip-path: polygon(16% 0, 84% 0, 74% 50%, 84% 100%, 16% 100%, 26% 50%);
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
-}
-
-.brand-copy {
-    font-family: var(--display-font);
-    font-size: clamp(1.6rem, 2.2vw, 2.2rem);
-    font-weight: 800;
-    letter-spacing: -0.04em;
+.brand-logo {
+    display: block;
+    width: clamp(230px, 28vw, 340px);
+    max-width: 100%;
+    height: auto;
 }
 
 .site-nav {
@@ -894,13 +885,8 @@ code {
         min-height: 76px;
     }
 
-    .brand-mark {
-        width: 28px;
-        height: 36px;
-    }
-
-    .brand-copy {
-        font-size: 1.8rem;
+    .brand-logo {
+        width: min(250px, calc(100vw - 130px));
     }
 
     .hero-section {

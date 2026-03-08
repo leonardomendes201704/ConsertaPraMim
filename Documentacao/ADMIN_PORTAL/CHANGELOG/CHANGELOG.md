@@ -10,6 +10,12 @@
 
 ## Released
 
+- [2026-03-08] [LANDING-TOPBAR-BRANDING] Wordmark oficial na topbar da landing
+- Tipo: feat
+- Resumo: a topbar da landing passou a usar a arte oficial `logo-top-bar-consertapramim.png` como wordmark unico da marca, removendo o texto duplicado ao lado do logo e alinhando a identidade visual publicada em `www.consertapramim.com`.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Landing/Views/Shared/_Layout.cshtml`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/css/site.css`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/images/logo-top-bar-consertapramim.png`, `Backend/tests/ConsertaPraMim.Tests.Unit/Frontend/LandingPageRegressionTests.cs`, `Documentacao/LANDING_PAGE/MANUAL_QA_OPERACAO_LANDING.md`
+- Risco/Impacto: baixo
+
 - [2026-03-08] [LANDING-SEO-DEEPLINKS] Open Graph da landing e rotas diretas de captacao
 - Tipo: feat
 - Resumo: a landing publica passou a expor metadados `Open Graph` e `Twitter Card` com imagem publica `og-image.jpg`, titulo/descricao prontos para compartilhamento e URLs dedicadas `https://www.consertapramim.com/Cliente` e `https://www.consertapramim.com/Prestador` que abrem automaticamente o modal do formulario correspondente.

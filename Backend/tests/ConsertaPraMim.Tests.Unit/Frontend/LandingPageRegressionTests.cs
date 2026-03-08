@@ -7,8 +7,8 @@ namespace ConsertaPraMim.Tests.Unit.Frontend;
 
 public class LandingPageRegressionTests
 {
-    [Fact(DisplayName = "Landing | Layout | Deve carregar Bootstrap local, OG tags e evitar script inline")]
-    public void Layout_ShouldLoadLocalBootstrapOpenGraphAndAvoidInlineScriptConfiguration()
+    [Fact(DisplayName = "Landing | Layout | Deve carregar Bootstrap local, OG tags, wordmark e evitar script inline")]
+    public void Layout_ShouldLoadLocalBootstrapOpenGraphWordmarkAndAvoidInlineScriptConfiguration()
     {
         var layoutContent = File.ReadAllText(GetProjectPath(
             "Backend",
@@ -28,6 +28,9 @@ public class LandingPageRegressionTests
         Assert.Contains("name=\"twitter:card\"", layoutContent);
         Assert.Contains("data-lead-capture-url=", layoutContent);
         Assert.Contains("data-initial-lead-origin=", layoutContent);
+        Assert.Contains("~/images/logo-top-bar-consertapramim.png", layoutContent);
+        Assert.DoesNotContain("<span class=\"brand-copy\">", layoutContent);
+        Assert.DoesNotContain("class=\"brand-mark\"", layoutContent);
         Assert.DoesNotContain("window.landingConfig", layoutContent);
         Assert.DoesNotContain("<script>", layoutContent);
     }
@@ -78,8 +81,8 @@ public class LandingPageRegressionTests
         Assert.True(headingIndex > shellIndex);
     }
 
-    [Fact(DisplayName = "Landing | Testemunhos | Deve renderizar 10 clientes e 10 prestadores")]
-    public void Index_ShouldRenderTwentyTestimonialsWithBalancedOrigins()
+    [Fact(DisplayName = "Landing | Testemunhos | Deve renderizar 5 clientes e 5 prestadores")]
+    public void Index_ShouldRenderTenTestimonialsWithBalancedOrigins()
     {
         var indexContent = File.ReadAllText(GetProjectPath(
             "Backend",
@@ -106,8 +109,8 @@ public class LandingPageRegressionTests
         var clientCount = Regex.Matches(clientBlock.Groups["items"].Value, @"new\s*\{\s*Name\s*=", RegexOptions.CultureInvariant).Count;
         var providerCount = Regex.Matches(providerBlock.Groups["items"].Value, @"new\s*\{\s*Name\s*=", RegexOptions.CultureInvariant).Count;
 
-        Assert.Equal(10, clientCount);
-        Assert.Equal(10, providerCount);
+        Assert.Equal(5, clientCount);
+        Assert.Equal(5, providerCount);
     }
 
     private static string GetProjectPath(params string[] segments)
