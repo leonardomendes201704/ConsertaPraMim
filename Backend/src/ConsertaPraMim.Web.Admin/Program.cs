@@ -32,7 +32,7 @@ builder.Services.AddScoped<IAdminWikiService, AdminWikiService>();
 builder.Services.AddScoped<IAdminChangeLogsService, AdminChangeLogsService>();
 builder.Services.AddScoped<IAdminDiagramsService, AdminDiagramsService>();
 builder.Services.AddScoped<IAdminRoadmapService, AdminRoadmapService>();
-var apiOrigin = ResolveOrigin(builder.Configuration["ApiBaseUrl"]);
+var apiOrigin = ResolveOrigin(builder.Configuration["BrowserApiBaseUrl"] ?? builder.Configuration["ApiBaseUrl"]);
 
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {

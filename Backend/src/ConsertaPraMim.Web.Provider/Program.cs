@@ -54,7 +54,7 @@ builder.Services.AddScoped<IProviderGalleryMediaProcessor, ProviderApiProviderGa
 builder.Services.AddScoped<IFileStorageService, ProviderApiFileStorageService>();
 builder.Services.AddScoped<IDrivingRouteService, ProviderApiDrivingRouteService>();
 builder.Services.AddScoped<IPaymentReceiptService, ProviderApiPaymentReceiptService>();
-var apiOrigin = ResolveOrigin(builder.Configuration["ApiBaseUrl"]);
+var apiOrigin = ResolveOrigin(builder.Configuration["BrowserApiBaseUrl"] ?? builder.Configuration["ApiBaseUrl"]);
 
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {

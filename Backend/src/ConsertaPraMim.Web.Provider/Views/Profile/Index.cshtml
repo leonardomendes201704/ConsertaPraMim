@@ -13,9 +13,8 @@
         .ToList();
     var planMaxRadius = Math.Max(1.0, Model.ProviderProfile?.PlanMaxRadiusKm ?? 50);
     var planMaxCategories = Model.ProviderProfile?.PlanMaxAllowedCategories ?? categories.Count;
-    var apiBaseUrl = (Configuration["ApiBaseUrl"] ?? string.Empty).TrimEnd('/');
-    var browserApiBaseUrl = apiBaseUrl;
-    if (!string.IsNullOrWhiteSpace(apiBaseUrl) && Uri.TryCreate(apiBaseUrl, UriKind.Absolute, out var apiBaseUri))
+    var browserApiBaseUrl = (Configuration["BrowserApiBaseUrl"] ?? Configuration["ApiBaseUrl"] ?? string.Empty).TrimEnd('/');
+    if (!string.IsNullOrWhiteSpace(browserApiBaseUrl) && Uri.TryCreate(browserApiBaseUrl, UriKind.Absolute, out var apiBaseUri))
     {
         var requestHost = (Context.Request.Host.Host ?? string.Empty).Trim();
         var isRequestFromLocalhost =

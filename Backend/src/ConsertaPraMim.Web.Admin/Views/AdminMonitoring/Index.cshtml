@@ -5,9 +5,8 @@
     ViewData["Title"] = "Monitoramento";
     var filters = Model.Filters;
 
-    var apiBaseUrl = (Configuration["ApiBaseUrl"] ?? string.Empty).TrimEnd('/');
-    var browserApiBaseUrl = apiBaseUrl;
-    if (!string.IsNullOrWhiteSpace(apiBaseUrl) && Uri.TryCreate(apiBaseUrl, UriKind.Absolute, out var apiBaseUri))
+    var browserApiBaseUrl = (Configuration["BrowserApiBaseUrl"] ?? Configuration["ApiBaseUrl"] ?? string.Empty).TrimEnd('/');
+    if (!string.IsNullOrWhiteSpace(browserApiBaseUrl) && Uri.TryCreate(browserApiBaseUrl, UriKind.Absolute, out var apiBaseUri))
     {
         var requestHost = (Context.Request.Host.Host ?? string.Empty).Trim();
         var isRequestFromLocalhost =
@@ -202,7 +201,7 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
         <h3 class="mb-1">Monitoramento</h3>
-        <p class="text-muted mb-0">Observabilidade E2E da API com mÃ©tricas operacionais e drilldown tÃ©cnico.</p>
+        <p class="text-muted mb-0">Observabilidade E2E da API com métricas operacionais e drilldown técnico.</p>
     </div>
     <div class="d-flex align-items-center gap-2 flex-wrap justify-content-end">
         <div class="form-check form-switch telemetry-runtime-switch mb-0">
@@ -310,7 +309,7 @@
 
 <div id="monitoringDashboardContent">
 <div id="monitoringErrorAlert" class="alert alert-warning d-none"></div>
-<div id="monitoringLoadingAlert" class="alert alert-info d-none">Carregando mÃ©tricas de monitoramento...</div>
+<div id="monitoringLoadingAlert" class="alert alert-info d-none">Carregando métricas de monitoramento...</div>
 
 <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-5 g-2 mb-3" id="kpiCards">
     <div class="col">

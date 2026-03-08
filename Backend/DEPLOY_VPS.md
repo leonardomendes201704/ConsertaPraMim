@@ -67,6 +67,7 @@ chmod +x scripts/deploy/vps-deploy.sh scripts/deploy/vps-deploy-service.sh
 Preencha no `Backend/.env.vps` pelo menos:
 - `APP_ENVIRONMENT=Production`
 - `VPS_PUBLIC_HOST` (host ou IP cru, sem `http://` ou `https://`)
+- `INTERNAL_API_URL`
 - `PUBLIC_API_URL`
 - `PUBLIC_ADMIN_URL`
 - `PUBLIC_CLIENT_URL`
@@ -82,6 +83,7 @@ Exemplo minimo:
 APP_ENVIRONMENT=Production
 VPS_PUBLIC_HOST=SEU_IP_OU_HOST_DA_VPS
 
+INTERNAL_API_URL=http://cpm-api:8080
 PUBLIC_API_URL=https://api.consertapramim.com
 PUBLIC_ADMIN_URL=https://admin.consertapramim.com
 PUBLIC_CLIENT_URL=https://cliente.consertapramim.com
@@ -182,7 +184,8 @@ MSSQL_CONTAINER_NAME=mssql-mssql-1 MSSQL_HOST_ALIAS=mssql scripts/deploy/vps-dep
 
 Observacao operacional:
 - o script `scripts/deploy/vps-deploy-service.sh` faz `build` antes do `up` e remove o container fixo existente (`cpm-api`, `cpm-web-admin`, etc.) para evitar conflito de `container_name`;
-- os servicos `api`, `web-admin`, `web-client` e `web-provider` ficam publicados apenas em `127.0.0.1`, por isso o acesso externo precisa passar pelo Nginx.
+- os servicos `api`, `web-admin`, `web-client` e `web-provider` ficam publicados apenas em `127.0.0.1`, por isso o acesso externo precisa passar pelo Nginx;
+- os portais usam `INTERNAL_API_URL` para chamadas server-side na rede Docker e `PUBLIC_API_URL` para URLs injetadas no browser.
 
 ## 7) Validacao pos-deploy
 
@@ -203,6 +206,20 @@ curl -I https://admin.consertapramim.com/Account/Login
 curl -I https://cliente.consertapramim.com/Account/Login
 curl -I https://prestador.consertapramim.com/Account/Login
 ```
+
+Validacao da malha Docker:
+
+```bash
+docker inspect cpm-web-admin --format '{{range .Config.Env}}{{println .}}{{end}}' | grep -E '^(ApiBaseUrl|BrowserApiBaseUrl)='
+docker inspect cpm-web-client --format '{{range .Config.Env}}{{println .}}{{end}}' | grep -E '^(ApiBaseUrl|BrowserApiBaseUrl)='
+docker inspect cpm-web-provider --format '{{range .Config.Env}}{{println .}}{{end}}' | grep -E '^(ApiBaseUrl|BrowserApiBaseUrl)='
+docker run --rm --network conserta_net curlimages/curl:8.12.1 -I http://cpm-api:8080/health
+docker run --rm --network conserta_net curlimages/curl:8.12.1 -I https://api.consertapramim.com/health
+```
+
+Esperado:
+- `ApiBaseUrl=http://cpm-api:8080`
+- `BrowserApiBaseUrl=https://api.consertapramim.com`
 
 Validacao funcional no navegador:
 - abrir `https://admin.consertapramim.com`;

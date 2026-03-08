@@ -50,7 +50,7 @@ builder.Services.AddScoped<IProfileService, ClientApiProfileService>();
 builder.Services.AddScoped<IPaymentReceiptService, ClientApiPaymentReceiptService>();
 builder.Services.AddScoped<IPaymentCheckoutService, ClientApiPaymentCheckoutService>();
 builder.Services.AddScoped<IPaymentWebhookService, ClientApiPaymentWebhookService>();
-var apiOrigin = ResolveOrigin(builder.Configuration["ApiBaseUrl"]);
+var apiOrigin = ResolveOrigin(builder.Configuration["BrowserApiBaseUrl"] ?? builder.Configuration["ApiBaseUrl"]);
 
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {

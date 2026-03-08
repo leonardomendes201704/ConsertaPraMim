@@ -10,6 +10,12 @@
 
 ## Released
 
+- [2026-03-07] [OPS-VPS-API-URL-SPLIT] Separacao entre URL interna e publica da API nos portais web
+- Tipo: fix
+- Resumo: os portais web da VPS passaram a usar `ApiBaseUrl` interno via rede Docker (`http://cpm-api:8080`) para chamadas server-side e `BrowserApiBaseUrl` publico (`https://api.consertapramim.com`) para chat, upload, SignalR e links Swagger no navegador, eliminando falha de autenticacao causada pelo uso do IP publico legado `http://187.77.48.150:5193` dentro dos containers.
+- Arquivos principais: `Backend/docker-compose.vps.web-admin.yml`, `Backend/docker-compose.vps.web-client.yml`, `Backend/docker-compose.vps.web-provider.yml`, `Backend/docker-compose.vps.yml`, `Backend/.env.vps.example`, `Backend/src/ConsertaPraMim.Web.Admin/Program.cs`, `Backend/src/ConsertaPraMim.Web.Client/Program.cs`, `Backend/src/ConsertaPraMim.Web.Provider/Program.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/Shared/_Layout.cshtml`, `Backend/src/ConsertaPraMim.Web.Client/Views/Shared/_Layout.cshtml`, `Backend/src/ConsertaPraMim.Web.Provider/Views/Shared/_Layout.cshtml`, `Backend/src/ConsertaPraMim.Web.Provider/Views/Profile/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminMonitoring/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminApplicationsController.cs`, `Backend/DEPLOY_VPS.md`
+- Risco/Impacto: alto
+
 - [2026-03-07] [OPS-HTTPS-VPS] Reverse proxy HTTPS para API e portais web na VPS
 - Tipo: feat
 - Resumo: a stack de deploy da VPS passou a suportar publicacao segura via Nginx + Certbot para API, portal admin, portal cliente e portal prestador, com `ForwardedHeaders` nos apps ASP.NET, bind local em `127.0.0.1`, URLs publicas HTTPS parametrizadas no compose e workflow ajustado para gerar `.env.vps` com os novos hosts publicos.
