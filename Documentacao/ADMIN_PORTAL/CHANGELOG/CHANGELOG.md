@@ -10,6 +10,12 @@
 
 ## Released
 
+- [2026-03-08] [LANDING-FOOTER-CLEANUP] Rodape da landing sem links operacionais
+- Tipo: fix
+- Resumo: o rodape da landing deixou de exibir os links `Cliente`, `Prestador`, `Admin` e `Swagger`, mantendo apenas o copyright institucional para reduzir ruído de navegação e concentrar a jornada principal nos CTAs da home e no header.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Landing/Views/Shared/_Layout.cshtml`, `Backend/tests/ConsertaPraMim.Tests.Unit/Frontend/LandingPageRegressionTests.cs`, `Documentacao/LANDING_PAGE/MANUAL_QA_OPERACAO_LANDING.md`
+- Risco/Impacto: baixo
+
 - [2026-03-08] [LANDING-PUBLIC-URL-RESOLVER] Landing resolve URLs publicas HTTPS a partir do host publicado
 - Tipo: fix
 - Resumo: a landing passou a resolver `LeadCaptureUrl`, `ApiBaseUrl`, `ApiSwaggerUrl` e links de portal a partir do host real da requisicao quando a configuracao ainda trouxer `localhost` ou IP HTTP legado da VPS; com isso, o browser deixa de enviar leads para `http://187.77.48.150:5193` e passa a usar `https://api.consertapramim.com`, eliminando o erro amigavel recorrente no submit causado por destino stale no HTML publicado.

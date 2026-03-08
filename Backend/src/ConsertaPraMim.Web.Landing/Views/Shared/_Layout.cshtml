@@ -14,11 +14,7 @@
     var twitterCard = ViewData["TwitterCard"] as string ?? "summary_large_image";
     var initialLeadOrigin = ViewData["InitialLeadOrigin"] as string ?? "";
     var requestHost = Context?.Request?.Host.Host;
-    var clientPortalUrl = LandingPublicUrlResolver.ResolvePortalUrl(siteOptions.ClientPortalUrl, requestHost, "cliente", "https://cliente.consertapramim.com");
-    var providerPortalUrl = LandingPublicUrlResolver.ResolvePortalUrl(siteOptions.ProviderPortalUrl, requestHost, "prestador", "https://prestador.consertapramim.com");
-    var adminPortalUrl = LandingPublicUrlResolver.ResolvePortalUrl(siteOptions.AdminPortalUrl, requestHost, "admin", "https://admin.consertapramim.com");
     var apiBaseUrl = LandingPublicUrlResolver.ResolveApiBaseUrl(siteOptions.ApiBaseUrl ?? siteOptions.ApiSwaggerUrl, requestHost, "https://api.consertapramim.com");
-    var apiSwaggerUrl = LandingPublicUrlResolver.ResolveSwaggerUrl(siteOptions.ApiSwaggerUrl ?? siteOptions.ApiBaseUrl, requestHost, "https://api.consertapramim.com");
     var leadCaptureUrl = apiBaseUrl.TrimEnd('/') + "/api/landing-leads/public";
     var homeUrl = canonicalUrl.TrimEnd('/');
     var homeTopUrl = $"{homeUrl}/#top";
@@ -75,12 +71,6 @@
         <footer class="site-footer">
             <div class="container footer-shell">
                 <p>© @DateTime.UtcNow.Year ConsertaPraMim. Todos os direitos reservados.</p>
-                <nav class="footer-links" aria-label="Rodapé">
-                    <a href="@clientPortalUrl">Cliente</a>
-                    <a href="@providerPortalUrl">Prestador</a>
-                    <a href="@adminPortalUrl">Admin</a>
-                    <a href="@apiSwaggerUrl">Swagger</a>
-                </nav>
             </div>
         </footer>
     </div>

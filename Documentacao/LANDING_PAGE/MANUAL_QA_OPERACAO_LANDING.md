@@ -137,11 +137,7 @@ Esperado:
 20. Induzir falha de rede ou API indisponivel e validar:
    - o texto tecnico `Failed to fetch` nao aparece para o usuario;
    - o formulario exibe mensagem amigavel orientando nova tentativa.
-21. Confirmar presencia dos links de rodape:
-   - `Cliente`
-   - `Prestador`
-   - `Admin`
-   - `Swagger`
+21. Confirmar que o rodape exibe apenas o copyright institucional, sem links operacionais.
 22. Validar `https://www.consertapramim.com/robots.txt`.
 23. Validar `https://www.consertapramim.com/sitemap.xml`.
 
@@ -206,7 +202,7 @@ Esperado:
    - `/Prestador`
 8. O `head` da home inclui metadados `Open Graph` e `Twitter Card` apontando para `og-logo-consertapramim.png`.
 9. O favicon da home usa a mesma arte `og-logo-consertapramim.png` para manter consistencia entre aba do navegador e preview social.
-10. Footer enxuto com links uteis e copyright.
+10. Footer enxuto apenas com copyright institucional.
 11. Link `Contato` do header reaproveita o mesmo fluxo de captacao do CTA de cliente.
 
 ## Troubleshooting

@@ -7,8 +7,8 @@ namespace ConsertaPraMim.Tests.Unit.Frontend;
 
 public class LandingPageRegressionTests
 {
-    [Fact(DisplayName = "Landing | Layout | Deve carregar Bootstrap local, OG tags, wordmark e resolver URLs públicas")]
-    public void Layout_ShouldLoadLocalBootstrapOpenGraphWordmarkAndResolvePublicUrls()
+    [Fact(DisplayName = "Landing | Layout | Deve carregar Bootstrap local, OG tags, wordmark e footer sem links operacionais")]
+    public void Layout_ShouldLoadLocalBootstrapOpenGraphWordmarkAndKeepFooterWithoutOperationalLinks()
     {
         var layoutContent = File.ReadAllText(GetProjectPath(
             "Backend",
@@ -30,8 +30,14 @@ public class LandingPageRegressionTests
         Assert.Contains("data-initial-lead-origin=", layoutContent);
         Assert.Contains("~/images/logo-top-bar-consertapramim.png", layoutContent);
         Assert.Contains("~/og-logo-consertapramim.png", layoutContent);
+        Assert.Contains("© @DateTime.UtcNow.Year ConsertaPraMim. Todos os direitos reservados.", layoutContent);
         Assert.Contains("LandingPublicUrlResolver.ResolveApiBaseUrl", layoutContent);
-        Assert.Contains("LandingPublicUrlResolver.ResolvePortalUrl", layoutContent);
+        Assert.DoesNotContain("LandingPublicUrlResolver.ResolvePortalUrl", layoutContent);
+        Assert.DoesNotContain("class=\"footer-links\"", layoutContent);
+        Assert.DoesNotContain(">Cliente</a>", layoutContent);
+        Assert.DoesNotContain(">Prestador</a>", layoutContent);
+        Assert.DoesNotContain(">Admin</a>", layoutContent);
+        Assert.DoesNotContain(">Swagger</a>", layoutContent);
         Assert.DoesNotContain("~/favicon.ico", layoutContent);
         Assert.DoesNotContain("<span class=\"brand-copy\">", layoutContent);
         Assert.DoesNotContain("class=\"brand-mark\"", layoutContent);
