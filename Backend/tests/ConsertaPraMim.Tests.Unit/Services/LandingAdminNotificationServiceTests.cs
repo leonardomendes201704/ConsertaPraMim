@@ -33,6 +33,7 @@ public class LandingAdminNotificationServiceTests
 
         await service.NotifyLandingAccessAsync(new NotifyLandingAccessRequestDto(
             VisitorId: "visitor-admin-001",
+            SessionId: "session-admin-001",
             CurrentUrl: "https://www.consertapramim.com/Prestador",
             Path: "/Prestador",
             Host: "www.consertapramim.com",
@@ -51,6 +52,7 @@ public class LandingAdminNotificationServiceTests
                 "/AdminHome/Index",
                 It.Is<IReadOnlyDictionary<string, string>>(data =>
                     data["visitorId"] == "visitor-admin-001" &&
+                    data["sessionId"] == "session-admin-001" &&
                     data["type"] == "landing_public_access" &&
                     data["path"] == "/Prestador" &&
                     data["ipAddress"] == "187.77.48.150")),

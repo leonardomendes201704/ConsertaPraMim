@@ -19,7 +19,7 @@ public class InternalLandingNotificationsControllerTests
         controller.ControllerContext.HttpContext.Request.Headers["X-Deploy-Token"] = "token-errado";
 
         var result = await controller.NotifyAccess(
-            new NotifyLandingAccessRequestDto("visitor-1", null, "/", "www.consertapramim.com", "https", null, "187.77.48.150", null, "Mozilla/5.0", "pt-BR", null),
+            new NotifyLandingAccessRequestDto("visitor-1", "session-1", null, "/", "www.consertapramim.com", "https", null, "187.77.48.150", null, "Mozilla/5.0", "pt-BR", null),
             CancellationToken.None);
 
         Assert.IsType<UnauthorizedObjectResult>(result);
@@ -33,6 +33,7 @@ public class InternalLandingNotificationsControllerTests
         controller.ControllerContext.HttpContext.Request.Headers["X-Deploy-Token"] = "segredo-correto";
         var request = new NotifyLandingAccessRequestDto(
             VisitorId: "visitor-123",
+            SessionId: "session-123",
             CurrentUrl: "https://www.consertapramim.com/Cliente",
             Path: "/Cliente",
             Host: "www.consertapramim.com",

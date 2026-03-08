@@ -16,6 +16,16 @@ public interface IAdminOperationsApiClient
         string accessToken,
         CancellationToken cancellationToken = default);
 
+    Task<AdminApiResult<AdminLandingAnalyticsOverviewDto>> GetLandingAnalyticsAsync(
+        AdminLandingAnalyticsFilterModel filters,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
+    Task<AdminApiResult<AdminLandingAnalyticsSessionDetailsDto>> GetLandingAnalyticsSessionDetailsAsync(
+        string sessionId,
+        string accessToken,
+        CancellationToken cancellationToken = default);
+
     Task<AdminApiResult<AdminServiceRequestsListResponseDto>> GetServiceRequestsAsync(
         AdminServiceRequestsFilterModel filters,
         string accessToken,

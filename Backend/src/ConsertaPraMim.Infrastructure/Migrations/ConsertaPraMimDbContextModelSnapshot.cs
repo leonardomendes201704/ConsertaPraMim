@@ -830,6 +830,34 @@ namespace ConsertaPraMim.Infrastructure.Migrations
                         .HasMaxLength(300)
                         .HasColumnType("nvarchar(300)");
 
+                    b.Property<string>("GeoCity")
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("GeoCountry")
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("GeoCountryCode")
+                        .HasMaxLength(8)
+                        .HasColumnType("nvarchar(8)");
+
+                    b.Property<string>("GeoLookupStatus")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<string>("GeoProvider")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<string>("GeoRegion")
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("GeoRegionCode")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
                     b.Property<string>("Host")
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
@@ -857,6 +885,11 @@ namespace ConsertaPraMim.Infrastructure.Migrations
                         .HasMaxLength(10)
                         .HasColumnType("nvarchar(10)");
 
+                    b.Property<string>("SessionId")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
 
@@ -873,15 +906,25 @@ namespace ConsertaPraMim.Infrastructure.Migrations
 
                     b.HasIndex("CreatedAt");
 
+                    b.HasIndex("GeoCity", "CreatedAt");
+
+                    b.HasIndex("GeoCountryCode", "CreatedAt");
+
+                    b.HasIndex("GeoRegionCode", "CreatedAt");
+
                     b.HasIndex("InitialLeadOrigin", "CreatedAt");
 
                     b.HasIndex("Path", "CreatedAt");
+
+                    b.HasIndex("SessionId", "CreatedAt");
 
                     b.HasIndex("VisitorId", "CreatedAt");
 
                     b.ToTable("LandingAccessEvents", t =>
                         {
                             t.HasCheckConstraint("CK_LandingAccessEvents_InitialLeadOrigin_Valid", "[InitialLeadOrigin] IS NULL OR [InitialLeadOrigin] IN (1,2)");
+
+                            t.HasCheckConstraint("CK_LandingAccessEvents_SessionId_NotEmpty", "LEN([SessionId]) > 0");
 
                             t.HasCheckConstraint("CK_LandingAccessEvents_VisitorId_NotEmpty", "LEN([VisitorId]) > 0");
                         });
@@ -996,6 +1039,10 @@ namespace ConsertaPraMim.Infrastructure.Migrations
                         .HasMaxLength(120)
                         .HasColumnType("nvarchar(120)");
 
+                    b.Property<string>("SessionId")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
                     b.Property<string>("State")
                         .IsRequired()
                         .HasMaxLength(2)
@@ -1043,6 +1090,8 @@ namespace ConsertaPraMim.Infrastructure.Migrations
 
                     b.HasIndex("Origin", "CreatedAt");
 
+                    b.HasIndex("SessionId", "CreatedAt");
+
                     b.HasIndex("UtmCampaign", "CreatedAt");
 
                     b.HasIndex("VisitorId", "CreatedAt");
@@ -1054,6 +1103,141 @@ namespace ConsertaPraMim.Infrastructure.Migrations
                             t.HasCheckConstraint("CK_LandingLeads_Origin_Valid", "[Origin] IN (1,2)");
 
                             t.HasCheckConstraint("CK_LandingLeads_YearsOfExperience_Range", "[YearsOfExperience] IS NULL OR ([YearsOfExperience] >= 0 AND [YearsOfExperience] <= 60)");
+                        });
+                });
+
+            modelBuilder.Entity("ConsertaPraMim.Domain.Entities.LandingTelemetryEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("AcceptLanguage")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<int?>("ActiveSeconds")
+                        .HasColumnType("int");
+
+                    b.Property<string>("BrowserLanguage")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<double?>("ClickXPercent")
+                        .HasColumnType("float");
+
+                    b.Property<double?>("ClickYPercent")
+                        .HasColumnType("float");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CurrentUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("ElementHref")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("ElementKey")
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<string>("ElementLabel")
+                        .HasMaxLength(240)
+                        .HasColumnType("nvarchar(240)");
+
+                    b.Property<int>("EventType")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ForwardedFor")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<int?>("HeatmapColumn")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("HeatmapRow")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Host")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int?>("InitialLeadOrigin")
+                        .HasColumnType("int");
+
+                    b.Property<string>("IpAddress")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<string>("MetadataJson")
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Path")
+                        .HasMaxLength(260)
+                        .HasColumnType("nvarchar(260)");
+
+                    b.Property<string>("Scheme")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<int?>("ScrollDepthPercent")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SessionId")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(512)
+                        .HasColumnType("nvarchar(512)");
+
+                    b.Property<int?>("ViewportHeight")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ViewportWidth")
+                        .HasColumnType("int");
+
+                    b.Property<string>("VisitorId")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OccurredAtUtc");
+
+                    b.HasIndex("EventType", "OccurredAtUtc");
+
+                    b.HasIndex("SessionId", "OccurredAtUtc");
+
+                    b.HasIndex("HeatmapRow", "HeatmapColumn", "OccurredAtUtc");
+
+                    b.ToTable("LandingTelemetryEvents", t =>
+                        {
+                            t.HasCheckConstraint("CK_LandingTelemetryEvents_ActiveSeconds_Range", "[ActiveSeconds] IS NULL OR ([ActiveSeconds] >= 0 AND [ActiveSeconds] <= 300)");
+
+                            t.HasCheckConstraint("CK_LandingTelemetryEvents_ClickXPercent_Range", "[ClickXPercent] IS NULL OR ([ClickXPercent] >= 0 AND [ClickXPercent] <= 100)");
+
+                            t.HasCheckConstraint("CK_LandingTelemetryEvents_ClickYPercent_Range", "[ClickYPercent] IS NULL OR ([ClickYPercent] >= 0 AND [ClickYPercent] <= 100)");
+
+                            t.HasCheckConstraint("CK_LandingTelemetryEvents_EventType_Valid", "[EventType] IN (1,2,3,4,5)");
+
+                            t.HasCheckConstraint("CK_LandingTelemetryEvents_ScrollDepth_Range", "[ScrollDepthPercent] IS NULL OR ([ScrollDepthPercent] >= 0 AND [ScrollDepthPercent] <= 100)");
+
+                            t.HasCheckConstraint("CK_LandingTelemetryEvents_SessionId_NotEmpty", "LEN([SessionId]) > 0");
+
+                            t.HasCheckConstraint("CK_LandingTelemetryEvents_VisitorId_NotEmpty", "LEN([VisitorId]) > 0");
                         });
                 });
 

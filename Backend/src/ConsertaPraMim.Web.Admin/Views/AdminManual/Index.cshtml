@@ -100,6 +100,7 @@
     .bg-disputes { background: linear-gradient(135deg, #b91c1c 0%, #ef4444 100%); }
     .bg-plans { background: linear-gradient(135deg, #b45309 0%, #d97706 100%); }
     .bg-docs { background: linear-gradient(135deg, #1f2937 0%, #374151 100%); }
+    .bg-analytics { background: linear-gradient(135deg, #0f172a 0%, #2563eb 100%); }
 
     .qa-table th {
         font-size: .75rem;
@@ -173,6 +174,7 @@
                             <tr><td>Score Liquidez</td><td>Score Liquidez</td><td>Ranking de deficit por regiao/categoria com historico, alertas e filtros em drawer offcanvas</td><td>Priorizacao comercial/operacional orientada por score de liquidez</td></tr>
                             <tr><td>Usuarios</td><td>Usuarios + Confianca</td><td>Filtro na listagem, criacao de admin, ativacao/inativacao e fila de confianca com drawer</td><td>Conta administrativa provisionada e status da conta/confianca alterado com trilha auditavel</td></tr>
                             <tr><td>Leads Landing</td><td>Leads Landing</td><td>Triagem de contatos captados na landing com drawer de filtros e tela de detalhe</td><td>Operacao identifica origem, localidade real e contexto tecnico do lead sem consultar banco</td></tr>
+                            <tr><td>Analytics Landing</td><td>Analytics Landing</td><td>Overview comportamental da landing com filtros em drawer, heatmap fase 1 e detalhe por sessao</td><td>Operacao acompanha engajamento, localidade estimada, funil de eventos e correlacao com lead sem sair do portal admin</td></tr>
                             <tr><td>Pedidos</td><td>Pedidos</td><td>Busca, detalhe e troca de status</td><td>Status atualizado e navegacao para propostas/chats</td></tr>
                             <tr><td>Propostas</td><td>Propostas</td><td>Auditoria/invalidacao com filtros em drawer</td><td>Proposta bloqueada com motivo administrativo</td></tr>
                             <tr><td>Conversas</td><td>Conversas</td><td>Historico completo + anexos com filtros em drawer</td><td>Rastreamento operacional da comunicacao</td></tr>
@@ -277,6 +279,20 @@
                             <li>Drawer offcanvas com filtros de busca, origem, cidade, UF e periodo.</li>
                             <li>Coluna `Localidade` consolidando bairro, cidade e UF do lead.</li>
                             <li>Tela de detalhe com contexto comercial, UTM e metadados tecnicos de navegacao.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-lg-6">
+                <div class="manual-card card h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center gap-2 mb-2"><span class="manual-module-icon bg-analytics"><i class="fas fa-chart-area"></i></span><h3 class="h6 mb-0">Analytics Landing</h3></div>
+                        <ul class="mb-0">
+                            <li>Overview com KPI de sessoes, visitantes unicos, GeoIP, heartbeat, scroll, clique e leads.</li>
+                            <li>Drawer offcanvas com filtros de busca, origem, pagina, pais, regiao, cidade e periodo.</li>
+                            <li>Breakdowns por pagina, origem, pais, regiao, cidade e tipo de evento.</li>
+                            <li>Heatmap agregado fase 1 e grid paginado de sessoes com link para detalhe operacional.</li>
+                            <li>Tela de detalhe por sessao com timeline, localidade estimada por GeoIP e lead correlacionado.</li>
                         </ul>
                     </div>
                 </div>
@@ -865,6 +881,18 @@
                         <td>Gerar acessos em `https://www.consertapramim.com`, `https://www.consertapramim.com/Cliente` e `https://www.consertapramim.com/Prestador`, enviar ao menos um lead `Cliente` e um `Prestador`, depois abrir `Dashboard` no admin com o recorte do periodo correspondente.</td>
                         <td>Os cards `Visitas`, `Cadastros Prestador`, `Cadastros Cliente` e `Taxa de Conversão` devem refletir o recorte aplicado; `Visitas` deve exibir `Visitantes únicos` e `Visitantes recorrentes` no detalhe, enquanto `Taxa de Conversão` deve mostrar cadastros totais e visitantes convertidos com base no `visitorId` correlacionado entre acesso e lead.</td>
                     </tr>
+                    <tr>
+                        <td>QA-ADM-071</td>
+                        <td>Overview do modulo Analytics Landing</td>
+                        <td>No portal admin, abrir `Analytics Landing`, aplicar filtros pelo drawer (`busca`, `origem`, `pagina`, `pais`, `regiao`, `cidade`, `periodo`) e validar KPI, breakdowns, heatmap e grid de sessoes.</td>
+                        <td>A tela deve refletir o recorte aplicado com KPI de sessoes, visitantes unicos, GeoIP, tempo ativo medio, scroll medio, cliques, aberturas de formulario e leads; os breakdowns precisam permanecer em PT-BR, o heatmap deve mostrar hits agregados por celula e o grid deve listar `sessionId`, localidade estimada e link para detalhe.</td>
+                    </tr>
+                    <tr>
+                        <td>QA-ADM-072</td>
+                        <td>Detalhe operacional por sessao da landing</td>
+                        <td>No modulo `Analytics Landing`, abrir o detalhe de uma sessao com lead correlacionado e outra sem lead; revisar `sessionId`, `visitorId`, GeoIP, metadados tecnicos e timeline.</td>
+                        <td>O detalhe deve consolidar acesso inicial, heartbeats, scroll milestones, cliques, abertura de modal e sucesso de lead em ordem cronologica; quando houver lead, a correlacao deve exibir nome, contato, origem e localidade informada no formulario sem expor enums crus.</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -884,6 +912,7 @@
                     <li>Dashboard carregando sem erro.</li>
                     <li>Cards `Visitas`, `Cadastros Prestador`, `Cadastros Cliente` e `Taxa de Conversão` da landing carregando sem erro, com detalhe de recorrencia e respeitando o periodo filtrado.</li>
                     <li>Modulo `Leads Landing` carregando grid e detalhe sem erro.</li>
+                    <li>Modulo `Analytics Landing` carregando KPI, heatmap e detalhe por sessao sem erro.</li>
                     <li>Busca de usuarios retornando dados.</li>
                     <li>Criacao de usuario admin via modal `Novo Admin` exibindo overlay de status (`Salvando/Salvo/Erro`).</li>
                     <li>Detalhe de pedido abrindo e trocando status.</li>
@@ -993,6 +1022,11 @@
                         <td>Dashboard mostra `Visitas`/`Taxa de Conversão` zeradas para a landing</td>
                         <td>Acesso publico nao foi persistido, `visitorId` nao foi emitido/correlacionado ou o recorte do dashboard nao cobre o horario dos eventos</td>
                         <td>Validar se a landing gerou o cookie `cpm_landing_vid`, conferir `LandingAccessEvents` e `LandingLeads` no banco com `CreatedAt` em UTC, revisar `fromUtc/toUtc` do dashboard e repetir o smoke acessando `/`, `/Cliente` ou `/Prestador` antes de reenviar o lead; recorrencia deve ser analisada por `visitorId`, nao por IP compartilhado.</td>
+                    </tr>
+                    <tr>
+                        <td>`Analytics Landing` abre sem sessoes, heatmap ou GeoIP</td>
+                        <td>Telemetria runtime desabilitada, periodo fora do recorte, ingestao de eventos nao executada ou GeoIP ignorado por IP privado/proxy sem `X-Forwarded-For`</td>
+                        <td>Validar a secao `Landing Analytics` em `Configuracoes`, conferir `GET /api/landing-analytics/public/config`, revisar `LandingAccessEvents`/`LandingTelemetryEvents` no banco e confirmar se a VPS/Nginx esta repassando `X-Forwarded-For` publico.</td>
                     </tr>
                     <tr>
                         <td>Telas admin retornam "Token ausente"</td>
@@ -1118,7 +1152,7 @@
         <h3 class="h6 fw-semibold">Rotina continua de revisao</h3>
         <ol class="mb-0">
             <li>A cada story `DONE` do Admin, registrar revisao no bloco "Historico de revisoes".</li>
-            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`, `QA-ADM-023`, `QA-ADM-024`, `QA-ADM-026`, `QA-ADM-027`, `QA-ADM-028`, `QA-ADM-030`, `QA-ADM-031`, `QA-ADM-032`, `QA-ADM-033`, `QA-ADM-034`, `QA-ADM-035`, `QA-ADM-036`, `QA-ADM-037`, `QA-ADM-038`, `QA-ADM-039`, `QA-ADM-040`, `QA-ADM-041`, `QA-ADM-042`, `QA-ADM-043`, `QA-ADM-044`, `QA-ADM-045`, `QA-ADM-046`, `QA-ADM-047`, `QA-ADM-048`, `QA-ADM-049`, `QA-ADM-050`, `QA-ADM-051`, `QA-ADM-052`, `QA-ADM-053`, `QA-ADM-056`, `QA-ADM-057`, `QA-ADM-058`, `QA-ADM-061`, `QA-ADM-064`, `QA-ADM-065`, `QA-ADM-066`, `QA-ADM-067`, `QA-ADM-068`, `QA-ADM-069`) apos update do manual.</li>
+            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`, `QA-ADM-023`, `QA-ADM-024`, `QA-ADM-026`, `QA-ADM-027`, `QA-ADM-028`, `QA-ADM-030`, `QA-ADM-031`, `QA-ADM-032`, `QA-ADM-033`, `QA-ADM-034`, `QA-ADM-035`, `QA-ADM-036`, `QA-ADM-037`, `QA-ADM-038`, `QA-ADM-039`, `QA-ADM-040`, `QA-ADM-041`, `QA-ADM-042`, `QA-ADM-043`, `QA-ADM-044`, `QA-ADM-045`, `QA-ADM-046`, `QA-ADM-047`, `QA-ADM-048`, `QA-ADM-049`, `QA-ADM-050`, `QA-ADM-051`, `QA-ADM-052`, `QA-ADM-053`, `QA-ADM-056`, `QA-ADM-057`, `QA-ADM-058`, `QA-ADM-061`, `QA-ADM-064`, `QA-ADM-065`, `QA-ADM-066`, `QA-ADM-067`, `QA-ADM-068`, `QA-ADM-069`, `QA-ADM-070`, `QA-ADM-071`, `QA-ADM-072`) apos update do manual.</li>
             <li>Validar links de menu/rotas e manter sincronismo com `Documentacao/ADMIN_PORTAL/INDEX.md`.</li>
         </ol>
     </div>
@@ -1139,6 +1173,11 @@
                     </tr>
                 </thead>
                 <tbody>
+                    <tr>
+                        <td>08/03/2026</td>
+                        <td>ST-060</td>
+                        <td>Novo modulo `Analytics Landing` no menu admin com overview comportamental, breakdown geografico, heatmap fase 1, detalhe por sessao, casos `QA-ADM-071` e `QA-ADM-072` e troubleshooting para runtime/GeoIP/ingestao de eventos.</td>
+                    </tr>
                     <tr>
                         <td>08/03/2026</td>
                         <td>ST-058</td>

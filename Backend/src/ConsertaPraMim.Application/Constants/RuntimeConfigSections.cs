@@ -227,6 +227,41 @@ public static class RuntimeConfigSections
               }
             }
             """)
+        ,
+        new RuntimeConfigSectionDefinition(
+            SettingKey: SystemSettingKeys.ConfigLandingAnalytics,
+            SectionPath: "LandingAnalytics",
+            DisplayName: "Landing Analytics",
+            Description: "Configura heartbeat, heatmap fase 1, scroll milestones e GeoIP da landing publica.",
+            DefaultJson:
+            """
+            {
+              "ClientTelemetryEnabled": true,
+              "Heartbeat": {
+                "Enabled": true,
+                "IntervalSeconds": 15,
+                "MaxSessionDurationMinutes": 30
+              },
+              "Scroll": {
+                "Enabled": true,
+                "MilestonesPercent": [25, 50, 75, 100]
+              },
+              "Clicks": {
+                "Enabled": true,
+                "TrackInteractiveOnly": true,
+                "HeatmapGridRows": 6,
+                "HeatmapGridColumns": 6
+              },
+              "GeoIp": {
+                "Enabled": true,
+                "Provider": "ipwhois",
+                "BaseUrl": "https://ipwho.is",
+                "TimeoutMs": 1200,
+                "CacheMinutes": 1440
+              }
+            }
+            """,
+            RequiresRestart: false)
     ];
 
     private static readonly Dictionary<string, RuntimeConfigSectionDefinition> BySettingKey =

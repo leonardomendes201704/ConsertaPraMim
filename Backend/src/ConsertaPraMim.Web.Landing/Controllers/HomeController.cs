@@ -31,22 +31,25 @@ public sealed class HomeController : Controller
     public async Task<IActionResult> Index()
     {
         var visitorId = EnsureVisitorId();
-        await TryNotifyLandingAccessAsync(visitorId);
-        return RenderLanding(visitorId);
+        var sessionId = GenerateSessionId();
+        await TryNotifyLandingAccessAsync(visitorId, sessionId);
+        return RenderLanding(visitorId, sessionId);
     }
 
     public async Task<IActionResult> Cliente()
     {
         var visitorId = EnsureVisitorId();
-        await TryNotifyLandingAccessAsync(visitorId, "client");
-        return RenderLanding(visitorId, "client");
+        var sessionId = GenerateSessionId();
+        await TryNotifyLandingAccessAsync(visitorId, sessionId, "client");
+        return RenderLanding(visitorId, sessionId, "client");
     }
 
     public async Task<IActionResult> Prestador()
     {
         var visitorId = EnsureVisitorId();
-        await TryNotifyLandingAccessAsync(visitorId, "provider");
-        return RenderLanding(visitorId, "provider");
+        var sessionId = GenerateSessionId();
+        await TryNotifyLandingAccessAsync(visitorId, sessionId, "provider");
+        return RenderLanding(visitorId, sessionId, "provider");
     }
 
     [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
@@ -59,7 +62,7 @@ public sealed class HomeController : Controller
         return View();
     }
 
-    private IActionResult RenderLanding(string visitorId, string? initialLeadOrigin = null)
+    private IActionResult RenderLanding(string visitorId, string sessionId, string? initialLeadOrigin = null)
     {
         var canonicalUrl = LandingSiteOptions.NormalizeUrl(_options.CanonicalUrl, DefaultCanonicalUrl);
         var canonicalUrlWithSlash = canonicalUrl.TrimEnd('/') + "/";
@@ -89,7 +92,10 @@ public sealed class HomeController : Controller
             ApiBaseUrl = resolvedApiBaseUrl,
             ApiSwaggerUrl = LandingPublicUrlResolver.ResolveSwaggerUrl(_options.ApiSwaggerUrl ?? _options.ApiBaseUrl, requestHost, "https://api.consertapramim.com"),
             LeadCaptureUrl = resolvedApiBaseUrl.TrimEnd('/') + "/api/landing-leads/public",
+            AnalyticsConfigUrl = resolvedApiBaseUrl.TrimEnd('/') + "/api/landing-analytics/public/config",
+            TelemetryUrl = resolvedApiBaseUrl.TrimEnd('/') + "/api/landing-analytics/public/events",
             VisitorId = visitorId,
+            SessionId = sessionId,
             InitialLeadOrigin = initialLeadOrigin
         };
 
@@ -104,17 +110,19 @@ public sealed class HomeController : Controller
         ViewData["TwitterCard"] = "summary_large_image";
         ViewData["InitialLeadOrigin"] = initialLeadOrigin;
         ViewData["LandingVisitorId"] = visitorId;
+        ViewData["LandingSessionId"] = sessionId;
 
         return View("Index", model);
     }
 
-    private async Task TryNotifyLandingAccessAsync(string visitorId, string? initialLeadOrigin = null)
+    private async Task TryNotifyLandingAccessAsync(string visitorId, string sessionId, string? initialLeadOrigin = null)
     {
         try
         {
             await _landingAdminNotificationsClient.NotifyLandingAccessAsync(
                 new LandingAccessNotificationRequest(
                     VisitorId: visitorId,
+                    SessionId: sessionId,
                     CurrentUrl: BuildCurrentAbsoluteUrl(),
                     Path: Request.Path.HasValue ? Request.Path.Value : "/",
                     Host: Request.Host.Value,
@@ -132,6 +140,9 @@ public sealed class HomeController : Controller
             _logger.LogWarning(ex, "Falha ao publicar acesso da landing para o canal interno de notificacoes.");
         }
     }
+
+    private static string GenerateSessionId()
+        => Guid.NewGuid().ToString("N");
 
     private string EnsureVisitorId()
     {

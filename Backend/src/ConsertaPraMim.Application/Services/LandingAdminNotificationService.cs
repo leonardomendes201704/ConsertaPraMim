@@ -39,6 +39,7 @@ public sealed class LandingAdminNotificationService : ILandingAdminNotificationS
         {
             ["type"] = "landing_public_access",
             ["visitorId"] = NormalizePayloadValue(request.VisitorId),
+            ["sessionId"] = NormalizePayloadValue(request.SessionId),
             ["path"] = normalizedPath,
             ["ipAddress"] = NormalizePayloadValue(request.IpAddress),
             ["forwardedFor"] = NormalizePayloadValue(request.ForwardedFor),
@@ -86,6 +87,7 @@ public sealed class LandingAdminNotificationService : ILandingAdminNotificationS
             ["leadId"] = lead.Id.ToString("N"),
             ["origin"] = originLabel,
             ["visitorId"] = NormalizePayloadValue(lead.VisitorId),
+            ["sessionId"] = NormalizePayloadValue(lead.SessionId),
             ["fullName"] = NormalizePayloadValue(lead.FullName),
             ["phone"] = NormalizePayloadValue(lead.Phone),
             ["email"] = NormalizePayloadValue(lead.Email),

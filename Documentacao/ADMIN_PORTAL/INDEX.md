@@ -29,6 +29,7 @@
 - [EPIC-025 - Chat de ajuda entre cliente e admin vinculado ao pedido](EPICS/EPIC-025-chat-ajuda-cliente-admin-pedido.md)
 - [EPIC-026 - Leads publicos da landing no Portal Admin](EPICS/EPIC-026-leads-publicos-landing-admin.md)
 - [EPIC-027 - KPIs da landing no dashboard admin](EPICS/EPIC-027-kpis-landing-no-dashboard-admin.md)
+- [EPIC-028 - Analytics comportamental da landing no Portal Admin](EPICS/EPIC-028-analytics-comportamental-da-landing-no-admin.md)
 
 ## Stories
 
@@ -97,6 +98,7 @@
 - [ST-057 - Mapa Operacional com bairros atendidos e nao atendidos](STORIES/DONE/ST-057-mapa-operacional-bairros-atendidos-nao-atendidos.md)
 - [ST-058 - Gestao administrativa de leads captados pela landing](STORIES/DONE/ST-058-gestao-admin-leads-landing.md)
 - [ST-059 - KPIs de visitas, cadastros e conversao da landing na home admin](STORIES/DONE/ST-059-kpis-visitas-cadastros-e-conversao-landing-dashboard.md)
+- [ST-060 - Dashboard e detalhe operacional de analytics da landing](STORIES/DONE/ST-060-dashboard-e-detalhe-operacional-de-analytics-da-landing.md)
 
 ## Runbooks
 

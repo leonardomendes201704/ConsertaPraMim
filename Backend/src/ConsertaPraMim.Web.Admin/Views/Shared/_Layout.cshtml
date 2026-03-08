@@ -345,6 +345,10 @@
                     <i class="fas fa-bullseye"></i>
                     <span>Leads Landing</span>
                 </a>
+                <a asp-controller="AdminLandingAnalytics" asp-action="Index" class="admin-nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminLandingAnalytics" ? "active" : "")">
+                    <i class="fas fa-chart-column"></i>
+                    <span>Analytics Landing</span>
+                </a>
                 <a asp-controller="AdminGrowthCockpit" asp-action="Index" class="admin-nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminGrowthCockpit" ? "active" : "")">
                     <i class="fas fa-gauge"></i>
                     <span>Cockpit Growth</span>

@@ -9,6 +9,9 @@ public sealed class LandingPageViewModel
     public required string ApiBaseUrl { get; init; }
     public required string ApiSwaggerUrl { get; init; }
     public required string LeadCaptureUrl { get; init; }
+    public required string AnalyticsConfigUrl { get; init; }
+    public required string TelemetryUrl { get; init; }
     public required string VisitorId { get; init; }
+    public required string SessionId { get; init; }
     public string? InitialLeadOrigin { get; init; }
 }

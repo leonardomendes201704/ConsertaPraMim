@@ -10,6 +10,18 @@
 
 ## Released
 
+- [2026-03-08] [ST-060][ADMIN-LANDING-ANALYTICS] Analytics comportamental da landing no Portal Admin
+- Tipo: feat
+- Resumo: o Portal Admin passou a expor o modulo `Analytics Landing`, com menu proprio, filtros em drawer/offcanvas, KPI de sessoes/visitantes/GeoIP/heartbeat/scroll/cliques/leads, breakdown por pagina/origem/geografia/eventos, heatmap agregado fase 1 e detalhe operacional por sessao com timeline, metadados tecnicos e correlacao com lead quando existir.
+- Arquivos principais: `Backend/src/ConsertaPraMim.API/Controllers/AdminLandingAnalyticsController.cs`, `Backend/src/ConsertaPraMim.Application/DTOs/AdminLandingAnalyticsDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminLandingAnalyticsService.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminLandingAnalyticsController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminLandingAnalytics/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminLandingAnalytics/Details.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/Shared/_Layout.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-060-dashboard-e-detalhe-operacional-de-analytics-da-landing.md`
+- Risco/Impacto: medio
+
+- [2026-03-08] [ST-004][LANDING-TELEMETRY-GEOIP] Telemetria fase 1 e GeoIP da landing
+- Tipo: feat
+- Resumo: a landing publica passou a capturar `sessionId`, heartbeat de aba visivel, marcos de scroll, cliques em elementos interativos e localidade estimada por IP, com configuracao runtime persistida em banco (`Landing Analytics`), endpoint publico de config/ingestao e base historica para heatmap fase 1 e correlacao com leads.
+- Arquivos principais: `Backend/src/ConsertaPraMim.API/Controllers/LandingAnalyticsController.cs`, `Backend/src/ConsertaPraMim.Application/DTOs/LandingAnalyticsDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Services/LandingAccessEventService.cs`, `Backend/src/ConsertaPraMim.Application/Services/LandingTelemetryEventService.cs`, `Backend/src/ConsertaPraMim.Domain/Entities/LandingAccessEvent.cs`, `Backend/src/ConsertaPraMim.Domain/Entities/LandingTelemetryEvent.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Services/LandingAnalyticsRuntimeSettings.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Services/LandingGeoIpService.cs`, `Backend/src/ConsertaPraMim.Web.Landing/Controllers/HomeController.cs`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/js/site.js`, `Documentacao/LANDING_PAGE/STORIES/DONE/ST-004-telemetria-fase-1-e-geoip-da-landing.md`
+- Risco/Impacto: medio
+
 - [2026-03-08] [ST-059][ADMIN-LANDING-RECURRING-VISITORS] KPI de visitas com recorrencia da landing
 - Tipo: feat
 - Resumo: o card `Visitas` da landing na home admin passou a detalhar, alem de `Visitantes únicos`, a quantidade de `Visitantes recorrentes`, calculada por `visitorId` estavel da landing em vez de IP bruto compartilhado; com isso, a leitura do topo de funil fica mais confiavel para retorno de visitantes no periodo filtrado.

@@ -808,6 +808,30 @@ public static class ApiEndpointDocumentationCatalog
                     "A consulta administrativa nao altera o lead; apenas exibe dados comerciais e metadados tecnicos para triagem e auditoria.",
                     "Os filtros do portal admin devem permanecer consistentes com o recorte suportado pela API (`origem`, `busca`, `cidade`, `UF` e periodo`)."
                 ]),
+            "LandingAnalytics" => new CatalogEntry(
+                DomainTitle: "Telemetria Comportamental da Landing",
+                ResourceLabel: "heartbeat, heatmap fase 1 e scroll da landing publica",
+                BusinessContext: "Permite medir engajamento real no site institucional, com sessao, tempo ativo, scroll, cliques e abertura/envio de formularios.",
+                TechnicalContext: "Consumido pela landing publica em endpoints anonimos para carregar configuracao runtime e registrar batches de eventos browser-side correlacionados por `visitorId` e `sessionId`.",
+                Audience: "Landing/Growth/Operacao Comercial/QA",
+                Rules:
+                [
+                    "A configuracao publica deve ser derivada do runtime salvo em banco e nunca hardcoded na pagina.",
+                    "Os batches devem ser correlacionados por `sessionId` para consolidar heartbeat, scroll, click heatmap e submit de lead na mesma jornada.",
+                    "A API deve aceitar apenas os tipos de evento previstos na fase 1 (`heartbeat`, `scroll_milestone`, `click`, `lead_modal_open`, `lead_submit_success`)."
+                ]),
+            "AdminLandingAnalytics" => new CatalogEntry(
+                DomainTitle: "Analytics Administrativa da Landing",
+                ResourceLabel: "overview e detalhe de sessao da landing",
+                BusinessContext: "Permite ao portal admin acompanhar audiencia, engajamento, geografia estimada e conversao da landing em uma leitura operacional unica.",
+                TechnicalContext: "Consumido exclusivamente pelo portal admin em endpoints protegidos por JWT/Cookie admin, cruzando `LandingAccessEvents`, `LandingTelemetryEvents` e `LandingLeads`.",
+                Audience: "Portal Admin/Growth/Operacao Comercial/QA",
+                Rules:
+                [
+                    "Filtros administrativos devem usar periodo, origem, pagina, pais, regiao, cidade e busca textual por sessao/visitante/lead.",
+                    "Heatmap fase 1 deve ser agregado por grid e nao por replay de sessao.",
+                    "O detalhe administrativo da sessao deve exibir timeline correlacionada com acesso, eventos comportamentais e lead captado."
+                ]),
             "Files" => new CatalogEntry(
                 DomainTitle: "Arquivos e Midia",
                 ResourceLabel: "upload e acesso de arquivos",

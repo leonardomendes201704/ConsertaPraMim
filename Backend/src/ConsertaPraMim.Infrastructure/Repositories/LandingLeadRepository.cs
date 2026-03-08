@@ -45,4 +45,18 @@ public sealed class LandingLeadRepository : ILandingLeadRepository
             .AsNoTracking()
             .FirstOrDefaultAsync(lead => lead.Id == id, cancellationToken);
     }
+
+    public async Task<LandingLead?> GetBySessionIdAsync(string sessionId, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(sessionId))
+        {
+            return null;
+        }
+
+        var normalizedSessionId = sessionId.Trim();
+        return await _dbContext.LandingLeads
+            .AsNoTracking()
+            .OrderByDescending(lead => lead.CreatedAt)
+            .FirstOrDefaultAsync(lead => lead.SessionId == normalizedSessionId, cancellationToken);
+    }
 }

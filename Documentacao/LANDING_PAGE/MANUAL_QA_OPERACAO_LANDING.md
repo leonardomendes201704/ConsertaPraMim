@@ -2,13 +2,15 @@
 
 ## Escopo
 
-Este manual cobre a landing publica `ConsertaPraMim.Web.Landing`, publicada em `https://www.consertapramim.com`, o redirect do dominio raiz `https://consertapramim.com`, a captura de leads comerciais de cliente/prestador via modal Bootstrap, os deep links `https://www.consertapramim.com/Cliente` e `https://www.consertapramim.com/Prestador` e a persistencia dos acessos que alimentam os KPIs da home do portal admin.
+Este manual cobre a landing publica `ConsertaPraMim.Web.Landing`, publicada em `https://www.consertapramim.com`, o redirect do dominio raiz `https://consertapramim.com`, a captura de leads comerciais de cliente/prestador via modal Bootstrap, os deep links `https://www.consertapramim.com/Cliente` e `https://www.consertapramim.com/Prestador`, a persistencia dos acessos que alimentam os KPIs da home do portal admin e a telemetria fase 1 com heartbeat, scroll, clique e GeoIP estimado.
 
 ## Componentes envolvidos
 
 - projeto: `Backend/src/ConsertaPraMim.Web.Landing`
 - API: `Backend/src/ConsertaPraMim.API`
 - webhook interno: `Backend/src/ConsertaPraMim.API/Controllers/InternalLandingNotificationsController.cs`
+- analytics publico: `Backend/src/ConsertaPraMim.API/Controllers/LandingAnalyticsController.cs`
+- analytics admin: `Backend/src/ConsertaPraMim.API/Controllers/AdminLandingAnalyticsController.cs`
 - compose: `Backend/docker-compose.vps.web-landing.yml`, `Backend/docker-compose.vps.yml`, `Backend/docker-compose.vps.api.yml`
 - dockerfile: `Backend/docker/vps/Dockerfile.web.landing`
 - proxy: `Backend/docker/vps/nginx.portals.https.conf.example`
@@ -29,6 +31,35 @@ PUBLIC_API_URL=https://api.consertapramim.com
 INTERNAL_API_URL=http://cpm-api:8080
 APK_RELEASE_PUSH_TOKEN=definir_token_webhook_interno
 ```
+
+## Configuracoes Runtime obrigatorias
+
+No Portal Admin, em `Configuracoes`, deve existir a secao runtime `Landing Analytics`, persistida em banco pela chave `config.section.landingAnalytics`.
+
+Parametros operacionais da secao:
+
+- `ClientTelemetryEnabled`
+- `Heartbeat.Enabled`
+- `Heartbeat.IntervalSeconds`
+- `Heartbeat.MaxSessionDurationMinutes`
+- `Scroll.Enabled`
+- `Scroll.MilestonesPercent`
+- `Clicks.Enabled`
+- `Clicks.TrackInteractiveOnly`
+- `Clicks.HeatmapGridRows`
+- `Clicks.HeatmapGridColumns`
+- `GeoIp.Enabled`
+- `GeoIp.Provider`
+- `GeoIp.BaseUrl`
+- `GeoIp.TimeoutMs`
+- `GeoIp.CacheMinutes`
+
+Defaults seguros esperados:
+
+- heartbeat habilitado em `15s`
+- milestones de scroll em `25/50/75/100`
+- heatmap `6x6`
+- GeoIP habilitado com `ipwhois`
 
 ## Checklist de deploy
 
@@ -57,6 +88,7 @@ curl -I https://www.consertapramim.com/og-logo-consertapramim.png
 curl -I https://www.consertapramim.com/Cliente
 curl -I https://www.consertapramim.com/Prestador
 curl -s https://www.consertapramim.com | grep data-lead-capture-url
+curl -I https://api.consertapramim.com/api/landing-analytics/public/config
 curl -s -D - https://www.consertapramim.com -o /dev/null | grep -i set-cookie
 curl -I https://consertapramim.com
 curl -I https://api.consertapramim.com/health
@@ -70,6 +102,7 @@ Esperado:
 - `https://www.consertapramim.com/Cliente` -> `200`
 - `https://www.consertapramim.com/Prestador` -> `200`
 - `data-lead-capture-url="https://api.consertapramim.com/api/landing-leads/public"` no HTML publicado
+- `https://api.consertapramim.com/api/landing-analytics/public/config` -> `200`
 - `Set-Cookie: cpm_landing_vid=...` na primeira carga da home
 - `https://consertapramim.com` -> `301` ou `308` para `https://www.consertapramim.com`
 - `https://api.consertapramim.com/health` -> `200`
@@ -81,7 +114,7 @@ Esperado:
 3. Confirmar que o menu mobile abre/fecha.
 4. Confirmar que o header exibe:
    - wordmark `ConsertaPraMim` em imagem unica na topbar, sem texto duplicado ao lado
-   - links `Início`, `Sobre`, `Contato`
+   - links `Inicio`, `Sobre`, `Contato`
    - CTA `Entrar`
 5. Confirmar no `view-source` da home:
    - `og:title`
@@ -96,11 +129,11 @@ Esperado:
 7. Validar as duas cards principais da home:
    - `Para Clientes`
    - `Para Profissionais`
-8. Validar a seção `Testemunhos` logo abaixo do bloco institucional:
-   - existem duas colunas visíveis;
+8. Validar a secao `Testemunhos` logo abaixo do bloco institucional:
+   - existem duas colunas visiveis;
    - a coluna de clientes exibe 5 depoimentos;
    - a coluna de prestadores exibe 5 depoimentos;
-   - os cards permanecem legíveis em desktop e mobile.
+   - os cards permanecem legiveis em desktop e mobile.
 9. Antes de qualquer clique, validar:
    - nenhum modal de captacao aparece aberto no carregamento inicial;
    - nenhum formulario `Cliente`/`Prestador` fica visivel na home;
@@ -156,8 +189,15 @@ Esperado:
    - `Visitas`
    - `Cadastros Prestador`
    - `Cadastros Cliente`
-   - `Taxa de Conversão`
-   Esperado: os valores refletem os acessos/leads gerados no teste; `Visitas` mostra `Visitantes únicos` e `Visitantes recorrentes` no detalhe e `Taxa de Conversão` mostra `Cadastros totais` e `Visitantes convertidos`.
+   - `Taxa de Conversao`
+   Esperado: os valores refletem os acessos/leads gerados no teste; `Visitas` mostra `Visitantes unicos` e `Visitantes recorrentes` no detalhe e `Taxa de Conversao` mostra `Cadastros totais` e `Visitantes convertidos`.
+30. Com a landing aberta, validar no DevTools a chamada `GET /api/landing-analytics/public/config` no carregamento.
+31. Manter a aba visivel por ao menos 20-30 segundos e validar `POST /api/landing-analytics/public/events` com eventos `Heartbeat`.
+32. Rolar a pagina e validar eventos `ScrollMilestone` nos marcos configurados.
+33. Clicar nos CTAs principais e validar evento `LeadModalOpen`; apos envio bem-sucedido, validar evento `LeadSubmitSuccess`.
+34. Abrir `Configuracoes` no Portal Admin, editar a secao `Landing Analytics`, salvar e validar que o `GET /api/landing-analytics/public/config` reflete a nova configuracao sem restart.
+35. Abrir `Analytics Landing` no Portal Admin e validar KPI de sessoes, visitantes unicos, GeoIP, tempo ativo medio, scroll medio, cliques, aberturas de formulario, leads, breakdowns e heatmap agregado.
+36. Abrir o detalhe de uma sessao em `Analytics Landing` e validar `sessionId`, `visitorId`, GeoIP estimado, timeline de eventos e correlacao com lead quando existir.
 
 ## Dados esperados por lead
 
@@ -203,11 +243,13 @@ Esperado:
 - resolucao de tela
 - plataforma do dispositivo
 - time zone
+- `sessionId`
 - `CreatedAt` em UTC
 
 ## Dados esperados por acesso
 
 - `visitorId` estavel por navegador, persistido em cookie `cpm_landing_vid`
+- `sessionId` por carga/aba para correlacao operacional
 - URL atual da pagina
 - host, scheme e path
 - `InitialLeadOrigin` quando o acesso vier de `/Cliente` ou `/Prestador`
@@ -216,8 +258,22 @@ Esperado:
 - `User-Agent`
 - `Accept-Language`
 - `Referer`
+- GeoIP estimado (`pais`, `UF/regiao`, `cidade`, provider e status)
 - metadados tecnicos serializados em `MetadataJson`
 - `CreatedAt` em UTC
+
+## Dados esperados por telemetria fase 1
+
+- tipo do evento (`Heartbeat`, `ScrollMilestone`, `Click`, `LeadModalOpen`, `LeadSubmitSuccess`)
+- `visitorId`
+- `sessionId`
+- pagina/path atual
+- timestamp UTC do evento
+- percentual de scroll maximo ou milestone
+- coordenada relativa de clique (`xPercent`, `yPercent`)
+- bucket do heatmap (`row`, `column`)
+- `targetId`, `targetText`, `targetTag` e `targetHref` quando aplicavel
+- `metadataJson` com contexto auxiliar do evento
 
 ## Layout esperado da home
 
@@ -237,6 +293,7 @@ Esperado:
 9. O favicon da home usa a mesma arte `og-logo-consertapramim.png` para manter consistencia entre aba do navegador e preview social.
 10. Footer enxuto apenas com copyright institucional.
 11. Link `Contato` do header reaproveita o mesmo fluxo de captacao do CTA de cliente.
+12. A landing injeta `sessionId`, `data-analytics-config-url` e `data-telemetry-url` no `body` para o JS da telemetria.
 
 ## Validacao cruzada com o dashboard admin
 
@@ -248,9 +305,11 @@ Esperado:
    - `Visitas`: total de `LandingAccessEvents` no periodo.
    - `Cadastros Prestador`: total de leads `Provider` no periodo.
    - `Cadastros Cliente`: total de leads `Client` no periodo.
-   - `Taxa de Conversão`: `(cadastros cliente + cadastros prestador) / visitas * 100`.
-6. Validar que o detalhe do card `Visitas` exibe `Visitantes únicos` e `Visitantes recorrentes`.
-7. Validar que o detalhe do card `Taxa de Conversão` exibe `Cadastros totais` e `Visitantes convertidos`.
+   - `Taxa de Conversao`: `(cadastros cliente + cadastros prestador) / visitas * 100`.
+6. Validar que o detalhe do card `Visitas` exibe `Visitantes unicos` e `Visitantes recorrentes`.
+7. Validar que o detalhe do card `Taxa de Conversao` exibe `Cadastros totais` e `Visitantes convertidos`.
+8. Abrir `Analytics Landing` no admin, aplicar filtros no drawer e validar correlacao entre overview e detalhe por sessao.
+9. Confirmar que a localidade exibida em `Analytics Landing` e estimada por GeoIP, enquanto `Leads Landing` preserva a localidade informada no formulario.
 
 ## Troubleshooting
 
@@ -280,7 +339,7 @@ Esperado:
 
 Validar tambem se existe admin ativo e se o app admin possui device registrado.
 
-### Dashboard admin nao atualiza `Visitas` ou `Taxa de Conversão`
+### Dashboard admin nao atualiza `Visitas` ou `Taxa de Conversao`
 
 Verificar o HTML/cookie publicado e o recorte usado no dashboard:
 
@@ -375,6 +434,38 @@ Conferir o header `Content-Security-Policy` da landing e validar se:
 
 - `connect-src` inclui `https://api.consertapramim.com`
 - nao existe mais `<script>` inline para `window.landingConfig` no HTML publicado
+
+### Nao aparecem heartbeats, scrolls ou cliques na analytics
+
+Verificar:
+
+```bash
+curl -s https://api.consertapramim.com/api/landing-analytics/public/config
+```
+
+Esperado:
+
+- `enabled: true`
+- `heartbeat.enabled: true`
+- `scroll.enabled: true`
+- `clicks.enabled: true`
+
+Se o payload publico vier desabilitado, revisar a secao runtime `Landing Analytics` no Portal Admin.
+
+### GeoIP aparece vazio ou `skipped_private_ip`
+
+Em VPS/rede interna, validar se o acesso publico esta chegando com `X-Forwarded-For` correto via Nginx. O resolver de GeoIP ignora IP privado, loopback e trafego sem IP publico roteavel.
+
+Se necessario, revisar `GeoIp.Enabled`, `GeoIp.BaseUrl`, `GeoIp.TimeoutMs` e `GeoIp.CacheMinutes` na secao runtime `Landing Analytics`.
+
+### `Analytics Landing` no admin abre sem sessoes, heatmap ou GeoIP
+
+Conferir:
+
+- se `LandingAccessEvents` e `LandingTelemetryEvents` estao recebendo `sessionId`;
+- se o periodo filtrado cobre os eventos recentes;
+- se o grid do heatmap nao foi configurado para valores extremos em `Clicks.HeatmapGridRows/Columns`;
+- se o drawer foi limpo antes de concluir que nao houve telemetria.
 
 ### Card do WhatsApp/Telegram/LinkedIn nao mostra a imagem
 

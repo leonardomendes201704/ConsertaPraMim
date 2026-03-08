@@ -72,6 +72,7 @@ public class ConsertaPraMimDbContext : DbContext
     public DbSet<AdminLoadTestRun> AdminLoadTestRuns { get; set; }
     public DbSet<LandingLead> LandingLeads { get; set; }
     public DbSet<LandingAccessEvent> LandingAccessEvents { get; set; }
+    public DbSet<LandingTelemetryEvent> LandingTelemetryEvents { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -2185,6 +2186,10 @@ public class ConsertaPraMimDbContext : DbContext
             .HasMaxLength(80);
 
         modelBuilder.Entity<LandingLead>()
+            .Property(x => x.SessionId)
+            .HasMaxLength(80);
+
+        modelBuilder.Entity<LandingLead>()
             .Property(x => x.FullName)
             .HasMaxLength(160);
 
@@ -2321,6 +2326,9 @@ public class ConsertaPraMimDbContext : DbContext
             .HasIndex(x => new { x.VisitorId, x.CreatedAt });
 
         modelBuilder.Entity<LandingLead>()
+            .HasIndex(x => new { x.SessionId, x.CreatedAt });
+
+        modelBuilder.Entity<LandingLead>()
             .ToTable(t =>
             {
                 t.HasCheckConstraint("CK_LandingLeads_Origin_Valid", "[Origin] IN (1,2)");
@@ -2329,6 +2337,10 @@ public class ConsertaPraMimDbContext : DbContext
 
         modelBuilder.Entity<LandingAccessEvent>()
             .Property(x => x.VisitorId)
+            .HasMaxLength(80);
+
+        modelBuilder.Entity<LandingAccessEvent>()
+            .Property(x => x.SessionId)
             .HasMaxLength(80);
 
         modelBuilder.Entity<LandingAccessEvent>()
@@ -2368,6 +2380,34 @@ public class ConsertaPraMimDbContext : DbContext
             .HasMaxLength(500);
 
         modelBuilder.Entity<LandingAccessEvent>()
+            .Property(x => x.GeoCountry)
+            .HasMaxLength(120);
+
+        modelBuilder.Entity<LandingAccessEvent>()
+            .Property(x => x.GeoCountryCode)
+            .HasMaxLength(8);
+
+        modelBuilder.Entity<LandingAccessEvent>()
+            .Property(x => x.GeoRegion)
+            .HasMaxLength(120);
+
+        modelBuilder.Entity<LandingAccessEvent>()
+            .Property(x => x.GeoRegionCode)
+            .HasMaxLength(32);
+
+        modelBuilder.Entity<LandingAccessEvent>()
+            .Property(x => x.GeoCity)
+            .HasMaxLength(120);
+
+        modelBuilder.Entity<LandingAccessEvent>()
+            .Property(x => x.GeoProvider)
+            .HasMaxLength(80);
+
+        modelBuilder.Entity<LandingAccessEvent>()
+            .Property(x => x.GeoLookupStatus)
+            .HasMaxLength(80);
+
+        modelBuilder.Entity<LandingAccessEvent>()
             .Property(x => x.MetadataJson)
             .HasMaxLength(4000);
 
@@ -2378,16 +2418,113 @@ public class ConsertaPraMimDbContext : DbContext
             .HasIndex(x => new { x.VisitorId, x.CreatedAt });
 
         modelBuilder.Entity<LandingAccessEvent>()
+            .HasIndex(x => new { x.SessionId, x.CreatedAt });
+
+        modelBuilder.Entity<LandingAccessEvent>()
             .HasIndex(x => new { x.InitialLeadOrigin, x.CreatedAt });
 
         modelBuilder.Entity<LandingAccessEvent>()
             .HasIndex(x => new { x.Path, x.CreatedAt });
 
         modelBuilder.Entity<LandingAccessEvent>()
+            .HasIndex(x => new { x.GeoCountryCode, x.CreatedAt });
+
+        modelBuilder.Entity<LandingAccessEvent>()
+            .HasIndex(x => new { x.GeoRegionCode, x.CreatedAt });
+
+        modelBuilder.Entity<LandingAccessEvent>()
+            .HasIndex(x => new { x.GeoCity, x.CreatedAt });
+
+        modelBuilder.Entity<LandingAccessEvent>()
             .ToTable(t =>
             {
                 t.HasCheckConstraint("CK_LandingAccessEvents_VisitorId_NotEmpty", "LEN([VisitorId]) > 0");
+                t.HasCheckConstraint("CK_LandingAccessEvents_SessionId_NotEmpty", "LEN([SessionId]) > 0");
                 t.HasCheckConstraint("CK_LandingAccessEvents_InitialLeadOrigin_Valid", "[InitialLeadOrigin] IS NULL OR [InitialLeadOrigin] IN (1,2)");
+            });
+
+        modelBuilder.Entity<LandingTelemetryEvent>()
+            .Property(x => x.VisitorId)
+            .HasMaxLength(80);
+
+        modelBuilder.Entity<LandingTelemetryEvent>()
+            .Property(x => x.SessionId)
+            .HasMaxLength(80);
+
+        modelBuilder.Entity<LandingTelemetryEvent>()
+            .Property(x => x.CurrentUrl)
+            .HasMaxLength(500);
+
+        modelBuilder.Entity<LandingTelemetryEvent>()
+            .Property(x => x.Path)
+            .HasMaxLength(260);
+
+        modelBuilder.Entity<LandingTelemetryEvent>()
+            .Property(x => x.Host)
+            .HasMaxLength(200);
+
+        modelBuilder.Entity<LandingTelemetryEvent>()
+            .Property(x => x.Scheme)
+            .HasMaxLength(10);
+
+        modelBuilder.Entity<LandingTelemetryEvent>()
+            .Property(x => x.ElementKey)
+            .HasMaxLength(160);
+
+        modelBuilder.Entity<LandingTelemetryEvent>()
+            .Property(x => x.ElementLabel)
+            .HasMaxLength(240);
+
+        modelBuilder.Entity<LandingTelemetryEvent>()
+            .Property(x => x.ElementHref)
+            .HasMaxLength(500);
+
+        modelBuilder.Entity<LandingTelemetryEvent>()
+            .Property(x => x.BrowserLanguage)
+            .HasMaxLength(128);
+
+        modelBuilder.Entity<LandingTelemetryEvent>()
+            .Property(x => x.IpAddress)
+            .HasMaxLength(80);
+
+        modelBuilder.Entity<LandingTelemetryEvent>()
+            .Property(x => x.ForwardedFor)
+            .HasMaxLength(300);
+
+        modelBuilder.Entity<LandingTelemetryEvent>()
+            .Property(x => x.UserAgent)
+            .HasMaxLength(512);
+
+        modelBuilder.Entity<LandingTelemetryEvent>()
+            .Property(x => x.AcceptLanguage)
+            .HasMaxLength(128);
+
+        modelBuilder.Entity<LandingTelemetryEvent>()
+            .Property(x => x.MetadataJson)
+            .HasMaxLength(4000);
+
+        modelBuilder.Entity<LandingTelemetryEvent>()
+            .HasIndex(x => x.OccurredAtUtc);
+
+        modelBuilder.Entity<LandingTelemetryEvent>()
+            .HasIndex(x => new { x.SessionId, x.OccurredAtUtc });
+
+        modelBuilder.Entity<LandingTelemetryEvent>()
+            .HasIndex(x => new { x.EventType, x.OccurredAtUtc });
+
+        modelBuilder.Entity<LandingTelemetryEvent>()
+            .HasIndex(x => new { x.HeatmapRow, x.HeatmapColumn, x.OccurredAtUtc });
+
+        modelBuilder.Entity<LandingTelemetryEvent>()
+            .ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_LandingTelemetryEvents_VisitorId_NotEmpty", "LEN([VisitorId]) > 0");
+                t.HasCheckConstraint("CK_LandingTelemetryEvents_SessionId_NotEmpty", "LEN([SessionId]) > 0");
+                t.HasCheckConstraint("CK_LandingTelemetryEvents_EventType_Valid", "[EventType] IN (1,2,3,4,5)");
+                t.HasCheckConstraint("CK_LandingTelemetryEvents_ActiveSeconds_Range", "[ActiveSeconds] IS NULL OR ([ActiveSeconds] >= 0 AND [ActiveSeconds] <= 300)");
+                t.HasCheckConstraint("CK_LandingTelemetryEvents_ScrollDepth_Range", "[ScrollDepthPercent] IS NULL OR ([ScrollDepthPercent] >= 0 AND [ScrollDepthPercent] <= 100)");
+                t.HasCheckConstraint("CK_LandingTelemetryEvents_ClickXPercent_Range", "[ClickXPercent] IS NULL OR ([ClickXPercent] >= 0 AND [ClickXPercent] <= 100)");
+                t.HasCheckConstraint("CK_LandingTelemetryEvents_ClickYPercent_Range", "[ClickYPercent] IS NULL OR ([ClickYPercent] >= 0 AND [ClickYPercent] <= 100)");
             });
     }
 }

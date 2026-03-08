@@ -23,6 +23,7 @@ public class LandingLeadsControllerTests
         var request = new CaptureLandingLeadRequestDto(
             LandingLeadOrigin.Client,
             "visitor-landing-001",
+            "session-landing-001",
             "Leonardo Silva",
             "13999999999",
             "leo@exemplo.com",

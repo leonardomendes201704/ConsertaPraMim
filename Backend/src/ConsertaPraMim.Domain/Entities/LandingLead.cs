@@ -7,6 +7,7 @@ public class LandingLead : BaseEntity
 {
     public LandingLeadOrigin Origin { get; set; }
     public string? VisitorId { get; set; }
+    public string? SessionId { get; set; }
     public string FullName { get; set; } = string.Empty;
     public string Phone { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;

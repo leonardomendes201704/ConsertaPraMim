@@ -14,6 +14,9 @@ public sealed class CaptureLandingLeadRequestValidator : AbstractValidator<Captu
         RuleFor(x => x.VisitorId)
             .MaximumLength(80);
 
+        RuleFor(x => x.SessionId)
+            .MaximumLength(80);
+
         RuleFor(x => x.FullName)
             .NotEmpty()
             .MaximumLength(160);
@@ -113,5 +116,86 @@ public sealed class CaptureLandingLeadRequestValidator : AbstractValidator<Captu
 
         var digits = new string(phone.Where(char.IsDigit).ToArray());
         return digits.Length >= 10;
+    }
+}
+
+public sealed class RecordLandingTelemetryBatchRequestValidator : AbstractValidator<RecordLandingTelemetryBatchRequestDto>
+{
+    public RecordLandingTelemetryBatchRequestValidator()
+    {
+        RuleFor(x => x.VisitorId)
+            .MaximumLength(80);
+
+        RuleFor(x => x.SessionId)
+            .MaximumLength(80);
+
+        RuleFor(x => x.CurrentUrl)
+            .MaximumLength(500);
+
+        RuleFor(x => x.Path)
+            .MaximumLength(260);
+
+        RuleFor(x => x.Host)
+            .MaximumLength(200);
+
+        RuleFor(x => x.Scheme)
+            .MaximumLength(10);
+
+        RuleFor(x => x.InitialLeadOrigin)
+            .Must(value =>
+                string.IsNullOrWhiteSpace(value) ||
+                value.Equals("client", StringComparison.OrdinalIgnoreCase) ||
+                value.Equals("provider", StringComparison.OrdinalIgnoreCase))
+            .WithMessage("InitialLeadOrigin deve ser `client`, `provider` ou vazio.");
+
+        RuleFor(x => x.BrowserLanguage)
+            .MaximumLength(128);
+
+        RuleFor(x => x.Events)
+            .NotNull()
+            .Must(events => events != null && events.Count > 0)
+            .WithMessage("Informe ao menos um evento de telemetria.");
+
+        RuleForEach(x => x.Events!)
+            .SetValidator(new RecordLandingTelemetryEventItemValidator());
+    }
+}
+
+public sealed class RecordLandingTelemetryEventItemValidator : AbstractValidator<RecordLandingTelemetryEventItemDto>
+{
+    public RecordLandingTelemetryEventItemValidator()
+    {
+        RuleFor(x => x.Type)
+            .NotEmpty()
+            .Must(type =>
+                type != null &&
+                new[] { "heartbeat", "scroll_milestone", "click", "lead_modal_open", "lead_submit_success" }
+                    .Contains(type.Trim().ToLowerInvariant()))
+            .WithMessage("Tipo de evento de telemetria invalido.");
+
+        RuleFor(x => x.ActiveSeconds)
+            .InclusiveBetween(0, 300)
+            .When(x => x.ActiveSeconds.HasValue);
+
+        RuleFor(x => x.ScrollDepthPercent)
+            .InclusiveBetween(0, 100)
+            .When(x => x.ScrollDepthPercent.HasValue);
+
+        RuleFor(x => x.ClickXPercent)
+            .InclusiveBetween(0, 100)
+            .When(x => x.ClickXPercent.HasValue);
+
+        RuleFor(x => x.ClickYPercent)
+            .InclusiveBetween(0, 100)
+            .When(x => x.ClickYPercent.HasValue);
+
+        RuleFor(x => x.ElementKey)
+            .MaximumLength(160);
+
+        RuleFor(x => x.ElementLabel)
+            .MaximumLength(240);
+
+        RuleFor(x => x.ElementHref)
+            .MaximumLength(500);
     }
 }

@@ -6,6 +6,7 @@ namespace ConsertaPraMim.Domain.Entities;
 public sealed class LandingAccessEvent : BaseEntity
 {
     public string VisitorId { get; set; } = string.Empty;
+    public string SessionId { get; set; } = string.Empty;
     public string? CurrentUrl { get; set; }
     public string? Path { get; set; }
     public string? Host { get; set; }
@@ -16,5 +17,12 @@ public sealed class LandingAccessEvent : BaseEntity
     public string? UserAgent { get; set; }
     public string? AcceptLanguage { get; set; }
     public string? RefererUrl { get; set; }
+    public string? GeoCountry { get; set; }
+    public string? GeoCountryCode { get; set; }
+    public string? GeoRegion { get; set; }
+    public string? GeoRegionCode { get; set; }
+    public string? GeoCity { get; set; }
+    public string? GeoProvider { get; set; }
+    public string? GeoLookupStatus { get; set; }
     public string? MetadataJson { get; set; }
 }

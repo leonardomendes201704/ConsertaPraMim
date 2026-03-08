@@ -30,4 +30,18 @@ public sealed class LandingAccessEventRepository : ILandingAccessEventRepository
             .OrderByDescending(accessEvent => accessEvent.CreatedAt)
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<LandingAccessEvent?> GetBySessionIdAsync(string sessionId, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(sessionId))
+        {
+            return null;
+        }
+
+        var normalizedSessionId = sessionId.Trim();
+        return await _dbContext.LandingAccessEvents
+            .AsNoTracking()
+            .OrderByDescending(accessEvent => accessEvent.CreatedAt)
+            .FirstOrDefaultAsync(accessEvent => accessEvent.SessionId == normalizedSessionId, cancellationToken);
+    }
 }

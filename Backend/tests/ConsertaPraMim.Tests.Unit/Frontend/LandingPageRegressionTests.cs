@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using Xunit;
@@ -46,7 +46,7 @@ public class LandingPageRegressionTests
         Assert.DoesNotContain("<script>", layoutContent);
     }
 
-    [Fact(DisplayName = "Landing | JS | Deve usar mensagens amigáveis e fechar modal após sucesso")]
+    [Fact(DisplayName = "Landing | JS | Deve usar mensagens amigaveis e fechar modal apos sucesso")]
     public void SiteJs_ShouldUseFriendlyMessagesAndCloseModalAfterSuccess()
     {
         var jsContent = File.ReadAllText(GetProjectPath(
@@ -71,7 +71,7 @@ public class LandingPageRegressionTests
         Assert.DoesNotContain("Failed to fetch", jsContent);
     }
 
-    [Fact(DisplayName = "Landing | CSS | Deve respeitar hidden na seção de captação")]
+    [Fact(DisplayName = "Landing | CSS | Deve respeitar hidden na secao de captacao")]
     public void SiteCss_ShouldForceHiddenElementsToRemainInvisible()
     {
         var cssContent = File.ReadAllText(GetProjectPath(
@@ -86,7 +86,7 @@ public class LandingPageRegressionTests
         Assert.Contains("display: none !important;", cssContent);
     }
 
-    [Fact(DisplayName = "Landing | Captação | Deve renderizar modal Bootstrap sem seção no fim da página")]
+    [Fact(DisplayName = "Landing | Captacao | Deve renderizar modal Bootstrap sem secao no fim da pagina")]
     public void Index_ShouldRenderLeadCaptureInsideBootstrapModal()
     {
         var indexContent = File.ReadAllText(GetProjectPath(
@@ -129,6 +129,8 @@ public class LandingPageRegressionTests
             "Index.cshtml"));
 
         Assert.Contains("Quem entra na plataforma percebe a diferença logo no primeiro contato.", indexContent);
+        Assert.Contains(">5 clientes<", indexContent);
+        Assert.Contains(">5 prestadores<", indexContent);
 
         var clientBlock = Regex.Match(
             indexContent,

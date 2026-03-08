@@ -12,6 +12,7 @@ public sealed class LandingLeadService : ILandingLeadService
 {
     private const int MaxFullNameLength = 160;
     private const int MaxVisitorIdLength = 80;
+    private const int MaxSessionIdLength = 80;
     private const int MaxPhoneLength = 40;
     private const int MaxEmailLength = 200;
     private const int MaxCityLength = 120;
@@ -64,6 +65,7 @@ public sealed class LandingLeadService : ILandingLeadService
         {
             Origin = request.Origin,
             VisitorId = NormalizeOptional(request.VisitorId, MaxVisitorIdLength),
+            SessionId = NormalizeOptional(request.SessionId, MaxSessionIdLength),
             FullName = NormalizeRequired(request.FullName, MaxFullNameLength),
             Phone = NormalizeRequired(request.Phone, MaxPhoneLength),
             Email = NormalizeRequired(request.Email, MaxEmailLength),
@@ -119,6 +121,7 @@ public sealed class LandingLeadService : ILandingLeadService
         {
             request.Origin,
             request.VisitorId,
+            request.SessionId,
             request.CurrentPageUrl,
             request.ReferrerUrl,
             request.QueryString,

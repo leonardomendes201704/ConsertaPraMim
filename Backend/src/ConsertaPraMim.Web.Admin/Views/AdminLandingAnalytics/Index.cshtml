@@ -1,0 +1,412 @@
+@using ConsertaPraMim.Domain.Enums
+@model ConsertaPraMim.Web.Admin.Models.AdminLandingAnalyticsIndexViewModel
+@{
+    ViewData["Title"] = "Analytics Landing";
+    var data = Model.Overview;
+    var heatmapCells = data?.Heatmap ?? Array.Empty<ConsertaPraMim.Application.DTOs.AdminLandingAnalyticsHeatmapCellDto>();
+    var maxHeatmapHits = heatmapCells.Any() ? heatmapCells.Max(item => item.Hits) : 0;
+}
+
+@functions {
+    private static readonly TimeZoneInfo BusinessTimeZone = ResolveBusinessTimeZone();
+
+    private static string FormatBusinessDate(DateTime value, string format = "dd/MM/yyyy HH:mm:ss")
+    {
+        var utcValue = value.Kind == DateTimeKind.Utc
+            ? value
+            : DateTime.SpecifyKind(value, DateTimeKind.Utc);
+
+        return TimeZoneInfo.ConvertTimeFromUtc(utcValue, BusinessTimeZone).ToString(format);
+    }
+
+    private static TimeZoneInfo ResolveBusinessTimeZone()
+    {
+        foreach (var candidate in new[] { "America/Sao_Paulo", "E. South America Standard Time" })
+        {
+            try
+            {
+                return TimeZoneInfo.FindSystemTimeZoneById(candidate);
+            }
+            catch
+            {
+            }
+        }
+
+        return TimeZoneInfo.Utc;
+    }
+
+    private static string ResolveOriginLabel(LandingLeadOrigin? origin)
+    {
+        return origin switch
+        {
+            LandingLeadOrigin.Client => "Cliente",
+            LandingLeadOrigin.Provider => "Prestador",
+            _ => "Nao informada"
+        };
+    }
+
+    private static string ResolveOriginBadgeClass(LandingLeadOrigin? origin)
+    {
+        return origin switch
+        {
+            LandingLeadOrigin.Provider => "bg-warning-subtle text-warning-emphasis",
+            LandingLeadOrigin.Client => "bg-primary-subtle text-primary-emphasis",
+            _ => "bg-secondary-subtle text-secondary-emphasis"
+        };
+    }
+
+    private static string ResolveHeatmapStyle(int hits, int maxHits)
+    {
+        if (hits <= 0 || maxHits <= 0)
+        {
+            return "background: rgba(148, 163, 184, 0.12);";
+        }
+
+        var opacity = Math.Max(0.18, Math.Min(0.95, hits / (double)maxHits));
+        return $"background: rgba(15, 91, 187, {opacity.ToString(System.Globalization.CultureInfo.InvariantCulture)});";
+    }
+}
+
+<style>
+    .analytics-card {
+        border: 0;
+        border-radius: 16px;
+        box-shadow: 0 10px 22px rgba(15, 23, 42, .08);
+    }
+
+    .analytics-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+    }
+
+    .analytics-summary-card {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 14px;
+        padding: 14px 16px;
+    }
+
+    .analytics-summary-label {
+        font-size: .78rem;
+        color: #64748b;
+        text-transform: uppercase;
+        font-weight: 700;
+    }
+
+    .analytics-summary-value {
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: #0f172a;
+    }
+
+    .analytics-filters-drawer {
+        width: min(460px, 100vw);
+    }
+
+    .analytics-breakdown-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 16px;
+    }
+
+    .analytics-breakdown-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .analytics-breakdown-item {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        font-size: .95rem;
+    }
+
+    .analytics-heatmap-grid {
+        display: grid;
+        gap: 8px;
+    }
+
+    .analytics-heatmap-cell {
+        border-radius: 12px;
+        min-height: 70px;
+        color: #0f172a;
+        padding: 10px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        border: 1px solid rgba(148, 163, 184, .18);
+    }
+
+    .analytics-table th {
+        font-size: .75rem;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        color: #64748b;
+        border-top: 0;
+        white-space: nowrap;
+    }
+</style>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+        <h1 class="h4 fw-bold mb-1">Analytics Landing</h1>
+        <p class="text-muted mb-0">Heatmap fase 1, heartbeat, scroll e correlacao com leads da landing publica.</p>
+    </div>
+    <div class="text-muted small">
+        Atualizado em @FormatBusinessDate(Model.LastUpdatedUtc)
+    </div>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <div class="alert alert-danger">@Model.ErrorMessage</div>
+}
+else if (data != null)
+{
+    <section class="analytics-grid mb-4">
+        <article class="analytics-summary-card">
+            <div class="analytics-summary-label">Sessoes</div>
+            <div class="analytics-summary-value">@data.TotalSessions</div>
+        </article>
+        <article class="analytics-summary-card">
+            <div class="analytics-summary-label">Visitantes unicos</div>
+            <div class="analytics-summary-value">@data.TotalUniqueVisitors</div>
+        </article>
+        <article class="analytics-summary-card">
+            <div class="analytics-summary-label">Sessoes com GeoIP</div>
+            <div class="analytics-summary-value">@data.SessionsWithGeo</div>
+        </article>
+        <article class="analytics-summary-card">
+            <div class="analytics-summary-label">Tempo ativo medio</div>
+            <div class="analytics-summary-value">@data.AverageActiveSecondsPerSession.ToString("N1")s</div>
+        </article>
+        <article class="analytics-summary-card">
+            <div class="analytics-summary-label">Scroll medio max.</div>
+            <div class="analytics-summary-value">@data.AverageMaxScrollPercent.ToString("N1")%</div>
+        </article>
+        <article class="analytics-summary-card">
+            <div class="analytics-summary-label">Cliques</div>
+            <div class="analytics-summary-value">@data.TotalClicks</div>
+        </article>
+        <article class="analytics-summary-card">
+            <div class="analytics-summary-label">Aberturas de formulario</div>
+            <div class="analytics-summary-value">@data.LeadModalOpens</div>
+        </article>
+        <article class="analytics-summary-card">
+            <div class="analytics-summary-label">Leads captados</div>
+            <div class="analytics-summary-value">@data.LeadSubmissions</div>
+        </article>
+    </section>
+
+    <div class="analytics-card card mb-4">
+        <div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-3">
+            <div class="d-flex flex-wrap gap-2">
+                <button type="button"
+                        class="btn btn-outline-primary"
+                        data-bs-toggle="offcanvas"
+                        data-bs-target="#landingAnalyticsFiltersDrawer"
+                        aria-controls="landingAnalyticsFiltersDrawer">
+                    <i class="fas fa-sliders-h me-1"></i> Filtros
+                </button>
+                <a asp-action="Index" class="btn btn-outline-secondary">
+                    <i class="fas fa-eraser me-1"></i> Limpar
+                </a>
+            </div>
+            <div class="text-muted small">
+                Periodo: <strong>@Model.Filters.FromUtc?.ToString("dd/MM/yyyy") ate @Model.Filters.ToUtc?.ToString("dd/MM/yyyy")</strong>
+            </div>
+        </div>
+    </div>
+
+    <div class="offcanvas offcanvas-end analytics-filters-drawer" tabindex="-1" id="landingAnalyticsFiltersDrawer" aria-labelledby="landingAnalyticsFiltersDrawerLabel">
+        <div class="offcanvas-header">
+            <h2 class="offcanvas-title fs-5" id="landingAnalyticsFiltersDrawerLabel">Filtros da analytics</h2>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Fechar"></button>
+        </div>
+        <div class="offcanvas-body">
+            <form method="get" asp-action="Index" class="d-flex flex-column gap-3">
+                <div>
+                    <label class="form-label fw-semibold" for="searchTerm">Busca</label>
+                    <input type="text" class="form-control" id="searchTerm" name="searchTerm" value="@Model.Filters.SearchTerm" placeholder="sessao, visitante, localidade, lead ou URL" />
+                </div>
+                <div>
+                    <label class="form-label fw-semibold" for="origin">Origem</label>
+                    <select id="origin" name="origin" class="form-select">
+                        @{
+                            var originOptions = new[]
+                            {
+                                (Value: "all", Label: "Todas"),
+                                (Value: "Client", Label: "Cliente"),
+                                (Value: "Provider", Label: "Prestador")
+                            };
+                        }
+                        @foreach (var option in originOptions)
+                        {
+                            var isSelected = Model.Filters.Origin.Equals(option.Value, StringComparison.OrdinalIgnoreCase);
+                            <option value="@option.Value" selected="@isSelected">@option.Label</option>
+                        }
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label fw-semibold" for="path">Pagina</label>
+                    <input type="text" class="form-control" id="path" name="path" value="@Model.Filters.Path" placeholder="/, /Cliente, /Prestador" />
+                </div>
+                <div>
+                    <label class="form-label fw-semibold" for="countryCode">Pais</label>
+                    <input type="text" class="form-control" id="countryCode" name="countryCode" value="@Model.Filters.CountryCode" maxlength="8" />
+                </div>
+                <div>
+                    <label class="form-label fw-semibold" for="region">UF / Regiao</label>
+                    <input type="text" class="form-control" id="region" name="region" value="@Model.Filters.Region" />
+                </div>
+                <div>
+                    <label class="form-label fw-semibold" for="city">Cidade</label>
+                    <input type="text" class="form-control" id="city" name="city" value="@Model.Filters.City" />
+                </div>
+                <div>
+                    <label class="form-label fw-semibold" for="fromUtc">De</label>
+                    <input type="date" class="form-control" id="fromUtc" name="fromUtc" value="@Model.Filters.FromUtc?.ToString("yyyy-MM-dd")" />
+                </div>
+                <div>
+                    <label class="form-label fw-semibold" for="toUtc">Ate</label>
+                    <input type="date" class="form-control" id="toUtc" name="toUtc" value="@Model.Filters.ToUtc?.ToString("yyyy-MM-dd")" />
+                </div>
+                <div>
+                    <label class="form-label fw-semibold" for="pageSize">Itens por pagina</label>
+                    <select id="pageSize" name="pageSize" class="form-select">
+                        @foreach (var option in new[] { 10, 20, 50, 100 })
+                        {
+                            var isSelected = Model.Filters.PageSize == option;
+                            <option value="@option" selected="@isSelected">@option</option>
+                        }
+                    </select>
+                </div>
+
+                <input type="hidden" name="page" value="1" />
+
+                <div class="d-grid gap-2 mt-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-filter me-1"></i> Aplicar filtros
+                    </button>
+                    <a asp-action="Index" class="btn btn-outline-secondary">Limpar filtros</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="analytics-breakdown-grid mb-4">
+        <section class="analytics-card card">
+            <div class="card-header bg-white fw-semibold">Paginas com mais sessoes</div>
+            <div class="card-body">
+                <ul class="analytics-breakdown-list">
+                    @foreach (var item in data.PathBreakdown)
+                    {
+                        <li class="analytics-breakdown-item"><span>@item.Label</span><strong>@item.Count</strong></li>
+                    }
+                </ul>
+            </div>
+        </section>
+        <section class="analytics-card card">
+            <div class="card-header bg-white fw-semibold">Geo estimado</div>
+            <div class="card-body">
+                <ul class="analytics-breakdown-list">
+                    @foreach (var item in data.CityBreakdown)
+                    {
+                        <li class="analytics-breakdown-item"><span>@item.Label</span><strong>@item.Count</strong></li>
+                    }
+                </ul>
+            </div>
+        </section>
+        <section class="analytics-card card">
+            <div class="card-header bg-white fw-semibold">Eventos</div>
+            <div class="card-body">
+                <ul class="analytics-breakdown-list">
+                    @foreach (var item in data.EventBreakdown)
+                    {
+                        <li class="analytics-breakdown-item"><span>@item.Label</span><strong>@item.Count</strong></li>
+                    }
+                </ul>
+            </div>
+        </section>
+    </div>
+
+    <section class="analytics-card card mb-4">
+        <div class="card-header bg-white fw-semibold">Heatmap agregado de cliques</div>
+        <div class="card-body">
+            <div class="analytics-heatmap-grid" style="grid-template-columns: repeat(@data.HeatmapColumns, minmax(0, 1fr));">
+                @for (var row = 0; row < data.HeatmapRows; row++)
+                {
+                    for (var column = 0; column < data.HeatmapColumns; column++)
+                    {
+                        var cell = heatmapCells.FirstOrDefault(item => item.Row == row && item.Column == column);
+                        var hits = cell?.Hits ?? 0;
+                        <article class="analytics-heatmap-cell" style="@ResolveHeatmapStyle(hits, maxHeatmapHits)">
+                            <span class="small text-muted">Linha @row / Coluna @column</span>
+                            <strong>@hits clique(s)</strong>
+                        </article>
+                    }
+                }
+            </div>
+        </div>
+    </section>
+
+    <section class="analytics-card card">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <span class="fw-semibold">Sessoes analisadas</span>
+            <span class="text-muted small">@data.TotalCount item(ns)</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 analytics-table">
+                <thead>
+                <tr>
+                    <th>Inicio</th>
+                    <th>Origem</th>
+                    <th>Pagina</th>
+                    <th>Localidade estimada</th>
+                    <th>Tempo ativo</th>
+                    <th>Scroll</th>
+                    <th>Cliques</th>
+                    <th>Modais</th>
+                    <th>Leads</th>
+                    <th class="text-end">Acoes</th>
+                </tr>
+                </thead>
+                <tbody>
+                @if (data.Sessions.Any())
+                {
+                    @foreach (var item in data.Sessions)
+                    {
+                        <tr>
+                            <td>@FormatBusinessDate(item.StartedAtUtc)</td>
+                            <td><span class="badge @ResolveOriginBadgeClass(item.InitialLeadOrigin)">@ResolveOriginLabel(item.InitialLeadOrigin)</span></td>
+                            <td>@item.Path</td>
+                            <td>@item.EstimatedLocality</td>
+                            <td>@item.ActiveSeconds s</td>
+                            <td>@item.MaxScrollPercent%</td>
+                            <td>@item.Clicks</td>
+                            <td>@item.ModalOpens</td>
+                            <td>@item.LeadSubmissions</td>
+                            <td class="text-end">
+                                <a asp-action="Details" asp-route-sessionId="@item.SessionId" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-eye me-1"></i> Detalhar
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="10" class="text-center py-4 text-muted">Nenhuma sessao encontrada para o filtro informado.</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </section>
+}

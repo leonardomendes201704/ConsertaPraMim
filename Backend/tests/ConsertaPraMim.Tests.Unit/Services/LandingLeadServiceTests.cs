@@ -33,6 +33,7 @@ public class LandingLeadServiceTests
         var request = new CaptureLandingLeadRequestDto(
             Origin: LandingLeadOrigin.Client,
             VisitorId: "visitor-client-001",
+            SessionId: "session-client-001",
             FullName: "Leonardo Silva",
             Phone: "(13) 99999-9999",
             Email: "leo@exemplo.com",
@@ -73,6 +74,7 @@ public class LandingLeadServiceTests
         Assert.NotNull(persistedLead);
         Assert.Equal(LandingLeadOrigin.Client, persistedLead!.Origin);
         Assert.Equal("visitor-client-001", persistedLead.VisitorId);
+        Assert.Equal("session-client-001", persistedLead.SessionId);
         Assert.Equal("SP", persistedLead.State);
         Assert.Equal("meta", persistedLead.UtmSource);
         Assert.Equal("cpc", persistedLead.UtmMedium);
@@ -111,6 +113,7 @@ public class LandingLeadServiceTests
         var request = new CaptureLandingLeadRequestDto(
             Origin: LandingLeadOrigin.Provider,
             VisitorId: "visitor-provider-001",
+            SessionId: "session-provider-001",
             FullName: "Maria Souza",
             Phone: "13988887777",
             Email: "maria@empresa.com",
@@ -150,6 +153,7 @@ public class LandingLeadServiceTests
 
         Assert.NotNull(persistedLead);
         Assert.Equal("visitor-provider-001", persistedLead!.VisitorId);
+        Assert.Equal("session-provider-001", persistedLead.SessionId);
         Assert.Equal("12345678000199", persistedLead!.CompanyDocument);
         Assert.Equal(60, persistedLead.YearsOfExperience);
         Assert.Equal(LandingLeadOrigin.Provider, persistedLead.Origin);

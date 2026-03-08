@@ -7,6 +7,7 @@ public record CaptureLandingLeadRequestDto(
     [property: JsonConverter(typeof(JsonStringEnumConverter))]
     LandingLeadOrigin Origin,
     string? VisitorId,
+    string? SessionId,
     string FullName,
     string Phone,
     string Email,
