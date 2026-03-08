@@ -10,6 +10,12 @@
 
 ## Released
 
+- [2026-03-08] [LANDING-HOME-REFATORACAO] Refatoracao visual da home publica da landing
+- Tipo: feat
+- Resumo: a home publica `https://www.consertapramim.com` foi redesenhada para um layout mais direto e comercial, com header claro, hero centralizado, duas cards principais de entrada (`Para Clientes` e `Para Profissionais`), ilustrações locais versionadas em `SVG`, seções compactas de `Sobre`, `Contato`, `Termos`, `Privacidade` e `FAQ`, além de footer simplificado; a entrega preserva CSP estrita sem depender de assets externos.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Landing/Views/Home/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Landing/Views/Shared/_Layout.cshtml`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/css/site.css`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/images/landing-client-card.svg`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/images/landing-provider-card.svg`, `Backend/src/ConsertaPraMim.Web.Landing/Controllers/HomeController.cs`, `Documentacao/LANDING_PAGE/MANUAL_QA_OPERACAO_LANDING.md`
+- Risco/Impacto: medio
+
 - [2026-03-08] [LANDING-WWW-VPS] Landing page publica em `www.consertapramim.com`
 - Tipo: feat
 - Resumo: criado o projeto `ConsertaPraMim.Web.Landing` para servir a home institucional publica em `https://www.consertapramim.com`, com `healthcheck`, `robots.txt`, `sitemap.xml`, CTA para os portais existentes e deploy integrado na VPS via Docker, Nginx, Certbot, scripts de deploy e workflow seletivo do GitHub Actions; o dominio raiz `consertapramim.com` passou a ser tratado como redirect para `www`.

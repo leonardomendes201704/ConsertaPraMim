@@ -24,8 +24,8 @@ public sealed class HomeController : Controller
             ApiSwaggerUrl = LandingSiteOptions.NormalizeUrl(_options.ApiSwaggerUrl, "https://api.consertapramim.com/swagger")
         };
 
-        ViewData["Title"] = "ConsertaPraMim | Assistencia tecnica organizada do pedido ao pos-servico";
-        ViewData["Description"] = "Conecte clientes, prestadores e operacao em uma jornada unica de atendimento, agenda, chat e pos-servico.";
+        ViewData["Title"] = "ConsertaPraMim | Reparos domésticos e profissionais qualificados";
+        ViewData["Description"] = "A solução inteligente para conectar clientes e profissionais em uma jornada de reparos mais clara, rápida e organizada.";
         ViewData["CanonicalUrl"] = model.CanonicalUrl;
 
         return View(model);

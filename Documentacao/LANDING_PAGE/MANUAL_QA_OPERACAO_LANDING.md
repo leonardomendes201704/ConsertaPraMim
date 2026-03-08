@@ -60,14 +60,41 @@ Esperado:
 1. Abrir `https://www.consertapramim.com` em desktop.
 2. Abrir `https://www.consertapramim.com` em viewport mobile.
 3. Confirmar que o menu mobile abre/fecha.
-4. Validar CTA:
-   - `Portal Cliente`
-   - `Portal Prestador`
-   - `Portal Admin`
+4. Confirmar que o header exibe:
+   - marca `ConsertaPraMim`
+   - links `Início`, `Sobre`, `Contato`
+   - CTA `Entrar`
+5. Validar as duas cards principais da home:
+   - `Para Clientes`
+   - `Para Profissionais`
+6. Validar CTA:
+   - `Encontrar Profissional`
+   - `Cadastrar-se como Parceiro`
+   - `Área do cliente`
+   - `Portal do prestador`
+   - `Portal admin`
    - `Swagger API`
-5. Confirmar ausencia de erros de `Mixed Content` e `Content-Security-Policy` no console.
-6. Validar `https://www.consertapramim.com/robots.txt`.
-7. Validar `https://www.consertapramim.com/sitemap.xml`.
+7. Confirmar presença das âncoras de rodapé:
+   - `Termos de Uso`
+   - `Privacidade`
+   - `FAQ`
+8. Confirmar ausência de erros de `Mixed Content` e `Content-Security-Policy` no console.
+9. Confirmar que as ilustrações dos cards carregam localmente em `wwwroot/images` sem chamada a origem externa.
+10. Validar `https://www.consertapramim.com/robots.txt`.
+11. Validar `https://www.consertapramim.com/sitemap.xml`.
+
+## Layout esperado da home
+
+1. Header claro com navegação simples e CTA destacado à direita.
+2. Hero centralizado com título `Bem-vindo ao ConsertaPraMim`.
+3. Dois cards de entrada em destaque:
+   - cliente com prova social
+   - profissional com badge `Parceiro fundador`
+4. Blocos complementares abaixo da dobra:
+   - `Sobre a plataforma`
+   - `Contato e acessos`
+   - `Termos de uso`, `Privacidade` e `FAQ`
+5. Footer enxuto com links de rodapé e copyright.
 
 ## Troubleshooting
 
@@ -103,3 +130,17 @@ Esperado:
 - `LandingSite__ProviderPortalUrl=https://prestador.consertapramim.com`
 - `LandingSite__AdminPortalUrl=https://admin.consertapramim.com`
 - `LandingSite__ApiSwaggerUrl=https://api.consertapramim.com/swagger`
+
+### Cards/ilustracoes nao carregam
+
+Verificar se os assets locais existem no publish do container:
+
+```bash
+docker exec cpm-web-landing ls -la /app/wwwroot/images
+curl -I https://www.consertapramim.com/images/landing-client-card.svg
+curl -I https://www.consertapramim.com/images/landing-provider-card.svg
+```
+
+Esperado:
+- os arquivos `landing-client-card.svg` e `landing-provider-card.svg` existem em `/app/wwwroot/images`
+- ambos respondem `200`

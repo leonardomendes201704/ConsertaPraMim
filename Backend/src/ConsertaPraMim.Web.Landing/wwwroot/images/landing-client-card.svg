@@ -1,0 +1,36 @@
+<svg width="720" height="380" viewBox="0 0 720 380" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="client-bg" x1="54" y1="40" x2="646" y2="340" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#8CCABB"/>
+      <stop offset="1" stop-color="#B8D8CB"/>
+    </linearGradient>
+    <linearGradient id="shirt" x1="326" y1="132" x2="478" y2="300" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#7CAFE8"/>
+      <stop offset="1" stop-color="#4E78B9"/>
+    </linearGradient>
+    <linearGradient id="overall" x1="330" y1="180" x2="476" y2="322" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2B65AF"/>
+      <stop offset="1" stop-color="#1B3F77"/>
+    </linearGradient>
+    <linearGradient id="counter" x1="0" y1="310" x2="250" y2="380" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#F2E6DB"/>
+      <stop offset="1" stop-color="#D8BFAE"/>
+    </linearGradient>
+  </defs>
+  <rect width="720" height="380" fill="url(#client-bg)"/>
+  <circle cx="96" cy="92" r="112" fill="#B8DDD2" fill-opacity="0.64"/>
+  <circle cx="622" cy="62" r="84" fill="#CEE8DE" fill-opacity="0.56"/>
+  <ellipse cx="418" cy="114" rx="56" ry="64" fill="#F6C6A8"/>
+  <path d="M365 101C374 63 459 55 472 112C457 100 446 97 427 94C404 91 383 92 365 101Z" fill="#5A392B"/>
+  <path d="M328 164C347 142 383 130 417 132H452C481 132 515 145 535 168L566 292H298L328 164Z" fill="url(#shirt)"/>
+  <path d="M356 175L393 160H446L491 177L516 292H332L356 175Z" fill="url(#overall)"/>
+  <rect x="395" y="214" width="46" height="46" rx="10" fill="#396DB4"/>
+  <rect x="404" y="223" width="28" height="28" rx="5" fill="#7FA8D9"/>
+  <path d="M356 146L372 205" stroke="#E6EEF8" stroke-width="12" stroke-linecap="round"/>
+  <path d="M464 146L486 207" stroke="#E6EEF8" stroke-width="12" stroke-linecap="round"/>
+  <path d="M316 184L267 132L236 152L280 210L316 184Z" fill="#E9F1F7"/>
+  <path d="M236 152L212 168L249 222L280 210L236 152Z" fill="#FFFFFF"/>
+  <path d="M288 155L324 184L272 226L241 194L288 155Z" fill="#F5C4A3"/>
+  <path d="M0 312H304L244 380H0V312Z" fill="url(#counter)"/>
+  <rect x="0" y="304" width="220" height="12" fill="#F7EFE8"/>
+</svg>

@@ -9,6 +9,14 @@
     var providerPortalUrl = LandingSiteOptions.NormalizeUrl(siteOptions.ProviderPortalUrl, "https://prestador.consertapramim.com");
     var adminPortalUrl = LandingSiteOptions.NormalizeUrl(siteOptions.AdminPortalUrl, "https://admin.consertapramim.com");
     var apiSwaggerUrl = LandingSiteOptions.NormalizeUrl(siteOptions.ApiSwaggerUrl, "https://api.consertapramim.com/swagger");
+    var homeUrl = canonicalUrl.TrimEnd('/');
+    var homeTopUrl = $"{homeUrl}/#top";
+    var homeAboutUrl = $"{homeUrl}/#sobre";
+    var homeContactUrl = $"{homeUrl}/#contato";
+    var homeAccessUrl = $"{homeUrl}/#acessos";
+    var homeTermsUrl = $"{homeUrl}/#termos";
+    var homePrivacyUrl = $"{homeUrl}/#privacidade";
+    var homeFaqUrl = $"{homeUrl}/#faq";
 }
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -22,7 +30,7 @@
     <meta property="og:description" content="@pageDescription" />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="@canonicalUrl" />
-    <meta name="theme-color" content="#0a1325" />
+    <meta name="theme-color" content="#0f5bbb" />
     <link rel="icon" type="image/x-icon" href="~/favicon.ico" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
@@ -30,12 +38,9 @@
     <div class="site-shell">
         <header class="site-header">
             <div class="container nav-shell">
-                <a class="brand" href="#top" aria-label="ConsertaPraMim">
-                    <span class="brand-mark">CPM</span>
-                    <span class="brand-copy">
-                        <strong>ConsertaPraMim</strong>
-                        <small>Pedido, agenda e pos-servico conectados</small>
-                    </span>
+                <a class="brand" href="@homeTopUrl" aria-label="ConsertaPraMim">
+                    <span class="brand-mark" aria-hidden="true"></span>
+                    <span class="brand-copy">ConsertaPraMim</span>
                 </a>
                 <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav" data-nav-toggle>
                     <span></span>
@@ -43,10 +48,10 @@
                     <span></span>
                 </button>
                 <nav class="site-nav" id="site-nav" data-nav>
-                    <a href="#como-funciona">Como funciona</a>
-                    <a href="#jornada">Jornada</a>
-                    <a href="#faq">FAQ</a>
-                    <a class="pill-link" href="@clientPortalUrl">Area do cliente</a>
+                    <a href="@homeTopUrl">Início</a>
+                    <a href="@homeAboutUrl">Sobre</a>
+                    <a href="@homeContactUrl">Contato</a>
+                    <a class="nav-cta" href="@homeAccessUrl">Entrar</a>
                 </nav>
             </div>
         </header>
@@ -55,16 +60,12 @@
         </div>
         <footer class="site-footer">
             <div class="container footer-shell">
-                <div>
-                    <strong>ConsertaPraMim</strong>
-                    <p>Infraestrutura digital para atendimento, agenda, chat e acompanhamento operacional.</p>
-                </div>
-                <div class="footer-links">
-                    <a href="@clientPortalUrl">Cliente</a>
-                    <a href="@providerPortalUrl">Prestador</a>
-                    <a href="@adminPortalUrl">Admin</a>
-                    <a href="@apiSwaggerUrl">Swagger API</a>
-                </div>
+                <p>© @DateTime.UtcNow.Year ConsertaPraMim. Todos os direitos reservados.</p>
+                <nav class="footer-links" aria-label="Rodapé">
+                    <a href="@homeTermsUrl">Termos de Uso</a>
+                    <a href="@homePrivacyUrl">Privacidade</a>
+                    <a href="@homeFaqUrl">FAQ</a>
+                </nav>
             </div>
         </footer>
     </div>
