@@ -171,6 +171,7 @@ public class AdminDashboardServiceTests
 
         Assert.Equal(3, result.LandingVisitsInPeriod);
         Assert.Equal(2, result.LandingUniqueVisitorsInPeriod);
+        Assert.Equal(1, result.LandingRecurringVisitorsInPeriod);
         Assert.Equal(1, result.LandingClientSignupsInPeriod);
         Assert.Equal(1, result.LandingProviderSignupsInPeriod);
         Assert.Equal(2, result.LandingConvertedVisitorsInPeriod);

@@ -157,7 +157,7 @@ Esperado:
    - `Cadastros Prestador`
    - `Cadastros Cliente`
    - `Taxa de Conversão`
-   Esperado: os valores refletem os acessos/leads gerados no teste; `Visitas` mostra visitantes unicos no detalhe e `Taxa de Conversão` mostra `Cadastros totais` e `Visitantes convertidos`.
+   Esperado: os valores refletem os acessos/leads gerados no teste; `Visitas` mostra `Visitantes únicos` e `Visitantes recorrentes` no detalhe e `Taxa de Conversão` mostra `Cadastros totais` e `Visitantes convertidos`.
 
 ## Dados esperados por lead
 
@@ -249,7 +249,7 @@ Esperado:
    - `Cadastros Prestador`: total de leads `Provider` no periodo.
    - `Cadastros Cliente`: total de leads `Client` no periodo.
    - `Taxa de Conversão`: `(cadastros cliente + cadastros prestador) / visitas * 100`.
-6. Validar que o detalhe do card `Visitas` exibe `Visitantes únicos`.
+6. Validar que o detalhe do card `Visitas` exibe `Visitantes únicos` e `Visitantes recorrentes`.
 7. Validar que o detalhe do card `Taxa de Conversão` exibe `Cadastros totais` e `Visitantes convertidos`.
 
 ## Troubleshooting
@@ -293,7 +293,7 @@ Esperado:
 - `data-lead-capture-url="https://api.consertapramim.com/api/landing-leads/public"`
 - emissao do cookie `cpm_landing_vid`
 
-Depois, validar no banco se existem registros em `LandingAccessEvents` e `LandingLeads` no periodo consultado pelo dashboard. Se o lead foi salvo sem `visitorId` ou se o recorte do dashboard nao cobre o horario UTC dos eventos, a conversao pode aparecer zerada.
+Depois, validar no banco se existem registros em `LandingAccessEvents` e `LandingLeads` no periodo consultado pelo dashboard. Se o lead foi salvo sem `visitorId` ou se o recorte do dashboard nao cobre o horario UTC dos eventos, a conversao pode aparecer zerada; a recorrencia do KPI `Visitas` tambem depende desse `visitorId`, nao do IP bruto.
 
 ### Lead foi salvo, mas nao houve notificacao admin
 

@@ -21,6 +21,7 @@ Dar visibilidade executiva para o funil inicial da landing publica diretamente n
   - `Cadastros Prestador`
   - `Cadastros Cliente`
   - `Taxa de Conversao`
+- O KPI `Visitas` detalha visitantes unicos e visitantes recorrentes no mesmo recorte.
 - A taxa de conversao usa a relacao entre visitas e cadastros captados na landing no periodo filtrado.
 - O fluxo usa `visitorId` estavel para suportar analise de visitantes unicos e visitantes convertidos.
 - Story, changelog, manual QA/Operacao e diagrama Mermaid saem no mesmo ciclo.

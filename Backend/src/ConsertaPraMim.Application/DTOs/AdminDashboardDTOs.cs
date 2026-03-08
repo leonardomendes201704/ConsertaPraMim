@@ -108,6 +108,7 @@ public record AdminDashboardDto(
     int ReviewedServicesInPeriod = 0,
     int LandingVisitsInPeriod = 0,
     int LandingUniqueVisitorsInPeriod = 0,
+    int LandingRecurringVisitorsInPeriod = 0,
     int LandingClientSignupsInPeriod = 0,
     int LandingProviderSignupsInPeriod = 0,
     int LandingConvertedVisitorsInPeriod = 0,

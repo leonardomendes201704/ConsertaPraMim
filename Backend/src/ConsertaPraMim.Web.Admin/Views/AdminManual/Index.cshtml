@@ -246,6 +246,7 @@
                             <li>Filtros: periodo, tipo de evento, busca textual.</li>
                             <li>KPIs: usuarios, online, pedidos, propostas, conversas, receita.</li>
                             <li>KPIs incrementais da landing: `Visitas`, `Cadastros Prestador`, `Cadastros Cliente` e `Taxa de Conversão` no mesmo recorte global de datas.</li>
+                            <li>O card `Visitas` detalha `Visitantes únicos` e `Visitantes recorrentes`, calculados por `visitorId` estável da landing.</li>
                             <li>Widgets: status de pedidos, ranking por categoria, eventos recentes.</li>
                             <li>Monitoramento de pagamento: falhas por prestador e por canal (PIX/Cartao).</li>
                             <li>Atualizacao: botao manual + polling automatico.</li>
@@ -862,7 +863,7 @@
                         <td>QA-ADM-070</td>
                         <td>KPIs da landing no dashboard admin</td>
                         <td>Gerar acessos em `https://www.consertapramim.com`, `https://www.consertapramim.com/Cliente` e `https://www.consertapramim.com/Prestador`, enviar ao menos um lead `Cliente` e um `Prestador`, depois abrir `Dashboard` no admin com o recorte do periodo correspondente.</td>
-                        <td>Os cards `Visitas`, `Cadastros Prestador`, `Cadastros Cliente` e `Taxa de Conversão` devem refletir o recorte aplicado; `Visitas` deve exibir visitantes unicos no detalhe e `Taxa de Conversão` deve mostrar cadastros totais e visitantes convertidos com base no `visitorId` correlacionado entre acesso e lead.</td>
+                        <td>Os cards `Visitas`, `Cadastros Prestador`, `Cadastros Cliente` e `Taxa de Conversão` devem refletir o recorte aplicado; `Visitas` deve exibir `Visitantes únicos` e `Visitantes recorrentes` no detalhe, enquanto `Taxa de Conversão` deve mostrar cadastros totais e visitantes convertidos com base no `visitorId` correlacionado entre acesso e lead.</td>
                     </tr>
                 </tbody>
             </table>
@@ -881,7 +882,7 @@
                 <ul class="mb-0">
                     <li>Login admin funcionando.</li>
                     <li>Dashboard carregando sem erro.</li>
-                    <li>Cards `Visitas`, `Cadastros Prestador`, `Cadastros Cliente` e `Taxa de Conversão` da landing carregando sem erro e respeitando o periodo filtrado.</li>
+                    <li>Cards `Visitas`, `Cadastros Prestador`, `Cadastros Cliente` e `Taxa de Conversão` da landing carregando sem erro, com detalhe de recorrencia e respeitando o periodo filtrado.</li>
                     <li>Modulo `Leads Landing` carregando grid e detalhe sem erro.</li>
                     <li>Busca de usuarios retornando dados.</li>
                     <li>Criacao de usuario admin via modal `Novo Admin` exibindo overlay de status (`Salvando/Salvo/Erro`).</li>
@@ -991,7 +992,7 @@
                     <tr>
                         <td>Dashboard mostra `Visitas`/`Taxa de Conversão` zeradas para a landing</td>
                         <td>Acesso publico nao foi persistido, `visitorId` nao foi emitido/correlacionado ou o recorte do dashboard nao cobre o horario dos eventos</td>
-                        <td>Validar se a landing gerou o cookie `cpm_landing_vid`, conferir `LandingAccessEvents` e `LandingLeads` no banco com `CreatedAt` em UTC, revisar `fromUtc/toUtc` do dashboard e repetir o smoke acessando `/`, `/Cliente` ou `/Prestador` antes de reenviar o lead.</td>
+                        <td>Validar se a landing gerou o cookie `cpm_landing_vid`, conferir `LandingAccessEvents` e `LandingLeads` no banco com `CreatedAt` em UTC, revisar `fromUtc/toUtc` do dashboard e repetir o smoke acessando `/`, `/Cliente` ou `/Prestador` antes de reenviar o lead; recorrencia deve ser analisada por `visitorId`, nao por IP compartilhado.</td>
                     </tr>
                     <tr>
                         <td>Telas admin retornam "Token ausente"</td>
@@ -1146,7 +1147,7 @@
                     <tr>
                         <td>08/03/2026</td>
                         <td>ST-059</td>
-                        <td>Dashboard admin recebeu os KPIs incrementais `Visitas`, `Cadastros Prestador`, `Cadastros Cliente` e `Taxa de Conversão` da landing, com caso `QA-ADM-070` e troubleshooting para correlacao por `visitorId` entre acesso e lead.</td>
+                        <td>Dashboard admin recebeu os KPIs incrementais `Visitas`, `Cadastros Prestador`, `Cadastros Cliente` e `Taxa de Conversão` da landing, com detalhe adicional de `Visitantes recorrentes`, caso `QA-ADM-070` e troubleshooting para correlacao por `visitorId` entre acesso e lead.</td>
                     </tr>
                     <tr>
                         <td>08/03/2026</td>

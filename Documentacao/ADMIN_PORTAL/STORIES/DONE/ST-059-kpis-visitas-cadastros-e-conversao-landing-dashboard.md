@@ -17,7 +17,7 @@ Permitir que a home do portal admin acompanhe, no mesmo dashboard incremental, a
   - `Cadastros Cliente`
   - `Taxa de Conversao`
 - Os novos KPIs respeitam o recorte global de periodo da home admin.
-- O KPI `Visitas` exibe tambem visitantes unicos.
+- O KPI `Visitas` exibe tambem visitantes unicos e visitantes recorrentes.
 - O KPI `Taxa de Conversao` mostra a relacao entre visitas e cadastros, com detalhe de visitantes convertidos.
 - Manual QA/Operacao, changelog, indice e diagrama Mermaid atualizados no mesmo ciclo.
 - Correcao acompanhada de teste de regressao/servico para os calculos do dashboard.
@@ -27,4 +27,5 @@ Permitir que a home do portal admin acompanhe, no mesmo dashboard incremental, a
 - [x] Registrar Epic/Story/indice da trilha de KPIs da landing no dashboard admin.
 - [x] Persistir acessos da landing com `visitorId` e correlacionar leads/cadastros no backend.
 - [x] Expor agregados no dashboard admin e renderizar novos KPIs incrementais na home.
+- [x] Exibir recorrencia da landing no KPI `Visitas` usando `visitorId` estavel, sem depender de IP bruto.
 - [x] Atualizar manual QA/Operacao, diagrama Mermaid, changelog e testes de regressao.

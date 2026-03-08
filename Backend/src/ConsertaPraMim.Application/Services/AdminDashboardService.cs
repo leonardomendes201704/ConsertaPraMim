@@ -300,6 +300,12 @@ public class AdminDashboardService : IAdminDashboardService
             .Select(visitorId => visitorId!)
             .Distinct(StringComparer.Ordinal)
             .Count();
+        var landingRecurringVisitorsInPeriod = landingAccessEventsInPeriod
+            .Select(accessEvent => NormalizeVisitorId(accessEvent.VisitorId))
+            .Where(visitorId => visitorId is not null)
+            .Select(visitorId => visitorId!)
+            .GroupBy(visitorId => visitorId, StringComparer.Ordinal)
+            .Count(group => group.Count() > 1);
         var landingClientSignupsInPeriod = landingLeadsInPeriod.Count(lead => lead.Origin == LandingLeadOrigin.Client);
         var landingProviderSignupsInPeriod = landingLeadsInPeriod.Count(lead => lead.Origin == LandingLeadOrigin.Provider);
         var landingConvertedVisitorsInPeriod = landingLeadsInPeriod
@@ -434,6 +440,7 @@ public class AdminDashboardService : IAdminDashboardService
             ReviewedServicesInPeriod: reviewRetentionKpis.ReviewedServicesInPeriod,
             LandingVisitsInPeriod: landingVisitsInPeriod,
             LandingUniqueVisitorsInPeriod: landingUniqueVisitorsInPeriod,
+            LandingRecurringVisitorsInPeriod: landingRecurringVisitorsInPeriod,
             LandingClientSignupsInPeriod: landingClientSignupsInPeriod,
             LandingProviderSignupsInPeriod: landingProviderSignupsInPeriod,
             LandingConvertedVisitorsInPeriod: landingConvertedVisitorsInPeriod,
@@ -1504,7 +1511,8 @@ public class AdminDashboardService : IAdminDashboardService
                 "Landing pública no período",
                 new[]
                 {
-                    new AdminKpiDetailLineDto("Visitantes únicos", dashboard.LandingUniqueVisitorsInPeriod.ToString("N0", culture))
+                    new AdminKpiDetailLineDto("Visitantes únicos", dashboard.LandingUniqueVisitorsInPeriod.ToString("N0", culture)),
+                    new AdminKpiDetailLineDto("Visitantes recorrentes", dashboard.LandingRecurringVisitorsInPeriod.ToString("N0", culture))
                 },
                 generatedAtUtc),
             "landing-provider-signups" => new AdminKpiCardDto(

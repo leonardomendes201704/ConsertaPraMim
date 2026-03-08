@@ -10,6 +10,12 @@
 
 ## Released
 
+- [2026-03-08] [ST-059][ADMIN-LANDING-RECURRING-VISITORS] KPI de visitas com recorrencia da landing
+- Tipo: feat
+- Resumo: o card `Visitas` da landing na home admin passou a detalhar, alem de `Visitantes únicos`, a quantidade de `Visitantes recorrentes`, calculada por `visitorId` estavel da landing em vez de IP bruto compartilhado; com isso, a leitura do topo de funil fica mais confiavel para retorno de visitantes no periodo filtrado.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/AdminDashboardDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminDashboardService.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminHome/Index.cshtml`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminDashboardServiceTests.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `Documentacao/LANDING_PAGE/MANUAL_QA_OPERACAO_LANDING.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-059-kpis-visitas-cadastros-e-conversao-landing-dashboard.md`
+- Risco/Impacto: baixo
+
 - [2026-03-08] [ST-059][ADMIN-LANDING-KPIS] KPIs da landing na home do dashboard admin
 - Tipo: feat
 - Resumo: a landing passou a persistir cada acesso relevante (`/`, `/Cliente`, `/Prestador`) em `LandingAccessEvents` com `visitorId` estavel por navegador, e a home do portal admin passou a exibir os KPIs incrementais `Visitas`, `Cadastros Prestador`, `Cadastros Cliente` e `Taxa de Conversão`; os cards respeitam o recorte global de periodo do dashboard, `Visitas` detalha visitantes unicos e `Taxa de Conversão` detalha cadastros totais e visitantes convertidos correlacionados entre acesso e lead.
