@@ -1,4 +1,26 @@
 services:
+  web-landing:
+    container_name: cpm-web-landing
+    build:
+      context: .
+      dockerfile: docker/vps/Dockerfile.web.landing
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${LANDING_PORT:-5088}:${LANDING_PORT:-5088}"
+    environment:
+      ASPNETCORE_ENVIRONMENT: "${APP_ENVIRONMENT:-Development}"
+      ASPNETCORE_URLS: "http://+:${LANDING_PORT:-5088}"
+      DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: "false"
+      LANG: "pt_BR.UTF-8"
+      LC_ALL: "pt_BR.UTF-8"
+      LandingSite__CanonicalUrl: "${PUBLIC_LANDING_URL:-https://www.consertapramim.com}"
+      LandingSite__ClientPortalUrl: "${PUBLIC_CLIENT_URL:-http://${VPS_PUBLIC_HOST}:${CLIENT_PORT:-5069}}"
+      LandingSite__ProviderPortalUrl: "${PUBLIC_PROVIDER_URL:-http://${VPS_PUBLIC_HOST}:${PROVIDER_PORT:-5140}}"
+      LandingSite__AdminPortalUrl: "${PUBLIC_ADMIN_URL:-http://${VPS_PUBLIC_HOST}:${ADMIN_PORT:-5151}}"
+      LandingSite__ApiSwaggerUrl: "${PUBLIC_API_URL:-http://${VPS_PUBLIC_HOST}:${API_PORT:-5193}}/swagger"
+    networks:
+      - conserta_net
+
   api:
     container_name: cpm-api
     build:

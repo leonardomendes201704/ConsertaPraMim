@@ -1,0 +1,12 @@
+@{
+    Layout = "_Layout";
+    var canonicalUrl = ViewData["CanonicalUrl"] as string ?? "https://www.consertapramim.com";
+}
+<section class="error-shell">
+    <div class="container error-card">
+        <span class="eyebrow">Erro inesperado</span>
+        <h1>O site publico encontrou uma falha interna.</h1>
+        <p>Tente novamente em alguns instantes. Se o problema persistir, valide o container <code>web-landing</code> e o proxy do Nginx.</p>
+        <a class="btn btn-primary" href="@canonicalUrl">Voltar para a home</a>
+    </div>
+</section>

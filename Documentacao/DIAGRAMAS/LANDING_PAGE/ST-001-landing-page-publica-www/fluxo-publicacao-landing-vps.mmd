@@ -1,0 +1,8 @@
+flowchart TD
+    A[Usuario acessa consertapramim.com] --> B[Nginx recebe request em 80/443]
+    B --> C{Host recebido}
+    C -->|consertapramim.com| D[Redirect 301 para https://www.consertapramim.com]
+    C -->|www.consertapramim.com| E[Proxy para 127.0.0.1:5088]
+    E --> F[Container cpm-web-landing]
+    F --> G[Home publica, healthcheck, robots e sitemap]
+    G --> H[CTA para cliente, prestador, admin e swagger]

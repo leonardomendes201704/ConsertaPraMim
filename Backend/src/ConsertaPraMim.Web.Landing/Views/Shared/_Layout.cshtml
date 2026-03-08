@@ -1,0 +1,73 @@
+@using ConsertaPraMim.Web.Landing.Models
+@inject Microsoft.Extensions.Options.IOptions<LandingSiteOptions> SiteOptions
+@{
+    var siteOptions = SiteOptions.Value;
+    var pageTitle = ViewData["Title"] as string ?? "ConsertaPraMim";
+    var pageDescription = ViewData["Description"] as string ?? "Plataforma ConsertaPraMim";
+    var canonicalUrl = ViewData["CanonicalUrl"] as string ?? LandingSiteOptions.NormalizeUrl(siteOptions.CanonicalUrl, "https://www.consertapramim.com");
+    var clientPortalUrl = LandingSiteOptions.NormalizeUrl(siteOptions.ClientPortalUrl, "https://cliente.consertapramim.com");
+    var providerPortalUrl = LandingSiteOptions.NormalizeUrl(siteOptions.ProviderPortalUrl, "https://prestador.consertapramim.com");
+    var adminPortalUrl = LandingSiteOptions.NormalizeUrl(siteOptions.AdminPortalUrl, "https://admin.consertapramim.com");
+    var apiSwaggerUrl = LandingSiteOptions.NormalizeUrl(siteOptions.ApiSwaggerUrl, "https://api.consertapramim.com/swagger");
+}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@pageTitle</title>
+    <meta name="description" content="@pageDescription" />
+    <link rel="canonical" href="@canonicalUrl" />
+    <meta property="og:title" content="@pageTitle" />
+    <meta property="og:description" content="@pageDescription" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="@canonicalUrl" />
+    <meta name="theme-color" content="#0a1325" />
+    <link rel="icon" type="image/x-icon" href="~/favicon.ico" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+    <div class="site-shell">
+        <header class="site-header">
+            <div class="container nav-shell">
+                <a class="brand" href="#top" aria-label="ConsertaPraMim">
+                    <span class="brand-mark">CPM</span>
+                    <span class="brand-copy">
+                        <strong>ConsertaPraMim</strong>
+                        <small>Pedido, agenda e pos-servico conectados</small>
+                    </span>
+                </a>
+                <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav" data-nav-toggle>
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </button>
+                <nav class="site-nav" id="site-nav" data-nav>
+                    <a href="#como-funciona">Como funciona</a>
+                    <a href="#jornada">Jornada</a>
+                    <a href="#faq">FAQ</a>
+                    <a class="pill-link" href="@clientPortalUrl">Area do cliente</a>
+                </nav>
+            </div>
+        </header>
+        <div role="main">
+            @RenderBody()
+        </div>
+        <footer class="site-footer">
+            <div class="container footer-shell">
+                <div>
+                    <strong>ConsertaPraMim</strong>
+                    <p>Infraestrutura digital para atendimento, agenda, chat e acompanhamento operacional.</p>
+                </div>
+                <div class="footer-links">
+                    <a href="@clientPortalUrl">Cliente</a>
+                    <a href="@providerPortalUrl">Prestador</a>
+                    <a href="@adminPortalUrl">Admin</a>
+                    <a href="@apiSwaggerUrl">Swagger API</a>
+                </div>
+            </div>
+        </footer>
+    </div>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+</body>
+</html>

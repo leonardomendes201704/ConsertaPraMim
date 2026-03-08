@@ -10,6 +10,12 @@
 
 ## Released
 
+- [2026-03-08] [LANDING-WWW-VPS] Landing page publica em `www.consertapramim.com`
+- Tipo: feat
+- Resumo: criado o projeto `ConsertaPraMim.Web.Landing` para servir a home institucional publica em `https://www.consertapramim.com`, com `healthcheck`, `robots.txt`, `sitemap.xml`, CTA para os portais existentes e deploy integrado na VPS via Docker, Nginx, Certbot, scripts de deploy e workflow seletivo do GitHub Actions; o dominio raiz `consertapramim.com` passou a ser tratado como redirect para `www`.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Landing/Program.cs`, `Backend/src/ConsertaPraMim.Web.Landing/Views/Home/Index.cshtml`, `Backend/docker/vps/Dockerfile.web.landing`, `Backend/docker-compose.vps.web-landing.yml`, `Backend/docker-compose.vps.yml`, `Backend/docker/vps/nginx.portals.https.conf.example`, `Backend/DEPLOY_VPS.md`, `.github/workflows/deploy-vps.yml`, `Documentacao/LANDING_PAGE/MANUAL_QA_OPERACAO_LANDING.md`, `Documentacao/LANDING_PAGE/STORIES/DONE/ST-001-landing-page-publica-www.md`
+- Risco/Impacto: alto
+
 - [2026-03-08] [OPS-VPS-CLIENT-MIXED-CONTENT] URL publica HTTPS da API no portal cliente
 - Tipo: fix
 - Resumo: o portal cliente passou a resolver a URL publica HTTPS da API por host da requisicao antes de montar o layout browser-side e o `Content-Security-Policy`, eliminando `Mixed Content` em `notificationHub` e `chatHub` quando a configuracao ainda trouxer `localhost` ou o IP HTTP legado da VPS.

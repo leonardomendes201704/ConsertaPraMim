@@ -1,0 +1,197 @@
+@using ConsertaPraMim.Web.Landing.Models
+@model LandingPageViewModel
+@{
+    Layout = "_Layout";
+}
+
+<main id="top">
+    <section class="hero-section">
+        <div class="container hero-grid">
+            <div class="hero-copy" data-reveal>
+                <div class="eyebrow">Assistencia tecnica com operacao em tempo real</div>
+                <h1>Um unico fluxo para abrir o pedido, organizar a agenda e fechar o pos-servico.</h1>
+                <p class="hero-text">
+                    O ConsertaPraMim conecta cliente, prestador e operacao em uma jornada unica: triagem,
+                    proposta, acompanhamento, presenca, chat e acompanhamento administrativo sem remendo manual.
+                </p>
+                <div class="hero-actions">
+                    <a class="btn btn-primary" href="@Model.ClientPortalUrl">Quero pedir um servico</a>
+                    <a class="btn btn-secondary" href="@Model.ProviderPortalUrl">Quero atuar como prestador</a>
+                </div>
+                <ul class="hero-signals" role="list">
+                    <li>Agenda operacional e disponibilidade publica</li>
+                    <li>Chat, notificacoes e handoff humano</li>
+                    <li>Pipelines separados para cliente, prestador e operacao</li>
+                </ul>
+            </div>
+            <div class="hero-panel" data-reveal>
+                <div class="hero-card hero-card-primary">
+                    <span class="hero-card-label">Operacao viva</span>
+                    <strong>Pedido aberto</strong>
+                    <p>Cliente descreve o problema, plataforma organiza a jornada e direciona a execucao.</p>
+                </div>
+                <div class="hero-card-grid">
+                    <article class="hero-card">
+                        <span class="stat-value">1 fluxo</span>
+                        <p>Pedido, agenda, chat e pos-servico no mesmo trilho.</p>
+                    </article>
+                    <article class="hero-card accent-card">
+                        <span class="stat-value">3 portais</span>
+                        <p>Cliente, prestador e admin operando com URLs dedicadas.</p>
+                    </article>
+                    <article class="hero-card dark-card">
+                        <span class="stat-value">100%</span>
+                        <p>Publicavel via Nginx, HTTPS e deploy seletivo na VPS.</p>
+                    </article>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="proof-strip">
+        <div class="container proof-grid">
+            <div>
+                <span>Triagem guiada</span>
+                <strong>pedido ao prestador certo</strong>
+            </div>
+            <div>
+                <span>Agenda operacional</span>
+                <strong>janelas e disponibilidade</strong>
+            </div>
+            <div>
+                <span>Realtime</span>
+                <strong>chat, notificacoes e presenca</strong>
+            </div>
+            <div>
+                <span>Pos-servico</span>
+                <strong>garantia, avaliacao e suporte</strong>
+            </div>
+        </div>
+    </section>
+
+    <section class="section-block" id="como-funciona">
+        <div class="container">
+            <div class="section-heading" data-reveal>
+                <span class="eyebrow">Como funciona</span>
+                <h2>Uma plataforma desenhada para reduzir atrito operacional.</h2>
+                <p>Sem planilha paralela, sem link improvisado e sem depender de refresh para entender o que esta acontecendo.</p>
+            </div>
+            <div class="audience-grid">
+                <article class="audience-card" data-reveal>
+                    <h3>Para clientes</h3>
+                    <p>Abra o pedido, acompanhe propostas, confirme atendimento, converse com o prestador e registre avaliacao no fechamento.</p>
+                    <a href="@Model.ClientPortalUrl">Entrar na area do cliente</a>
+                </article>
+                <article class="audience-card accent" data-reveal>
+                    <h3>Para prestadores</h3>
+                    <p>Receba demanda, veja agenda, acompanhe chat, atualize status operacional e mantenha portfolio e perfil publicados.</p>
+                    <a href="@Model.ProviderPortalUrl">Entrar na area do prestador</a>
+                </article>
+                <article class="audience-card dark" data-reveal>
+                    <h3>Para operacao</h3>
+                    <p>Monitore conversas, intervina com handoff humano, acompanhe KPIs e opere a jornada sem trocar de ferramenta.</p>
+                    <a href="@Model.AdminPortalUrl">Entrar no portal admin</a>
+                </article>
+            </div>
+        </div>
+    </section>
+
+    <section class="section-block section-dark" id="jornada">
+        <div class="container">
+            <div class="section-heading" data-reveal>
+                <span class="eyebrow">Jornada ponta a ponta</span>
+                <h2>Do primeiro contato ate o acompanhamento pos-servico.</h2>
+            </div>
+            <div class="timeline-grid">
+                <article class="timeline-card" data-reveal>
+                    <span>01</span>
+                    <h3>Abertura e triagem</h3>
+                    <p>O cliente informa o problema e o sistema prepara o pedido para distribuicao.</p>
+                </article>
+                <article class="timeline-card" data-reveal>
+                    <span>02</span>
+                    <h3>Agenda e disponibilidade</h3>
+                    <p>Prestadores elegiveis recebem a oportunidade e a agenda respeita janela, bloqueios e conflitos.</p>
+                </article>
+                <article class="timeline-card" data-reveal>
+                    <span>03</span>
+                    <h3>Execucao com chat e presenca</h3>
+                    <p>Cliente, prestador e operacao acompanham presenca, mensagens, anexos e eventos criticos em tempo real.</p>
+                </article>
+                <article class="timeline-card" data-reveal>
+                    <span>04</span>
+                    <h3>Fechamento e suporte</h3>
+                    <p>Avaliacao, garantia, suporte humano e operacao administrativa fecham o ciclo sem perder contexto.</p>
+                </article>
+            </div>
+        </div>
+    </section>
+
+    <section class="section-block">
+        <div class="container capability-grid">
+            <div class="capability-copy" data-reveal>
+                <span class="eyebrow">Infraestrutura publica</span>
+                <h2>URLs separadas, HTTPS e deploy previsivel.</h2>
+                <p>
+                    A landing publica em <strong>www.consertapramim.com</strong> convive com os portais dedicados e com a API publicada
+                    em HTTPS. Isso preserva SEO, clareza de acesso e uma topologia limpa para Nginx, Certbot e Docker.
+                </p>
+            </div>
+            <div class="capability-list">
+                <article data-reveal>
+                    <h3>Cliente</h3>
+                    <p>@Model.ClientPortalUrl</p>
+                </article>
+                <article data-reveal>
+                    <h3>Prestador</h3>
+                    <p>@Model.ProviderPortalUrl</p>
+                </article>
+                <article data-reveal>
+                    <h3>Admin</h3>
+                    <p>@Model.AdminPortalUrl</p>
+                </article>
+                <article data-reveal>
+                    <h3>Swagger</h3>
+                    <p>@Model.ApiSwaggerUrl</p>
+                </article>
+            </div>
+        </div>
+    </section>
+
+    <section class="section-block" id="faq">
+        <div class="container faq-shell">
+            <div class="section-heading" data-reveal>
+                <span class="eyebrow">FAQ</span>
+                <h2>Perguntas objetivas para publicar sem retrabalho.</h2>
+            </div>
+            <div class="faq-list">
+                <details data-reveal>
+                    <summary>Essa landing depende da API para subir?</summary>
+                    <p>Nao. O projeto foi desenhado como site publico estatico em ASP.NET Core, com healthcheck proprio e sem dependencia de banco ou autenticacao.</p>
+                </details>
+                <details data-reveal>
+                    <summary>O dominio raiz pode redirecionar para o www?</summary>
+                    <p>Sim. A configuracao de Nginx da entrega considera <code>consertapramim.com</code> redirecionando para <code>https://www.consertapramim.com</code>.</p>
+                </details>
+                <details data-reveal>
+                    <summary>O deploy entra no mesmo workflow seletivo da VPS?</summary>
+                    <p>Sim. O projeto novo entrou na solution, no compose, nos scripts de deploy e no workflow GitHub Actions com healthcheck dedicado.</p>
+                </details>
+            </div>
+        </div>
+    </section>
+
+    <section class="cta-section">
+        <div class="container cta-shell" data-reveal>
+            <div>
+                <span class="eyebrow">Proximos acessos</span>
+                <h2>Entradas publicas prontas para operar.</h2>
+            </div>
+            <div class="cta-actions">
+                <a class="btn btn-primary" href="@Model.ClientPortalUrl">Portal Cliente</a>
+                <a class="btn btn-secondary" href="@Model.ProviderPortalUrl">Portal Prestador</a>
+                <a class="btn btn-ghost" href="@Model.ApiSwaggerUrl">Swagger API</a>
+            </div>
+        </div>
+    </section>
+</main>

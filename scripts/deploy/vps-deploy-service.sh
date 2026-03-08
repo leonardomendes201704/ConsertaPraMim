@@ -16,13 +16,14 @@ elif [[ $# -eq 2 ]]; then
 fi
 
 if [[ -z "$TARGET_SERVICE" ]]; then
-  echo "Uso: $0 [repo_dir] <api|web-admin|web-client|web-provider|mobile-webview-client|mobile-webview-provider|mobile-webview-admin>"
-  echo "Ou:  $0 <api|web-admin|web-client|web-provider|mobile-webview-client|mobile-webview-provider|mobile-webview-admin>"
+  echo "Uso: $0 [repo_dir] <api|web-landing|web-admin|web-client|web-provider|mobile-webview-client|mobile-webview-provider|mobile-webview-admin>"
+  echo "Ou:  $0 <api|web-landing|web-admin|web-client|web-provider|mobile-webview-client|mobile-webview-provider|mobile-webview-admin>"
   exit 1
 fi
 
 declare -A COMPOSE_FILES=(
   [api]="Backend/docker-compose.vps.api.yml"
+  [web-landing]="Backend/docker-compose.vps.web-landing.yml"
   [web-admin]="Backend/docker-compose.vps.web-admin.yml"
   [web-client]="Backend/docker-compose.vps.web-client.yml"
   [web-provider]="Backend/docker-compose.vps.web-provider.yml"
@@ -33,6 +34,7 @@ declare -A COMPOSE_FILES=(
 
 declare -A CONTAINER_NAMES=(
   [api]="cpm-api"
+  [web-landing]="cpm-web-landing"
   [web-admin]="cpm-web-admin"
   [web-client]="cpm-web-client"
   [web-provider]="cpm-web-provider"
@@ -43,7 +45,7 @@ declare -A CONTAINER_NAMES=(
 
 if [[ -z "${COMPOSE_FILES[$TARGET_SERVICE]+x}" ]]; then
   echo "Servico invalido: '$TARGET_SERVICE'."
-  echo "Servicos suportados: api, web-admin, web-client, web-provider, mobile-webview-client, mobile-webview-provider, mobile-webview-admin"
+  echo "Servicos suportados: api, web-landing, web-admin, web-client, web-provider, mobile-webview-client, mobile-webview-provider, mobile-webview-admin"
   exit 1
 fi
 
