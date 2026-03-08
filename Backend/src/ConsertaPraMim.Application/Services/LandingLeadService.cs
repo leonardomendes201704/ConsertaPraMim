@@ -37,10 +37,14 @@ public sealed class LandingLeadService : ILandingLeadService
     private const int MaxMetadataJsonLength = 4000;
 
     private readonly ILandingLeadRepository _landingLeadRepository;
+    private readonly ILandingAdminNotificationService _landingAdminNotificationService;
 
-    public LandingLeadService(ILandingLeadRepository landingLeadRepository)
+    public LandingLeadService(
+        ILandingLeadRepository landingLeadRepository,
+        ILandingAdminNotificationService landingAdminNotificationService)
     {
         _landingLeadRepository = landingLeadRepository;
+        _landingAdminNotificationService = landingAdminNotificationService;
     }
 
     public async Task<CaptureLandingLeadResponseDto> CaptureAsync(
@@ -93,6 +97,7 @@ public sealed class LandingLeadService : ILandingLeadService
         };
 
         await _landingLeadRepository.AddAsync(lead, cancellationToken);
+        await _landingAdminNotificationService.NotifyLandingLeadCapturedAsync(lead, cancellationToken);
 
         return new CaptureLandingLeadResponseDto(
             lead.Id,

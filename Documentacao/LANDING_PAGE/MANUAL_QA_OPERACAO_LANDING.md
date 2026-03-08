@@ -8,6 +8,7 @@ Este manual cobre a landing publica `ConsertaPraMim.Web.Landing`, publicada em `
 
 - projeto: `Backend/src/ConsertaPraMim.Web.Landing`
 - API: `Backend/src/ConsertaPraMim.API`
+- webhook interno: `Backend/src/ConsertaPraMim.API/Controllers/InternalLandingNotificationsController.cs`
 - compose: `Backend/docker-compose.vps.web-landing.yml`, `Backend/docker-compose.vps.yml`, `Backend/docker-compose.vps.api.yml`
 - dockerfile: `Backend/docker/vps/Dockerfile.web.landing`
 - proxy: `Backend/docker/vps/nginx.portals.https.conf.example`
@@ -25,6 +26,8 @@ PUBLIC_CLIENT_URL=https://cliente.consertapramim.com
 PUBLIC_PROVIDER_URL=https://prestador.consertapramim.com
 PUBLIC_ADMIN_URL=https://admin.consertapramim.com
 PUBLIC_API_URL=https://api.consertapramim.com
+INTERNAL_API_URL=http://cpm-api:8080
+APK_RELEASE_PUSH_TOKEN=definir_token_webhook_interno
 ```
 
 ## Checklist de deploy
@@ -39,6 +42,8 @@ PUBLIC_API_URL=https://api.consertapramim.com
 cd ~/ConsertaPraMimWeb
 MSSQL_CONTAINER_NAME=mssql-mssql-1 MSSQL_HOST_ALIAS=mssql scripts/deploy/vps-deploy-service.sh "$PWD" web-landing
 ```
+
+6. O mesmo token `APK_RELEASE_PUSH_TOKEN` precisa estar presente na API e na landing para o webhook interno `POST /api/internal/landing/access`.
 
 ## Smoke test tecnico
 
@@ -140,6 +145,11 @@ Esperado:
 21. Confirmar que o rodape exibe apenas o copyright institucional, sem links operacionais.
 22. Validar `https://www.consertapramim.com/robots.txt`.
 23. Validar `https://www.consertapramim.com/sitemap.xml`.
+24. Com um admin ativo no portal admin ou com device registrado no app admin, abrir `https://www.consertapramim.com` e validar recebimento da notificacao `Novo acesso na landing`.
+25. Repetir o teste para `https://www.consertapramim.com/Cliente` e `https://www.consertapramim.com/Prestador`, validando que o path chega no contexto da notificacao.
+26. Enviar um lead `Cliente` e validar notificacao admin `Novo lead de cliente na landing` com link para o detalhe do lead.
+27. Enviar um lead `Prestador` e validar notificacao admin `Novo lead de prestador na landing` com link para o detalhe do lead.
+28. Derrubar temporariamente a API interna ou invalidar o token e validar que a landing continua carregando mesmo sem publicar o push de acesso.
 
 ## Dados esperados por lead
 
@@ -216,6 +226,42 @@ curl -I https://www.consertapramim.com/js/site.js
 ```
 
 Conferir no browser se o `<body>` possui o atributo `data-lead-capture-url`, se o Bootstrap local carregou e se o listener dos botoes foi registrado.
+
+### Nao chega push admin para acesso da landing
+
+Verificar se a landing recebeu configuracao interna e token:
+
+```bash
+docker inspect cpm-web-landing --format '{{range .Config.Env}}{{println .}}{{end}}' | grep -E '^(LandingSite__InternalApiBaseUrl|LandingSite__InternalWebhookToken)='
+docker inspect cpm-api --format '{{range .Config.Env}}{{println .}}{{end}}' | grep '^DeployNotifications__WebhookToken='
+```
+
+Esperado:
+- `LandingSite__InternalApiBaseUrl=http://cpm-api:8080`
+- `LandingSite__InternalWebhookToken` preenchido
+- `DeployNotifications__WebhookToken` preenchido com o mesmo valor
+
+Validar tambem se existe admin ativo e se o app admin possui device registrado.
+
+### Lead foi salvo, mas nao houve notificacao admin
+
+Verificar logs da API:
+
+```bash
+docker logs --tail 200 cpm-api
+```
+
+Conferir se existem usuarios admin ativos, se o `NotificationHub` esta operacional e se o app admin possui device registrado em `MobilePushDevices`.
+
+### O endpoint interno apareceu no Swagger
+
+Conferir se o controller interno continua com:
+
+```csharp
+[ApiExplorerSettings(IgnoreApi = true)]
+```
+
+O endpoint `POST /api/internal/landing/access` e interno e nao deve aparecer no contrato publico.
 
 ### `/Cliente` ou `/Prestador` nao abrem o modal automaticamente
 

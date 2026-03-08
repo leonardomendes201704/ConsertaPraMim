@@ -19,13 +19,16 @@ public class LandingLeadServiceTests
     public async Task CaptureAsync_ShouldPersistClientLeadWithCampaignMetadata()
     {
         var repositoryMock = new Mock<ILandingLeadRepository>();
+        var adminNotificationMock = new Mock<ILandingAdminNotificationService>();
         LandingLead? persistedLead = null;
         repositoryMock
             .Setup(repository => repository.AddAsync(It.IsAny<LandingLead>(), It.IsAny<CancellationToken>()))
             .Callback<LandingLead, CancellationToken>((lead, _) => persistedLead = lead)
             .Returns(Task.CompletedTask);
 
-        var service = new ConsertaPraMim.Application.Services.LandingLeadService(repositoryMock.Object);
+        var service = new ConsertaPraMim.Application.Services.LandingLeadService(
+            repositoryMock.Object,
+            adminNotificationMock.Object);
 
         var request = new CaptureLandingLeadRequestDto(
             Origin: LandingLeadOrigin.Client,
@@ -76,6 +79,11 @@ public class LandingLeadServiceTests
         Assert.Equal("Mozilla/5.0", persistedLead.UserAgent);
         Assert.Contains("landing-marco", persistedLead.MetadataJson);
         Assert.Equal(response.LeadId, persistedLead.Id);
+        adminNotificationMock.Verify(
+            service => service.NotifyLandingLeadCapturedAsync(
+                It.Is<LandingLead>(lead => lead.Id == persistedLead.Id),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     /// <summary>
@@ -87,13 +95,16 @@ public class LandingLeadServiceTests
     public async Task CaptureAsync_ShouldNormalizeProviderFields()
     {
         var repositoryMock = new Mock<ILandingLeadRepository>();
+        var adminNotificationMock = new Mock<ILandingAdminNotificationService>();
         LandingLead? persistedLead = null;
         repositoryMock
             .Setup(repository => repository.AddAsync(It.IsAny<LandingLead>(), It.IsAny<CancellationToken>()))
             .Callback<LandingLead, CancellationToken>((lead, _) => persistedLead = lead)
             .Returns(Task.CompletedTask);
 
-        var service = new ConsertaPraMim.Application.Services.LandingLeadService(repositoryMock.Object);
+        var service = new ConsertaPraMim.Application.Services.LandingLeadService(
+            repositoryMock.Object,
+            adminNotificationMock.Object);
 
         var request = new CaptureLandingLeadRequestDto(
             Origin: LandingLeadOrigin.Provider,
@@ -138,5 +149,10 @@ public class LandingLeadServiceTests
         Assert.Equal("12345678000199", persistedLead!.CompanyDocument);
         Assert.Equal(60, persistedLead.YearsOfExperience);
         Assert.Equal(LandingLeadOrigin.Provider, persistedLead.Origin);
+        adminNotificationMock.Verify(
+            service => service.NotifyLandingLeadCapturedAsync(
+                It.Is<LandingLead>(lead => lead.Id == persistedLead.Id),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 }

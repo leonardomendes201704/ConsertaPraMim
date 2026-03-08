@@ -10,6 +10,12 @@
 
 ## Released
 
+- [2026-03-08] [ST-003][LANDING-ADMIN-PUSH] Push admin para acesso publico e lead captado na landing
+- Tipo: feat
+- Resumo: a landing publica passou a publicar cada acesso de `/`, `/Cliente` e `/Prestador` em um webhook interno autenticado por token, e a API passou a fan-out esses eventos para admins ativos usando o barramento existente de notificacoes, cobrindo portal admin em tempo real e app admin quando houver device registrado; alem disso, a captura de leads `Cliente` e `Prestador` agora dispara notificacao administrativa com contexto comercial e link para o detalhe do lead, enquanto o endpoint interno `POST /api/internal/landing/access` permanece fora do Swagger com `ApiExplorerSettings(IgnoreApi = true)`.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/Services/LandingAdminNotificationService.cs`, `Backend/src/ConsertaPraMim.Application/DTOs/LandingAdminNotificationDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Interfaces/ILandingAdminNotificationService.cs`, `Backend/src/ConsertaPraMim.Application/Services/LandingLeadService.cs`, `Backend/src/ConsertaPraMim.API/Controllers/InternalLandingNotificationsController.cs`, `Backend/src/ConsertaPraMim.Web.Landing/Controllers/HomeController.cs`, `Backend/src/ConsertaPraMim.Web.Landing/Services/LandingAdminNotificationsClient.cs`, `Backend/docker-compose.vps.web-landing.yml`, `Backend/docker-compose.vps.yml`, `Documentacao/LANDING_PAGE/MANUAL_QA_OPERACAO_LANDING.md`, `Documentacao/LANDING_PAGE/STORIES/DONE/ST-003-push-admin-para-acesso-publico-e-lead-captado-na-landing.md`
+- Risco/Impacto: medio
+
 - [2026-03-08] [LANDING-FOOTER-CLEANUP] Rodape da landing sem links operacionais
 - Tipo: fix
 - Resumo: o rodape da landing deixou de exibir os links `Cliente`, `Prestador`, `Admin` e `Swagger`, mantendo apenas o copyright institucional para reduzir ruído de navegação e concentrar a jornada principal nos CTAs da home e no header.

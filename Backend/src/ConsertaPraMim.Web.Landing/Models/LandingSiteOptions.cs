@@ -10,6 +10,8 @@ public sealed class LandingSiteOptions
     public string? AdminPortalUrl { get; set; }
     public string? ApiBaseUrl { get; set; }
     public string? ApiSwaggerUrl { get; set; }
+    public string? InternalApiBaseUrl { get; set; }
+    public string? InternalWebhookToken { get; set; }
 
     public static string NormalizeUrl(string? value, string fallback)
     {

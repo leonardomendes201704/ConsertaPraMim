@@ -1,0 +1,13 @@
+flowchart TD
+    A[Usuario acessa landing publica] --> B[ConsertaPraMim.Web.Landing]
+    B --> C[POST interno /api/internal/landing/access]
+    C --> D[ConsertaPraMim.API]
+    D --> E[LandingAdminNotificationService]
+    E --> F[Admins ativos]
+    F --> G[Portal Admin via SignalR]
+    F --> H[App Admin via push mobile]
+
+    I[Usuario envia lead Cliente/Prestador] --> J[POST /api/landing-leads/public]
+    J --> K[LandingLeadService]
+    K --> L[(LandingLeads)]
+    K --> E

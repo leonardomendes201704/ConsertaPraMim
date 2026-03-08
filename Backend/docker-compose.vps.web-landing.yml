@@ -21,6 +21,8 @@ services:
       LandingSite__AdminPortalUrl: "${PUBLIC_ADMIN_URL:-http://${VPS_PUBLIC_HOST}:${ADMIN_PORT:-5151}}"
       LandingSite__ApiBaseUrl: "${PUBLIC_API_URL:-http://${VPS_PUBLIC_HOST}:${API_PORT:-5193}}"
       LandingSite__ApiSwaggerUrl: "${PUBLIC_API_URL:-http://${VPS_PUBLIC_HOST}:${API_PORT:-5193}}/swagger"
+      LandingSite__InternalApiBaseUrl: "${INTERNAL_API_URL:-http://cpm-api:8080}"
+      LandingSite__InternalWebhookToken: "${APK_RELEASE_PUSH_TOKEN:-}"
     networks:
       - conserta_net
 

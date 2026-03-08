@@ -12,6 +12,10 @@ CultureInfo.DefaultThreadCurrentUICulture = ptBrCulture;
 
 builder.Services.AddControllersWithViews();
 builder.Services.Configure<LandingSiteOptions>(builder.Configuration.GetSection(LandingSiteOptions.SectionName));
+builder.Services.AddHttpClient<ILandingAdminNotificationsClient, LandingAdminNotificationsClient>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(2);
+});
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders =

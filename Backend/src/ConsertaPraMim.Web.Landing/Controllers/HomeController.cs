@@ -8,29 +8,39 @@ namespace ConsertaPraMim.Web.Landing.Controllers;
 public sealed class HomeController : Controller
 {
     private const string DefaultCanonicalUrl = "https://www.consertapramim.com";
-    private const string DefaultOgTitle = "ConsertaPraMim – Encontre profissionais de confiança";
-    private const string DefaultOgDescription = "Conectamos você a profissionais de manutenção e reparos perto de você.";
+    private const string DefaultOgTitle = "ConsertaPraMim \u2013 Encontre profissionais de confianca";
+    private const string DefaultOgDescription = "Conectamos voce a profissionais de manutencao e reparos perto de voce.";
     private const string DefaultOgImagePath = "/og-logo-consertapramim.png";
 
     private readonly LandingSiteOptions _options;
+    private readonly ILandingAdminNotificationsClient _landingAdminNotificationsClient;
+    private readonly ILogger<HomeController> _logger;
 
-    public HomeController(IOptions<LandingSiteOptions> options)
+    public HomeController(
+        IOptions<LandingSiteOptions> options,
+        ILandingAdminNotificationsClient landingAdminNotificationsClient,
+        ILogger<HomeController> logger)
     {
         _options = options.Value;
+        _landingAdminNotificationsClient = landingAdminNotificationsClient;
+        _logger = logger;
     }
 
-    public IActionResult Index()
+    public async Task<IActionResult> Index()
     {
+        await TryNotifyLandingAccessAsync();
         return RenderLanding();
     }
 
-    public IActionResult Cliente()
+    public async Task<IActionResult> Cliente()
     {
+        await TryNotifyLandingAccessAsync("client");
         return RenderLanding("client");
     }
 
-    public IActionResult Prestador()
+    public async Task<IActionResult> Prestador()
     {
+        await TryNotifyLandingAccessAsync("provider");
         return RenderLanding("provider");
     }
 
@@ -89,5 +99,34 @@ public sealed class HomeController : Controller
         ViewData["InitialLeadOrigin"] = initialLeadOrigin;
 
         return View("Index", model);
+    }
+
+    private async Task TryNotifyLandingAccessAsync(string? initialLeadOrigin = null)
+    {
+        try
+        {
+            await _landingAdminNotificationsClient.NotifyLandingAccessAsync(
+                new LandingAccessNotificationRequest(
+                    CurrentUrl: BuildCurrentAbsoluteUrl(),
+                    Path: Request.Path.HasValue ? Request.Path.Value : "/",
+                    Host: Request.Host.Value,
+                    Scheme: Request.Scheme,
+                    InitialLeadOrigin: initialLeadOrigin,
+                    IpAddress: HttpContext.Connection.RemoteIpAddress?.ToString(),
+                    ForwardedFor: Request.Headers["X-Forwarded-For"].FirstOrDefault(),
+                    UserAgent: Request.Headers.UserAgent.ToString(),
+                    AcceptLanguage: Request.Headers.AcceptLanguage.ToString(),
+                    RefererUrl: Request.Headers.Referer.ToString()),
+                HttpContext.RequestAborted);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Falha ao publicar acesso da landing para o canal interno de notificacoes.");
+        }
+    }
+
+    private string BuildCurrentAbsoluteUrl()
+    {
+        return $"{Request.Scheme}://{Request.Host}{Request.Path}{Request.QueryString}";
     }
 }
