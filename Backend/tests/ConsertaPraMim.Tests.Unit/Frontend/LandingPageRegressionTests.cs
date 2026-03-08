@@ -37,6 +37,28 @@ public class LandingPageRegressionTests
         Assert.Contains("display: none !important;", cssContent);
     }
 
+    [Fact(DisplayName = "Landing | Captacao | Deve abrir sem toggles e com heading oculto ate o CTA")]
+    public void Index_ShouldKeepLeadHeadingInsideHiddenShell()
+    {
+        var indexContent = File.ReadAllText(GetProjectPath(
+            "Backend",
+            "src",
+            "ConsertaPraMim.Web.Landing",
+            "Views",
+            "Home",
+            "Index.cshtml"));
+
+        Assert.DoesNotContain("data-lead-tab", indexContent);
+        Assert.DoesNotContain("role=\"tablist\"", indexContent);
+        Assert.Contains("class=\"section-heading lead-heading\"", indexContent);
+
+        var shellIndex = indexContent.IndexOf("data-lead-shell", StringComparison.Ordinal);
+        var headingIndex = indexContent.IndexOf("class=\"section-heading lead-heading\"", StringComparison.Ordinal);
+
+        Assert.True(shellIndex >= 0);
+        Assert.True(headingIndex > shellIndex);
+    }
+
     private static string GetProjectPath(params string[] segments)
     {
         var current = new DirectoryInfo(AppContext.BaseDirectory);

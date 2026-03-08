@@ -72,16 +72,19 @@ Esperado:
    - `Para Clientes`
    - `Para Profissionais`
 6. Antes de qualquer clique, validar:
-   - a secao `#captacao` aparece apenas com o texto introdutorio;
-   - o container com abas/formularios permanece oculto;
+   - a secao `#captacao` nao exibe o bloco `Contato`;
+   - o container do formulario permanece oculto;
    - nenhum formulario `Cliente`/`Prestador` fica visivel no carregamento inicial.
 7. Clicar em `Encontrar profissional` e validar:
    - a pagina rola ate a secao de captacao;
+   - o bloco `Contato` passa a ficar visivel;
    - o formulario `Cliente` fica visivel;
-   - o formulario `Prestador` permanece oculto/inativo.
+   - o formulario `Prestador` permanece oculto/inativo;
+   - nao existem toggles `Cliente/Prestador` visiveis acima do formulario.
 8. Clicar em `Cadastrar-se como parceiro` e validar o espelho do fluxo para `Prestador`.
 9. Clicar em `Contato` no header e validar:
    - rolagem ate `#captacao`;
+   - exibicao do bloco `Contato`;
    - abertura do formulario `Cliente`.
 10. Preencher e enviar um lead `Cliente` com sucesso.
 11. Preencher e enviar um lead `Prestador` com sucesso.
@@ -148,8 +151,9 @@ Esperado:
    - cliente com CTA que abre o formulario de lead `Cliente`
    - profissional com CTA que abre o formulario de lead `Prestador`
 4. Secao final de captacao inicialmente oculta, exibida apenas quando um CTA principal for acionado.
-5. Footer enxuto com links uteis e copyright.
-6. Link `Contato` do header reaproveita o mesmo fluxo de captacao do CTA de cliente.
+5. O bloco `Contato` e o formulario correspondente aparecem juntos, sem toggles intermediarios.
+6. Footer enxuto com links uteis e copyright.
+7. Link `Contato` do header reaproveita o mesmo fluxo de captacao do CTA de cliente.
 
 ## Troubleshooting
 
@@ -174,6 +178,10 @@ Conferir se o CSS publicado contem a regra:
 ```
 
 Se a regra nao estiver no asset final, recrear o container `web-landing` para invalidar cache do publish.
+
+### O bloco `Contato` aparece carregado sem clique
+
+Conferir se a `Index.cshtml` publicada mantem o cabeçalho `Contato` dentro do container `data-lead-shell hidden` e se o JS remove `hidden` apenas no clique de CTA.
 
 ### `Failed to fetch` ou erro de CORS ao enviar lead
 

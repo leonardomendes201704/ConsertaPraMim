@@ -7,7 +7,6 @@
     };
     const leadShell = document.querySelector("[data-lead-shell]");
     const leadPanels = document.querySelectorAll("[data-lead-panel]");
-    const leadTabs = document.querySelectorAll("[data-lead-tab]");
     const leadTriggers = document.querySelectorAll("[data-lead-trigger]");
     const leadForms = document.querySelectorAll("[data-lead-form]");
     const leadSection = document.getElementById("captacao");
@@ -58,12 +57,6 @@
             panel.hidden = !isActive;
             panel.classList.toggle("is-active", isActive);
         });
-
-        leadTabs.forEach(function (tab) {
-            const isActive = tab.getAttribute("data-lead-tab") === normalizedOrigin;
-            tab.setAttribute("aria-selected", String(isActive));
-            tab.classList.toggle("is-active", isActive);
-        });
     }
 
     function scrollToLeadSection() {
@@ -78,12 +71,6 @@
         trigger.addEventListener("click", function () {
             activateLeadOrigin(trigger.getAttribute("data-lead-trigger"));
             scrollToLeadSection();
-        });
-    });
-
-    leadTabs.forEach(function (tab) {
-        tab.addEventListener("click", function () {
-            activateLeadOrigin(tab.getAttribute("data-lead-tab"));
         });
     });
 

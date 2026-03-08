@@ -10,6 +10,12 @@
 
 ## Released
 
+- [2026-03-08] [LANDING-LEADS-UX-VISIBILITY] Captacao da landing sem toggles e com heading visivel apenas no clique
+- Tipo: fix
+- Resumo: a secao de captacao da landing foi refinada para nao exibir toggles `Cliente/Prestador` acima dos formularios; o bloco `Contato` passou a ficar oculto no carregamento inicial e so aparece junto com o formulario correspondente quando um CTA principal ou o link `Contato` do header e acionado.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Landing/Views/Home/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/js/site.js`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/css/site.css`, `Backend/tests/ConsertaPraMim.Tests.Unit/Frontend/LandingPageRegressionTests.cs`, `Documentacao/LANDING_PAGE/MANUAL_QA_OPERACAO_LANDING.md`
+- Risco/Impacto: baixo
+
 - [2026-03-08] [LANDING-LEADS-UX-CSP] Formularios da landing ocultos no load e sem script inline
 - Tipo: fix
 - Resumo: a landing publica passou a respeitar o estado oculto da secao de captacao no carregamento inicial, exibindo apenas o formulario correspondente ao CTA acionado (`Cliente` ou `Prestador`); a configuracao do endpoint de captura deixou de ser injetada por `<script>` inline e passou a usar `data-*` no `body`, eliminando bloqueio de `Content-Security-Policy` com `script-src 'self'`.

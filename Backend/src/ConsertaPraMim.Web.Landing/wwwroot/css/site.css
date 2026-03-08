@@ -473,27 +473,8 @@ code {
     box-shadow: var(--shadow-lg);
 }
 
-.lead-switcher {
-    display: inline-flex;
-    flex-wrap: wrap;
-    gap: 12px;
-}
-
-.lead-switcher-button {
-    min-height: 48px;
-    padding: 0 20px;
-    border-radius: 999px;
-    background: var(--surface-soft);
-    color: var(--ink);
-    font-weight: 800;
-    cursor: pointer;
-    transition: transform 180ms ease, background 180ms ease, color 180ms ease;
-}
-
-.lead-switcher-button.is-active {
-    background: var(--brand);
-    color: #fff;
-    box-shadow: 0 12px 24px rgba(15, 91, 187, 0.18);
+.lead-heading {
+    margin-bottom: 0;
 }
 
 .lead-panel-grid {
