@@ -83,6 +83,14 @@ app.MapGet("/sitemap.xml", (IOptions<LandingSiteOptions> options) =>
     return Results.Content(content, "application/xml");
 });
 app.MapControllerRoute(
+    name: "landing-client",
+    pattern: "Cliente",
+    defaults: new { controller = "Home", action = "Cliente" });
+app.MapControllerRoute(
+    name: "landing-provider",
+    pattern: "Prestador",
+    defaults: new { controller = "Home", action = "Prestador" });
+app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
 

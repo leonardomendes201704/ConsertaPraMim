@@ -10,6 +10,24 @@
 
 ## Released
 
+- [2026-03-08] [LANDING-SEO-DEEPLINKS] Open Graph da landing e rotas diretas de captacao
+- Tipo: feat
+- Resumo: a landing publica passou a expor metadados `Open Graph` e `Twitter Card` com imagem publica `og-image.jpg`, titulo/descricao prontos para compartilhamento e URLs dedicadas `https://www.consertapramim.com/Cliente` e `https://www.consertapramim.com/Prestador` que abrem automaticamente o modal do formulario correspondente.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Landing/Controllers/HomeController.cs`, `Backend/src/ConsertaPraMim.Web.Landing/Models/LandingPageViewModel.cs`, `Backend/src/ConsertaPraMim.Web.Landing/Views/Shared/_Layout.cshtml`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/js/site.js`, `Backend/src/ConsertaPraMim.Web.Landing/Program.cs`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/og-image.jpg`, `Backend/tests/ConsertaPraMim.Tests.Unit/Frontend/LandingPageRegressionTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Controllers/LandingHomeControllerTests.cs`, `Documentacao/LANDING_PAGE/MANUAL_QA_OPERACAO_LANDING.md`
+- Risco/Impacto: medio
+
+- [2026-03-08] [LANDING-LEADS-MODAL] Captacao da landing migrada para modal Bootstrap
+- Tipo: fix
+- Resumo: os formularios de lead `Cliente` e `Prestador` deixaram de ser renderizados no fim da pagina e passaram a abrir em um modal Bootstrap local, sem scroll ate `#captacao`; o link `Contato` do header agora reutiliza o mesmo fluxo por query string, mantendo a landing limpa e o CSP compativel com `script-src 'self'`.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Landing/Views/Shared/_Layout.cshtml`, `Backend/src/ConsertaPraMim.Web.Landing/Views/Home/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/js/site.js`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/css/site.css`, `Backend/tests/ConsertaPraMim.Tests.Unit/Frontend/LandingPageRegressionTests.cs`, `Documentacao/LANDING_PAGE/MANUAL_QA_OPERACAO_LANDING.md`
+- Risco/Impacto: medio
+
+- [2026-03-08] [LANDING-TESTEMUNHOS] Seção pública de testemunhos com clientes e prestadores
+- Tipo: feat
+- Resumo: a landing pública passou a exibir, logo abaixo do bloco institucional, uma seção de prova social com 20 depoimentos estáticos em PT-BR, sendo 10 de clientes e 10 de prestadores, distribuídos em duas colunas com visual próprio para reforçar confiança e previsibilidade operacional.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Landing/Views/Home/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/css/site.css`, `Backend/tests/ConsertaPraMim.Tests.Unit/Frontend/LandingPageRegressionTests.cs`, `Documentacao/LANDING_PAGE/MANUAL_QA_OPERACAO_LANDING.md`
+- Risco/Impacto: baixo
+
 - [2026-03-08] [LANDING-LEADS-UX-VISIBILITY] Captacao da landing sem toggles e com heading visivel apenas no clique
 - Tipo: fix
 - Resumo: a secao de captacao da landing foi refinada para nao exibir toggles `Cliente/Prestador` acima dos formularios; o bloco `Contato` passou a ficar oculto no carregamento inicial e so aparece junto com o formulario correspondente quando um CTA principal ou o link `Contato` do header e acionado.

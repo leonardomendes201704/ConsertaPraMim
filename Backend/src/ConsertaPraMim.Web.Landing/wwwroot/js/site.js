@@ -3,14 +3,19 @@
     const navToggle = document.querySelector("[data-nav-toggle]");
     const nav = document.querySelector("[data-nav]");
     const config = {
-        leadCaptureUrl: pageConfigSource ? pageConfigSource.getAttribute("data-lead-capture-url") || "" : ""
+        leadCaptureUrl: pageConfigSource ? pageConfigSource.getAttribute("data-lead-capture-url") || "" : "",
+        initialLeadOrigin: pageConfigSource ? pageConfigSource.getAttribute("data-initial-lead-origin") || "" : ""
     };
+
+    const leadModalElement = document.getElementById("leadCaptureModal");
+    const leadModal = leadModalElement && window.bootstrap && typeof window.bootstrap.Modal === "function"
+        ? window.bootstrap.Modal.getOrCreateInstance(leadModalElement)
+        : null;
     const leadShell = document.querySelector("[data-lead-shell]");
     const leadTitle = document.querySelector("[data-lead-title]");
     const leadPanels = document.querySelectorAll("[data-lead-panel]");
     const leadTriggers = document.querySelectorAll("[data-lead-trigger]");
     const leadForms = document.querySelectorAll("[data-lead-form]");
-    const leadSection = document.getElementById("captacao");
 
     if (navToggle && nav) {
         navToggle.addEventListener("click", function () {
@@ -44,20 +49,34 @@
         });
     }
 
+    function closeMobileNavIfNeeded() {
+        if (!navToggle || !nav) {
+            return;
+        }
+
+        navToggle.setAttribute("aria-expanded", "false");
+        nav.classList.remove("is-open");
+    }
+
+    function getLeadTitleForOrigin(origin) {
+        if (!leadShell) {
+            return "";
+        }
+
+        return origin === "provider"
+            ? leadShell.getAttribute("data-provider-title") || ""
+            : leadShell.getAttribute("data-client-title") || "";
+    }
+
     function activateLeadOrigin(origin) {
         const normalizedOrigin = origin === "provider" ? "provider" : "client";
 
         if (leadShell) {
-            leadShell.hidden = false;
-            leadShell.classList.add("is-open");
             leadShell.setAttribute("data-active-origin", normalizedOrigin);
         }
 
-        if (leadTitle && leadShell) {
-            const title = normalizedOrigin === "provider"
-                ? leadShell.getAttribute("data-provider-title")
-                : leadShell.getAttribute("data-client-title");
-
+        if (leadTitle) {
+            const title = getLeadTitleForOrigin(normalizedOrigin);
             if (title) {
                 leadTitle.textContent = title;
             }
@@ -70,20 +89,64 @@
         });
     }
 
-    function scrollToLeadSection() {
-        if (!leadSection) {
+    function focusFirstInputInActivePanel() {
+        const activePanel = document.querySelector("[data-lead-panel].is-active");
+        if (!activePanel) {
             return;
         }
 
-        leadSection.scrollIntoView({ behavior: "smooth", block: "start" });
+        const focusTarget = activePanel.querySelector("input, textarea, select, button");
+        if (focusTarget instanceof HTMLElement) {
+            window.setTimeout(function () {
+                focusTarget.focus();
+            }, 60);
+        }
+    }
+
+    function openLeadCapture(origin) {
+        activateLeadOrigin(origin);
+        closeMobileNavIfNeeded();
+
+        if (leadModal) {
+            leadModal.show();
+            return;
+        }
+
+        focusFirstInputInActivePanel();
     }
 
     leadTriggers.forEach(function (trigger) {
-        trigger.addEventListener("click", function () {
-            activateLeadOrigin(trigger.getAttribute("data-lead-trigger"));
-            scrollToLeadSection();
+        trigger.addEventListener("click", function (event) {
+            if (!leadModalElement) {
+                return;
+            }
+
+            event.preventDefault();
+            openLeadCapture(trigger.getAttribute("data-lead-trigger"));
         });
     });
+
+    if (leadModalElement) {
+        leadModalElement.addEventListener("shown.bs.modal", function () {
+            focusFirstInputInActivePanel();
+        });
+    }
+
+    function tryOpenLeadFromQueryString() {
+        if (!leadModalElement) {
+            return;
+        }
+
+        const url = new URL(window.location.href);
+        const leadOrigin = url.searchParams.get("lead");
+        if (leadOrigin !== "client" && leadOrigin !== "provider") {
+            return;
+        }
+
+        openLeadCapture(leadOrigin);
+        url.searchParams.delete("lead");
+        window.history.replaceState({}, document.title, `${url.pathname}${url.search}${url.hash}`);
+    }
 
     function readFormValue(formData, name) {
         const rawValue = formData.get(name);
@@ -239,4 +302,10 @@
             submitLeadForm(form);
         });
     });
+
+    activateLeadOrigin("client");
+    if (config.initialLeadOrigin === "client" || config.initialLeadOrigin === "provider") {
+        openLeadCapture(config.initialLeadOrigin);
+    }
+    tryOpenLeadFromQueryString();
 })();

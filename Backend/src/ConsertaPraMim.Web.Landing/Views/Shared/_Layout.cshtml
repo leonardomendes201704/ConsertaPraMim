@@ -5,6 +5,13 @@
     var pageTitle = ViewData["Title"] as string ?? "ConsertaPraMim";
     var pageDescription = ViewData["Description"] as string ?? "Plataforma ConsertaPraMim";
     var canonicalUrl = ViewData["CanonicalUrl"] as string ?? LandingSiteOptions.NormalizeUrl(siteOptions.CanonicalUrl, "https://www.consertapramim.com");
+    var openGraphTitle = ViewData["OpenGraphTitle"] as string ?? pageTitle;
+    var openGraphDescription = ViewData["OpenGraphDescription"] as string ?? pageDescription;
+    var openGraphImage = ViewData["OpenGraphImage"] as string ?? (canonicalUrl.TrimEnd('/') + "/og-image.jpg");
+    var openGraphUrl = ViewData["OpenGraphUrl"] as string ?? (canonicalUrl.TrimEnd('/') + "/");
+    var openGraphType = ViewData["OpenGraphType"] as string ?? "website";
+    var twitterCard = ViewData["TwitterCard"] as string ?? "summary_large_image";
+    var initialLeadOrigin = ViewData["InitialLeadOrigin"] as string ?? "";
     var clientPortalUrl = LandingSiteOptions.NormalizeUrl(siteOptions.ClientPortalUrl, "https://cliente.consertapramim.com");
     var providerPortalUrl = LandingSiteOptions.NormalizeUrl(siteOptions.ProviderPortalUrl, "https://prestador.consertapramim.com");
     var adminPortalUrl = LandingSiteOptions.NormalizeUrl(siteOptions.AdminPortalUrl, "https://admin.consertapramim.com");
@@ -15,7 +22,7 @@
     var homeTopUrl = $"{homeUrl}/#top";
     var homeAboutUrl = $"{homeUrl}/#sobre";
     var homeAccessUrl = $"{homeUrl}/#acessos";
-    var homeLeadUrl = $"{homeUrl}/#captacao";
+    var homeLeadUrl = $"{homeUrl}/Cliente";
 }
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -25,15 +32,21 @@
     <title>@pageTitle</title>
     <meta name="description" content="@pageDescription" />
     <link rel="canonical" href="@canonicalUrl" />
-    <meta property="og:title" content="@pageTitle" />
-    <meta property="og:description" content="@pageDescription" />
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="@canonicalUrl" />
+    <meta property="og:title" content="@openGraphTitle" />
+    <meta property="og:description" content="@openGraphDescription" />
+    <meta property="og:image" content="@openGraphImage" />
+    <meta property="og:url" content="@openGraphUrl" />
+    <meta property="og:type" content="@openGraphType" />
+    <meta name="twitter:card" content="@twitterCard" />
+    <meta name="twitter:title" content="@openGraphTitle" />
+    <meta name="twitter:description" content="@openGraphDescription" />
+    <meta name="twitter:image" content="@openGraphImage" />
     <meta name="theme-color" content="#0f5bbb" />
     <link rel="icon" type="image/x-icon" href="~/favicon.ico" />
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
-<body data-lead-capture-url="@leadCaptureUrl">
+<body data-lead-capture-url="@leadCaptureUrl" data-initial-lead-origin="@initialLeadOrigin">
     <div class="site-shell">
         <header class="site-header">
             <div class="container nav-shell">
@@ -69,6 +82,7 @@
             </div>
         </footer>
     </div>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js" asp-append-version="true"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
 </body>
 </html>

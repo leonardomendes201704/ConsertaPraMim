@@ -2,6 +2,32 @@
 @model LandingPageViewModel
 @{
     Layout = "_Layout";
+    var clientTestimonials = new[]
+    {
+        new { Name = "Mariana S.", Locality = "Santos/SP", Quote = "Abri meu interesse em poucos minutos e já recebi contato com tudo organizado. Não precisei explicar o problema do zero a cada pessoa." },
+        new { Name = "Carlos R.", Locality = "Praia Grande/SP", Quote = "Usei a plataforma para um reparo urgente de elétrica e a triagem foi objetiva. A sensação foi de processo profissional, não de improviso." },
+        new { Name = "Juliana M.", Locality = "São Vicente/SP", Quote = "Gostei porque consegui informar bairro, cidade e contexto do serviço sem enrolação. O retorno veio com muito mais assertividade." },
+        new { Name = "Fernanda L.", Locality = "Guarujá/SP", Quote = "Para reforma pequena costuma ser difícil encontrar alguém confiável. Aqui o fluxo foi claro e eu senti mais segurança para seguir." },
+        new { Name = "Rafael P.", Locality = "Santo André/SP", Quote = "A jornada do cliente é simples e direta. Preenchi o formulário, expliquei o problema e a equipe já entendeu o que eu realmente precisava." },
+        new { Name = "Patrícia A.", Locality = "Osasco/SP", Quote = "O melhor ponto foi não depender de vários contatos soltos. A plataforma centralizou a entrada e isso deixou o atendimento muito mais eficiente." },
+        new { Name = "Bruno T.", Locality = "Campinas/SP", Quote = "Eu precisava de manutenção em ar-condicionado e a captação ajudou a filtrar melhor o tipo de profissional indicado para o meu caso." },
+        new { Name = "Luciana F.", Locality = "Sorocaba/SP", Quote = "A comunicação ficou mais organizada desde o primeiro contato. Passei as informações uma vez e a equipe conduziu o resto sem ruído." },
+        new { Name = "Eduardo G.", Locality = "São Paulo/SP", Quote = "Para quem não tem tempo de ficar buscando prestador em vários lugares, a proposta da plataforma faz muito sentido. O fluxo poupa tempo." },
+        new { Name = "Renata C.", Locality = "Mauá/SP", Quote = "A entrada comercial foi muito melhor do que eu esperava. O atendimento chegou já com noção do meu bairro, da urgência e do tipo de serviço." }
+    };
+    var providerTestimonials = new[]
+    {
+        new { Name = "Anderson V.", Locality = "Eletricista • São Paulo/SP", Quote = "Como prestador, o que mais me chamou atenção foi receber contatos com contexto. Isso evita conversa perdida e melhora a taxa de fechamento." },
+        new { Name = "Márcia N.", Locality = "Refrigeração • Santos/SP", Quote = "A plataforma ajuda a separar demanda real de curiosidade. Para onboarding comercial, isso faz muita diferença no dia a dia." },
+        new { Name = "Diego H.", Locality = "Hidráulica • Praia Grande/SP", Quote = "Quando o lead chega com bairro, cidade e descrição melhor preenchida, eu consigo avaliar deslocamento e agenda com muito mais precisão." },
+        new { Name = "Tatiane B.", Locality = "Pintura • Santo André/SP", Quote = "Gostei da proposta porque a operação não joga volume sem critério. Existe uma preocupação em organizar a entrada antes do contato." },
+        new { Name = "Felipe K.", Locality = "Marcenaria • São Bernardo/SP", Quote = "Para quem quer crescer com mais previsibilidade, a plataforma já começa certa na captação. O processo parece pensado para escala." },
+        new { Name = "Leandro J.", Locality = "Ar-condicionado • Guarulhos/SP", Quote = "O fluxo reduz ruído comercial. Em vez de perder tempo qualificando o básico, já recebemos um lead com informações que ajudam a decidir rápido." },
+        new { Name = "Priscila D.", Locality = "Reformas • Osasco/SP", Quote = "A parte mais forte é a clareza operacional. A equipe entende localidade, tipo de serviço e perfil antes de avançar no onboarding do parceiro." },
+        new { Name = "Gustavo E.", Locality = "Vidraçaria • Campinas/SP", Quote = "A plataforma passa seriedade. Para o prestador, isso importa porque o contato inicial já vem dentro de um fluxo comercial bem estruturado." },
+        new { Name = "Aline Q.", Locality = "Instalações • Sorocaba/SP", Quote = "Eu procurava um canal que não tratasse o profissional como mais um cadastro solto. Aqui existe critério na entrada e isso gera mais confiança." },
+        new { Name = "Roberto I.", Locality = "Manutenção geral • São Vicente/SP", Quote = "A captação orientada por especialidade e área de atuação ajuda muito. Fica mais fácil entender se a oportunidade faz sentido para o meu perfil." }
+    };
 }
 
 <main id="top" class="landing-main">
@@ -103,14 +129,78 @@
         </div>
     </section>
 
-    <section class="lead-section" id="captacao">
-        <div class="container lead-section-shell">
-            <div class="lead-shell" data-lead-shell hidden data-client-title="Conte-nos rapidamente um pouco sobre você e o que você precisa." data-provider-title="Conte rapidamente um pouco sobre você e como deseja atuar.">
-                <div class="section-heading lead-heading" data-reveal>
-                    <span class="section-kicker">Contato</span>
-                    <h2 data-lead-title>Conte-nos rapidamente um pouco sobre você e o que você precisa.</h2>
-                </div>
+    <section class="testimonials-section" aria-labelledby="testimonials-title">
+        <div class="container testimonials-shell">
+            <div class="section-heading testimonials-heading" data-reveal>
+                <span class="section-kicker">Testemunhos</span>
+                <h2 id="testimonials-title">Quem entra na plataforma percebe a diferença logo no primeiro contato.</h2>
+                <p>
+                    Clientes relatam mais clareza na jornada. Prestadores destacam previsibilidade comercial e leads com melhor contexto.
+                </p>
+            </div>
 
+            <div class="testimonials-grid">
+                <section class="testimonials-column testimonials-column-client" aria-labelledby="client-testimonials-title" data-reveal>
+                    <div class="testimonials-column-header">
+                        <span class="testimonials-badge">10 clientes</span>
+                        <h3 id="client-testimonials-title">Clientes falando da experiência</h3>
+                    </div>
+                    <div class="testimonials-list" role="list">
+                        @foreach (var testimonial in clientTestimonials)
+                        {
+                            <article class="testimonial-card" role="listitem" data-testimonial-origin="client">
+                                <div class="testimonial-rating" aria-label="Avaliação máxima">
+                                    <span>★★★★★</span>
+                                </div>
+                                <p class="testimonial-quote">“@testimonial.Quote”</p>
+                                <footer class="testimonial-meta">
+                                    <strong>@testimonial.Name</strong>
+                                    <span>@testimonial.Locality</span>
+                                </footer>
+                            </article>
+                        }
+                    </div>
+                </section>
+
+                <section class="testimonials-column testimonials-column-provider" aria-labelledby="provider-testimonials-title" data-reveal>
+                    <div class="testimonials-column-header">
+                        <span class="testimonials-badge testimonials-badge-dark">10 prestadores</span>
+                        <h3 id="provider-testimonials-title">Prestadores falando da operação</h3>
+                    </div>
+                    <div class="testimonials-list" role="list">
+                        @foreach (var testimonial in providerTestimonials)
+                        {
+                            <article class="testimonial-card testimonial-card-provider" role="listitem" data-testimonial-origin="provider">
+                                <div class="testimonial-rating" aria-label="Avaliação máxima">
+                                    <span>★★★★★</span>
+                                </div>
+                                <p class="testimonial-quote">“@testimonial.Quote”</p>
+                                <footer class="testimonial-meta">
+                                    <strong>@testimonial.Name</strong>
+                                    <span>@testimonial.Locality</span>
+                                </footer>
+                            </article>
+                        }
+                    </div>
+                </section>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<div class="modal fade lead-modal" id="leadCaptureModal" tabindex="-1" aria-labelledby="leadCaptureModalTitle" aria-hidden="true" data-lead-shell data-client-title="Conte-nos rapidamente um pouco sobre você e o que você precisa." data-provider-title="Conte rapidamente um pouco sobre você e como deseja atuar.">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header lead-modal-header">
+                <div class="section-heading lead-heading mb-0">
+                    <span class="section-kicker">Contato</span>
+                    <h2 id="leadCaptureModalTitle" data-lead-title>Conte-nos rapidamente um pouco sobre você e o que você precisa.</h2>
+                </div>
+                <button type="button" class="btn-close lead-modal-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+
+            <div class="modal-body lead-modal-body">
                 <div class="lead-panel-grid">
                     <article class="lead-panel" data-lead-panel="client" hidden>
                         <div class="lead-panel-copy">
@@ -226,5 +316,5 @@
                 </div>
             </div>
         </div>
-    </section>
-</main>
+    </div>
+</div>

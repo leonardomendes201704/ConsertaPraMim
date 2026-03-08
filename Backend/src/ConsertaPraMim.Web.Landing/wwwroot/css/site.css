@@ -454,23 +454,177 @@ code {
     gap: 22px;
 }
 
-.lead-section {
-    padding: 0 0 72px;
+.testimonials-section {
+    padding: 0 0 60px;
 }
 
-.lead-section-shell {
+.testimonials-shell {
     display: grid;
-    gap: 26px;
+    gap: 28px;
 }
 
-.lead-shell {
+.testimonials-heading {
+    max-width: 840px;
+}
+
+.testimonials-grid {
     display: grid;
-    gap: 22px;
-    padding: 24px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+    align-items: start;
+}
+
+.testimonials-column {
+    display: grid;
+    gap: 18px;
+    padding: 26px;
     border-radius: var(--radius-xl);
-    background: rgba(255, 255, 255, 0.88);
     border: 1px solid var(--line);
     box-shadow: var(--shadow-lg);
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(246, 248, 252, 0.94) 100%);
+}
+
+.testimonials-column-provider {
+    background:
+        linear-gradient(180deg, rgba(8, 23, 60, 0.98) 0%, rgba(11, 30, 76, 0.96) 100%);
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+.testimonials-column-header {
+    display: grid;
+    gap: 10px;
+}
+
+.testimonials-column-header h3 {
+    margin: 0;
+    font-family: var(--display-font);
+    font-size: clamp(1.6rem, 2.4vw, 2rem);
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    color: var(--ink);
+}
+
+.testimonials-column-provider .testimonials-column-header h3 {
+    color: #fff;
+}
+
+.testimonials-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: fit-content;
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: rgba(15, 91, 187, 0.1);
+    color: var(--brand);
+    font-size: 0.82rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.testimonials-badge-dark {
+    background: rgba(242, 193, 77, 0.18);
+    color: #f3cb70;
+}
+
+.testimonials-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.testimonial-card {
+    display: grid;
+    gap: 14px;
+    padding: 18px;
+    min-height: 100%;
+    border-radius: var(--radius-md);
+    background: rgba(255, 255, 255, 0.88);
+    border: 1px solid rgba(12, 22, 53, 0.08);
+    box-shadow: var(--shadow-sm);
+}
+
+.testimonial-card-provider {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+.testimonial-rating {
+    color: #d89a00;
+    font-size: 0.92rem;
+    letter-spacing: 0.18em;
+}
+
+.testimonial-card-provider .testimonial-rating {
+    color: #f3cb70;
+}
+
+.testimonial-quote {
+    margin: 0;
+    color: var(--ink);
+    line-height: 1.6;
+    font-size: 0.98rem;
+}
+
+.testimonial-card-provider .testimonial-quote {
+    color: rgba(255, 255, 255, 0.92);
+}
+
+.testimonial-meta {
+    display: grid;
+    gap: 4px;
+}
+
+.testimonial-meta strong {
+    color: var(--ink);
+    font-size: 0.96rem;
+}
+
+.testimonial-meta span {
+    color: var(--ink-muted);
+    font-size: 0.9rem;
+}
+
+.testimonial-card-provider .testimonial-meta strong {
+    color: #fff;
+}
+
+.testimonial-card-provider .testimonial-meta span {
+    color: rgba(255, 255, 255, 0.72);
+}
+
+.lead-modal {
+    --bs-modal-width: min(1120px, calc(100vw - 32px));
+}
+
+.lead-modal .modal-content {
+    border: 1px solid var(--line);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-lg);
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(246, 248, 252, 0.96) 100%);
+}
+
+.lead-modal-header {
+    align-items: flex-start;
+    gap: 18px;
+    padding: 26px 26px 0;
+    border-bottom: 0;
+}
+
+.lead-modal-close {
+    flex: 0 0 auto;
+    margin: 4px 0 0 auto;
+}
+
+.lead-modal-close:focus {
+    box-shadow: 0 0 0 4px rgba(15, 91, 187, 0.14);
+}
+
+.lead-modal-body {
+    padding: 0 26px 26px;
 }
 
 .lead-heading {
@@ -665,6 +819,8 @@ code {
 @media (max-width: 1120px) {
     .portal-grid,
     .info-grid,
+    .testimonials-grid,
+    .testimonials-list,
     .lead-panel {
         grid-template-columns: 1fr;
     }
@@ -778,9 +934,16 @@ code {
         padding: 22px;
     }
 
-    .lead-shell,
+    .testimonials-column,
+    .testimonial-card,
     .lead-panel {
         padding: 18px;
+    }
+
+    .lead-modal-header,
+    .lead-modal-body {
+        padding-left: 18px;
+        padding-right: 18px;
     }
 }
 
