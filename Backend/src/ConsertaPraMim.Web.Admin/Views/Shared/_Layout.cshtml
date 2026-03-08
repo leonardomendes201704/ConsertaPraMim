@@ -1,38 +1,31 @@
 @inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
 @inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 @inject ConsertaPraMim.Web.Admin.Services.IAdminPortalLinksService AdminPortalLinksService
+@using ConsertaPraMim.Web.Admin.Services
 @using ConsertaPraMim.Web.Admin.Security
 @{
     var csrfToken = Antiforgery.GetAndStoreTokens(Context).RequestToken ?? string.Empty;
-    var browserApiBaseUrl = (Configuration["BrowserApiBaseUrl"] ?? Configuration["ApiBaseUrl"] ?? string.Empty).TrimEnd('/');
-    if (!string.IsNullOrWhiteSpace(browserApiBaseUrl) && Uri.TryCreate(browserApiBaseUrl, UriKind.Absolute, out var apiBaseUri))
-    {
-        var requestHost = (Context.Request.Host.Host ?? string.Empty).Trim();
-        var isRequestFromLocalhost =
-            requestHost.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
-            requestHost.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
-            requestHost.Equals("::1", StringComparison.OrdinalIgnoreCase);
-        var isConfiguredLocalhost =
-            apiBaseUri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
-            apiBaseUri.Host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase) ||
-            apiBaseUri.Host.Equals("::1", StringComparison.OrdinalIgnoreCase);
-
-        if (!isRequestFromLocalhost && isConfiguredLocalhost)
-        {
-            var browserApiBuilder = new UriBuilder(apiBaseUri)
-            {
-                Host = requestHost
-            };
-            browserApiBaseUrl = browserApiBuilder.Uri.GetLeftPart(UriPartial.Authority);
-        }
-    }
+    var requestHost = (Context.Request.Host.Host ?? string.Empty).Trim();
+    var browserApiBaseUrl = AdminPublicUrlResolver.ResolveApiBaseUrl(
+        Configuration["BrowserApiBaseUrl"] ?? Configuration["ApiBaseUrl"],
+        requestHost,
+        "http://localhost:5193");
     var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
     var apiToken = User.FindFirst(AdminClaimTypes.ApiToken)?.Value ?? string.Empty;
-    var providerPortalUrl = Configuration["Portals:ProviderUrl"] ?? "http://localhost:5140/";
-    var clientPortalUrl = Configuration["Portals:ClientUrl"] ?? "http://localhost:5069/";
-    var swaggerApiUrl = !string.IsNullOrWhiteSpace(browserApiBaseUrl)
-        ? $"{browserApiBaseUrl.TrimEnd('/')}/swagger"
-        : "http://localhost:5193/swagger";
+    var providerPortalUrl = AdminPublicUrlResolver.ResolvePortalUrl(
+        Configuration["Portals:ProviderUrl"],
+        requestHost,
+        "prestador",
+        "http://localhost:5140/");
+    var clientPortalUrl = AdminPublicUrlResolver.ResolvePortalUrl(
+        Configuration["Portals:ClientUrl"],
+        requestHost,
+        "cliente",
+        "http://localhost:5069/");
+    var swaggerApiUrl = AdminPublicUrlResolver.ResolveSwaggerUrl(
+        Configuration["BrowserApiBaseUrl"] ?? Configuration["ApiBaseUrl"],
+        requestHost,
+        "http://localhost:5193");
     var currentController = ViewContext.RouteData.Values["Controller"]?.ToString() ?? string.Empty;
     var currentAction = ViewContext.RouteData.Values["Action"]?.ToString() ?? string.Empty;
     var isAccountController = currentController.Equals("Account", StringComparison.OrdinalIgnoreCase);

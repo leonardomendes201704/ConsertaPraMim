@@ -40,6 +40,7 @@ public sealed class AdminPortalLinksService : IAdminPortalLinksService
             return cached;
         }
 
+        var requestHost = (_httpContextAccessor.HttpContext?.Request.Host.Host ?? string.Empty).Trim();
         var fallback = BuildFallback();
         var accessToken = _httpContextAccessor.HttpContext?.User.FindFirst(AdminClaimTypes.ApiToken)?.Value;
         if (string.IsNullOrWhiteSpace(accessToken))
@@ -62,6 +63,7 @@ public sealed class AdminPortalLinksService : IAdminPortalLinksService
             }
 
             var resolved = ResolveFromConfigSections(response.Data, targetProfile, fallback);
+            resolved = ResolvePublicLinks(resolved, requestHost, fallback);
             _memoryCache.Set(CacheKey, resolved, CacheDuration);
             return resolved;
         }
@@ -80,9 +82,36 @@ public sealed class AdminPortalLinksService : IAdminPortalLinksService
 
     private AdminPortalLinksDto BuildFallback()
     {
-        var providerUrl = NormalizeAbsoluteUrl(_configuration["Portals:ProviderUrl"]) ?? "http://localhost:5140/";
-        var clientUrl = NormalizeAbsoluteUrl(_configuration["Portals:ClientUrl"]) ?? "http://localhost:5069/";
+        var requestHost = (_httpContextAccessor.HttpContext?.Request.Host.Host ?? string.Empty).Trim();
+        var providerUrl = AdminPublicUrlResolver.ResolvePortalUrl(
+            _configuration["Portals:ProviderUrl"],
+            requestHost,
+            "prestador",
+            "http://localhost:5140/");
+        var clientUrl = AdminPublicUrlResolver.ResolvePortalUrl(
+            _configuration["Portals:ClientUrl"],
+            requestHost,
+            "cliente",
+            "http://localhost:5069/");
         return new AdminPortalLinksDto(providerUrl, clientUrl);
+    }
+
+    private AdminPortalLinksDto ResolvePublicLinks(
+        AdminPortalLinksDto links,
+        string requestHost,
+        AdminPortalLinksDto fallback)
+    {
+        return new AdminPortalLinksDto(
+            ProviderUrl: AdminPublicUrlResolver.ResolvePortalUrl(
+                links.ProviderUrl,
+                requestHost,
+                "prestador",
+                fallback.ProviderUrl),
+            ClientUrl: AdminPublicUrlResolver.ResolvePortalUrl(
+                links.ClientUrl,
+                requestHost,
+                "cliente",
+                fallback.ClientUrl));
     }
 
     private static AdminPortalLinksDto ResolveFromConfigSections(

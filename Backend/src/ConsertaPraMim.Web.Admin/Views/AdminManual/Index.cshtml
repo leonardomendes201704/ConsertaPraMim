@@ -802,7 +802,7 @@
                     <tr>
                         <td>QA-ADM-063</td>
                         <td>Validacao de acentuacao/encoding em telas publicadas</td>
-                        <td>No ambiente publicado, abrir telas com textos acentuados nos tres portais (ex.: dashboards, modais e listas) e validar frases de referencia como `Veja o que estÃ¡ acontecendo hoje no seu radar.`.</td>
+                        <td>No ambiente publicado, abrir telas com textos acentuados nos tres portais (ex.: dashboards, modais e listas) e validar frases de referencia como `Veja o que está acontecendo hoje no seu radar.`.</td>
                         <td>Nenhuma tela deve exibir caracteres quebrados (ex.: replacement-char, A-tilde ou A-circumflex); em caso de regressao, o arquivo-fonte correspondente deve ser revisado, regravado em UTF-8 e revalidado antes do proximo deploy.</td>
                     </tr>
                     <tr>
@@ -867,6 +867,7 @@
                     <li>Secao `Swagger` em `Configuracoes Runtime` deve permitir ligar/desligar exposicao do `/swagger` em producao com restart assistido da API.</li>
                     <li>Relatorio consolidado de creditos com filtros e paginação retornando dados coerentes.</li>
                     <li>Atalho `Swagger API` abre documentacao OpenAPI em nova aba.</li>
+                    <li>Atalhos `Portal Cliente`, `Portal Prestador` e `Swagger API` no menu lateral devem abrir os dominios publicos HTTPS (`cliente.consertapramim.com`, `prestador.consertapramim.com`, `api.consertapramim.com/swagger`), nunca IP/porta legado da VPS.</li>
                     <li>Swagger exibe documentacao completa por endpoint (negocio + tecnico + cURL) sem lacunas de `summary`/`description`.</li>
                     <li>Endpoint `GET /api/admin/growth/funnel` retorna funil com SLA e alertas sem erro de autorizacao.</li>
                     <li>Endpoint `GET /api/admin/growth/executive-cockpit` retorna North Star, metas trimestrais e tendencia semanal sem erro de autorizacao.</li>
@@ -1078,6 +1079,11 @@
                     </tr>
                 </thead>
                 <tbody>
+                    <tr>
+                        <td>07/03/2026</td>
+                        <td>OPS-VPS-MENU-LINKS</td>
+                        <td>Menu lateral do portal admin passou a priorizar os dominios publicos HTTPS para `Portal Cliente`, `Portal Prestador` e `Swagger API`, evitando sobrescrita por IP legado vindo de configuracao runtime.</td>
+                    </tr>
                     <tr>
                         <td>03/03/2026</td>
                         <td>WEB-CLIENT / PAYMENTS</td>

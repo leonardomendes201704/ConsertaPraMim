@@ -10,6 +10,12 @@
 
 ## Released
 
+- [2026-03-07] [OPS-VPS-MENU-LINKS] Links publicos HTTPS no menu lateral do portal admin
+- Tipo: fix
+- Resumo: os atalhos `Portal Cliente`, `Portal Prestador` e `Swagger API` do menu lateral do portal admin passaram a priorizar URLs publicas HTTPS com dominio (`cliente.consertapramim.com`, `prestador.consertapramim.com`, `api.consertapramim.com/swagger`), evitando sobrescrita por IP/porta legado vindo de configuracao runtime.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Services/AdminPublicUrlResolver.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/AdminPortalLinksService.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/Shared/_Layout.cshtml`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminPublicUrlResolverTests.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: medio
+
 - [2026-03-07] [OPS-VPS-API-URL-SPLIT] Separacao entre URL interna e publica da API nos portais web
 - Tipo: fix
 - Resumo: os portais web da VPS passaram a usar `ApiBaseUrl` interno via rede Docker (`http://cpm-api:8080`) para chamadas server-side e `BrowserApiBaseUrl` publico (`https://api.consertapramim.com`) para chat, upload, SignalR e links Swagger no navegador, eliminando falha de autenticacao causada pelo uso do IP publico legado `http://187.77.48.150:5193` dentro dos containers.
