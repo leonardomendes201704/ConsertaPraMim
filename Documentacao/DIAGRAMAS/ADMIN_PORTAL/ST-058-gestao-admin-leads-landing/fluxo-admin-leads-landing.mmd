@@ -1,0 +1,10 @@
+flowchart TD
+    A[Admin abre menu Leads Landing] --> B[Tela lista filtros e totalizadores]
+    B --> C[Aplicar filtros no drawer offcanvas]
+    C --> D[Portal admin chama GET /api/admin/landing-leads]
+    D --> E[API consulta tabela LandingLeads]
+    E --> F[Grid renderiza origem, nome, localidade e data]
+    F --> G[Admin clica em Detalhes]
+    G --> H[Portal admin chama GET /api/admin/landing-leads/{id}]
+    H --> I[API retorna dados comerciais e tecnicos completos]
+    I --> J[Tela de detalhe exibe contexto de captacao e metadados]

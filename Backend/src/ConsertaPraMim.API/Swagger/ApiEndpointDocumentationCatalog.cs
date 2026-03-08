@@ -134,6 +134,26 @@ public static class ApiEndpointDocumentationCatalog
                 ExpectedOutcome: "Snapshot retorna prestadores e pedidos com cidade/bairro suficientes para a UI desenhar o mapa e derivar tabelas de bairros atendidos e nao atendidos no mesmo recorte filtrado.");
         }
 
+        if (path.Contains("/api/admin/landing-leads", StringComparison.Ordinal) &&
+            httpMethod == "GET" &&
+            hasIdentifier)
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Auditar um lead especifico captado na landing com todo o contexto comercial e tecnico necessario para follow-up.",
+                Scenario: "Operacao admin abre o detalhe de um lead para validar localidade, origem do CTA, interesse declarado, UTM e metadados de navegacao antes de entrar em contato.",
+                ExpectedOutcome: "Resposta completa do lead com dados de captacao, localidade real (bairro/cidade/UF) e metadados tecnicos consolidados para leitura operacional.");
+        }
+
+        if (path.Contains("/api/admin/landing-leads", StringComparison.Ordinal) &&
+            httpMethod == "GET" &&
+            !hasIdentifier)
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Dar visibilidade operacional aos leads publicos captados na landing institucional.",
+                Scenario: "Portal admin consulta a fila de leads para triagem por origem, localidade, periodo e busca textual, sem depender de acesso manual ao banco.",
+                ExpectedOutcome: "Lista paginada com totalizadores por origem e itens suficientes para o grid administrativo navegar para o detalhe do lead.");
+        }
+
         if (path.Contains("/api/admin/dashboard", StringComparison.Ordinal) &&
             !path.Contains("/coverage-map", StringComparison.Ordinal) &&
             httpMethod == "GET")
@@ -290,6 +310,14 @@ public static class ApiEndpointDocumentationCatalog
                 BusinessObjective: "Consolidar historico de reputacao do cliente para leitura de risco comportamental.",
                 Scenario: "Prestador e operacao consultam distribuicao de notas da contraparte no ciclo comercial.",
                 ExpectedOutcome: "Resumo estatistico consistente para suporte a governanca de atendimento.");
+        }
+
+        if (path.Contains("/api/landing-leads/public", StringComparison.Ordinal) && httpMethod == "POST")
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Capturar intencao comercial da landing publica antes do usuario entrar em um portal transacional.",
+                Scenario: "Landing `www.consertapramim.com` envia um lead de cliente interessado ou prestador parceiro com dados de contato, localidade e metadados tecnicos de navegacao.",
+                ExpectedOutcome: "Lead persistido com origem (`Client` ou `Provider`), contexto tecnico suficiente para metricas de aquisicao e mensagem de confirmacao pronta para a UI.");
         }
 
         if (path.Contains("/proposals/comparison/interactions", StringComparison.Ordinal) && httpMethod == "POST")
@@ -754,6 +782,31 @@ public static class ApiEndpointDocumentationCatalog
                     "Nunca logar credenciais em texto puro.",
                     "Renovar token conforme politica de expiracao do backend.",
                     "Aplicar hardening de tentativas para reduzir abuso."
+                ]),
+            "LandingLeads" => new CatalogEntry(
+                DomainTitle: "Captacao Comercial da Landing",
+                ResourceLabel: "leads publicos da landing",
+                BusinessContext: "Consolida contatos comerciais originados do site institucional antes da entrada em fluxos autenticados da plataforma.",
+                TechnicalContext: "Consumido pela landing publica em `www.consertapramim.com`, com endpoint anonimo, CORS liberado para o dominio institucional e persistencia centralizada na API.",
+                Audience: "Landing/Growth/Operacao Comercial/QA",
+                Rules:
+                [
+                    "O campo `origin` do payload deve ser enviado como texto (`Client` ou `Provider`) para refletir a origem do CTA acionado na landing.",
+                    "Persistir origem do lead (`Client` ou `Provider`) junto dos dados de contato e localidade.",
+                    "Capturar metadados tecnicos de navegacao relevantes para metricas sem depender apenas dos logs gerais da API.",
+                    "Nao exigir autenticacao nem cookies de sessao para o envio do formulario publico."
+                ]),
+            "AdminLandingLeads" => new CatalogEntry(
+                DomainTitle: "Operacao Administrativa de Leads da Landing",
+                ResourceLabel: "consulta admin dos leads publicos",
+                BusinessContext: "Permite que o portal admin acompanhe os contatos captados pela landing, com visibilidade de origem, localidade e contexto tecnico para follow-up comercial.",
+                TechnicalContext: "Consumido exclusivamente pelo portal admin em endpoints protegidos por JWT/Cookie admin, lendo a tabela `LandingLeads` persistida pela captacao publica.",
+                Audience: "Portal Admin/Operacao Comercial/QA",
+                Rules:
+                [
+                    "A listagem deve refletir a localidade real do lead, consolidando bairro, cidade e UF em leitura amigavel.",
+                    "A consulta administrativa nao altera o lead; apenas exibe dados comerciais e metadados tecnicos para triagem e auditoria.",
+                    "Os filtros do portal admin devem permanecer consistentes com o recorte suportado pela API (`origem`, `busca`, `cidade`, `UF` e periodo`)."
                 ]),
             "Files" => new CatalogEntry(
                 DomainTitle: "Arquivos e Midia",

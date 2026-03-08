@@ -2,12 +2,13 @@
 
 ## Escopo
 
-Este manual cobre a landing publica `ConsertaPraMim.Web.Landing`, publicada em `https://www.consertapramim.com`, e o redirect do dominio raiz `https://consertapramim.com`.
+Este manual cobre a landing publica `ConsertaPraMim.Web.Landing`, publicada em `https://www.consertapramim.com`, o redirect do dominio raiz `https://consertapramim.com` e a captura de leads comerciais de cliente/prestador ao final da pagina.
 
 ## Componentes envolvidos
 
 - projeto: `Backend/src/ConsertaPraMim.Web.Landing`
-- compose: `Backend/docker-compose.vps.web-landing.yml`
+- API: `Backend/src/ConsertaPraMim.API`
+- compose: `Backend/docker-compose.vps.web-landing.yml`, `Backend/docker-compose.vps.yml`, `Backend/docker-compose.vps.api.yml`
 - dockerfile: `Backend/docker/vps/Dockerfile.web.landing`
 - proxy: `Backend/docker/vps/nginx.portals.https.conf.example`
 - deploy: `scripts/deploy/vps-deploy.sh`, `scripts/deploy/vps-deploy-service.sh`
@@ -31,7 +32,8 @@ PUBLIC_API_URL=https://api.consertapramim.com
 1. DNS `consertapramim.com` e `www.consertapramim.com` apontando para a VPS.
 2. Template Nginx com `__ROOT_DOMAIN__` e `__WWW_DOMAIN__` substituidos.
 3. Certificado emitido para raiz e `www`.
-4. Deploy do container:
+4. `PUBLIC_LANDING_URL` presente no CORS da API em producao.
+5. Deploy do container:
 
 ```bash
 cd ~/ConsertaPraMimWeb
@@ -47,6 +49,7 @@ curl -I http://127.0.0.1:5088/health
 curl -I https://www.consertapramim.com
 curl -I https://www.consertapramim.com/health
 curl -I https://consertapramim.com
+curl -I https://api.consertapramim.com/health
 ```
 
 Esperado:
@@ -54,6 +57,7 @@ Esperado:
 - `https://www.consertapramim.com` -> `200`
 - `https://www.consertapramim.com/health` -> `200`
 - `https://consertapramim.com` -> `301` ou `308` para `https://www.consertapramim.com`
+- `https://api.consertapramim.com/health` -> `200`
 
 ## Checklist funcional
 
@@ -62,69 +66,121 @@ Esperado:
 3. Confirmar que o menu mobile abre/fecha.
 4. Confirmar que o header exibe:
    - marca `ConsertaPraMim`
-   - links `Início`, `Sobre`
+   - links `Início`, `Sobre`, `Contato`
    - CTA `Entrar`
 5. Validar as duas cards principais da home:
    - `Para Clientes`
    - `Para Profissionais`
-6. Validar CTA:
-   - `Encontrar Profissional`
-   - `Cadastrar-se como Parceiro`
-7. Confirmar presença dos links de rodapé:
+6. Clicar em `Encontrar profissional` e validar:
+   - a pagina rola ate a secao de captacao;
+   - o formulario `Cliente` fica visivel;
+   - o formulario `Prestador` permanece oculto/inativo.
+7. Clicar em `Cadastrar-se como parceiro` e validar o espelho do fluxo para `Prestador`.
+8. Clicar em `Contato` no header e validar:
+   - rolagem ate `#captacao`;
+   - abertura do formulario `Cliente`.
+9. Preencher e enviar um lead `Cliente` com sucesso.
+10. Preencher e enviar um lead `Prestador` com sucesso.
+11. Confirmar ausencia de erros de `Mixed Content`, `Content-Security-Policy` e `CORS` no console.
+12. Confirmar presencia dos links de rodape:
    - `Cliente`
    - `Prestador`
    - `Admin`
    - `Swagger`
-8. Confirmar ausência de erros de `Mixed Content` e `Content-Security-Policy` no console.
-9. Confirmar que as imagens dos cards carregam localmente em `wwwroot/images` sem chamada a origem externa.
-10. Validar `https://www.consertapramim.com/robots.txt`.
-11. Validar `https://www.consertapramim.com/sitemap.xml`.
+13. Validar `https://www.consertapramim.com/robots.txt`.
+14. Validar `https://www.consertapramim.com/sitemap.xml`.
+
+## Dados esperados por lead
+
+### Cliente
+
+- origem `Client`
+- nome
+- telefone
+- email
+- cidade
+- UF
+- bairro
+- categoria/servico desejado
+- descricao do problema/interesse
+
+### Prestador
+
+- origem `Provider`
+- nome do responsavel
+- telefone
+- email
+- cidade base
+- UF
+- bairro/regiao
+- especialidade principal
+- empresa/nome fantasia (opcional)
+- documento (opcional)
+- anos de experiencia (opcional)
+- observacoes
+
+### Metadados tecnicos persistidos
+
+- IP
+- `X-Forwarded-For`
+- `User-Agent`
+- `Accept-Language`
+- `Referer`
+- URL atual da pagina
+- host, scheme e path
+- query string/UTM
+- idioma do browser
+- resolucao de tela
+- plataforma do dispositivo
+- time zone
+- `CreatedAt` em UTC
 
 ## Layout esperado da home
 
-1. Header claro com navegação simples e CTA destacado à direita.
-2. Hero centralizado com título `Bem-vindo ao ConsertaPraMim`.
+1. Header claro com navegacao simples e CTA destacado a direita.
+2. Hero centralizado com titulo `Bem-vindo ao ConsertaPraMim`.
 3. Dois cards de entrada em destaque:
-   - cliente com prova social
-   - profissional com badge `Parceiro fundador`
-4. Bloco complementar abaixo da dobra:
-   - `Sobre a plataforma`
-5. Footer enxuto com links úteis e copyright.
+   - cliente com CTA que abre o formulario de lead `Cliente`
+   - profissional com CTA que abre o formulario de lead `Prestador`
+4. Secao final de captacao inicialmente oculta, exibida apenas quando um CTA principal for acionado.
+5. Footer enxuto com links uteis e copyright.
+6. Link `Contato` do header reaproveita o mesmo fluxo de captacao do CTA de cliente.
 
 ## Troubleshooting
 
-### `502 Bad Gateway` no `www`
+### O CTA ainda redireciona para portal em vez de abrir formulario
+
+Verificar se o JS da landing carregou corretamente:
+
+```bash
+curl -I https://www.consertapramim.com/js/site.js
+```
+
+Conferir no browser se existe `window.landingConfig` e se o listener dos botoes foi registrado.
+
+### `Failed to fetch` ou erro de CORS ao enviar lead
 
 Verificar:
 
 ```bash
-docker logs --tail 200 cpm-web-landing
-docker compose -f Backend/docker-compose.vps.web-landing.yml --env-file Backend/.env.vps ps
-ss -ltnp | grep 5088
+curl -I https://api.consertapramim.com/health
 ```
 
-### Redirect do raiz nao funciona
+Na VPS, confirmar `PUBLIC_LANDING_URL` no compose da API e recrear o servico se necessario.
 
-Verificar o bloco `server_name consertapramim.com` no Nginx:
+### Erro de CSP ao enviar lead
+
+Conferir o header `Content-Security-Policy` da landing e validar se `connect-src` inclui `https://api.consertapramim.com`.
+
+### Lead nao aparece no banco
+
+Verificar logs da API:
 
 ```bash
-sudo nginx -T | grep -n "server_name consertapramim.com" -A 10 -B 5
+docker logs --tail 200 cpm-api
 ```
 
-### Landing abriu, mas os links estao errados
-
-Verificar variaveis de ambiente do container:
-
-```bash
-docker inspect cpm-web-landing --format '{{range .Config.Env}}{{println .}}{{end}}' | grep -E '^(LandingSite__)'
-```
-
-Esperado:
-- `LandingSite__CanonicalUrl=https://www.consertapramim.com`
-- `LandingSite__ClientPortalUrl=https://cliente.consertapramim.com`
-- `LandingSite__ProviderPortalUrl=https://prestador.consertapramim.com`
-- `LandingSite__AdminPortalUrl=https://admin.consertapramim.com`
-- `LandingSite__ApiSwaggerUrl=https://api.consertapramim.com/swagger`
+Confirmar se a migration da tabela de leads foi aplicada e se a resposta do endpoint retornou `200`.
 
 ### Cards/imagens nao carregam
 

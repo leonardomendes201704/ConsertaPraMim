@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using ConsertaPraMim.Web.Landing.Models;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Localization;
@@ -20,6 +20,12 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
     options.KnownNetworks.Clear();
     options.KnownProxies.Clear();
 });
+
+var landingSiteOptions = builder.Configuration.GetSection(LandingSiteOptions.SectionName).Get<LandingSiteOptions>() ?? new LandingSiteOptions();
+var apiBaseUrl = LandingSiteOptions.ResolveApiBaseUrl(
+    landingSiteOptions.ApiBaseUrl,
+    landingSiteOptions.ApiSwaggerUrl,
+    "https://api.consertapramim.com");
 
 var app = builder.Build();
 var localizationOptions = new RequestLocalizationOptions
@@ -47,7 +53,7 @@ app.Use(async (context, next) =>
     context.Response.Headers["X-Frame-Options"] = "DENY";
     context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
     context.Response.Headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
-    context.Response.Headers["Content-Security-Policy"] = BuildContentSecurityPolicy(app.Environment.IsDevelopment());
+    context.Response.Headers["Content-Security-Policy"] = BuildContentSecurityPolicy(apiBaseUrl, app.Environment.IsDevelopment());
 
     await next();
 });
@@ -82,13 +88,23 @@ app.MapControllerRoute(
 
 app.Run();
 
-static string BuildContentSecurityPolicy(bool isDevelopment)
+static string BuildContentSecurityPolicy(string apiBaseUrl, bool isDevelopment)
 {
-    var connectSources = new List<string> { "'self'" };
+    var connectSources = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        "'self'"
+    };
+
+    var apiOrigin = LandingSiteOptions.ResolveOrigin(apiBaseUrl);
+    if (!string.IsNullOrWhiteSpace(apiOrigin))
+    {
+        connectSources.Add(apiOrigin);
+    }
 
     if (isDevelopment)
     {
-        connectSources.AddRange(new[] { "http:", "https:" });
+        connectSources.Add("http:");
+        connectSources.Add("https:");
     }
 
     return string.Join(
@@ -100,7 +116,7 @@ static string BuildContentSecurityPolicy(bool isDevelopment)
             "frame-ancestors 'none';",
             "object-src 'none';",
             "form-action 'self';",
-            $"connect-src {string.Join(' ', connectSources.Distinct(StringComparer.OrdinalIgnoreCase))};",
+            $"connect-src {string.Join(' ', connectSources)};",
             "img-src 'self' data:;",
             "font-src 'self';",
             "style-src 'self';",

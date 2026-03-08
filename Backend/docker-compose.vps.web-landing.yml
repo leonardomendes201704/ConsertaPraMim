@@ -19,6 +19,7 @@ services:
       LandingSite__ClientPortalUrl: "${PUBLIC_CLIENT_URL:-http://${VPS_PUBLIC_HOST}:${CLIENT_PORT:-5069}}"
       LandingSite__ProviderPortalUrl: "${PUBLIC_PROVIDER_URL:-http://${VPS_PUBLIC_HOST}:${PROVIDER_PORT:-5140}}"
       LandingSite__AdminPortalUrl: "${PUBLIC_ADMIN_URL:-http://${VPS_PUBLIC_HOST}:${ADMIN_PORT:-5151}}"
+      LandingSite__ApiBaseUrl: "${PUBLIC_API_URL:-http://${VPS_PUBLIC_HOST}:${API_PORT:-5193}}"
       LandingSite__ApiSwaggerUrl: "${PUBLIC_API_URL:-http://${VPS_PUBLIC_HOST}:${API_PORT:-5193}}/swagger"
     networks:
       - conserta_net

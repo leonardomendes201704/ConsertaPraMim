@@ -1,4 +1,7 @@
-# EPIC-001 - Landing page publica em `www` com deploy integrado na VPS
+﻿# EPIC-001 - Landing page publica em `www` com deploy integrado na VPS
+
+Status: Done
+Trilha: LANDING_PAGE
 
 ## Contexto
 
@@ -19,3 +22,7 @@ Entregar uma landing publica versionada na mesma solution, pronta para deploy vi
 - integracao com `scripts/deploy/*` e `.github/workflows/deploy-vps.yml`;
 - template Nginx com `www` + redirect do raiz;
 - manual QA/Operacao, story concluida e diagrama Mermaid.
+
+## Historias vinculadas
+
+- ST-001 - Landing page publica em `www.consertapramim.com`.

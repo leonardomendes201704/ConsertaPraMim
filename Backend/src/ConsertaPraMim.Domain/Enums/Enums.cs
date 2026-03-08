@@ -322,3 +322,9 @@ public enum SupportTicketStatus
     Resolved = 4,
     Closed = 5
 }
+
+public enum LandingLeadOrigin
+{
+    Client = 1,
+    Provider = 2
+}

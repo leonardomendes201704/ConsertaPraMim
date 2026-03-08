@@ -10,6 +10,18 @@
 
 ## Released
 
+- [2026-03-08] [ST-058][ADMIN-LANDING-LEADS] Modulo administrativo para leads captados na landing
+- Tipo: feat
+- Resumo: o portal admin passou a ter o item de menu `Leads Landing`, com grid paginado, filtros em drawer offcanvas por origem/busca/cidade/UF/periodo, totalizadores por origem e tela de detalhe para consulta da localidade real do lead (`bairro - cidade/UF`), contexto comercial, UTM e metadados tecnicos capturados na landing; a API recebeu endpoints administrativos autenticados para listagem e detalhe desse backlog comercial.
+- Arquivos principais: `Backend/src/ConsertaPraMim.API/Controllers/AdminLandingLeadsController.cs`, `Backend/src/ConsertaPraMim.Application/DTOs/AdminLandingLeadDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminLandingLeadService.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Repositories/LandingLeadRepository.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminLandingLeadsController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminLandingLeads/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminLandingLeads/Details.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/Shared/_Layout.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `Documentacao/ADMIN_PORTAL/EPICS/EPIC-026-leads-publicos-landing-admin.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-058-gestao-admin-leads-landing.md`
+- Risco/Impacto: medio
+
+- [2026-03-08] [ST-002][LANDING-LEADS] Captura publica de leads cliente/prestador na landing
+- Tipo: feat
+- Resumo: os CTAs principais da landing `www.consertapramim.com` deixaram de redirecionar direto para os portais e passaram a abrir formularios ocultos no fim da pagina para captacao de leads `Cliente` e `Prestador`; a API recebeu o endpoint anonimo `POST /api/landing-leads/public`, tabela dedicada `LandingLeads`, persistencia de cidade/UF/bairro e metadados tecnicos de navegacao (`IP`, `X-Forwarded-For`, `User-Agent`, `Accept-Language`, `Referer`, host, path, query/UTM, idioma, resolucao e plataforma), com CORS/CSP/deploy alinhados para envio browser -> API em HTTPS.
+- Arquivos principais: `Backend/src/ConsertaPraMim.API/Controllers/LandingLeadsController.cs`, `Backend/src/ConsertaPraMim.Application/DTOs/LandingLeadDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Services/LandingLeadService.cs`, `Backend/src/ConsertaPraMim.Application/Validators/LandingLeadValidators.cs`, `Backend/src/ConsertaPraMim.Domain/Entities/LandingLead.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Data/ConsertaPraMimDbContext.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Migrations/20260308132932_AddLandingLeadCapture.cs`, `Backend/src/ConsertaPraMim.Web.Landing/Views/Home/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/js/site.js`, `Backend/docker-compose.vps.yml`, `Backend/docker-compose.vps.api.yml`, `Backend/docker-compose.vps.web-landing.yml`, `Documentacao/LANDING_PAGE/MANUAL_QA_OPERACAO_LANDING.md`, `Documentacao/LANDING_PAGE/STORIES/DONE/ST-002-captura-leads-publicos-landing.md`
+- Risco/Impacto: alto
+
 - [2026-03-08] [LANDING-HOME-REFATORACAO] Refatoracao visual da home publica da landing
 - Tipo: feat
 - Resumo: a home publica `https://www.consertapramim.com` foi redesenhada para um layout mais direto e comercial, com header claro, hero centralizado, duas cards principais de entrada (`Para Clientes` e `Para Profissionais`), ilustracoes locais versionadas em `SVG`, secoes compactas de `Sobre`, `Contato`, `Termos`, `Privacidade` e `FAQ`, alem de footer simplificado; a entrega preserva CSP estrita sem depender de assets externos.

@@ -51,6 +51,7 @@ public static class DependencyInjection
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IReviewRepository, ConsertaPraMim.Infrastructure.Repositories.ReviewRepository>();
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IMobilePushDeviceRepository, ConsertaPraMim.Infrastructure.Repositories.MobilePushDeviceRepository>();
         services.AddScoped<ConsertaPraMim.Domain.Repositories.ILegalTermsRepository, ConsertaPraMim.Infrastructure.Repositories.LegalTermsRepository>();
+        services.AddScoped<ConsertaPraMim.Domain.Repositories.ILandingLeadRepository, ConsertaPraMim.Infrastructure.Repositories.LandingLeadRepository>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminMailboxStore, ConsertaPraMim.Infrastructure.Services.AdminMailboxSystemSettingsStore>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminGrowthAiStore, ConsertaPraMim.Infrastructure.Services.AdminGrowthAiSystemSettingsStore>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminMailboxGateway, ConsertaPraMim.Infrastructure.Services.GmailSmtpPop3MailboxGateway>();

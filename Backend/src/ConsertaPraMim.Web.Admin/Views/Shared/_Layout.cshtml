@@ -341,6 +341,10 @@
                     <i class="fas fa-filter"></i>
                     <span>Growth Funnel</span>
                 </a>
+                <a asp-controller="AdminLandingLeads" asp-action="Index" class="admin-nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminLandingLeads" ? "active" : "")">
+                    <i class="fas fa-bullseye"></i>
+                    <span>Leads Landing</span>
+                </a>
                 <a asp-controller="AdminGrowthCockpit" asp-action="Index" class="admin-nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminGrowthCockpit" ? "active" : "")">
                     <i class="fas fa-gauge"></i>
                     <span>Cockpit Growth</span>
@@ -379,7 +383,7 @@
                 </a>
                 <a asp-controller="AdminCorsSettings" asp-action="Index" class="admin-nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminCorsSettings" ? "active" : "")">
                     <i class="fas fa-shield-halved"></i>
-                    <span>Configuração CORS</span>
+                    <span>Configuracao CORS</span>
                 </a>
                 <a asp-controller="AdminLoadTests" asp-action="Index" class="admin-nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminLoadTests" ? "active" : "")">
                     <i class="fas fa-gauge-high"></i>

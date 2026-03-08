@@ -14,6 +14,41 @@ public class AdminServiceRequestsFilterModel
     public int PageSize { get; set; } = 20;
 }
 
+public class AdminLandingLeadsFilterModel
+{
+    public string? SearchTerm { get; set; }
+    public string Origin { get; set; } = "all";
+    public string? City { get; set; }
+    public string? State { get; set; }
+    public DateTime? FromUtc { get; set; }
+    public DateTime? ToUtc { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 20;
+}
+
+public class AdminLandingLeadsIndexViewModel
+{
+    public AdminLandingLeadsFilterModel Filters { get; set; } = new();
+    public AdminLandingLeadsListResponseDto? Leads { get; set; }
+    public string? ErrorMessage { get; set; }
+    public DateTime LastUpdatedUtc { get; set; } = DateTime.UtcNow;
+
+    public int TotalPages
+    {
+        get
+        {
+            if (Leads == null || Leads.PageSize <= 0) return 0;
+            return (int)Math.Ceiling((double)Leads.TotalCount / Leads.PageSize);
+        }
+    }
+}
+
+public class AdminLandingLeadDetailsViewModel
+{
+    public AdminLandingLeadDetailsDto? Lead { get; set; }
+    public string? ErrorMessage { get; set; }
+}
+
 public class AdminServiceRequestsIndexViewModel
 {
     public AdminServiceRequestsFilterModel Filters { get; set; } = new();

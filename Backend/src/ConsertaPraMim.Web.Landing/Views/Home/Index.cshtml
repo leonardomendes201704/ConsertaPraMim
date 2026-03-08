@@ -1,4 +1,4 @@
-@using ConsertaPraMim.Web.Landing.Models
+﻿@using ConsertaPraMim.Web.Landing.Models
 @model LandingPageViewModel
 @{
     Layout = "_Layout";
@@ -29,13 +29,13 @@
                     <div class="portal-body">
                         <h2>Para Clientes</h2>
                         <p>
-                            Precisa de um conserto rápido ou uma reforma planejada? Encontre profissionais verificados
-                            da sua região com mais clareza, agilidade e garantia de qualidade.
+                            Precisa de um conserto rápido ou uma reforma planejada? Conte o que você precisa e
+                            nossa equipe usa essa captação para conectar sua demanda a profissionais da sua região.
                         </p>
-                        <a class="btn btn-primary btn-block" href="@Model.ClientPortalUrl">
-                            Encontrar Profissional
+                        <button class="btn btn-primary btn-block" type="button" data-lead-trigger="client">
+                            Encontrar profissional
                             <span class="button-icon" aria-hidden="true">→</span>
-                        </a>
+                        </button>
                         <div class="portal-proof">
                             <div class="avatar-stack" aria-hidden="true">
                                 <span class="avatar-chip">L</span>
@@ -62,13 +62,13 @@
                             <span class="partner-badge">Parceiro fundador</span>
                         </div>
                         <p>
-                            Deseja ampliar sua base de clientes e profissionalizar seu negócio? Cadastre-se como
-                            parceiro e tenha acesso a novas demandas com operação mais organizada.
+                            Deseja ampliar sua base de clientes e profissionalizar seu negócio? Deixe seus dados
+                            para avaliarmos sua atuação, localidade e especialidade antes da entrada no portal.
                         </p>
-                        <a class="btn btn-dark btn-block" href="@Model.ProviderPortalUrl">
-                            Cadastrar-se como Parceiro
+                        <button class="btn btn-dark btn-block" type="button" data-lead-trigger="provider">
+                            Cadastrar-se como parceiro
                             <span class="button-icon" aria-hidden="true">→</span>
-                        </a>
+                        </button>
                         <ul class="benefit-list" role="list">
                             <li>Pagamentos seguros</li>
                             <li>Novos clientes diários</li>
@@ -93,12 +93,148 @@
             <div class="info-grid">
                 <article class="info-card" data-reveal>
                     <h3>Cliente com jornada simples</h3>
-                    <p>Abra o pedido, acompanhe o andamento e fale com quem vai executar o serviço no mesmo fluxo.</p>
+                    <p>Abra o interesse, compartilhe sua localidade e deixe a equipe tratar a entrada comercial com mais contexto.</p>
                 </article>
                 <article class="info-card" data-reveal>
                     <h3>Prestador com operação previsível</h3>
-                    <p>Receba oportunidades, organize seus atendimentos e mantenha o seu perfil pronto para converter.</p>
+                    <p>Receba contato com sua área de atuação já mapeada para acelerar qualificação e onboarding comercial.</p>
                 </article>
+            </div>
+        </div>
+    </section>
+
+    <section class="lead-section" id="captacao">
+        <div class="container lead-section-shell">
+            <div class="section-heading" data-reveal>
+                <span class="section-kicker">Contato</span>
+                <h2>Conte rapidamente o que você precisa ou como deseja atuar.</h2>
+                <p>
+                    Os formulários abaixo ficam ocultos até que um dos CTAs principais seja acionado. Assim a landing
+                    continua limpa, mas a equipe comercial recebe o contexto completo do lead.
+                </p>
+            </div>
+
+            <div class="lead-shell" data-lead-shell hidden>
+                <div class="lead-switcher" role="tablist" aria-label="Tipo de lead">
+                    <button type="button" class="lead-switcher-button" data-lead-tab="client" aria-selected="false">Cliente</button>
+                    <button type="button" class="lead-switcher-button" data-lead-tab="provider" aria-selected="false">Prestador</button>
+                </div>
+
+                <div class="lead-panel-grid">
+                    <article class="lead-panel" data-lead-panel="client" hidden>
+                        <div class="lead-panel-copy">
+                            <span class="eyebrow">Lead cliente</span>
+                            <h3>Encontrar profissional</h3>
+                            <p>Informe sua localidade e o tipo de reparo ou reforma. O time consegue medir a demanda e entrar em contato com mais contexto.</p>
+                        </div>
+                        <form class="lead-form" data-lead-form="client" novalidate>
+                            <div class="lead-form-grid">
+                                <label class="field">
+                                    <span>Nome completo</span>
+                                    <input type="text" name="fullName" maxlength="160" required />
+                                </label>
+                                <label class="field">
+                                    <span>WhatsApp</span>
+                                    <input type="tel" name="phone" maxlength="40" required />
+                                </label>
+                                <label class="field">
+                                    <span>E-mail</span>
+                                    <input type="email" name="email" maxlength="200" required />
+                                </label>
+                                <label class="field">
+                                    <span>Categoria ou serviço</span>
+                                    <input type="text" name="serviceCategory" maxlength="120" placeholder="Ex.: elétrica, hidráulica, ar-condicionado" />
+                                </label>
+                                <label class="field">
+                                    <span>Cidade</span>
+                                    <input type="text" name="city" maxlength="120" required />
+                                </label>
+                                <label class="field field-uf">
+                                    <span>UF</span>
+                                    <input type="text" name="state" maxlength="2" required />
+                                </label>
+                                <label class="field">
+                                    <span>Bairro</span>
+                                    <input type="text" name="neighborhood" maxlength="120" required />
+                                </label>
+                                <label class="field">
+                                    <span>Serviço desejado</span>
+                                    <input type="text" name="requestedService" maxlength="220" placeholder="Ex.: troca de chuveiro, vazamento, pintura" />
+                                </label>
+                                <label class="field field-full">
+                                    <span>Descreva rapidamente o que você precisa</span>
+                                    <textarea name="message" rows="4" maxlength="1600" placeholder="Contexto do problema, urgência, melhor horário para contato..."></textarea>
+                                </label>
+                            </div>
+                            <div class="lead-form-actions">
+                                <button class="btn btn-primary" type="submit">Enviar interesse</button>
+                                <p class="lead-disclaimer">Ao enviar, você permite que a equipe ConsertaPraMim entre em contato para qualificação do atendimento.</p>
+                            </div>
+                            <div class="lead-feedback" data-lead-feedback aria-live="polite"></div>
+                        </form>
+                    </article>
+
+                    <article class="lead-panel" data-lead-panel="provider" hidden>
+                        <div class="lead-panel-copy">
+                            <span class="eyebrow">Lead prestador</span>
+                            <h3>Cadastrar-se como parceiro</h3>
+                            <p>Compartilhe sua especialidade, cidade base e área de atuação. Isso ajuda a operação a medir cobertura e priorizar o onboarding.</p>
+                        </div>
+                        <form class="lead-form" data-lead-form="provider" novalidate>
+                            <div class="lead-form-grid">
+                                <label class="field">
+                                    <span>Nome do responsável</span>
+                                    <input type="text" name="fullName" maxlength="160" required />
+                                </label>
+                                <label class="field">
+                                    <span>WhatsApp</span>
+                                    <input type="tel" name="phone" maxlength="40" required />
+                                </label>
+                                <label class="field">
+                                    <span>E-mail</span>
+                                    <input type="email" name="email" maxlength="200" required />
+                                </label>
+                                <label class="field">
+                                    <span>Especialidade principal</span>
+                                    <input type="text" name="serviceCategory" maxlength="120" placeholder="Ex.: elétrica, refrigeração, pintura" required />
+                                </label>
+                                <label class="field">
+                                    <span>Cidade base</span>
+                                    <input type="text" name="city" maxlength="120" required />
+                                </label>
+                                <label class="field field-uf">
+                                    <span>UF</span>
+                                    <input type="text" name="state" maxlength="2" required />
+                                </label>
+                                <label class="field">
+                                    <span>Bairro / região principal</span>
+                                    <input type="text" name="neighborhood" maxlength="120" required />
+                                </label>
+                                <label class="field">
+                                    <span>Empresa ou nome fantasia</span>
+                                    <input type="text" name="companyName" maxlength="180" />
+                                </label>
+                                <label class="field">
+                                    <span>CPF ou CNPJ</span>
+                                    <input type="text" name="companyDocument" maxlength="32" />
+                                </label>
+                                <label class="field">
+                                    <span>Anos de experiência</span>
+                                    <input type="number" name="yearsOfExperience" min="0" max="60" />
+                                </label>
+                                <label class="field field-full">
+                                    <span>Observações</span>
+                                    <textarea name="message" rows="4" maxlength="1600" placeholder="Serviços atendidos, raio de atuação, equipe, diferenciais..."></textarea>
+                                </label>
+                            </div>
+                            <div class="lead-form-actions">
+                                <button class="btn btn-dark" type="submit">Enviar cadastro de interesse</button>
+                                <p class="lead-disclaimer">Ao enviar, você permite que a equipe ConsertaPraMim avalie seu perfil e entre em contato para parceria.</p>
+                            </div>
+                            <div class="lead-feedback" data-lead-feedback aria-live="polite"></div>
+                        </form>
+                    </article>
+                </div>
             </div>
         </div>
     </section>

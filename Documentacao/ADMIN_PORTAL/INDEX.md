@@ -27,6 +27,7 @@
 - [EPIC-023 - Widgets incrementais da home admin para analiticos e listas operacionais](EPICS/EPIC-023-dashboard-admin-widgets-incrementais.md)
 - [EPIC-024 - Analise IA no fluxo de abertura de pedido do cliente](EPICS/EPIC-024-analise-ia-abertura-pedido-cliente.md)
 - [EPIC-025 - Chat de ajuda entre cliente e admin vinculado ao pedido](EPICS/EPIC-025-chat-ajuda-cliente-admin-pedido.md)
+- [EPIC-026 - Leads publicos da landing no Portal Admin](EPICS/EPIC-026-leads-publicos-landing-admin.md)
 
 ## Stories
 
@@ -93,6 +94,7 @@
 - [ST-053 - Home admin com KPIs modulares e carregamento incremental](STORIES/DONE/ST-053-home-admin-kpis-modulares.md)
 - [ST-055 - Etapa "Analise do problema" no wizard de criacao de pedido do cliente](STORIES/DONE/ST-055-analise-ia-wizard-criacao-pedido-cliente.md)
 - [ST-057 - Mapa Operacional com bairros atendidos e nao atendidos](STORIES/DONE/ST-057-mapa-operacional-bairros-atendidos-nao-atendidos.md)
+- [ST-058 - Gestao administrativa de leads captados pela landing](STORIES/DONE/ST-058-gestao-admin-leads-landing.md)
 
 ## Runbooks
 

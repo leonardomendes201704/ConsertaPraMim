@@ -70,6 +70,7 @@ public class ConsertaPraMimDbContext : DbContext
     public DbSet<ApiErrorCatalog> ApiErrorCatalog { get; set; }
     public DbSet<ApiErrorOccurrenceHourly> ApiErrorOccurrencesHourly { get; set; }
     public DbSet<AdminLoadTestRun> AdminLoadTestRuns { get; set; }
+    public DbSet<LandingLead> LandingLeads { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -2176,6 +2177,146 @@ public class ConsertaPraMimDbContext : DbContext
                 t.HasCheckConstraint("CK_AdminLoadTestRuns_RequestCounts_NonNegative", "[TotalRequests] >= 0 AND [SuccessfulRequests] >= 0 AND [FailedRequests] >= 0");
                 t.HasCheckConstraint("CK_AdminLoadTestRuns_Latency_NonNegative", "[MinLatencyMs] >= 0 AND [P50LatencyMs] >= 0 AND [P95LatencyMs] >= 0 AND [P99LatencyMs] >= 0 AND [MaxLatencyMs] >= 0");
                 t.HasCheckConstraint("CK_AdminLoadTestRuns_Rps_NonNegative", "[RpsAvg] >= 0 AND [RpsPeak] >= 0");
+            });
+
+        modelBuilder.Entity<LandingLead>()
+            .Property(x => x.FullName)
+            .HasMaxLength(160);
+
+        modelBuilder.Entity<LandingLead>()
+            .Property(x => x.Phone)
+            .HasMaxLength(40);
+
+        modelBuilder.Entity<LandingLead>()
+            .Property(x => x.Email)
+            .HasMaxLength(200);
+
+        modelBuilder.Entity<LandingLead>()
+            .Property(x => x.City)
+            .HasMaxLength(120);
+
+        modelBuilder.Entity<LandingLead>()
+            .Property(x => x.State)
+            .HasMaxLength(2);
+
+        modelBuilder.Entity<LandingLead>()
+            .Property(x => x.Neighborhood)
+            .HasMaxLength(120);
+
+        modelBuilder.Entity<LandingLead>()
+            .Property(x => x.ServiceCategory)
+            .HasMaxLength(120);
+
+        modelBuilder.Entity<LandingLead>()
+            .Property(x => x.RequestedService)
+            .HasMaxLength(220);
+
+        modelBuilder.Entity<LandingLead>()
+            .Property(x => x.CompanyName)
+            .HasMaxLength(180);
+
+        modelBuilder.Entity<LandingLead>()
+            .Property(x => x.CompanyDocument)
+            .HasMaxLength(32);
+
+        modelBuilder.Entity<LandingLead>()
+            .Property(x => x.Message)
+            .HasMaxLength(1600);
+
+        modelBuilder.Entity<LandingLead>()
+            .Property(x => x.CurrentPageUrl)
+            .HasMaxLength(500);
+
+        modelBuilder.Entity<LandingLead>()
+            .Property(x => x.ReferrerUrl)
+            .HasMaxLength(500);
+
+        modelBuilder.Entity<LandingLead>()
+            .Property(x => x.Host)
+            .HasMaxLength(200);
+
+        modelBuilder.Entity<LandingLead>()
+            .Property(x => x.Scheme)
+            .HasMaxLength(10);
+
+        modelBuilder.Entity<LandingLead>()
+            .Property(x => x.Path)
+            .HasMaxLength(260);
+
+        modelBuilder.Entity<LandingLead>()
+            .Property(x => x.QueryString)
+            .HasMaxLength(2000);
+
+        modelBuilder.Entity<LandingLead>()
+            .Property(x => x.UtmSource)
+            .HasMaxLength(180);
+
+        modelBuilder.Entity<LandingLead>()
+            .Property(x => x.UtmMedium)
+            .HasMaxLength(180);
+
+        modelBuilder.Entity<LandingLead>()
+            .Property(x => x.UtmCampaign)
+            .HasMaxLength(180);
+
+        modelBuilder.Entity<LandingLead>()
+            .Property(x => x.UtmTerm)
+            .HasMaxLength(180);
+
+        modelBuilder.Entity<LandingLead>()
+            .Property(x => x.UtmContent)
+            .HasMaxLength(180);
+
+        modelBuilder.Entity<LandingLead>()
+            .Property(x => x.IpAddress)
+            .HasMaxLength(80);
+
+        modelBuilder.Entity<LandingLead>()
+            .Property(x => x.ForwardedFor)
+            .HasMaxLength(300);
+
+        modelBuilder.Entity<LandingLead>()
+            .Property(x => x.UserAgent)
+            .HasMaxLength(512);
+
+        modelBuilder.Entity<LandingLead>()
+            .Property(x => x.AcceptLanguage)
+            .HasMaxLength(128);
+
+        modelBuilder.Entity<LandingLead>()
+            .Property(x => x.BrowserLanguage)
+            .HasMaxLength(128);
+
+        modelBuilder.Entity<LandingLead>()
+            .Property(x => x.ScreenResolution)
+            .HasMaxLength(32);
+
+        modelBuilder.Entity<LandingLead>()
+            .Property(x => x.DevicePlatform)
+            .HasMaxLength(80);
+
+        modelBuilder.Entity<LandingLead>()
+            .Property(x => x.TimeZone)
+            .HasMaxLength(128);
+
+        modelBuilder.Entity<LandingLead>()
+            .Property(x => x.MetadataJson)
+            .HasMaxLength(4000);
+
+        modelBuilder.Entity<LandingLead>()
+            .HasIndex(x => new { x.Origin, x.CreatedAt });
+
+        modelBuilder.Entity<LandingLead>()
+            .HasIndex(x => new { x.City, x.State, x.CreatedAt });
+
+        modelBuilder.Entity<LandingLead>()
+            .HasIndex(x => new { x.UtmCampaign, x.CreatedAt });
+
+        modelBuilder.Entity<LandingLead>()
+            .ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_LandingLeads_Origin_Valid", "[Origin] IN (1,2)");
+                t.HasCheckConstraint("CK_LandingLeads_YearsOfExperience_Range", "[YearsOfExperience] IS NULL OR ([YearsOfExperience] >= 0 AND [YearsOfExperience] <= 60)");
             });
     }
 }
