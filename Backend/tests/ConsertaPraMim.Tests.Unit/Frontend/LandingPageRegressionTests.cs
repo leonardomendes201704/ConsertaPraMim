@@ -51,6 +51,11 @@ public class LandingPageRegressionTests
         Assert.DoesNotContain("data-lead-tab", indexContent);
         Assert.DoesNotContain("role=\"tablist\"", indexContent);
         Assert.Contains("class=\"section-heading lead-heading\"", indexContent);
+        Assert.Contains("Conte-nos rapidamente um pouco sobre você e o que você precisa.", indexContent);
+        Assert.Contains("Conte rapidamente um pouco sobre você e como deseja atuar.", indexContent);
+        Assert.DoesNotContain("O formulario abaixo aparece apenas quando um dos CTAs principais e acionado.", indexContent);
+        Assert.DoesNotContain("Lead cliente", indexContent);
+        Assert.DoesNotContain("Lead prestador", indexContent);
 
         var shellIndex = indexContent.IndexOf("data-lead-shell", StringComparison.Ordinal);
         var headingIndex = indexContent.IndexOf("class=\"section-heading lead-heading\"", StringComparison.Ordinal);

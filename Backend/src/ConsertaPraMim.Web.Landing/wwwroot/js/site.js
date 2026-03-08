@@ -6,6 +6,7 @@
         leadCaptureUrl: pageConfigSource ? pageConfigSource.getAttribute("data-lead-capture-url") || "" : ""
     };
     const leadShell = document.querySelector("[data-lead-shell]");
+    const leadTitle = document.querySelector("[data-lead-title]");
     const leadPanels = document.querySelectorAll("[data-lead-panel]");
     const leadTriggers = document.querySelectorAll("[data-lead-trigger]");
     const leadForms = document.querySelectorAll("[data-lead-form]");
@@ -50,6 +51,16 @@
             leadShell.hidden = false;
             leadShell.classList.add("is-open");
             leadShell.setAttribute("data-active-origin", normalizedOrigin);
+        }
+
+        if (leadTitle && leadShell) {
+            const title = normalizedOrigin === "provider"
+                ? leadShell.getAttribute("data-provider-title")
+                : leadShell.getAttribute("data-client-title");
+
+            if (title) {
+                leadTitle.textContent = title;
+            }
         }
 
         leadPanels.forEach(function (panel) {
