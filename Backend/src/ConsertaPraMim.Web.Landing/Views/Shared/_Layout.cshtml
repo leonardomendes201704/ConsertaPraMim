@@ -12,11 +12,7 @@
     var homeUrl = canonicalUrl.TrimEnd('/');
     var homeTopUrl = $"{homeUrl}/#top";
     var homeAboutUrl = $"{homeUrl}/#sobre";
-    var homeContactUrl = $"{homeUrl}/#contato";
     var homeAccessUrl = $"{homeUrl}/#acessos";
-    var homeTermsUrl = $"{homeUrl}/#termos";
-    var homePrivacyUrl = $"{homeUrl}/#privacidade";
-    var homeFaqUrl = $"{homeUrl}/#faq";
 }
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -50,7 +46,6 @@
                 <nav class="site-nav" id="site-nav" data-nav>
                     <a href="@homeTopUrl">Início</a>
                     <a href="@homeAboutUrl">Sobre</a>
-                    <a href="@homeContactUrl">Contato</a>
                     <a class="nav-cta" href="@homeAccessUrl">Entrar</a>
                 </nav>
             </div>
@@ -62,9 +57,10 @@
             <div class="container footer-shell">
                 <p>© @DateTime.UtcNow.Year ConsertaPraMim. Todos os direitos reservados.</p>
                 <nav class="footer-links" aria-label="Rodapé">
-                    <a href="@homeTermsUrl">Termos de Uso</a>
-                    <a href="@homePrivacyUrl">Privacidade</a>
-                    <a href="@homeFaqUrl">FAQ</a>
+                    <a href="@clientPortalUrl">Cliente</a>
+                    <a href="@providerPortalUrl">Prestador</a>
+                    <a href="@adminPortalUrl">Admin</a>
+                    <a href="@apiSwaggerUrl">Swagger</a>
                 </nav>
             </div>
         </footer>

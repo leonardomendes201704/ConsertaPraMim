@@ -24,7 +24,7 @@
                                 <path d="M8 7V6a4 4 0 0 1 8 0v1h2.5A1.5 1.5 0 0 1 20 8.5v8A1.5 1.5 0 0 1 18.5 18h-13A1.5 1.5 0 0 1 4 16.5v-8A1.5 1.5 0 0 1 5.5 7H8Zm2 0h4V6a2 2 0 1 0-4 0v1Zm-4 4h12v5H6v-5Z" />
                             </svg>
                         </span>
-                        <img src="~/images/landing-client-card.svg" alt="Ilustração de um profissional pronto para atender um cliente." />
+                        <img src="~/images/landing-client-card.png" alt="Cliente avaliando um projeto de reforma no notebook enquanto acompanha o atendimento." />
                     </div>
                     <div class="portal-body">
                         <h2>Para Clientes</h2>
@@ -54,7 +54,7 @@
                                 <path d="M12 2.5 20 5.8v5.9c0 5.1-3.4 9.8-8 11.8-4.6-2-8-6.7-8-11.8V5.8L12 2.5Zm0 3.2L7 7.8v3.7c0 3.6 2.2 6.9 5 8.5 2.8-1.6 5-4.9 5-8.5V7.8l-5-2.1Zm-1 8.5 4.7-4.7 1.4 1.4L11 17.1l-3.2-3.2 1.4-1.4L11 14.2Z" />
                             </svg>
                         </span>
-                        <img src="~/images/landing-provider-card.svg" alt="Ilustração de uma operação digital para profissionais parceiros." />
+                        <img src="~/images/landing-provider-card.png" alt="Equipe de profissionais parceiros pronta para atender novas demandas." />
                     </div>
                     <div class="portal-body">
                         <div class="portal-heading-row">
@@ -99,54 +99,7 @@
                     <h3>Prestador com operação previsível</h3>
                     <p>Receba oportunidades, organize seus atendimentos e mantenha o seu perfil pronto para converter.</p>
                 </article>
-                <article class="info-card" data-reveal>
-                    <h3>Admin com visibilidade real</h3>
-                    <p>Monitore a jornada ponta a ponta com portal próprio, indicadores e acesso rápido à API.</p>
-                </article>
             </div>
-        </div>
-    </section>
-
-    <section class="contact-section" id="contato">
-        <div class="container contact-shell" data-reveal>
-            <div class="contact-copy">
-                <span class="section-kicker">Contato e acessos</span>
-                <h2>Escolha o ponto de entrada certo para cada perfil.</h2>
-                <p>
-                    A landing pública apresenta a plataforma e direciona cada público para o portal correto,
-                    mantendo cliente, parceiro, operação e API em domínios separados.
-                </p>
-            </div>
-            <div class="contact-links">
-                <a href="@Model.ClientPortalUrl">Área do cliente</a>
-                <a href="@Model.ProviderPortalUrl">Portal do prestador</a>
-                <a href="@Model.AdminPortalUrl">Portal admin</a>
-                <a href="@Model.ApiSwaggerUrl">Swagger API</a>
-            </div>
-        </div>
-    </section>
-
-    <section class="legal-section">
-        <div class="container legal-grid">
-            <article class="legal-card" id="termos" data-reveal>
-                <h3>Termos de uso</h3>
-                <p>A jornada pública da landing apenas direciona para os portais. Autenticação e regras operacionais seguem o perfil de acesso correspondente.</p>
-            </article>
-            <article class="legal-card" id="privacidade" data-reveal>
-                <h3>Privacidade</h3>
-                <p>A home pública não expõe dados sensíveis nem depende de sessão autenticada para funcionar. O site publica somente conteúdo institucional.</p>
-            </article>
-            <article class="legal-card legal-card-faq" id="faq" data-reveal>
-                <h3>FAQ</h3>
-                <details>
-                    <summary>Preciso de login para acessar a landing?</summary>
-                    <p>Não. A landing é pública e serve como página de entrada para cliente, prestador, admin e documentação da API.</p>
-                </details>
-                <details>
-                    <summary>O domínio raiz redireciona para o www?</summary>
-                    <p>Sim. O acesso por <code>consertapramim.com</code> redireciona para <code>https://www.consertapramim.com</code>.</p>
-                </details>
-            </article>
         </div>
     </section>
 </main>

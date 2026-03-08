@@ -1,4 +1,4 @@
-# Manual QA/Operacao - Landing Page Publica
+﻿# Manual QA/Operacao - Landing Page Publica
 
 ## Escopo
 
@@ -62,7 +62,7 @@ Esperado:
 3. Confirmar que o menu mobile abre/fecha.
 4. Confirmar que o header exibe:
    - marca `ConsertaPraMim`
-   - links `Início`, `Sobre`, `Contato`
+   - links `Início`, `Sobre`
    - CTA `Entrar`
 5. Validar as duas cards principais da home:
    - `Para Clientes`
@@ -70,16 +70,13 @@ Esperado:
 6. Validar CTA:
    - `Encontrar Profissional`
    - `Cadastrar-se como Parceiro`
-   - `Área do cliente`
-   - `Portal do prestador`
-   - `Portal admin`
-   - `Swagger API`
-7. Confirmar presença das âncoras de rodapé:
-   - `Termos de Uso`
-   - `Privacidade`
-   - `FAQ`
+7. Confirmar presença dos links de rodapé:
+   - `Cliente`
+   - `Prestador`
+   - `Admin`
+   - `Swagger`
 8. Confirmar ausência de erros de `Mixed Content` e `Content-Security-Policy` no console.
-9. Confirmar que as ilustrações dos cards carregam localmente em `wwwroot/images` sem chamada a origem externa.
+9. Confirmar que as imagens dos cards carregam localmente em `wwwroot/images` sem chamada a origem externa.
 10. Validar `https://www.consertapramim.com/robots.txt`.
 11. Validar `https://www.consertapramim.com/sitemap.xml`.
 
@@ -90,11 +87,9 @@ Esperado:
 3. Dois cards de entrada em destaque:
    - cliente com prova social
    - profissional com badge `Parceiro fundador`
-4. Blocos complementares abaixo da dobra:
+4. Bloco complementar abaixo da dobra:
    - `Sobre a plataforma`
-   - `Contato e acessos`
-   - `Termos de uso`, `Privacidade` e `FAQ`
-5. Footer enxuto com links de rodapé e copyright.
+5. Footer enxuto com links úteis e copyright.
 
 ## Troubleshooting
 
@@ -131,16 +126,16 @@ Esperado:
 - `LandingSite__AdminPortalUrl=https://admin.consertapramim.com`
 - `LandingSite__ApiSwaggerUrl=https://api.consertapramim.com/swagger`
 
-### Cards/ilustracoes nao carregam
+### Cards/imagens nao carregam
 
 Verificar se os assets locais existem no publish do container:
 
 ```bash
 docker exec cpm-web-landing ls -la /app/wwwroot/images
-curl -I https://www.consertapramim.com/images/landing-client-card.svg
-curl -I https://www.consertapramim.com/images/landing-provider-card.svg
+curl -I https://www.consertapramim.com/images/landing-client-card.png
+curl -I https://www.consertapramim.com/images/landing-provider-card.png
 ```
 
 Esperado:
-- os arquivos `landing-client-card.svg` e `landing-provider-card.svg` existem em `/app/wwwroot/images`
+- os arquivos `landing-client-card.png` e `landing-provider-card.png` existem em `/app/wwwroot/images`
 - ambos respondem `200`

@@ -429,8 +429,6 @@ code {
 }
 
 .info-section,
-.contact-section,
-.legal-section,
 .error-shell {
     padding: 0 0 52px;
 }
@@ -447,7 +445,7 @@ code {
 
 .info-grid {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 22px;
 }
 
@@ -468,78 +466,6 @@ code {
     margin: 14px 0 0;
     color: var(--ink-muted);
     line-height: 1.55;
-}
-
-.contact-shell {
-    display: grid;
-    grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
-    gap: 28px;
-    align-items: center;
-    padding: 34px;
-    background:
-        linear-gradient(135deg, rgba(15, 91, 187, 0.08) 0%, rgba(255, 255, 255, 0.96) 54%),
-        var(--surface);
-}
-
-.contact-copy {
-    max-width: 660px;
-}
-
-.contact-links {
-    display: grid;
-    gap: 14px;
-}
-
-.contact-links a {
-    display: inline-flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    min-height: 56px;
-    padding: 0 20px;
-    border-radius: 14px;
-    border: 1px solid var(--line-strong);
-    background: rgba(255, 255, 255, 0.85);
-    color: var(--ink);
-    font-weight: 700;
-}
-
-.contact-links a::after {
-    content: "→";
-    color: var(--brand);
-}
-
-.legal-grid {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 22px;
-}
-
-.legal-card {
-    padding: 26px;
-}
-
-.legal-card-faq details + details {
-    margin-top: 12px;
-}
-
-.legal-card-faq details {
-    margin-top: 14px;
-    padding: 14px 16px;
-    border-radius: 14px;
-    background: var(--surface-soft);
-    border: 1px solid var(--line);
-}
-
-.legal-card-faq summary {
-    cursor: pointer;
-    font-weight: 700;
-    color: var(--ink);
-}
-
-.legal-card-faq details p {
-    margin-top: 12px;
-    font-size: 0.98rem;
 }
 
 .site-footer {
@@ -596,9 +522,7 @@ code {
 
 @media (max-width: 1120px) {
     .portal-grid,
-    .info-grid,
-    .legal-grid,
-    .contact-shell {
+    .info-grid {
         grid-template-columns: 1fr;
     }
 
@@ -702,9 +626,7 @@ code {
         font-size: 1.8rem;
     }
 
-    .contact-shell,
     .error-card,
-    .legal-card,
     .info-card {
         padding: 22px;
     }

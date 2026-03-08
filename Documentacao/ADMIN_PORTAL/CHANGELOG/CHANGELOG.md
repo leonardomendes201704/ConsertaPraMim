@@ -12,7 +12,7 @@
 
 - [2026-03-08] [LANDING-HOME-REFATORACAO] Refatoracao visual da home publica da landing
 - Tipo: feat
-- Resumo: a home publica `https://www.consertapramim.com` foi redesenhada para um layout mais direto e comercial, com header claro, hero centralizado, duas cards principais de entrada (`Para Clientes` e `Para Profissionais`), ilustrações locais versionadas em `SVG`, seções compactas de `Sobre`, `Contato`, `Termos`, `Privacidade` e `FAQ`, além de footer simplificado; a entrega preserva CSP estrita sem depender de assets externos.
+- Resumo: a home publica `https://www.consertapramim.com` foi redesenhada para um layout mais direto e comercial, com header claro, hero centralizado, duas cards principais de entrada (`Para Clientes` e `Para Profissionais`), ilustracoes locais versionadas em `SVG`, secoes compactas de `Sobre`, `Contato`, `Termos`, `Privacidade` e `FAQ`, alem de footer simplificado; a entrega preserva CSP estrita sem depender de assets externos.
 - Arquivos principais: `Backend/src/ConsertaPraMim.Web.Landing/Views/Home/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Landing/Views/Shared/_Layout.cshtml`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/css/site.css`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/images/landing-client-card.svg`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/images/landing-provider-card.svg`, `Backend/src/ConsertaPraMim.Web.Landing/Controllers/HomeController.cs`, `Documentacao/LANDING_PAGE/MANUAL_QA_OPERACAO_LANDING.md`
 - Risco/Impacto: medio
 
@@ -126,7 +126,7 @@
 
 - [2026-03-02] [ADMIN-GROWTH-AI] Datas do AI Copilot Growth exibidas em America/Sao_Paulo
 - Tipo: fix
-- Resumo: a tela `AI Copilot Growth` deixou de depender do fuso local do servidor para renderizar as datas das analises, passando a exibir historico, badges e opcoes de comparacao no fuso de negocio `America/Sao_Paulo`; os rótulos de comparacao gerados pelo servico tambem foram ajustados para a mesma regra.
+- Resumo: a tela `AI Copilot Growth` deixou de depender do fuso local do servidor para renderizar as datas das analises, passando a exibir historico, badges e opcoes de comparacao no fuso de negocio `America/Sao_Paulo`; os rotulos de comparacao gerados pelo servico tambem foram ajustados para a mesma regra.
 - Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminGrowthAi/Index.cshtml`, `Backend/src/ConsertaPraMim.Application/Services/AdminGrowthAiService.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminGrowthAiServiceTests.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
 - Risco/Impacto: baixo
 
@@ -156,7 +156,7 @@
 
 - [2026-03-01] [WEB-PROVIDER] Correcao de mojibake e reforco de governanca UTF-8
 - Tipo: fix
-- Resumo: os ultimos arquivos alterados do portal prestador que passaram a exibir textos corrompidos (`Descrição`, `Serviços`, `Distância`, etc.) foram revisados e corrigidos para PT-BR com acentuacao valida; os arquivos impactados foram regravados em UTF-8 e a governanca de encoding foi reforcada com varredura obrigatoria por caracteres quebrados antes do encerramento da task.
+- Resumo: os ultimos arquivos alterados do portal prestador que passaram a exibir textos corrompidos (`Descricao`, `Servicos`, `Distancia`, etc.) foram revisados e corrigidos para PT-BR com acentuacao valida; os arquivos impactados foram regravados em UTF-8 e a governanca de encoding foi reforcada com varredura obrigatoria por caracteres quebrados antes do encerramento da task.
 - Arquivos principais: `Backend/src/ConsertaPraMim.Web.Provider/Views/Home/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Provider/Views/ServiceRequests/Agenda.cshtml`, `Backend/src/ConsertaPraMim.Web.Provider/Views/ServiceRequests/Details.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `AGENTS.md`
 - Risco/Impacto: medio
 
@@ -192,7 +192,7 @@
 
 - [2026-02-28] [GOV-ENCODING] Normalizacao de arquivos textuais para UTF-8 e enforcement por diretriz
 - Tipo: fix
-- Resumo: os arquivos textuais versionados que ainda estavam em `ANSI/Windows-1252` foram convertidos para `UTF-8`, eliminando artefatos como `está` no ambiente publicado; o repositorio tambem passou a ter enforcement tecnico via `.editorconfig` e diretriz formal em `AGENTS.md` para impedir regressao de encoding.
+- Resumo: os arquivos textuais versionados que ainda estavam em `ANSI/Windows-1252` foram convertidos para `UTF-8`, eliminando artefatos como `esta` no ambiente publicado; o repositorio tambem passou a ter enforcement tecnico via `.editorconfig` e diretriz formal em `AGENTS.md` para impedir regressao de encoding.
 - Arquivos principais: `AGENTS.md`, `.editorconfig`, `Backend/src/ConsertaPraMim.Web.Provider/Views/Home/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Provider/Views/Shared/_Layout.cshtml`, `Backend/src/ConsertaPraMim.Web.Provider/Views/Account/Register.cshtml`, `Backend/src/ConsertaPraMim.Web.Provider/Views/SupportTickets/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Provider/wwwroot/js/views/profile/index.js`, `Backend/src/ConsertaPraMim.Web.Client/wwwroot/js/views/service-requests/details.js`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminMonitoring/Index.cshtml`, `Documentacao/PROVIDER_DASHBOARD_MAPA_COBERTURA/EPICS/EPIC-001-mapa-cobertura-dashboard-prestador.md`
 - Risco/Impacto: medio
 
@@ -737,7 +737,7 @@
 - Risco/Impacto: medio
 - [2026-02-24] [ST-048] Elegibilidade de prestadores integrada no contrato PJ recorrente (PF/PJ/ambos)
 - Tipo: feat
-- Resumo: o fluxo PJ recorrente passou a calcular oferta elegivel por categoria e preferencia (`Both`/`PjOnly`), bloqueando contratacao sem prestadores aptos e retornando `eligibleProvidersCount` no payload para transparência operacional; cobertura de testes ampliada para cenarios positivos e negativos.
+- Resumo: o fluxo PJ recorrente passou a calcular oferta elegivel por categoria e preferencia (`Both`/`PjOnly`), bloqueando contratacao sem prestadores aptos e retornando `eligibleProvidersCount` no payload para transparencia operacional; cobertura de testes ampliada para cenarios positivos e negativos.
 - Arquivos principais: `Backend/src/ConsertaPraMim.Application/Services/PjRecurringContractService.cs`, `Backend/src/ConsertaPraMim.Application/DTOs/PjRecurringContractsDTOs.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/PjRecurringContractServiceTests.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-048-pacotes-pj-recorrentes.md`
 - Risco/Impacto: medio
 - [2026-02-24] [ST-048] Fluxo mobile de contratacao e renovacao de pacotes PJ recorrentes
@@ -947,7 +947,7 @@
 - Risco/Impacto: medio
 - [2026-02-18] [ST-019] Monitoramento E2E da API com dashboard operacional no portal admin
 - Tipo: feat
-- Resumo: implementado monitoramento completo de requests da API com middleware global (correlationId, severidade, warnings, sanitizacao), buffer assíncrono + workers de flush/agregacao/retencao, endpoints admin dedicados (`/api/admin/monitoring/*`), dashboard de monitoramento no Web.Admin, seeds para validacao local, testes unitarios/integracao e diagramas Mermaid (fluxo e sequencia).
+- Resumo: implementado monitoramento completo de requests da API com middleware global (correlationId, severidade, warnings, sanitizacao), buffer assincrono + workers de flush/agregacao/retencao, endpoints admin dedicados (`/api/admin/monitoring/*`), dashboard de monitoramento no Web.Admin, seeds para validacao local, testes unitarios/integracao e diagramas Mermaid (fluxo e sequencia).
 - Arquivos principais: `ConsertaPraMim.API/Middleware/RequestTelemetryMiddleware.cs`, `ConsertaPraMim.API/Controllers/AdminMonitoringController.cs`, `ConsertaPraMim.Infrastructure/Services/AdminMonitoringService.cs`, `ConsertaPraMim.Web.Admin/Views/AdminMonitoring/Index.cshtml`, `ConsertaPraMim.Infrastructure/Migrations/20260218192717_AddApiMonitoringTelemetry.cs`, `tests/ConsertaPraMim.Tests.Unit/Middleware/RequestTelemetryMiddlewareTests.cs`, `tests/ConsertaPraMim.Tests.Unit/Integration/Controllers/AdminMonitoringControllerSqliteIntegrationTests.cs`
 - Risco/Impacto: medio
 - [2026-02-16] [ST-017] Regressao E2E de creditos: concessao admin ate abatimento da mensalidade
