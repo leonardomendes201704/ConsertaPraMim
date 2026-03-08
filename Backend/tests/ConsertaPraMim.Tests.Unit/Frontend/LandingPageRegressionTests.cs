@@ -7,8 +7,8 @@ namespace ConsertaPraMim.Tests.Unit.Frontend;
 
 public class LandingPageRegressionTests
 {
-    [Fact(DisplayName = "Landing | Layout | Deve carregar Bootstrap local, OG tags, wordmark e evitar script inline")]
-    public void Layout_ShouldLoadLocalBootstrapOpenGraphWordmarkAndAvoidInlineScriptConfiguration()
+    [Fact(DisplayName = "Landing | Layout | Deve carregar Bootstrap local, OG tags, wordmark e resolver URLs públicas")]
+    public void Layout_ShouldLoadLocalBootstrapOpenGraphWordmarkAndResolvePublicUrls()
     {
         var layoutContent = File.ReadAllText(GetProjectPath(
             "Backend",
@@ -30,6 +30,8 @@ public class LandingPageRegressionTests
         Assert.Contains("data-initial-lead-origin=", layoutContent);
         Assert.Contains("~/images/logo-top-bar-consertapramim.png", layoutContent);
         Assert.Contains("~/og-logo-consertapramim.png", layoutContent);
+        Assert.Contains("LandingPublicUrlResolver.ResolveApiBaseUrl", layoutContent);
+        Assert.Contains("LandingPublicUrlResolver.ResolvePortalUrl", layoutContent);
         Assert.DoesNotContain("~/favicon.ico", layoutContent);
         Assert.DoesNotContain("<span class=\"brand-copy\">", layoutContent);
         Assert.DoesNotContain("class=\"brand-mark\"", layoutContent);
@@ -37,7 +39,7 @@ public class LandingPageRegressionTests
         Assert.DoesNotContain("<script>", layoutContent);
     }
 
-    [Fact(DisplayName = "Landing | JS | Deve usar mensagens amigaveis e fechar modal apos sucesso")]
+    [Fact(DisplayName = "Landing | JS | Deve usar mensagens amigáveis e fechar modal após sucesso")]
     public void SiteJs_ShouldUseFriendlyMessagesAndCloseModalAfterSuccess()
     {
         var jsContent = File.ReadAllText(GetProjectPath(
@@ -62,7 +64,7 @@ public class LandingPageRegressionTests
         Assert.DoesNotContain("Failed to fetch", jsContent);
     }
 
-    [Fact(DisplayName = "Landing | CSS | Deve respeitar hidden na secao de captacao")]
+    [Fact(DisplayName = "Landing | CSS | Deve respeitar hidden na seção de captação")]
     public void SiteCss_ShouldForceHiddenElementsToRemainInvisible()
     {
         var cssContent = File.ReadAllText(GetProjectPath(
@@ -77,7 +79,7 @@ public class LandingPageRegressionTests
         Assert.Contains("display: none !important;", cssContent);
     }
 
-    [Fact(DisplayName = "Landing | Captacao | Deve renderizar modal Bootstrap sem secao no fim da pagina")]
+    [Fact(DisplayName = "Landing | Captação | Deve renderizar modal Bootstrap sem seção no fim da página")]
     public void Index_ShouldRenderLeadCaptureInsideBootstrapModal()
     {
         var indexContent = File.ReadAllText(GetProjectPath(

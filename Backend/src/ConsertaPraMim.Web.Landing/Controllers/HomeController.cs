@@ -1,4 +1,5 @@
 using ConsertaPraMim.Web.Landing.Models;
+using ConsertaPraMim.Web.Landing.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
@@ -58,16 +59,21 @@ public sealed class HomeController : Controller
             _options.ApiBaseUrl,
             _options.ApiSwaggerUrl,
             "https://api.consertapramim.com");
+        var requestHost = Request.Host.Host;
+        var resolvedApiBaseUrl = LandingPublicUrlResolver.ResolveApiBaseUrl(
+            apiBaseUrl,
+            requestHost,
+            "https://api.consertapramim.com");
 
         var model = new LandingPageViewModel
         {
             CanonicalUrl = canonicalUrl,
-            ClientPortalUrl = LandingSiteOptions.NormalizeUrl(_options.ClientPortalUrl, "https://cliente.consertapramim.com"),
-            ProviderPortalUrl = LandingSiteOptions.NormalizeUrl(_options.ProviderPortalUrl, "https://prestador.consertapramim.com"),
-            AdminPortalUrl = LandingSiteOptions.NormalizeUrl(_options.AdminPortalUrl, "https://admin.consertapramim.com"),
-            ApiBaseUrl = apiBaseUrl,
-            ApiSwaggerUrl = LandingSiteOptions.NormalizeUrl(_options.ApiSwaggerUrl, "https://api.consertapramim.com/swagger"),
-            LeadCaptureUrl = apiBaseUrl.TrimEnd('/') + "/api/landing-leads/public",
+            ClientPortalUrl = LandingPublicUrlResolver.ResolvePortalUrl(_options.ClientPortalUrl, requestHost, "cliente", "https://cliente.consertapramim.com"),
+            ProviderPortalUrl = LandingPublicUrlResolver.ResolvePortalUrl(_options.ProviderPortalUrl, requestHost, "prestador", "https://prestador.consertapramim.com"),
+            AdminPortalUrl = LandingPublicUrlResolver.ResolvePortalUrl(_options.AdminPortalUrl, requestHost, "admin", "https://admin.consertapramim.com"),
+            ApiBaseUrl = resolvedApiBaseUrl,
+            ApiSwaggerUrl = LandingPublicUrlResolver.ResolveSwaggerUrl(_options.ApiSwaggerUrl ?? _options.ApiBaseUrl, requestHost, "https://api.consertapramim.com"),
+            LeadCaptureUrl = resolvedApiBaseUrl.TrimEnd('/') + "/api/landing-leads/public",
             InitialLeadOrigin = initialLeadOrigin
         };
 

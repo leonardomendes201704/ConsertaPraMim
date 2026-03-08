@@ -10,6 +10,12 @@
 
 ## Released
 
+- [2026-03-08] [LANDING-PUBLIC-URL-RESOLVER] Landing resolve URLs publicas HTTPS a partir do host publicado
+- Tipo: fix
+- Resumo: a landing passou a resolver `LeadCaptureUrl`, `ApiBaseUrl`, `ApiSwaggerUrl` e links de portal a partir do host real da requisicao quando a configuracao ainda trouxer `localhost` ou IP HTTP legado da VPS; com isso, o browser deixa de enviar leads para `http://187.77.48.150:5193` e passa a usar `https://api.consertapramim.com`, eliminando o erro amigavel recorrente no submit causado por destino stale no HTML publicado.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Landing/Services/LandingPublicUrlResolver.cs`, `Backend/src/ConsertaPraMim.Web.Landing/Controllers/HomeController.cs`, `Backend/src/ConsertaPraMim.Web.Landing/Views/Shared/_Layout.cshtml`, `Backend/src/ConsertaPraMim.Web.Landing/Program.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Controllers/LandingHomeControllerTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/LandingPublicUrlResolverTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Frontend/LandingPageRegressionTests.cs`, `Documentacao/LANDING_PAGE/MANUAL_QA_OPERACAO_LANDING.md`
+- Risco/Impacto: medio
+
 - [2026-03-08] [LANDING-LEADS-FEEDBACK] Mensagens amigaveis e confirmacao visual no envio de leads
 - Tipo: fix
 - Resumo: o envio dos formularios `Cliente` e `Prestador` da landing passou a traduzir falhas tecnicas de rede para mensagens amigaveis, exibir confirmacao visual `Dados enviados com sucesso!` e fechar automaticamente o modal apos submissao bem-sucedida.

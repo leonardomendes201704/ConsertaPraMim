@@ -51,6 +51,7 @@ curl -I https://www.consertapramim.com/health
 curl -I https://www.consertapramim.com/og-logo-consertapramim.png
 curl -I https://www.consertapramim.com/Cliente
 curl -I https://www.consertapramim.com/Prestador
+curl -s https://www.consertapramim.com | grep data-lead-capture-url
 curl -I https://consertapramim.com
 curl -I https://api.consertapramim.com/health
 ```
@@ -62,6 +63,7 @@ Esperado:
 - `https://www.consertapramim.com/og-logo-consertapramim.png` -> `200`
 - `https://www.consertapramim.com/Cliente` -> `200`
 - `https://www.consertapramim.com/Prestador` -> `200`
+- `data-lead-capture-url="https://api.consertapramim.com/api/landing-leads/public"` no HTML publicado
 - `https://consertapramim.com` -> `301` ou `308` para `https://www.consertapramim.com`
 - `https://api.consertapramim.com/health` -> `200`
 
@@ -254,9 +256,24 @@ Verificar:
 
 ```bash
 curl -I https://api.consertapramim.com/health
+curl -s https://www.consertapramim.com | grep data-lead-capture-url
 ```
 
-Na VPS, confirmar `PUBLIC_LANDING_URL` no compose da API e recrear o servico se necessario.
+Esperado no HTML publicado:
+
+```text
+data-lead-capture-url="https://api.consertapramim.com/api/landing-leads/public"
+```
+
+Se o HTML ainda renderizar `http://187.77.48.150:5193`, a landing foi publicada com configuracao legada. Na VPS:
+
+```bash
+cd ~/ConsertaPraMimWeb
+git pull origin main
+MSSQL_CONTAINER_NAME=mssql-mssql-1 MSSQL_HOST_ALIAS=mssql ./scripts/deploy/vps-deploy-service.sh "$PWD" web-landing
+```
+
+Na API, manter `PUBLIC_LANDING_URL=https://www.consertapramim.com` e `PUBLIC_API_URL=https://api.consertapramim.com`.
 
 ### Erro de CSP ao enviar lead
 

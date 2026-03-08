@@ -1,5 +1,6 @@
-﻿using System.Globalization;
+using System.Globalization;
 using ConsertaPraMim.Web.Landing.Models;
+using ConsertaPraMim.Web.Landing.Services;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.Extensions.Options;
@@ -22,7 +23,7 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 });
 
 var landingSiteOptions = builder.Configuration.GetSection(LandingSiteOptions.SectionName).Get<LandingSiteOptions>() ?? new LandingSiteOptions();
-var apiBaseUrl = LandingSiteOptions.ResolveApiBaseUrl(
+var configuredApiBaseUrl = LandingSiteOptions.ResolveApiBaseUrl(
     landingSiteOptions.ApiBaseUrl,
     landingSiteOptions.ApiSwaggerUrl,
     "https://api.consertapramim.com");
@@ -49,11 +50,16 @@ app.UseRequestLocalization(localizationOptions);
 
 app.Use(async (context, next) =>
 {
+    var resolvedApiBaseUrl = LandingPublicUrlResolver.ResolveApiBaseUrl(
+        configuredApiBaseUrl,
+        context.Request.Host.Host,
+        "https://api.consertapramim.com");
+
     context.Response.Headers["X-Content-Type-Options"] = "nosniff";
     context.Response.Headers["X-Frame-Options"] = "DENY";
     context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
     context.Response.Headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
-    context.Response.Headers["Content-Security-Policy"] = BuildContentSecurityPolicy(apiBaseUrl, app.Environment.IsDevelopment());
+    context.Response.Headers["Content-Security-Policy"] = BuildContentSecurityPolicy(resolvedApiBaseUrl, app.Environment.IsDevelopment());
 
     await next();
 });
