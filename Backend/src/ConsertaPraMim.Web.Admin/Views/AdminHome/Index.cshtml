@@ -182,6 +182,22 @@
         --metric-gradient: linear-gradient(135deg, #ebf8fc 0%, #dceff8 100%);
     }
 
+    .metric-card--landing-visits {
+        --metric-gradient: linear-gradient(135deg, #eef7ff 0%, #d8ecff 100%);
+    }
+
+    .metric-card--landing-provider {
+        --metric-gradient: linear-gradient(135deg, #eefaf2 0%, #daf3e3 100%);
+    }
+
+    .metric-card--landing-client {
+        --metric-gradient: linear-gradient(135deg, #fff7eb 0%, #ffe8cf 100%);
+    }
+
+    .metric-card--landing-conversion {
+        --metric-gradient: linear-gradient(135deg, #f5f1ff 0%, #e7ddff 100%);
+    }
+
     .metric-card--credits-granted {
         --metric-gradient: linear-gradient(135deg, #eef9f3 0%, #ddf2e6 100%);
     }
@@ -765,6 +781,10 @@
         @await Html.PartialAsync("_IncrementalMetricCard", new AdminHomeKpiCardComponentModel { Scope = "dashboard", Key = "active-requests", Title = "Pedidos Ativos", EndpointUrl = Url.Action("DashboardKpiSnapshot", "AdminHome", new { kpiKey = "active-requests" }) ?? "/AdminHome/Kpis/dashboard/active-requests", WrapperCssClass = string.Empty, CardCssClass = "metric-card metric-card--requests", IconCssClass = "fas fa-clipboard-list", SkeletonDetailLines = 1 })
         @await Html.PartialAsync("_IncrementalMetricCard", new AdminHomeKpiCardComponentModel { Scope = "dashboard", Key = "accepted-proposals", Title = "Propostas Aceitas", EndpointUrl = Url.Action("DashboardKpiSnapshot", "AdminHome", new { kpiKey = "accepted-proposals" }) ?? "/AdminHome/Kpis/dashboard/accepted-proposals", WrapperCssClass = string.Empty, CardCssClass = "metric-card metric-card--proposals", IconCssClass = "fas fa-handshake", SkeletonDetailLines = 1 })
         @await Html.PartialAsync("_IncrementalMetricCard", new AdminHomeKpiCardComponentModel { Scope = "dashboard", Key = "active-chats", Title = "Conversas Ativas", EndpointUrl = Url.Action("DashboardKpiSnapshot", "AdminHome", new { kpiKey = "active-chats" }) ?? "/AdminHome/Kpis/dashboard/active-chats", WrapperCssClass = string.Empty, CardCssClass = "metric-card metric-card--chat", IconCssClass = "fas fa-comments", SkeletonDetailLines = 1 })
+        @await Html.PartialAsync("_IncrementalMetricCard", new AdminHomeKpiCardComponentModel { Scope = "dashboard", Key = "landing-visits", Title = "Visitas", EndpointUrl = Url.Action("DashboardKpiSnapshot", "AdminHome", new { kpiKey = "landing-visits" }) ?? "/AdminHome/Kpis/dashboard/landing-visits", WrapperCssClass = string.Empty, CardCssClass = "metric-card metric-card--landing-visits", IconCssClass = "fas fa-globe", SkeletonDetailLines = 1 })
+        @await Html.PartialAsync("_IncrementalMetricCard", new AdminHomeKpiCardComponentModel { Scope = "dashboard", Key = "landing-provider-signups", Title = "Cadastros Prestador", EndpointUrl = Url.Action("DashboardKpiSnapshot", "AdminHome", new { kpiKey = "landing-provider-signups" }) ?? "/AdminHome/Kpis/dashboard/landing-provider-signups", WrapperCssClass = string.Empty, CardCssClass = "metric-card metric-card--landing-provider", IconCssClass = "fas fa-screwdriver-wrench", SkeletonDetailLines = 0 })
+        @await Html.PartialAsync("_IncrementalMetricCard", new AdminHomeKpiCardComponentModel { Scope = "dashboard", Key = "landing-client-signups", Title = "Cadastros Cliente", EndpointUrl = Url.Action("DashboardKpiSnapshot", "AdminHome", new { kpiKey = "landing-client-signups" }) ?? "/AdminHome/Kpis/dashboard/landing-client-signups", WrapperCssClass = string.Empty, CardCssClass = "metric-card metric-card--landing-client", IconCssClass = "fas fa-user-plus", SkeletonDetailLines = 0 })
+        @await Html.PartialAsync("_IncrementalMetricCard", new AdminHomeKpiCardComponentModel { Scope = "dashboard", Key = "landing-conversion", Title = "Taxa de Conversão", EndpointUrl = Url.Action("DashboardKpiSnapshot", "AdminHome", new { kpiKey = "landing-conversion" }) ?? "/AdminHome/Kpis/dashboard/landing-conversion", WrapperCssClass = string.Empty, CardCssClass = "metric-card metric-card--landing-conversion", IconCssClass = "fas fa-chart-line", SkeletonDetailLines = 2 })
         @await Html.PartialAsync("_IncrementalMetricCard", new AdminHomeKpiCardComponentModel { Scope = "dashboard", Key = "credits-granted", Title = "Creditos Concedidos", EndpointUrl = Url.Action("DashboardKpiSnapshot", "AdminHome", new { kpiKey = "credits-granted" }) ?? "/AdminHome/Kpis/dashboard/credits-granted", WrapperCssClass = string.Empty, CardCssClass = "metric-card metric-card--credits-granted", IconCssClass = "fas fa-gift", SkeletonDetailLines = 1 })
         @await Html.PartialAsync("_IncrementalMetricCard", new AdminHomeKpiCardComponentModel { Scope = "dashboard", Key = "credits-consumed", Title = "Creditos Consumidos", EndpointUrl = Url.Action("DashboardKpiSnapshot", "AdminHome", new { kpiKey = "credits-consumed" }) ?? "/AdminHome/Kpis/dashboard/credits-consumed", WrapperCssClass = string.Empty, CardCssClass = "metric-card metric-card--credits-consumed", IconCssClass = "fas fa-coins", SkeletonDetailLines = 1 })
         @await Html.PartialAsync("_IncrementalMetricCard", new AdminHomeKpiCardComponentModel { Scope = "dashboard", Key = "credits-open-balance", Title = "Saldo em Aberto", EndpointUrl = Url.Action("DashboardKpiSnapshot", "AdminHome", new { kpiKey = "credits-open-balance" }) ?? "/AdminHome/Kpis/dashboard/credits-open-balance", WrapperCssClass = string.Empty, CardCssClass = "metric-card metric-card--credits-open", IconCssClass = "fas fa-wallet", SkeletonDetailLines = 1 })

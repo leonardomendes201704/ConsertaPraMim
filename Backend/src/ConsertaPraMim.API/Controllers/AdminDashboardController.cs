@@ -19,8 +19,9 @@ public class AdminDashboardController : ControllerBase
 
     /// <summary>
     /// Retorna metricas consolidadas do dashboard administrativo, incluindo operacao, financeiro,
-    /// reputacao (ranking de clientes/prestadores), outliers de reviews e KPIs operacionais de agenda
-    /// (confirmacao no SLA, reagendamento, cancelamento e falha de lembretes).
+    /// reputacao (ranking de clientes/prestadores), outliers de reviews, KPIs operacionais de agenda
+    /// (confirmacao no SLA, reagendamento, cancelamento e falha de lembretes) e o topo do funil da landing
+    /// publica (`visitas`, `cadastros cliente`, `cadastros prestador` e `taxa de conversao`).
     /// </summary>
     /// <param name="fromUtc">Data inicial opcional em UTC para o recorte do painel.</param>
     /// <param name="toUtc">Data final opcional em UTC para o recorte do painel.</param>
@@ -55,7 +56,7 @@ public class AdminDashboardController : ControllerBase
     /// <summary>
     /// Retorna um KPI isolado da home admin para carregamento incremental por componente.
     /// </summary>
-    /// <param name="kpiKey">Identificador do KPI (`total-users`, `online-users`, `active-requests`, `accepted-proposals`, `active-chats`, `credits-granted`, `credits-consumed`, `credits-open-balance`, `credits-expiring`, `agenda-ops`, `repurchase-rate`, `operational-nps`).</param>
+    /// <param name="kpiKey">Identificador do KPI (`total-users`, `online-users`, `active-requests`, `accepted-proposals`, `active-chats`, `landing-visits`, `landing-provider-signups`, `landing-client-signups`, `landing-conversion`, `credits-granted`, `credits-consumed`, `credits-open-balance`, `credits-expiring`, `agenda-ops`, `repurchase-rate`, `operational-nps`).</param>
     /// <param name="fromUtc">Data inicial opcional em UTC para o recorte do painel.</param>
     /// <param name="toUtc">Data final opcional em UTC para o recorte do painel.</param>
     /// <param name="eventType">Filtro de evento herdado da home admin.</param>

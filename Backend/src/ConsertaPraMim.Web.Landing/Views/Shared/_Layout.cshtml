@@ -13,6 +13,7 @@
     var openGraphType = ViewData["OpenGraphType"] as string ?? "website";
     var twitterCard = ViewData["TwitterCard"] as string ?? "summary_large_image";
     var initialLeadOrigin = ViewData["InitialLeadOrigin"] as string ?? "";
+    var visitorId = ViewData["LandingVisitorId"] as string ?? "";
     var requestHost = Context?.Request?.Host.Host;
     var apiBaseUrl = LandingPublicUrlResolver.ResolveApiBaseUrl(siteOptions.ApiBaseUrl ?? siteOptions.ApiSwaggerUrl, requestHost, "https://api.consertapramim.com");
     var leadCaptureUrl = apiBaseUrl.TrimEnd('/') + "/api/landing-leads/public";
@@ -45,7 +46,7 @@
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
-<body data-lead-capture-url="@leadCaptureUrl" data-initial-lead-origin="@initialLeadOrigin">
+<body data-lead-capture-url="@leadCaptureUrl" data-initial-lead-origin="@initialLeadOrigin" data-visitor-id="@visitorId">
     <div class="site-shell">
         <header class="site-header">
             <div class="container nav-shell">

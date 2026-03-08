@@ -38,6 +38,7 @@ public sealed class LandingAdminNotificationService : ILandingAdminNotificationS
         var payload = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             ["type"] = "landing_public_access",
+            ["visitorId"] = NormalizePayloadValue(request.VisitorId),
             ["path"] = normalizedPath,
             ["ipAddress"] = NormalizePayloadValue(request.IpAddress),
             ["forwardedFor"] = NormalizePayloadValue(request.ForwardedFor),
@@ -84,6 +85,7 @@ public sealed class LandingAdminNotificationService : ILandingAdminNotificationS
             ["type"] = "landing_lead_captured",
             ["leadId"] = lead.Id.ToString("N"),
             ["origin"] = originLabel,
+            ["visitorId"] = NormalizePayloadValue(lead.VisitorId),
             ["fullName"] = NormalizePayloadValue(lead.FullName),
             ["phone"] = NormalizePayloadValue(lead.Phone),
             ["email"] = NormalizePayloadValue(lead.Email),

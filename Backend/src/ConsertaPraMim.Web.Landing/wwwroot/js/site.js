@@ -4,7 +4,8 @@
     const nav = document.querySelector("[data-nav]");
     const config = {
         leadCaptureUrl: pageConfigSource ? pageConfigSource.getAttribute("data-lead-capture-url") || "" : "",
-        initialLeadOrigin: pageConfigSource ? pageConfigSource.getAttribute("data-initial-lead-origin") || "" : ""
+        initialLeadOrigin: pageConfigSource ? pageConfigSource.getAttribute("data-initial-lead-origin") || "" : "",
+        visitorId: pageConfigSource ? pageConfigSource.getAttribute("data-visitor-id") || "" : ""
     };
 
     const leadModalElement = document.getElementById("leadCaptureModal");
@@ -244,6 +245,7 @@
 
         return {
             origin,
+            visitorId: config.visitorId || "",
             fullName: readFormValue(formData, "fullName"),
             phone: readFormValue(formData, "phone"),
             email: readFormValue(formData, "email"),

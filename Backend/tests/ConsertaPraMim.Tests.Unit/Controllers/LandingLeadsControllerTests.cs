@@ -22,6 +22,7 @@ public class LandingLeadsControllerTests
         var serviceMock = new Mock<ILandingLeadService>();
         var request = new CaptureLandingLeadRequestDto(
             LandingLeadOrigin.Client,
+            "visitor-landing-001",
             "Leonardo Silva",
             "13999999999",
             "leo@exemplo.com",

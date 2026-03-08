@@ -120,8 +120,8 @@ public static class ApiEndpointDocumentationCatalog
         {
             return new OperationNarrativeContext(
                 BusinessObjective: "Carregar KPI isolado da home admin para renderizacao incremental sem bloquear os demais cards executivos.",
-                Scenario: "Portal admin consulta um card especifico (`usuarios`, `agenda`, `creditos`, `NPS`) preservando filtros globais e exibindo skeleton/spinner por componente.",
-                ExpectedOutcome: "Payload enxuto do KPI com valor principal, caption e linhas auxiliares, pronto para refresh seletivo e tratamento de erro localizado.");
+                Scenario: "Portal admin consulta um card especifico (`usuarios`, `agenda`, `creditos`, `NPS`, `visitas da landing`, `cadastros`, `conversao`) preservando filtros globais e exibindo skeleton/spinner por componente.",
+                ExpectedOutcome: "Payload enxuto do KPI com valor principal, caption e linhas auxiliares, pronto para refresh seletivo e tratamento de erro localizado, incluindo o topo do funil da landing quando solicitado.");
         }
 
         if (path.Contains("/api/admin/dashboard", StringComparison.Ordinal) &&
@@ -160,8 +160,8 @@ public static class ApiEndpointDocumentationCatalog
         {
             return new OperationNarrativeContext(
                 BusinessObjective: "Consolidar desempenho operacional e sinais de retencao do marketplace em uma unica visao executiva.",
-                Scenario: "Lideranca/admin acompanha volume de pedidos, reputacao, no-show, recompras e NPS operacional para orientar a rotina semanal de growth.",
-                ExpectedOutcome: "Dashboard retorna KPIs de qualidade pos-servico (`operationalNpsScore`, `operationalQualityScore`) e recompra (`repurchaseRatePercent`) junto dos demais indicadores de operacao.");
+                Scenario: "Lideranca/admin acompanha volume de pedidos, reputacao, no-show, recompras, NPS operacional e o topo do funil da landing (`visitas`, `cadastros cliente`, `cadastros prestador`, `taxa de conversao`) para orientar a rotina semanal de growth.",
+                ExpectedOutcome: "Dashboard retorna KPIs de qualidade pos-servico (`operationalNpsScore`, `operationalQualityScore`), recompra (`repurchaseRatePercent`) e analytics da landing no mesmo payload executivo.");
         }
 
         if (path.Contains("/api/admin/no-show-dashboard/kpis/", StringComparison.Ordinal) &&

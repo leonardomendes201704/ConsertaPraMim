@@ -71,6 +71,7 @@ public class ConsertaPraMimDbContext : DbContext
     public DbSet<ApiErrorOccurrenceHourly> ApiErrorOccurrencesHourly { get; set; }
     public DbSet<AdminLoadTestRun> AdminLoadTestRuns { get; set; }
     public DbSet<LandingLead> LandingLeads { get; set; }
+    public DbSet<LandingAccessEvent> LandingAccessEvents { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -2180,6 +2181,10 @@ public class ConsertaPraMimDbContext : DbContext
             });
 
         modelBuilder.Entity<LandingLead>()
+            .Property(x => x.VisitorId)
+            .HasMaxLength(80);
+
+        modelBuilder.Entity<LandingLead>()
             .Property(x => x.FullName)
             .HasMaxLength(160);
 
@@ -2313,10 +2318,76 @@ public class ConsertaPraMimDbContext : DbContext
             .HasIndex(x => new { x.UtmCampaign, x.CreatedAt });
 
         modelBuilder.Entity<LandingLead>()
+            .HasIndex(x => new { x.VisitorId, x.CreatedAt });
+
+        modelBuilder.Entity<LandingLead>()
             .ToTable(t =>
             {
                 t.HasCheckConstraint("CK_LandingLeads_Origin_Valid", "[Origin] IN (1,2)");
                 t.HasCheckConstraint("CK_LandingLeads_YearsOfExperience_Range", "[YearsOfExperience] IS NULL OR ([YearsOfExperience] >= 0 AND [YearsOfExperience] <= 60)");
+            });
+
+        modelBuilder.Entity<LandingAccessEvent>()
+            .Property(x => x.VisitorId)
+            .HasMaxLength(80);
+
+        modelBuilder.Entity<LandingAccessEvent>()
+            .Property(x => x.CurrentUrl)
+            .HasMaxLength(500);
+
+        modelBuilder.Entity<LandingAccessEvent>()
+            .Property(x => x.Path)
+            .HasMaxLength(260);
+
+        modelBuilder.Entity<LandingAccessEvent>()
+            .Property(x => x.Host)
+            .HasMaxLength(200);
+
+        modelBuilder.Entity<LandingAccessEvent>()
+            .Property(x => x.Scheme)
+            .HasMaxLength(10);
+
+        modelBuilder.Entity<LandingAccessEvent>()
+            .Property(x => x.IpAddress)
+            .HasMaxLength(80);
+
+        modelBuilder.Entity<LandingAccessEvent>()
+            .Property(x => x.ForwardedFor)
+            .HasMaxLength(300);
+
+        modelBuilder.Entity<LandingAccessEvent>()
+            .Property(x => x.UserAgent)
+            .HasMaxLength(512);
+
+        modelBuilder.Entity<LandingAccessEvent>()
+            .Property(x => x.AcceptLanguage)
+            .HasMaxLength(128);
+
+        modelBuilder.Entity<LandingAccessEvent>()
+            .Property(x => x.RefererUrl)
+            .HasMaxLength(500);
+
+        modelBuilder.Entity<LandingAccessEvent>()
+            .Property(x => x.MetadataJson)
+            .HasMaxLength(4000);
+
+        modelBuilder.Entity<LandingAccessEvent>()
+            .HasIndex(x => x.CreatedAt);
+
+        modelBuilder.Entity<LandingAccessEvent>()
+            .HasIndex(x => new { x.VisitorId, x.CreatedAt });
+
+        modelBuilder.Entity<LandingAccessEvent>()
+            .HasIndex(x => new { x.InitialLeadOrigin, x.CreatedAt });
+
+        modelBuilder.Entity<LandingAccessEvent>()
+            .HasIndex(x => new { x.Path, x.CreatedAt });
+
+        modelBuilder.Entity<LandingAccessEvent>()
+            .ToTable(t =>
+            {
+                t.HasCheckConstraint("CK_LandingAccessEvents_VisitorId_NotEmpty", "LEN([VisitorId]) > 0");
+                t.HasCheckConstraint("CK_LandingAccessEvents_InitialLeadOrigin_Valid", "[InitialLeadOrigin] IS NULL OR [InitialLeadOrigin] IN (1,2)");
             });
     }
 }

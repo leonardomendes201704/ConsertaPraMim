@@ -17,6 +17,8 @@ public class AdminDashboardServiceTests
     private readonly Mock<IUserPresenceTracker> _userPresenceTrackerMock;
     private readonly Mock<IPlanGovernanceService> _planGovernanceServiceMock;
     private readonly Mock<IZipGeocodingService> _zipGeocodingServiceMock;
+    private readonly Mock<ILandingLeadRepository> _landingLeadRepositoryMock;
+    private readonly Mock<ILandingAccessEventRepository> _landingAccessEventRepositoryMock;
     private readonly AdminDashboardService _service;
 
     public AdminDashboardServiceTests()
@@ -28,6 +30,8 @@ public class AdminDashboardServiceTests
         _userPresenceTrackerMock = new Mock<IUserPresenceTracker>();
         _planGovernanceServiceMock = new Mock<IPlanGovernanceService>();
         _zipGeocodingServiceMock = new Mock<IZipGeocodingService>();
+        _landingLeadRepositoryMock = new Mock<ILandingLeadRepository>();
+        _landingAccessEventRepositoryMock = new Mock<ILandingAccessEventRepository>();
 
         _planGovernanceServiceMock
             .Setup(s => s.GetProviderPlanOffersAsync(It.IsAny<DateTime?>()))
@@ -37,6 +41,12 @@ public class AdminDashboardServiceTests
                 new(ProviderPlan.Silver, "Silver", 129.9m, 0m, 129.9m, null),
                 new(ProviderPlan.Gold, "Gold", 199.9m, 0m, 199.9m, null)
             });
+        _landingLeadRepositoryMock
+            .Setup(repository => repository.GetByPeriodAsync(It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<LandingLead>());
+        _landingAccessEventRepositoryMock
+            .Setup(repository => repository.GetByPeriodAsync(It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<LandingAccessEvent>());
 
         _service = new AdminDashboardService(
             _userRepositoryMock.Object,
@@ -45,7 +55,9 @@ public class AdminDashboardServiceTests
             _chatMessageRepositoryMock.Object,
             _userPresenceTrackerMock.Object,
             _planGovernanceServiceMock.Object,
-            _zipGeocodingServiceMock.Object);
+            _zipGeocodingServiceMock.Object,
+            landingLeadRepository: _landingLeadRepositoryMock.Object,
+            landingAccessEventRepository: _landingAccessEventRepositoryMock.Object);
     }
 
     /// <summary>
@@ -117,6 +129,52 @@ public class AdminDashboardServiceTests
         Assert.Equal(2, result.ProposalsInPeriod);
         Assert.Equal(1, result.AcceptedProposalsInPeriod);
         Assert.True(result.ActiveChatConversationsLast24h >= 1);
+    }
+
+    /// <summary>
+    /// Cenario: dashboard admin precisa consolidar topo do funil da landing.
+    /// Passos: injeta visitas com visitorId estavel e leads cliente/prestador no mesmo periodo.
+    /// Resultado esperado: dashboard calcula visitas, visitantes unicos, cadastros por origem e taxa de conversao.
+    /// </summary>
+    [Fact(DisplayName = "Admin dashboard servico | Obter dashboard | Deve calcular KPIs da landing e taxa de conversao")]
+    public async Task GetDashboardAsync_ShouldAggregateLandingKpisAndConversion()
+    {
+        var now = DateTime.UtcNow;
+
+        _userRepositoryMock.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<User>());
+        _serviceRequestRepositoryMock.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<ServiceRequest>());
+        _proposalRepositoryMock.Setup(r => r.GetAllAsync()).ReturnsAsync(new List<Proposal>());
+        _chatMessageRepositoryMock
+            .Setup(r => r.GetByPeriodAsync(It.IsAny<DateTime?>(), It.IsAny<DateTime?>()))
+            .ReturnsAsync(new List<ChatMessage>());
+        _userPresenceTrackerMock
+            .Setup(t => t.CountOnlineUsers(It.IsAny<IEnumerable<Guid>>()))
+            .Returns(0);
+        _landingAccessEventRepositoryMock
+            .Setup(repository => repository.GetByPeriodAsync(It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<LandingAccessEvent>
+            {
+                new() { VisitorId = "visitor-a", Path = "/", CreatedAt = now.AddHours(-3) },
+                new() { VisitorId = "visitor-a", Path = "/Cliente", CreatedAt = now.AddHours(-2) },
+                new() { VisitorId = "visitor-b", Path = "/Prestador", CreatedAt = now.AddHours(-1) }
+            });
+        _landingLeadRepositoryMock
+            .Setup(repository => repository.GetByPeriodAsync(It.IsAny<DateTime>(), It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<LandingLead>
+            {
+                new() { Origin = LandingLeadOrigin.Client, VisitorId = "visitor-a", FullName = "Cliente 1", Phone = "13999999999", Email = "cliente@teste.com", City = "Praia Grande", State = "SP", Neighborhood = "Ocian", CreatedAt = now.AddMinutes(-50) },
+                new() { Origin = LandingLeadOrigin.Provider, VisitorId = "visitor-b", FullName = "Prestador 1", Phone = "13999999998", Email = "prestador@teste.com", City = "Santos", State = "SP", Neighborhood = "Centro", CreatedAt = now.AddMinutes(-20) }
+            });
+
+        var result = await _service.GetDashboardAsync(
+            new AdminDashboardQueryDto(now.AddDays(-1), now, "all", null, null, 1, 20));
+
+        Assert.Equal(3, result.LandingVisitsInPeriod);
+        Assert.Equal(2, result.LandingUniqueVisitorsInPeriod);
+        Assert.Equal(1, result.LandingClientSignupsInPeriod);
+        Assert.Equal(1, result.LandingProviderSignupsInPeriod);
+        Assert.Equal(2, result.LandingConvertedVisitorsInPeriod);
+        Assert.Equal(66.7m, result.LandingConversionRatePercent);
     }
 
     /// <summary>

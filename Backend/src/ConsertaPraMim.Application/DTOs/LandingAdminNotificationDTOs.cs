@@ -1,6 +1,7 @@
 namespace ConsertaPraMim.Application.DTOs;
 
 public sealed record NotifyLandingAccessRequestDto(
+    string? VisitorId,
     string? CurrentUrl,
     string? Path,
     string? Host,

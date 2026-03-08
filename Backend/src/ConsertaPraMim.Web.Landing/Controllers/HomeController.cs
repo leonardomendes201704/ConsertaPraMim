@@ -11,6 +11,8 @@ public sealed class HomeController : Controller
     private const string DefaultOgTitle = "ConsertaPraMim \u2013 Encontre profissionais de confianca";
     private const string DefaultOgDescription = "Conectamos voce a profissionais de manutencao e reparos perto de voce.";
     private const string DefaultOgImagePath = "/og-logo-consertapramim.png";
+    private const string VisitorIdCookieName = "cpm_landing_vid";
+    private static readonly TimeSpan VisitorIdCookieLifetime = TimeSpan.FromDays(180);
 
     private readonly LandingSiteOptions _options;
     private readonly ILandingAdminNotificationsClient _landingAdminNotificationsClient;
@@ -28,20 +30,23 @@ public sealed class HomeController : Controller
 
     public async Task<IActionResult> Index()
     {
-        await TryNotifyLandingAccessAsync();
-        return RenderLanding();
+        var visitorId = EnsureVisitorId();
+        await TryNotifyLandingAccessAsync(visitorId);
+        return RenderLanding(visitorId);
     }
 
     public async Task<IActionResult> Cliente()
     {
-        await TryNotifyLandingAccessAsync("client");
-        return RenderLanding("client");
+        var visitorId = EnsureVisitorId();
+        await TryNotifyLandingAccessAsync(visitorId, "client");
+        return RenderLanding(visitorId, "client");
     }
 
     public async Task<IActionResult> Prestador()
     {
-        await TryNotifyLandingAccessAsync("provider");
-        return RenderLanding("provider");
+        var visitorId = EnsureVisitorId();
+        await TryNotifyLandingAccessAsync(visitorId, "provider");
+        return RenderLanding(visitorId, "provider");
     }
 
     [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
@@ -54,7 +59,7 @@ public sealed class HomeController : Controller
         return View();
     }
 
-    private IActionResult RenderLanding(string? initialLeadOrigin = null)
+    private IActionResult RenderLanding(string visitorId, string? initialLeadOrigin = null)
     {
         var canonicalUrl = LandingSiteOptions.NormalizeUrl(_options.CanonicalUrl, DefaultCanonicalUrl);
         var canonicalUrlWithSlash = canonicalUrl.TrimEnd('/') + "/";
@@ -84,6 +89,7 @@ public sealed class HomeController : Controller
             ApiBaseUrl = resolvedApiBaseUrl,
             ApiSwaggerUrl = LandingPublicUrlResolver.ResolveSwaggerUrl(_options.ApiSwaggerUrl ?? _options.ApiBaseUrl, requestHost, "https://api.consertapramim.com"),
             LeadCaptureUrl = resolvedApiBaseUrl.TrimEnd('/') + "/api/landing-leads/public",
+            VisitorId = visitorId,
             InitialLeadOrigin = initialLeadOrigin
         };
 
@@ -97,16 +103,18 @@ public sealed class HomeController : Controller
         ViewData["OpenGraphType"] = "website";
         ViewData["TwitterCard"] = "summary_large_image";
         ViewData["InitialLeadOrigin"] = initialLeadOrigin;
+        ViewData["LandingVisitorId"] = visitorId;
 
         return View("Index", model);
     }
 
-    private async Task TryNotifyLandingAccessAsync(string? initialLeadOrigin = null)
+    private async Task TryNotifyLandingAccessAsync(string visitorId, string? initialLeadOrigin = null)
     {
         try
         {
             await _landingAdminNotificationsClient.NotifyLandingAccessAsync(
                 new LandingAccessNotificationRequest(
+                    VisitorId: visitorId,
                     CurrentUrl: BuildCurrentAbsoluteUrl(),
                     Path: Request.Path.HasValue ? Request.Path.Value : "/",
                     Host: Request.Host.Value,
@@ -123,6 +131,41 @@ public sealed class HomeController : Controller
         {
             _logger.LogWarning(ex, "Falha ao publicar acesso da landing para o canal interno de notificacoes.");
         }
+    }
+
+    private string EnsureVisitorId()
+    {
+        if (Request.Cookies.TryGetValue(VisitorIdCookieName, out var existingVisitorId) &&
+            IsValidVisitorId(existingVisitorId))
+        {
+            return existingVisitorId.Trim();
+        }
+
+        var newVisitorId = Guid.NewGuid().ToString("N");
+        Response.Cookies.Append(
+            VisitorIdCookieName,
+            newVisitorId,
+            new CookieOptions
+            {
+                HttpOnly = true,
+                IsEssential = true,
+                Secure = Request.IsHttps,
+                SameSite = SameSiteMode.Lax,
+                Expires = DateTimeOffset.UtcNow.Add(VisitorIdCookieLifetime)
+            });
+
+        return newVisitorId;
+    }
+
+    private static bool IsValidVisitorId(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        var normalized = value.Trim();
+        return normalized.Length <= 80 && normalized.All(char.IsLetterOrDigit);
     }
 
     private string BuildCurrentAbsoluteUrl()

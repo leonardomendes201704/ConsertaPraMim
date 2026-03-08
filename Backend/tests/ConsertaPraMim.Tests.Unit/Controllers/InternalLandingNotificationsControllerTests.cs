@@ -15,11 +15,11 @@ public class InternalLandingNotificationsControllerTests
     [Fact(DisplayName = "Internal landing notifications controller | Auth | Deve rejeitar token invalido")]
     public async Task NotifyAccess_ShouldReturnUnauthorized_WhenTokenIsInvalid()
     {
-        var controller = CreateController("segredo-correto", Mock.Of<ILandingAdminNotificationService>());
+        var controller = CreateController("segredo-correto", Mock.Of<ILandingAccessEventService>());
         controller.ControllerContext.HttpContext.Request.Headers["X-Deploy-Token"] = "token-errado";
 
         var result = await controller.NotifyAccess(
-            new NotifyLandingAccessRequestDto(null, "/", "www.consertapramim.com", "https", null, "187.77.48.150", null, "Mozilla/5.0", "pt-BR", null),
+            new NotifyLandingAccessRequestDto("visitor-1", null, "/", "www.consertapramim.com", "https", null, "187.77.48.150", null, "Mozilla/5.0", "pt-BR", null),
             CancellationToken.None);
 
         Assert.IsType<UnauthorizedObjectResult>(result);
@@ -28,10 +28,11 @@ public class InternalLandingNotificationsControllerTests
     [Fact(DisplayName = "Internal landing notifications controller | Acesso | Deve encaminhar evento valido")]
     public async Task NotifyAccess_ShouldReturnOk_WhenTokenIsValid()
     {
-        var notificationServiceMock = new Mock<ILandingAdminNotificationService>();
-        var controller = CreateController("segredo-correto", notificationServiceMock.Object);
+        var accessEventServiceMock = new Mock<ILandingAccessEventService>();
+        var controller = CreateController("segredo-correto", accessEventServiceMock.Object);
         controller.ControllerContext.HttpContext.Request.Headers["X-Deploy-Token"] = "segredo-correto";
         var request = new NotifyLandingAccessRequestDto(
+            VisitorId: "visitor-123",
             CurrentUrl: "https://www.consertapramim.com/Cliente",
             Path: "/Cliente",
             Host: "www.consertapramim.com",
@@ -46,14 +47,14 @@ public class InternalLandingNotificationsControllerTests
         var result = await controller.NotifyAccess(request, CancellationToken.None);
 
         Assert.IsType<OkObjectResult>(result);
-        notificationServiceMock.Verify(service => service.NotifyLandingAccessAsync(
-            It.Is<NotifyLandingAccessRequestDto>(dto => dto.Path == "/Cliente" && dto.InitialLeadOrigin == "client"),
+        accessEventServiceMock.Verify(service => service.RecordAccessAsync(
+            It.Is<NotifyLandingAccessRequestDto>(dto => dto.VisitorId == "visitor-123" && dto.Path == "/Cliente" && dto.InitialLeadOrigin == "client"),
             It.IsAny<CancellationToken>()), Times.Once);
     }
 
     private static InternalLandingNotificationsController CreateController(
         string? webhookToken,
-        ILandingAdminNotificationService landingAdminNotificationService)
+        ILandingAccessEventService landingAccessEventService)
     {
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
@@ -64,7 +65,7 @@ public class InternalLandingNotificationsControllerTests
 
         return new InternalLandingNotificationsController(
             configuration,
-            landingAdminNotificationService,
+            landingAccessEventService,
             NullLogger<InternalLandingNotificationsController>.Instance)
         {
             ControllerContext = new ControllerContext

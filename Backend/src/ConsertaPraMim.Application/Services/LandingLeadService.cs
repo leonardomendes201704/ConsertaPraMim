@@ -11,6 +11,7 @@ namespace ConsertaPraMim.Application.Services;
 public sealed class LandingLeadService : ILandingLeadService
 {
     private const int MaxFullNameLength = 160;
+    private const int MaxVisitorIdLength = 80;
     private const int MaxPhoneLength = 40;
     private const int MaxEmailLength = 200;
     private const int MaxCityLength = 120;
@@ -62,6 +63,7 @@ public sealed class LandingLeadService : ILandingLeadService
         var lead = new LandingLead
         {
             Origin = request.Origin,
+            VisitorId = NormalizeOptional(request.VisitorId, MaxVisitorIdLength),
             FullName = NormalizeRequired(request.FullName, MaxFullNameLength),
             Phone = NormalizeRequired(request.Phone, MaxPhoneLength),
             Email = NormalizeRequired(request.Email, MaxEmailLength),
@@ -116,6 +118,7 @@ public sealed class LandingLeadService : ILandingLeadService
         var metadata = new
         {
             request.Origin,
+            request.VisitorId,
             request.CurrentPageUrl,
             request.ReferrerUrl,
             request.QueryString,

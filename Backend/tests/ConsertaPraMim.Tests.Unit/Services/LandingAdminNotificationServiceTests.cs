@@ -32,6 +32,7 @@ public class LandingAdminNotificationServiceTests
             NullLogger<LandingAdminNotificationService>.Instance);
 
         await service.NotifyLandingAccessAsync(new NotifyLandingAccessRequestDto(
+            VisitorId: "visitor-admin-001",
             CurrentUrl: "https://www.consertapramim.com/Prestador",
             Path: "/Prestador",
             Host: "www.consertapramim.com",
@@ -49,6 +50,7 @@ public class LandingAdminNotificationServiceTests
                 It.Is<string>(message => message.Contains("Landing /Prestador") && message.Contains("187.77.48.150")),
                 "/AdminHome/Index",
                 It.Is<IReadOnlyDictionary<string, string>>(data =>
+                    data["visitorId"] == "visitor-admin-001" &&
                     data["type"] == "landing_public_access" &&
                     data["path"] == "/Prestador" &&
                     data["ipAddress"] == "187.77.48.150")),
@@ -74,6 +76,7 @@ public class LandingAdminNotificationServiceTests
         {
             Id = leadId,
             Origin = LandingLeadOrigin.Client,
+            VisitorId = "visitor-admin-002",
             FullName = "Leonardo Silva",
             City = "Praia Grande",
             State = "SP",
@@ -100,6 +103,7 @@ public class LandingAdminNotificationServiceTests
                 It.Is<IReadOnlyDictionary<string, string>>(data =>
                     data["type"] == "landing_lead_captured" &&
                     data["leadId"] == leadId.ToString("N") &&
+                    data["visitorId"] == "visitor-admin-002" &&
                     data["origin"] == "cliente")),
             Times.Once);
     }

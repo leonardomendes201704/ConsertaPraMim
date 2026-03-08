@@ -30,10 +30,14 @@ public class LandingHomeControllerTests
         Assert.Equal("https://api.consertapramim.com/api/landing-leads/public", model.LeadCaptureUrl);
         Assert.Equal("https://api.consertapramim.com/swagger", model.ApiSwaggerUrl);
         Assert.Equal("https://cliente.consertapramim.com/", model.ClientPortalUrl);
+        Assert.False(string.IsNullOrWhiteSpace(model.VisitorId));
+        Assert.Equal(model.VisitorId, controller.ViewData["LandingVisitorId"]);
         Assert.Null(model.InitialLeadOrigin);
+        Assert.Contains("cpm_landing_vid=", controller.HttpContext.Response.Headers.SetCookie.ToString(), StringComparison.Ordinal);
 
         notificationClientMock.Verify(client => client.NotifyLandingAccessAsync(
             It.Is<LandingAccessNotificationRequest>(request =>
+                request.VisitorId == model.VisitorId &&
                 request.Path == "/" &&
                 request.InitialLeadOrigin == null &&
                 request.Host == "www.consertapramim.com"),
@@ -51,6 +55,7 @@ public class LandingHomeControllerTests
         var view = Assert.IsType<ViewResult>(result);
         var model = Assert.IsType<LandingPageViewModel>(view.Model);
         Assert.Equal("client", model.InitialLeadOrigin);
+        Assert.False(string.IsNullOrWhiteSpace(model.VisitorId));
         Assert.Equal("client", controller.ViewData["InitialLeadOrigin"]);
         Assert.Equal("https://www.consertapramim.com/Cliente", controller.ViewData["OpenGraphUrl"]);
         Assert.Equal("https://www.consertapramim.com/og-logo-consertapramim.png", controller.ViewData["OpenGraphImage"]);
@@ -59,6 +64,7 @@ public class LandingHomeControllerTests
 
         notificationClientMock.Verify(client => client.NotifyLandingAccessAsync(
             It.Is<LandingAccessNotificationRequest>(request =>
+                request.VisitorId == model.VisitorId &&
                 request.Path == "/Cliente" &&
                 request.InitialLeadOrigin == "client"),
             It.IsAny<CancellationToken>()), Times.Once);
@@ -75,6 +81,7 @@ public class LandingHomeControllerTests
         var view = Assert.IsType<ViewResult>(result);
         var model = Assert.IsType<LandingPageViewModel>(view.Model);
         Assert.Equal("provider", model.InitialLeadOrigin);
+        Assert.False(string.IsNullOrWhiteSpace(model.VisitorId));
         Assert.Equal("provider", controller.ViewData["InitialLeadOrigin"]);
         Assert.Equal("https://www.consertapramim.com/Prestador", controller.ViewData["OpenGraphUrl"]);
         Assert.Equal("https://www.consertapramim.com/og-logo-consertapramim.png", controller.ViewData["OpenGraphImage"]);
@@ -83,6 +90,7 @@ public class LandingHomeControllerTests
 
         notificationClientMock.Verify(client => client.NotifyLandingAccessAsync(
             It.Is<LandingAccessNotificationRequest>(request =>
+                request.VisitorId == model.VisitorId &&
                 request.Path == "/Prestador" &&
                 request.InitialLeadOrigin == "provider"),
             It.IsAny<CancellationToken>()), Times.Once);

@@ -28,6 +28,7 @@ public class LandingPageRegressionTests
         Assert.Contains("name=\"twitter:card\"", layoutContent);
         Assert.Contains("data-lead-capture-url=", layoutContent);
         Assert.Contains("data-initial-lead-origin=", layoutContent);
+        Assert.Contains("data-visitor-id=", layoutContent);
         Assert.Contains("~/images/logo-top-bar-consertapramim.png", layoutContent);
         Assert.Contains("~/og-logo-consertapramim.png", layoutContent);
         Assert.Contains("© @DateTime.UtcNow.Year ConsertaPraMim. Todos os direitos reservados.", layoutContent);

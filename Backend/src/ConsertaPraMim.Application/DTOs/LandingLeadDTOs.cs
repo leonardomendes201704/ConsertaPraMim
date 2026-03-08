@@ -6,6 +6,7 @@ namespace ConsertaPraMim.Application.DTOs;
 public record CaptureLandingLeadRequestDto(
     [property: JsonConverter(typeof(JsonStringEnumConverter))]
     LandingLeadOrigin Origin,
+    string? VisitorId,
     string FullName,
     string Phone,
     string Email,

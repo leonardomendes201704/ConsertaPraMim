@@ -10,6 +10,12 @@
 
 ## Released
 
+- [2026-03-08] [ST-059][ADMIN-LANDING-KPIS] KPIs da landing na home do dashboard admin
+- Tipo: feat
+- Resumo: a landing passou a persistir cada acesso relevante (`/`, `/Cliente`, `/Prestador`) em `LandingAccessEvents` com `visitorId` estavel por navegador, e a home do portal admin passou a exibir os KPIs incrementais `Visitas`, `Cadastros Prestador`, `Cadastros Cliente` e `Taxa de Conversão`; os cards respeitam o recorte global de periodo do dashboard, `Visitas` detalha visitantes unicos e `Taxa de Conversão` detalha cadastros totais e visitantes convertidos correlacionados entre acesso e lead.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Domain/Entities/LandingAccessEvent.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Migrations/20260308213916_AddLandingAccessEventsAnalytics.cs`, `Backend/src/ConsertaPraMim.Application/Services/LandingAccessEventService.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminDashboardService.cs`, `Backend/src/ConsertaPraMim.Web.Landing/Controllers/HomeController.cs`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/js/site.js`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminHome/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `Documentacao/LANDING_PAGE/MANUAL_QA_OPERACAO_LANDING.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-059-kpis-visitas-cadastros-e-conversao-landing-dashboard.md`
+- Risco/Impacto: medio
+
 - [2026-03-08] [ST-003][LANDING-ADMIN-PUSH] Push admin para acesso publico e lead captado na landing
 - Tipo: feat
 - Resumo: a landing publica passou a publicar cada acesso de `/`, `/Cliente` e `/Prestador` em um webhook interno autenticado por token, e a API passou a fan-out esses eventos para admins ativos usando o barramento existente de notificacoes, cobrindo portal admin em tempo real e app admin quando houver device registrado; alem disso, a captura de leads `Cliente` e `Prestador` agora dispara notificacao administrativa com contexto comercial e link para o detalhe do lead, enquanto o endpoint interno `POST /api/internal/landing/access` permanece fora do Swagger com `ApiExplorerSettings(IgnoreApi = true)`.

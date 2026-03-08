@@ -2,7 +2,7 @@
 
 ## Escopo
 
-Este manual cobre a landing publica `ConsertaPraMim.Web.Landing`, publicada em `https://www.consertapramim.com`, o redirect do dominio raiz `https://consertapramim.com`, a captura de leads comerciais de cliente/prestador via modal Bootstrap e os deep links `https://www.consertapramim.com/Cliente` e `https://www.consertapramim.com/Prestador`.
+Este manual cobre a landing publica `ConsertaPraMim.Web.Landing`, publicada em `https://www.consertapramim.com`, o redirect do dominio raiz `https://consertapramim.com`, a captura de leads comerciais de cliente/prestador via modal Bootstrap, os deep links `https://www.consertapramim.com/Cliente` e `https://www.consertapramim.com/Prestador` e a persistencia dos acessos que alimentam os KPIs da home do portal admin.
 
 ## Componentes envolvidos
 
@@ -57,6 +57,7 @@ curl -I https://www.consertapramim.com/og-logo-consertapramim.png
 curl -I https://www.consertapramim.com/Cliente
 curl -I https://www.consertapramim.com/Prestador
 curl -s https://www.consertapramim.com | grep data-lead-capture-url
+curl -s -D - https://www.consertapramim.com -o /dev/null | grep -i set-cookie
 curl -I https://consertapramim.com
 curl -I https://api.consertapramim.com/health
 ```
@@ -69,6 +70,7 @@ Esperado:
 - `https://www.consertapramim.com/Cliente` -> `200`
 - `https://www.consertapramim.com/Prestador` -> `200`
 - `data-lead-capture-url="https://api.consertapramim.com/api/landing-leads/public"` no HTML publicado
+- `Set-Cookie: cpm_landing_vid=...` na primeira carga da home
 - `https://consertapramim.com` -> `301` ou `308` para `https://www.consertapramim.com`
 - `https://api.consertapramim.com/health` -> `200`
 
@@ -150,6 +152,12 @@ Esperado:
 26. Enviar um lead `Cliente` e validar notificacao admin `Novo lead de cliente na landing` com link para o detalhe do lead.
 27. Enviar um lead `Prestador` e validar notificacao admin `Novo lead de prestador na landing` com link para o detalhe do lead.
 28. Derrubar temporariamente a API interna ou invalidar o token e validar que a landing continua carregando mesmo sem publicar o push de acesso.
+29. Reabrir a home admin com o mesmo recorte de periodo e validar os cards:
+   - `Visitas`
+   - `Cadastros Prestador`
+   - `Cadastros Cliente`
+   - `Taxa de Conversão`
+   Esperado: os valores refletem os acessos/leads gerados no teste; `Visitas` mostra visitantes unicos no detalhe e `Taxa de Conversão` mostra `Cadastros totais` e `Visitantes convertidos`.
 
 ## Dados esperados por lead
 
@@ -183,6 +191,7 @@ Esperado:
 ### Metadados tecnicos persistidos
 
 - IP
+- `visitorId`
 - `X-Forwarded-For`
 - `User-Agent`
 - `Accept-Language`
@@ -194,6 +203,20 @@ Esperado:
 - resolucao de tela
 - plataforma do dispositivo
 - time zone
+- `CreatedAt` em UTC
+
+## Dados esperados por acesso
+
+- `visitorId` estavel por navegador, persistido em cookie `cpm_landing_vid`
+- URL atual da pagina
+- host, scheme e path
+- `InitialLeadOrigin` quando o acesso vier de `/Cliente` ou `/Prestador`
+- IP
+- `X-Forwarded-For`
+- `User-Agent`
+- `Accept-Language`
+- `Referer`
+- metadados tecnicos serializados em `MetadataJson`
 - `CreatedAt` em UTC
 
 ## Layout esperado da home
@@ -214,6 +237,20 @@ Esperado:
 9. O favicon da home usa a mesma arte `og-logo-consertapramim.png` para manter consistencia entre aba do navegador e preview social.
 10. Footer enxuto apenas com copyright institucional.
 11. Link `Contato` do header reaproveita o mesmo fluxo de captacao do CTA de cliente.
+
+## Validacao cruzada com o dashboard admin
+
+1. Acessar `/`, `/Cliente` e `/Prestador` ao menos uma vez no browser.
+2. Enviar ao menos um lead `Cliente` e um lead `Prestador`.
+3. Abrir `https://admin.consertapramim.com/AdminHome`.
+4. Ajustar o periodo para cobrir os eventos recem-gerados.
+5. Validar os KPIs:
+   - `Visitas`: total de `LandingAccessEvents` no periodo.
+   - `Cadastros Prestador`: total de leads `Provider` no periodo.
+   - `Cadastros Cliente`: total de leads `Client` no periodo.
+   - `Taxa de Conversão`: `(cadastros cliente + cadastros prestador) / visitas * 100`.
+6. Validar que o detalhe do card `Visitas` exibe `Visitantes únicos`.
+7. Validar que o detalhe do card `Taxa de Conversão` exibe `Cadastros totais` e `Visitantes convertidos`.
 
 ## Troubleshooting
 
@@ -242,6 +279,21 @@ Esperado:
 - `DeployNotifications__WebhookToken` preenchido com o mesmo valor
 
 Validar tambem se existe admin ativo e se o app admin possui device registrado.
+
+### Dashboard admin nao atualiza `Visitas` ou `Taxa de Conversão`
+
+Verificar o HTML/cookie publicado e o recorte usado no dashboard:
+
+```bash
+curl -s https://www.consertapramim.com | grep data-lead-capture-url
+curl -s -D - https://www.consertapramim.com -o /dev/null | grep -i set-cookie
+```
+
+Esperado:
+- `data-lead-capture-url="https://api.consertapramim.com/api/landing-leads/public"`
+- emissao do cookie `cpm_landing_vid`
+
+Depois, validar no banco se existem registros em `LandingAccessEvents` e `LandingLeads` no periodo consultado pelo dashboard. Se o lead foi salvo sem `visitorId` ou se o recorte do dashboard nao cobre o horario UTC dos eventos, a conversao pode aparecer zerada.
 
 ### Lead foi salvo, mas nao houve notificacao admin
 

@@ -16,16 +16,16 @@ public sealed class InternalLandingNotificationsController : ControllerBase
     private const string HeaderTokenName = "X-Deploy-Token";
 
     private readonly IConfiguration _configuration;
-    private readonly ILandingAdminNotificationService _landingAdminNotificationService;
+    private readonly ILandingAccessEventService _landingAccessEventService;
     private readonly ILogger<InternalLandingNotificationsController> _logger;
 
     public InternalLandingNotificationsController(
         IConfiguration configuration,
-        ILandingAdminNotificationService landingAdminNotificationService,
+        ILandingAccessEventService landingAccessEventService,
         ILogger<InternalLandingNotificationsController> logger)
     {
         _configuration = configuration;
-        _landingAdminNotificationService = landingAdminNotificationService;
+        _landingAccessEventService = landingAccessEventService;
         _logger = logger;
     }
 
@@ -55,7 +55,7 @@ public sealed class InternalLandingNotificationsController : ControllerBase
             });
         }
 
-        await _landingAdminNotificationService.NotifyLandingAccessAsync(request, cancellationToken);
+        await _landingAccessEventService.RecordAccessAsync(request, cancellationToken);
 
         return Ok(new
         {

@@ -30,6 +30,15 @@ public sealed class LandingLeadRepository : ILandingLeadRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<LandingLead>> GetByPeriodAsync(DateTime fromUtc, DateTime toUtc, CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.LandingLeads
+            .AsNoTracking()
+            .Where(lead => lead.CreatedAt >= fromUtc && lead.CreatedAt <= toUtc)
+            .OrderByDescending(lead => lead.CreatedAt)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<LandingLead?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         return await _dbContext.LandingLeads

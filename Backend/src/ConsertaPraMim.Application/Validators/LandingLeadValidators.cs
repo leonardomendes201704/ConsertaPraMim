@@ -11,6 +11,9 @@ public sealed class CaptureLandingLeadRequestValidator : AbstractValidator<Captu
         RuleFor(x => x.Origin)
             .IsInEnum();
 
+        RuleFor(x => x.VisitorId)
+            .MaximumLength(80);
+
         RuleFor(x => x.FullName)
             .NotEmpty()
             .MaximumLength(160);
