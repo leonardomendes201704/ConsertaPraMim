@@ -12,6 +12,12 @@
 
 ## Released
 
+- [2026-03-09] [ST-072][OPS-VPS-APK-UPLOAD-LOCAL-RUNNER] Upload de APK sem SSH externo no pipeline
+- Tipo: fix
+- Resumo: os jobs `Upload APK Mobile Client/Provider/Admin` foram movidos para `self-hosted Linux` e passaram a publicar os APKs no fileserver via `docker cp` local (`filebrowser`), removendo a dependencia de acesso SSH externo na porta 22 a partir de `windows-latest` e eliminando falhas por timeout de conectividade de rede entre runner hospedado e VPS.
+- Arquivos principais: `.github/workflows/deploy-vps.yml`, `Backend/DEPLOY_VPS.md`
+- Risco/Impacto: medio
+
 - [2026-03-09] [ST-072][OPS-VPS-WARNINGS-APK-METADATA-SUMMARY] Reducao de warnings opcionais no pipeline de deploy
 - Tipo: fix
 - Resumo: o workflow `deploy-vps` passou a resolver a URL da API de forma robusta para publicacao de metadados de APK (`PUBLIC_API_URL` com fallback para `VPS_PUBLIC_HOST`), corrigiu a montagem da URL de push de release para evitar `Invalid URI`, e moveu o push de resumo final para endpoint local da API (`127.0.0.1`); falhas desses passos opcionais agora sao registradas como `notice`, evitando ruidos de warning no run quando a API/webhook estiver indisponivel.

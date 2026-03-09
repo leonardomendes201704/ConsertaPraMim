@@ -389,6 +389,7 @@ Observacoes sobre metadados de APK e push de resumo:
 - o push de release dos APKs (`/api/internal/deploy/apk-release`) segue a mesma regra para evitar erro de URI;
 - o push de resumo do workflow (`/api/internal/deploy/admin-summary`) e enviado pelo runner self-hosted para `http://127.0.0.1:<API_PORT>` na propria VPS;
 - quando API/webhook/token nao estiverem disponiveis, o workflow registra `notice` (nao `warning`) por ser etapa opcional de notificacao.
+- o upload dos APKs para o fileserver passou a ocorrer localmente no runner self-hosted (na propria VPS), via `docker cp` para o container `filebrowser`; nao depende mais de SSH externo (`porta 22`) a partir de runner hospedado.
 
 ## 9) Operacao por projeto
 
