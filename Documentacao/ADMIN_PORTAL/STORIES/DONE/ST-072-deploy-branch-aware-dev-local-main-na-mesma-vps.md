@@ -29,7 +29,7 @@ validar funcionalidades em ambiente paralelo sem interromper producao e sem risc
 
 ## Ajustes pos-deploy (2026-03-09)
 
-- [x] isolar projeto `docker compose` por ambiente (`-p <CONTAINER_PREFIX>`) para evitar colisao entre stacks DEV e PROD;
+- [x] isolar projeto `docker compose` por ambiente e servico (`-p <CONTAINER_PREFIX>-<servico>`) para evitar colisao e remocao cruzada entre jobs paralelos;
 - [x] ajustar healthchecks do workflow para usar `VPS_PUBLIC_HOST` no perfil `development`;
 - [x] adicionar diagnostico automatico (`docker ps` + `docker logs`) quando healthcheck falhar;
 - [x] atualizar runbook com comandos de troubleshooting rapido para timeout em portas DEV.

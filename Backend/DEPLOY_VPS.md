@@ -51,7 +51,7 @@ Observacao operacional:
 - a landing publica e independente da API, com `healthcheck` proprio em `/health`;
 - no `dev-local`, os `healthchecks` do workflow validam pelos endpoints publicados em `http://<VPS_PUBLIC_HOST>:porta`;
 - no `main/master`, os `healthchecks` continuam validando pela malha local (`127.0.0.1`) na propria VPS;
-- o deploy agora forca `docker compose -p <CONTAINER_PREFIX>` para isolar stacks `DEV` e `PROD` no mesmo host sem colidir projeto compose.
+- o deploy agora forca `docker compose -p <CONTAINER_PREFIX>-<servico>` para isolar `DEV/PROD` e evitar remocao indevida com `--remove-orphans` entre jobs paralelos.
 
 ## 1) DNS na Hostinger/HostGator
 
@@ -398,24 +398,24 @@ Observacoes sobre metadados de APK e push de resumo:
 Status:
 
 ```bash
-docker compose -p cpm -f Backend/docker-compose.vps.web-landing.yml --env-file Backend/.env.vps ps
-docker compose -p cpm -f Backend/docker-compose.vps.api.yml --env-file Backend/.env.vps ps
-docker compose -p cpm -f Backend/docker-compose.vps.web-admin.yml --env-file Backend/.env.vps ps
-docker compose -p cpm -f Backend/docker-compose.vps.web-client.yml --env-file Backend/.env.vps ps
-docker compose -p cpm -f Backend/docker-compose.vps.web-provider.yml --env-file Backend/.env.vps ps
-docker compose -p cpm -f Backend/docker-compose.vps.mobile-webview-client.yml --env-file Backend/.env.vps ps
-docker compose -p cpm -f Backend/docker-compose.vps.mobile-webview-provider.yml --env-file Backend/.env.vps ps
-docker compose -p cpm -f Backend/docker-compose.vps.mobile-webview-admin.yml --env-file Backend/.env.vps ps
+docker compose -p cpm-web-landing -f Backend/docker-compose.vps.web-landing.yml --env-file Backend/.env.vps ps
+docker compose -p cpm-api -f Backend/docker-compose.vps.api.yml --env-file Backend/.env.vps ps
+docker compose -p cpm-web-admin -f Backend/docker-compose.vps.web-admin.yml --env-file Backend/.env.vps ps
+docker compose -p cpm-web-client -f Backend/docker-compose.vps.web-client.yml --env-file Backend/.env.vps ps
+docker compose -p cpm-web-provider -f Backend/docker-compose.vps.web-provider.yml --env-file Backend/.env.vps ps
+docker compose -p cpm-mobile-webview-client -f Backend/docker-compose.vps.mobile-webview-client.yml --env-file Backend/.env.vps ps
+docker compose -p cpm-mobile-webview-provider -f Backend/docker-compose.vps.mobile-webview-provider.yml --env-file Backend/.env.vps ps
+docker compose -p cpm-mobile-webview-admin -f Backend/docker-compose.vps.mobile-webview-admin.yml --env-file Backend/.env.vps ps
 
 # Para DEV (branch dev-local), trocar para:
-docker compose -p cpm-dev -f Backend/docker-compose.vps.api.yml --env-file Backend/.env.vps ps
+docker compose -p cpm-dev-api -f Backend/docker-compose.vps.api.yml --env-file Backend/.env.vps ps
 ```
 
 Parar/iniciar individual:
 
 ```bash
-docker compose -p cpm -f Backend/docker-compose.vps.web-landing.yml --env-file Backend/.env.vps stop
-docker compose -p cpm -f Backend/docker-compose.vps.web-landing.yml --env-file Backend/.env.vps start
+docker compose -p cpm-web-landing -f Backend/docker-compose.vps.web-landing.yml --env-file Backend/.env.vps stop
+docker compose -p cpm-web-landing -f Backend/docker-compose.vps.web-landing.yml --env-file Backend/.env.vps start
 ```
 
 Logs:
@@ -448,11 +448,11 @@ Quando `http://<IP>:6088|6151|6069|6140|6193` der timeout:
 1. Validar se a stack DEV subiu no projeto compose correto:
 
 ```bash
-docker compose -p cpm-dev -f Backend/docker-compose.vps.api.yml --env-file Backend/.env.vps ps
-docker compose -p cpm-dev -f Backend/docker-compose.vps.web-admin.yml --env-file Backend/.env.vps ps
-docker compose -p cpm-dev -f Backend/docker-compose.vps.web-client.yml --env-file Backend/.env.vps ps
-docker compose -p cpm-dev -f Backend/docker-compose.vps.web-provider.yml --env-file Backend/.env.vps ps
-docker compose -p cpm-dev -f Backend/docker-compose.vps.web-landing.yml --env-file Backend/.env.vps ps
+docker compose -p cpm-dev-api -f Backend/docker-compose.vps.api.yml --env-file Backend/.env.vps ps
+docker compose -p cpm-dev-web-admin -f Backend/docker-compose.vps.web-admin.yml --env-file Backend/.env.vps ps
+docker compose -p cpm-dev-web-client -f Backend/docker-compose.vps.web-client.yml --env-file Backend/.env.vps ps
+docker compose -p cpm-dev-web-provider -f Backend/docker-compose.vps.web-provider.yml --env-file Backend/.env.vps ps
+docker compose -p cpm-dev-web-landing -f Backend/docker-compose.vps.web-landing.yml --env-file Backend/.env.vps ps
 ```
 
 2. Validar bind de portas no host:
