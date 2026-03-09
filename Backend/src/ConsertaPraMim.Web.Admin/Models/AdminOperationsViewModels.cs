@@ -57,6 +57,7 @@ public class AdminLandingAnalyticsFilterModel
     public string? CountryCode { get; set; }
     public string? Region { get; set; }
     public string? City { get; set; }
+    public bool IncludeSuspectedAutomation { get; set; } = false;
     public DateTime? FromUtc { get; set; }
     public DateTime? ToUtc { get; set; }
     public int Page { get; set; } = 1;

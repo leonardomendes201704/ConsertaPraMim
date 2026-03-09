@@ -33,6 +33,7 @@ public sealed class AdminLandingAnalyticsController : ControllerBase
         [FromQuery] DateTime? toUtc,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
+        [FromQuery] bool includeSuspectedAutomation = false,
         CancellationToken cancellationToken = default)
     {
         var query = new AdminLandingAnalyticsQueryDto(
@@ -45,7 +46,8 @@ public sealed class AdminLandingAnalyticsController : ControllerBase
             fromUtc,
             toUtc,
             page,
-            pageSize);
+            pageSize,
+            includeSuspectedAutomation);
 
         var response = await _adminLandingAnalyticsService.GetOverviewAsync(query, cancellationToken);
         return Ok(response);

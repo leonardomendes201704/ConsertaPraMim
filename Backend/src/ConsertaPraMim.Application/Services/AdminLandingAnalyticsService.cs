@@ -8,6 +8,53 @@ namespace ConsertaPraMim.Application.Services;
 
 public sealed class AdminLandingAnalyticsService : IAdminLandingAnalyticsService
 {
+    private static readonly string[] SuspectedAutomationUserAgentTokens =
+    [
+        "bot",
+        "crawler",
+        "spider",
+        "headless",
+        "curl/",
+        "wget/",
+        "python-requests",
+        "python-httpx",
+        "postmanruntime",
+        "go-http-client",
+        "node-fetch",
+        "axios/",
+        "httpclient"
+    ];
+
+    private static readonly string[] SuspectedDatacenterProviderTokens =
+    [
+        "amazon",
+        "aws",
+        "google",
+        "gcp",
+        "microsoft",
+        "azure",
+        "digitalocean",
+        "linode",
+        "ovh",
+        "hetzner",
+        "oracle"
+    ];
+
+    private static readonly HashSet<string> SuspectedDatacenterCities = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Ashburn",
+        "Boardman",
+        "Council Bluffs",
+        "Mountain View",
+        "Santa Clara",
+        "Helsinki",
+        "Visakhapatnam",
+        "Anyang",
+        "Anyang-si",
+        "North Bergen",
+        "Frankfurt"
+    };
+
     private readonly ILandingAccessEventRepository _landingAccessEventRepository;
     private readonly ILandingTelemetryEventRepository _landingTelemetryEventRepository;
     private readonly ILandingLeadRepository _landingLeadRepository;
@@ -297,6 +344,7 @@ public sealed class AdminLandingAnalyticsService : IAdminLandingAnalyticsService
         IEnumerable<LandingSessionAggregate> sessions,
         AdminLandingAnalyticsQueryDto query)
     {
+        var includeSuspectedAutomation = query.IncludeSuspectedAutomation;
         var searchTerm = NormalizeFilter(query.SearchTerm);
         var normalizedOrigin = NormalizeOriginFilter(query.Origin);
         var normalizedPath = NormalizeFilter(query.Path);
@@ -306,6 +354,7 @@ public sealed class AdminLandingAnalyticsService : IAdminLandingAnalyticsService
 
         return sessions
             .Where(item =>
+                (includeSuspectedAutomation || !IsSuspectedAutomation(item)) &&
                 (normalizedOrigin == null || item.InitialLeadOrigin == normalizedOrigin) &&
                 (normalizedPath == null || item.Path.Contains(normalizedPath, StringComparison.OrdinalIgnoreCase)) &&
                 (normalizedCountryCode == null || string.Equals(item.AccessEvent.GeoCountryCode, normalizedCountryCode, StringComparison.OrdinalIgnoreCase)) &&
@@ -313,6 +362,59 @@ public sealed class AdminLandingAnalyticsService : IAdminLandingAnalyticsService
                 (normalizedCity == null || ContainsAny(item.AccessEvent.GeoCity, item.Lead?.City, normalizedCity)) &&
                 (searchTerm == null || MatchesSearch(item, searchTerm)))
             .ToList();
+    }
+
+    private static bool IsSuspectedAutomation(LandingSessionAggregate session)
+    {
+        if (HasSuspectedAutomationUserAgent(session.AccessEvent.UserAgent))
+        {
+            return true;
+        }
+
+        if (!IsLowEngagementSession(session))
+        {
+            return false;
+        }
+
+        return IsSuspectedDatacenterCity(session.AccessEvent.GeoCity) ||
+               HasSuspectedDatacenterProvider(session.AccessEvent.GeoProvider);
+    }
+
+    private static bool HasSuspectedAutomationUserAgent(string? userAgent)
+    {
+        if (string.IsNullOrWhiteSpace(userAgent))
+        {
+            return false;
+        }
+
+        return SuspectedAutomationUserAgentTokens.Any(token =>
+            userAgent.Contains(token, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool IsSuspectedDatacenterCity(string? city)
+    {
+        var normalizedCity = NormalizeFilter(city);
+        return normalizedCity != null && SuspectedDatacenterCities.Contains(normalizedCity);
+    }
+
+    private static bool HasSuspectedDatacenterProvider(string? provider)
+    {
+        if (string.IsNullOrWhiteSpace(provider))
+        {
+            return false;
+        }
+
+        return SuspectedDatacenterProviderTokens.Any(token =>
+            provider.Contains(token, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool IsLowEngagementSession(LandingSessionAggregate session)
+    {
+        return session.ActiveSeconds <= 5 &&
+               session.MaxScrollPercent == 0 &&
+               session.Clicks == 0 &&
+               session.ModalOpens == 0 &&
+               session.LeadSubmissions == 0;
     }
 
     private static bool MatchesSearch(LandingSessionAggregate item, string searchTerm)

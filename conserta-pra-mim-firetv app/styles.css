@@ -3,6 +3,9 @@
   font-family: "Aptos", "Segoe UI", sans-serif;
   background: #081122;
   color: #eff6ff;
+  --tv-scale: 1;
+  --tv-offset-x: 0px;
+  --tv-offset-y: 0px;
 }
 
 * {
@@ -13,8 +16,8 @@ html,
 body,
 #root {
   margin: 0;
+  width: 100%;
   height: 100%;
-  min-height: 100%;
   overflow: hidden;
   background:
     radial-gradient(circle at top left, rgba(14, 165, 233, 0.18), transparent 28%),
@@ -24,6 +27,23 @@ body,
 
 body {
   min-height: 100vh;
+}
+
+.tv-fixed-viewport {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+}
+
+.tv-fixed-stage {
+  position: absolute;
+  left: var(--tv-offset-x);
+  top: var(--tv-offset-y);
+  width: 1920px;
+  height: 1080px;
+  transform: scale(var(--tv-scale));
+  transform-origin: top left;
+  overflow: hidden;
 }
 
 .material-symbols-outlined {
@@ -55,8 +75,8 @@ input:focus-visible {
 }
 
 .tv-shell {
-  height: 100vh;
-  min-height: 100vh;
+  height: 100%;
+  min-height: 100%;
   overflow: hidden;
   padding: 28px 32px 36px;
 }
@@ -1354,5 +1374,23 @@ input:focus-visible {
   .tv-health-target-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
+
+/* Keep operations view in fixed 16:9 desktop-like layout on TV devices. */
+.tv-topbar--operations {
+  flex-direction: row;
+  align-items: center;
+}
+
+.tv-kpi-grid--operations {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.tv-operations-main-grid {
+  grid-template-columns: minmax(240px, 2fr) minmax(0, 7fr) minmax(320px, 3fr);
+}
+
+.tv-operations-bottom-grid {
+  grid-template-columns: 4fr 2fr 4fr 2fr;
 }
 

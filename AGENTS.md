@@ -148,6 +148,13 @@ Uma tarefa so deve ser considerada concluida quando:
    - validar cada etapa por codigo de saida/resultado;
    - somente avancar para a proxima etapa apos sucesso explicito da anterior.
 12. Para fluxos recorrentes de operacao local (ex.: restart de app em porta fixa), preferir script versionado em `scripts/` e chamar o script diretamente, em vez de one-liners longos.
+13. Em Windows, e proibido usar script inline por heredoc/redirecionamento (ex.: `python - <<`, here-doc bash emulado, ou bloco multiline embutido no comando) para tarefas que alterem arquivos ou assets do repositorio.
+14. Se a politica do shell bloquear script inline, o procedimento obrigatorio e:
+   - criar script `.py` ou `.ps1` explicito em caminho previsivel (`scripts/` para rotina recorrente, ou `scripts/_tmp/` para rotina pontual);
+   - executar o script por arquivo (`python scripts/...` / `powershell -File scripts/...`);
+   - validar o resultado e remover o arquivo temporario ao final quando for rotina pontual.
+15. `python -c` deve ser usado apenas para comandos curtos de leitura/diagnostico (one-liner simples). Nao usar `python -c` longo/obfuscado para substituir script bloqueado por politica.
+16. Sempre que houver bloqueio de politica, registrar na resposta final qual foi o fallback aplicado (arquivo de script usado e comando de execucao), para manter rastreabilidade e evitar repeticao de tentativa inadequada.
 
 ## Diretriz obrigatoria de escrita deterministica de arquivos no shell
 

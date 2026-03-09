@@ -27,11 +27,12 @@ public sealed class AdminLandingAnalyticsController : Controller
         DateTime? fromUtc,
         DateTime? toUtc,
         int page = 1,
-        int pageSize = 20)
+        int pageSize = 20,
+        bool includeSuspectedAutomation = false)
     {
         var model = new AdminLandingAnalyticsIndexViewModel
         {
-            Filters = NormalizeFilters(searchTerm, origin, path, countryCode, region, city, fromUtc, toUtc, page, pageSize)
+            Filters = NormalizeFilters(searchTerm, origin, path, countryCode, region, city, includeSuspectedAutomation, fromUtc, toUtc, page, pageSize)
         };
 
         var token = GetAccessToken();
@@ -102,6 +103,7 @@ public sealed class AdminLandingAnalyticsController : Controller
         string? countryCode,
         string? region,
         string? city,
+        bool includeSuspectedAutomation,
         DateTime? fromUtc,
         DateTime? toUtc,
         int page,
@@ -122,6 +124,7 @@ public sealed class AdminLandingAnalyticsController : Controller
             CountryCode = NormalizeCountryCode(countryCode),
             Region = string.IsNullOrWhiteSpace(region) ? null : region.Trim(),
             City = string.IsNullOrWhiteSpace(city) ? null : city.Trim(),
+            IncludeSuspectedAutomation = includeSuspectedAutomation,
             FromUtc = from,
             ToUtc = to,
             Page = Math.Max(1, page),

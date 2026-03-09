@@ -394,4 +394,111 @@ public class AdminLandingAnalyticsServiceTests
         Assert.Equal(2, insights.ElementRanking[0].Clicks);
         Assert.Equal(1, insights.ElementRanking[0].UniqueSessions);
     }
+
+    [Fact(DisplayName = "Admin landing analytics service | Overview | Deve excluir bots/datacenter por padrao e incluir sob demanda")]
+    public async Task GetOverviewAsync_ShouldFilterSuspectedAutomationByDefault()
+    {
+        var accessRepositoryMock = new Mock<ILandingAccessEventRepository>();
+        var telemetryRepositoryMock = new Mock<ILandingTelemetryEventRepository>();
+        var leadRepositoryMock = new Mock<ILandingLeadRepository>();
+        var runtimeSettingsMock = new Mock<ILandingAnalyticsRuntimeSettings>();
+
+        var fromUtc = new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc);
+        var toUtc = new DateTime(2026, 3, 2, 0, 0, 0, DateTimeKind.Utc);
+
+        accessRepositoryMock
+            .Setup(repository => repository.GetByPeriodAsync(fromUtc, toUtc, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(
+            [
+                new LandingAccessEvent
+                {
+                    SessionId = "session-human-001",
+                    VisitorId = "visitor-human-001",
+                    CreatedAt = fromUtc.AddHours(9),
+                    Path = "/",
+                    GeoCountryCode = "BR",
+                    GeoRegionCode = "SP",
+                    GeoCity = "Santos",
+                    UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/123 Safari/537.36"
+                },
+                new LandingAccessEvent
+                {
+                    SessionId = "session-bot-001",
+                    VisitorId = "visitor-bot-001",
+                    CreatedAt = fromUtc.AddHours(10),
+                    Path = "/",
+                    GeoCountryCode = "US",
+                    GeoRegionCode = "VA",
+                    GeoCity = "Ashburn",
+                    GeoProvider = "Amazon",
+                    UserAgent = "Mozilla/5.0 (compatible; AhrefsBot/7.0; +http://ahrefs.com/robot/)"
+                }
+            ]);
+
+        telemetryRepositoryMock
+            .Setup(repository => repository.GetByPeriodAsync(fromUtc, toUtc, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(
+            [
+                new LandingTelemetryEvent
+                {
+                    SessionId = "session-human-001",
+                    VisitorId = "visitor-human-001",
+                    OccurredAtUtc = fromUtc.AddHours(9).AddMinutes(1),
+                    EventType = LandingTelemetryEventType.Heartbeat,
+                    ActiveSeconds = 18
+                },
+                new LandingTelemetryEvent
+                {
+                    SessionId = "session-human-001",
+                    VisitorId = "visitor-human-001",
+                    OccurredAtUtc = fromUtc.AddHours(9).AddMinutes(2),
+                    EventType = LandingTelemetryEventType.Click,
+                    ElementLabel = "Encontrar profissional"
+                }
+            ]);
+
+        leadRepositoryMock
+            .Setup(repository => repository.GetByPeriodAsync(fromUtc, toUtc, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+
+        runtimeSettingsMock
+            .Setup(service => service.GetConfigAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new LandingAnalyticsRuntimeConfigDto());
+
+        var service = new AdminLandingAnalyticsService(
+            accessRepositoryMock.Object,
+            telemetryRepositoryMock.Object,
+            leadRepositoryMock.Object,
+            runtimeSettingsMock.Object);
+
+        var defaultOverview = await service.GetOverviewAsync(new AdminLandingAnalyticsQueryDto(
+            SearchTerm: null,
+            Origin: null,
+            Path: null,
+            CountryCode: null,
+            Region: null,
+            City: null,
+            FromUtc: fromUtc,
+            ToUtc: toUtc,
+            Page: 1,
+            PageSize: 20));
+
+        var includeAutomationOverview = await service.GetOverviewAsync(new AdminLandingAnalyticsQueryDto(
+            SearchTerm: null,
+            Origin: null,
+            Path: null,
+            CountryCode: null,
+            Region: null,
+            City: null,
+            FromUtc: fromUtc,
+            ToUtc: toUtc,
+            Page: 1,
+            PageSize: 20,
+            IncludeSuspectedAutomation: true));
+
+        Assert.Equal(1, defaultOverview.TotalSessions);
+        Assert.DoesNotContain(defaultOverview.CityBreakdown, item => item.Label == "Ashburn");
+        Assert.Equal(2, includeAutomationOverview.TotalSessions);
+        Assert.Contains(includeAutomationOverview.CityBreakdown, item => item.Label == "Ashburn");
+    }
 }

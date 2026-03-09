@@ -2657,6 +2657,7 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
             ["countryCode"] = string.IsNullOrWhiteSpace(filters.CountryCode) ? null : filters.CountryCode.Trim().ToUpperInvariant(),
             ["region"] = string.IsNullOrWhiteSpace(filters.Region) ? null : filters.Region.Trim(),
             ["city"] = string.IsNullOrWhiteSpace(filters.City) ? null : filters.City.Trim(),
+            ["includeSuspectedAutomation"] = filters.IncludeSuspectedAutomation.ToString().ToLowerInvariant(),
             ["page"] = Math.Max(1, filters.Page).ToString(CultureInfo.InvariantCulture),
             ["pageSize"] = Math.Clamp(filters.PageSize, 1, 100).ToString(CultureInfo.InvariantCulture),
             ["fromUtc"] = filters.FromUtc?.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture),

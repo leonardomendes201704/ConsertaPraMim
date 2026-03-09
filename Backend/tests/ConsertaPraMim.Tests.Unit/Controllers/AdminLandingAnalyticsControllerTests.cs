@@ -55,6 +55,7 @@ public class AdminLandingAnalyticsControllerTests
             countryCode: null,
             region: null,
             city: null,
+            includeSuspectedAutomation: false,
             fromUtc: null,
             toUtc: null,
             page: 1,
@@ -63,6 +64,10 @@ public class AdminLandingAnalyticsControllerTests
 
         var ok = Assert.IsType<OkObjectResult>(result);
         Assert.Same(overview, ok.Value);
+
+        serviceMock.Verify(service => service.GetOverviewAsync(
+            It.Is<AdminLandingAnalyticsQueryDto>(query => !query.IncludeSuspectedAutomation),
+            It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact(DisplayName = "Admin landing analytics controller | Detalhe | Deve retornar not found quando a sessao nao existir")]

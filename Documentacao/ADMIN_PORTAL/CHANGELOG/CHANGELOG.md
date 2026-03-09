@@ -8,7 +8,39 @@
 
 ## Unreleased
 
+- (sem itens)
+
 ## Released
+
+- [2026-03-09] [ST-071][ADMIN-FIRETV-BACK-TO-MENU] Botao voltar do controle retorna ao menu central
+- Tipo: fix
+- Resumo: nas views `Metricas da landing` e `Visao operacional`, o app Fire TV passou a interceptar o botao de voltar do controle remoto (listener nativo `@capacitor/app` com fallback por teclado/webview) para sempre retornar ao `Menu` sem encerrar o app.
+- Arquivos principais: `conserta-pra-mim-firetv app/App.tsx`, `conserta-pra-mim-firetv app/package.json`, `conserta-pra-mim-firetv app/package-lock.json`, `Documentacao/ADMIN_PORTAL/RUNBOOKS/RUNBOOK_FIRE_TV_DASHBOARD_ST-066.md`
+- Risco/Impacto: baixo
+
+- [2026-03-09] [ST-060][ADMIN-LANDING-ANALYTICS-BOT-FILTER] Filtro de bots/datacenter no Analytics Landing
+- Tipo: fix
+- Resumo: o modulo `Analytics Landing` passou a excluir por padrao sessoes suspeitas de automacao (bot/datacenter), com novo toggle de filtro (`Incluir trafego suspeito`) no drawer para reintroduzir esse trafego somente quando necessario para investigacao.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/Services/AdminLandingAnalyticsService.cs`, `Backend/src/ConsertaPraMim.API/Controllers/AdminLandingAnalyticsController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminLandingAnalytics/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminLandingAnalyticsController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/AdminOperationsApiClient.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminLandingAnalyticsServiceTests.cs`
+- Risco/Impacto: medio
+
+- [2026-03-09] [ST-071][ADMIN-FIRETV-OPS-ENTER-SFX] Sinal sonoro ao entrar na visao operacional
+- Tipo: feat
+- Resumo: a tela `Visao Operacional` do app Fire TV passou a tocar um alerta sonoro unico no momento de entrada (`mount`), usando o asset local `public/sounds/operational-enter.mp3`, sem repetir durante polling/realtime e com fallback silencioso para eventuais restricoes de autoplay.
+- Arquivos principais: `conserta-pra-mim-firetv app/components/OperationsDashboardScreen.tsx`, `conserta-pra-mim-firetv app/public/sounds/operational-enter.mp3`
+- Risco/Impacto: baixo
+
+- [2026-03-09] [ST-071][ADMIN-FIRETV-ICON-BRANDING] Icone Android TV atualizado com logo oficial
+- Tipo: feat
+- Resumo: o app `ConsertaPraMim TV` passou a usar a arte `so-logo-consertapramim-fundo-branco.png` como base dos recursos de launcher Android (`ic_launcher`, `ic_launcher_round` e `ic_launcher_foreground`) em todas as densidades `mipmap`, alinhando a identidade visual do app na home do Fire Stick.
+- Arquivos principais: `conserta-pra-mim-firetv app/android/app/src/main/res/mipmap-mdpi/ic_launcher.png`, `conserta-pra-mim-firetv app/android/app/src/main/res/mipmap-hdpi/ic_launcher.png`, `conserta-pra-mim-firetv app/android/app/src/main/res/mipmap-xhdpi/ic_launcher.png`, `conserta-pra-mim-firetv app/android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png`, `conserta-pra-mim-firetv app/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png`
+- Risco/Impacto: baixo
+
+- [2026-03-09] [ST-071][ADMIN-FIRETV-TV-CENTERING] Centralizacao do canvas 16:9 no Fire Stick
+- Tipo: fix
+- Resumo: a shell fixa da app Fire TV passou a calcular `offsetX/offsetY` em runtime e aplicar o stage com `transform-origin: top left`, eliminando deslocamento lateral/vertical observado em TV real quando a viewport do WebView nao casa exatamente com o canvas base.
+- Arquivos principais: `conserta-pra-mim-firetv app/App.tsx`, `conserta-pra-mim-firetv app/styles.css`
+- Risco/Impacto: baixo
 
 - [2026-03-09] [ST-071][ADMIN-FIRETV-OPS-UX] Refino visual e estabilidade operacional da visao Fire TV
 - Tipo: fix

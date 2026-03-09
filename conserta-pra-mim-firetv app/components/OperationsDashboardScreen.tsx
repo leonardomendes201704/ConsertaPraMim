@@ -28,6 +28,9 @@ interface OperationsDashboardScreenProps {
   onLogout: () => void;
 }
 
+const ENTER_OPERATIONAL_SOUND_SRC = '/sounds/operational-enter.mp3';
+const ENTER_OPERATIONAL_SOUND_VOLUME = 0.82;
+
 function getToneColor(index: number): string {
   const palette = ['#facc15', '#3b82f6', '#f97316', '#38bdf8', '#22c55e', '#a855f7'];
   return palette[index % palette.length];
@@ -514,6 +517,7 @@ const OperationsDashboardScreen: React.FC<OperationsDashboardScreenProps> = ({
   const [realtimeConnected, setRealtimeConnected] = useState(false);
   const [clock, setClock] = useState(() => new Date());
   const [activityPanelHeight, setActivityPanelHeight] = useState<number | null>(null);
+  const enterSoundPlayedRef = useRef(false);
 
   const loadDashboard = useCallback(async (options?: { silent?: boolean }) => {
     if (!options?.silent) {
@@ -537,6 +541,30 @@ const OperationsDashboardScreen: React.FC<OperationsDashboardScreenProps> = ({
       }
     }
   }, [onLogout, session.token]);
+
+  useEffect(() => {
+    if (enterSoundPlayedRef.current) {
+      return;
+    }
+
+    enterSoundPlayedRef.current = true;
+
+    const audio = new Audio(ENTER_OPERATIONAL_SOUND_SRC);
+    audio.preload = 'auto';
+    audio.volume = ENTER_OPERATIONAL_SOUND_VOLUME;
+
+    const playPromise = audio.play();
+    if (playPromise) {
+      void playPromise.catch(() => {
+        // Ignore autoplay restrictions on devices/browsers that require extra interaction.
+      });
+    }
+
+    return () => {
+      audio.pause();
+      audio.currentTime = 0;
+    };
+  }, []);
 
   useEffect(() => {
     void loadDashboard();

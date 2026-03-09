@@ -25,6 +25,10 @@ python scripts/build_apks.py --app firetv
 - `ConsertaPraMim-FireTV-compat.apk`
 - `SHA256.txt`
 
+3. Branding de icone (launcher):
+- Os recursos Android do launcher ficam em `conserta-pra-mim-firetv app/android/app/src/main/res/mipmap-*`.
+- Quando houver troca de logo oficial, regenerar os arquivos `ic_launcher.png`, `ic_launcher_round.png` e `ic_launcher_foreground.png` antes do build do APK.
+
 ## Instalacao no Fire Stick
 
 1. No dispositivo, habilite:
@@ -54,6 +58,7 @@ adb install -r apk-output/ConsertaPraMim-FireTV-debug.apk
 - [ ] Os filtros `Janela`, `Origem` e `Comparacao` funcionam pelo controle remoto.
 - [ ] O heatmap, o scrollmap e o ranking de elementos aparecem quando habilitados.
 - [ ] A `Visao operacional` exibe status realtime, mapa operacional, grafico diario em linha e KPIs executivos sem overflow visual.
+- [ ] Ao entrar na `Visao operacional` pelo menu, o alerta sonoro de entrada toca uma unica vez.
 - [ ] O botao `Voltar` retorna ao menu central em ambas as views.
 - [ ] O refresh manual funciona.
 - [ ] O auto refresh atualiza a tela sem derrubar a sessao.
@@ -105,6 +110,16 @@ Na secao `Configuracoes -> Fire TV Dashboard`, validar principalmente:
 - Confirmar se o origin do app esta permitido no CORS quando o app for testado fora do Fire Stick.
 - Confirmar se `SignalRPulseSeconds` esta entre `5` e `60`.
 
+### Som de entrada da visao operacional nao toca
+- Confirmar se o arquivo `public/sounds/operational-enter.mp3` foi empacotado no build.
+- Confirmar se o acesso a tela ocorreu por interacao do usuario no menu (alguns WebViews bloqueiam autoplay sem gesto).
+- Fechar e reabrir o app apos reinstalar APK para limpar cache de assets.
+
+### Botao voltar do controle nao retorna ao menu
+- Confirmar se o build publicado inclui `@capacitor/app` instalado no app Fire TV.
+- Confirmar se o APK foi regenerado apos alteracao em `App.tsx` (`python scripts/build_apks.py --app firetv`).
+- Validar no dispositivo se o evento de back esta chegando (remoto ou tecla `Esc/Backspace` em ambiente web de teste).
+
 ### Health check mostra alvos offline indevidamente
 - Revisar a lista `HealthTargets` na secao `Configuracoes -> Fire TV Dashboard`.
 - Confirmar se as URLs configuradas respondem com `200` ou `302`.
@@ -114,6 +129,12 @@ Na secao `Configuracoes -> Fire TV Dashboard`, validar principalmente:
 - Confirmar se o build publicado inclui os ajustes de camada (`z-index`) do mapa e da legenda.
 - Fazer rebuild/preview limpo do app (`npm run build` + `vite preview`) para evitar bundle stale.
 - Validar se nao existe instancia antiga do preview na mesma porta.
+
+### Layout escalou, mas ficou deslocado (nao centralizado) na TV
+- Confirmar se o build publicado inclui a shell com `--tv-offset-x/--tv-offset-y` e stage absoluto.
+- Gerar novo APK apos o ajuste: `python scripts/build_apks.py --app firetv`.
+- Reinstalar com `adb install -r apk-output/ConsertaPraMim-FireTV-debug.apk`.
+- Fechar/reabrir o app no Fire TV para evitar cache de instancia anterior.
 
 ### Scrollmap ou ranking nao aparecem
 - Confirmar `ShowScrollmap=true` e `ShowElementRanking=true` no runtime config.

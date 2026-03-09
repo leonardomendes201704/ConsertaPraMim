@@ -36,8 +36,8 @@ public sealed class FireTvDashboardRuntimeConfigDto
     public int SessionPageSize { get; init; } = 6;
     public int TopListSize { get; init; } = 5;
     public int OperationsHistoryDays { get; init; } = 7;
-    public int OperationsRefreshSeconds { get; init; } = 5;
-    public int SignalRPulseSeconds { get; init; } = 5;
+    public int OperationsRefreshSeconds { get; init; } = 20;
+    public int SignalRPulseSeconds { get; init; } = 20;
     public int OperationsMapMaxProviders { get; init; } = 12;
     public int OperationsMapMaxRequests { get; init; } = 12;
     public int OperationsRecentActivitySize { get; init; } = 6;

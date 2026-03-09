@@ -289,7 +289,7 @@
                         <div class="d-flex align-items-center gap-2 mb-2"><span class="manual-module-icon bg-analytics"><i class="fas fa-chart-area"></i></span><h3 class="h6 mb-0">Analytics Landing</h3></div>
                         <ul class="mb-0">
                             <li>Overview com KPI de sessoes, visitantes unicos, GeoIP, heartbeat, scroll, clique e leads.</li>
-                            <li>Drawer offcanvas com filtros de busca, origem, pagina, pais, regiao, cidade e periodo.</li>
+                            <li>Drawer offcanvas com filtros de busca, origem, pagina, pais, regiao, cidade, periodo e toggle para incluir/excluir trafego suspeito (bot/datacenter).</li>
                             <li>Breakdowns por pagina, origem, pais, regiao, cidade e tipo de evento.</li>
                             <li>Heatmap agregado fase 1 e grid paginado de sessoes com link para detalhe operacional.</li>
                             <li>Tela de detalhe por sessao com timeline, localidade estimada por GeoIP e lead correlacionado.</li>
@@ -884,8 +884,8 @@
                     <tr>
                         <td>QA-ADM-071</td>
                         <td>Overview do modulo Analytics Landing</td>
-                        <td>No portal admin, abrir `Analytics Landing`, aplicar filtros pelo drawer (`busca`, `origem`, `pagina`, `pais`, `regiao`, `cidade`, `periodo`) e validar KPI, breakdowns, heatmap e grid de sessoes.</td>
-                        <td>A tela deve refletir o recorte aplicado com KPI de sessoes, visitantes unicos, GeoIP, tempo ativo medio, scroll medio, cliques, aberturas de formulario e leads; os breakdowns precisam permanecer em PT-BR, o heatmap deve mostrar hits agregados por celula e o grid deve listar `sessionId`, localidade estimada e link para detalhe.</td>
+                        <td>No portal admin, abrir `Analytics Landing`, aplicar filtros pelo drawer (`busca`, `origem`, `pagina`, `pais`, `regiao`, `cidade`, `periodo`) e validar o toggle `Incluir trafego suspeito (bots/datacenter)` ligado e desligado.</td>
+                        <td>Com toggle desligado (padrao), a tela deve priorizar audiencia humana; com toggle ligado, o volume total de sessoes pode subir ao incluir trafego suspeito. Em ambos os cenarios, KPI, breakdowns, heatmap e grid precisam respeitar o recorte aplicado e manter labels em PT-BR.</td>
                     </tr>
                     <tr>
                         <td>QA-ADM-072</td>
@@ -1027,6 +1027,11 @@
                         <td>`Analytics Landing` abre sem sessoes, heatmap ou GeoIP</td>
                         <td>Telemetria runtime desabilitada, periodo fora do recorte, ingestao de eventos nao executada ou GeoIP ignorado por IP privado/proxy sem `X-Forwarded-For`</td>
                         <td>Validar a secao `Landing Analytics` em `Configuracoes`, conferir `GET /api/landing-analytics/public/config`, revisar `LandingAccessEvents`/`LandingTelemetryEvents` no banco e confirmar se a VPS/Nginx esta repassando `X-Forwarded-For` publico.</td>
+                    </tr>
+                    <tr>
+                        <td>`Analytics Landing` mostra cidades de datacenter dominando o ranking (ex.: Ashburn, Council Bluffs)</td>
+                        <td>Toggle `Incluir trafego suspeito (bots/datacenter)` habilitado ou trafego automatizado recente no periodo filtrado</td>
+                        <td>Desligar o toggle no drawer para voltar ao recorte humano padrao; se precisar investigar anomalia, ligar novamente e cruzar `User-Agent`, `GeoProvider` e engajamento (`tempo ativo`, `cliques`, `leads`) no detalhe das sessoes.</td>
                     </tr>
                     <tr>
                         <td>Telas admin retornam "Token ausente"</td>

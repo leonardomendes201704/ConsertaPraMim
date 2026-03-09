@@ -847,6 +847,7 @@ public static class ApiEndpointDocumentationCatalog
                 Rules:
                 [
                     "Filtros administrativos devem usar periodo, origem, pagina, pais, regiao, cidade e busca textual por sessao/visitante/lead.",
+                    "Por padrao, o overview deve excluir trafego suspeito de bot/datacenter; o include explicito ocorre via query param `includeSuspectedAutomation=true`.",
                     "Heatmap fase 1 deve ser agregado por grid e nao por replay de sessao.",
                     "O detalhe administrativo da sessao deve exibir timeline correlacionada com acesso, eventos comportamentais e lead captado."
                 ]),

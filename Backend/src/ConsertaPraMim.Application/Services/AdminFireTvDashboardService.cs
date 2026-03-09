@@ -407,7 +407,8 @@ public sealed class AdminFireTvDashboardService : IAdminFireTvDashboardService
             FromUtc: fromUtc,
             ToUtc: toUtc,
             Page: 1,
-            PageSize: pageSize);
+            PageSize: pageSize,
+            IncludeSuspectedAutomation: false);
     }
 
     private static IReadOnlyList<AdminFireTvDashboardFilterOptionDto> MapFilterOptions(

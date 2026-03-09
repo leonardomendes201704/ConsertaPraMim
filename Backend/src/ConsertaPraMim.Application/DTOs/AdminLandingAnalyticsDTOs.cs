@@ -12,7 +12,8 @@ public sealed record AdminLandingAnalyticsQueryDto(
     DateTime? FromUtc,
     DateTime? ToUtc,
     int Page,
-    int PageSize);
+    int PageSize,
+    bool IncludeSuspectedAutomation = false);
 
 public sealed record AdminLandingAnalyticsBreakdownItemDto(
     string Label,
