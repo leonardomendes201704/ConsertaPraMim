@@ -58,6 +58,7 @@ public static class DependencyInjection
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminMailboxService, ConsertaPraMim.Application.Services.AdminMailboxService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminLandingLeadService, ConsertaPraMim.Application.Services.AdminLandingLeadService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminLandingAnalyticsService, ConsertaPraMim.Application.Services.AdminLandingAnalyticsService>();
+        services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminFireTvDashboardService, ConsertaPraMim.Application.Services.AdminFireTvDashboardService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.ILandingAdminNotificationService, ConsertaPraMim.Application.Services.LandingAdminNotificationService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.ILandingAccessEventService, ConsertaPraMim.Application.Services.LandingAccessEventService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.ILandingTelemetryEventService, ConsertaPraMim.Application.Services.LandingTelemetryEventService>();

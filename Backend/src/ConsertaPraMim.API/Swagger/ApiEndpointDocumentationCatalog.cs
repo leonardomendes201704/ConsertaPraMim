@@ -154,6 +154,15 @@ public static class ApiEndpointDocumentationCatalog
                 ExpectedOutcome: "Lista paginada com totalizadores por origem e itens suficientes para o grid administrativo navegar para o detalhe do lead.");
         }
 
+        if (path.Contains("/api/admin/fire-tv/landing-dashboard", StringComparison.Ordinal) &&
+            httpMethod == "GET")
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Entregar um snapshot enxuto dos principais KPIs da landing para exibicao continua em app Fire TV/Android TV.",
+                Scenario: "App read-only do time interno autentica como admin e consome um payload consolidado com 8 KPIs, heatmap agregado, origens, localidades e sessoes recentes.",
+                ExpectedOutcome: "Resposta otimizada para TV com refresh automatico, sem depender da navegacao completa do portal admin.");
+        }
+
         if (path.Contains("/api/admin/dashboard", StringComparison.Ordinal) &&
             !path.Contains("/coverage-map", StringComparison.Ordinal) &&
             httpMethod == "GET")
@@ -831,6 +840,18 @@ public static class ApiEndpointDocumentationCatalog
                     "Filtros administrativos devem usar periodo, origem, pagina, pais, regiao, cidade e busca textual por sessao/visitante/lead.",
                     "Heatmap fase 1 deve ser agregado por grid e nao por replay de sessao.",
                     "O detalhe administrativo da sessao deve exibir timeline correlacionada com acesso, eventos comportamentais e lead captado."
+                ]),
+            "AdminFireTvDashboard" => new CatalogEntry(
+                DomainTitle: "Dashboard TV da Landing",
+                ResourceLabel: "snapshot executivo para Fire TV",
+                BusinessContext: "Disponibiliza uma leitura executiva, continua e simplificada da landing publica em telas de operacao conectadas a Fire TV/Android TV.",
+                TechnicalContext: "Consumido por um app read-only autenticado como admin, com payload reduzido para TV contendo KPIs, heatmap, origens, localidades e sessoes recentes.",
+                Audience: "App Fire TV/Admin/Growth/Operacao Comercial",
+                Rules:
+                [
+                    "Todos os parametros do dashboard TV devem ser configurados por runtime config em banco e editaveis via UI admin.",
+                    "O payload deve permanecer enxuto e estavel para refresh automatico frequente em dispositivos TV.",
+                    "O dashboard TV e somente leitura; qualquer triagem detalhada continua no portal admin."
                 ]),
             "Files" => new CatalogEntry(
                 DomainTitle: "Arquivos e Midia",

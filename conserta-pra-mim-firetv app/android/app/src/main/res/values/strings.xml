@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">ConsertaPraMim TV</string>
+    <string name="title_activity_main">ConsertaPraMim TV</string>
+    <string name="package_name">com.consertapramim.firetv</string>
+    <string name="custom_url_scheme">com.consertapramim.firetv</string>
+</resources>

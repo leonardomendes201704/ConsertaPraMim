@@ -261,6 +261,36 @@ public static class RuntimeConfigSections
               }
             }
             """,
+            RequiresRestart: false),
+        new RuntimeConfigSectionDefinition(
+            SettingKey: SystemSettingKeys.ConfigFireTvDashboard,
+            SectionPath: "FireTvDashboard",
+            DisplayName: "Fire TV Dashboard",
+            Description: "Configura o dashboard read-only da landing exibido no app Fire TV, incluindo KPIs, janelas e auto refresh.",
+            DefaultJson:
+            """
+            {
+              "Enabled": true,
+              "AppTitle": "ConsertaPraMim Analytics TV",
+              "AppSubtitle": "Landing publica",
+              "DefaultRangeDays": 7,
+              "AllowedRangeDays": [1, 7, 30],
+              "AutoRefreshSeconds": 30,
+              "SessionPageSize": 6,
+              "TopListSize": 5,
+              "ShowHeatmap": true,
+              "KpiKeys": [
+                "totalSessions",
+                "uniqueVisitors",
+                "leadSubmissions",
+                "leadSubmissionRatePercent",
+                "leadModalOpens",
+                "totalClicks",
+                "averageActiveSecondsPerSession",
+                "averageMaxScrollPercent"
+              ]
+            }
+            """,
             RequiresRestart: false)
     ];
 

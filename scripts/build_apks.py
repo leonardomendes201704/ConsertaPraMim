@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """
-Build dos APKs Android (cliente, prestador e admin) em um comando.
+Build dos APKs Android (cliente, prestador, admin e Fire TV) em um comando.
 
 Uso basico:
     python scripts/build_apks.py
 
 Exemplo com API explicita (apenas para confirmar o mesmo valor padrao):
-    python scripts/build_apks.py --api-base-url http://187.77.48.150:5193
+    python scripts/build_apks.py --api-base-url https://api.consertapramim.com
 
 Exemplo com publicacao automatica por SFTP:
-    python scripts/build_apks.py --api-base-url http://187.77.48.150:5193 ^
+    python scripts/build_apks.py --api-base-url https://api.consertapramim.com ^
         --publish-sftp-host 187.77.48.150 --publish-sftp-user root --publish-sftp-dir /var/www/apks ^
         --publish-sftp-key C:/Users/devcr/.ssh/my-repository
 
@@ -32,7 +32,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Iterable
 
-VPS_API_BASE_URL = "http://187.77.48.150:5193"
+VPS_API_BASE_URL = "https://api.consertapramim.com"
 
 
 @dataclass(frozen=True)
@@ -65,6 +65,13 @@ APPS: tuple[AppConfig, ...] = (
         folder="conserta-pra-mim-admin app",
         output_debug_name="ConsertaPraMim-Admin-debug.apk",
         output_compat_name="ConsertaPraMim-Admin-compat.apk",
+    ),
+    AppConfig(
+        key="firetv",
+        name="Fire TV",
+        folder="conserta-pra-mim-firetv app",
+        output_debug_name="ConsertaPraMim-FireTV-debug.apk",
+        output_compat_name="ConsertaPraMim-FireTV-compat.apk",
     ),
 )
 
@@ -363,7 +370,7 @@ def write_checksums(output_dir: Path, files: Iterable[Path], api_base_url: str) 
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Build automatizado dos APKs ConsertaPraMim (cliente, prestador e admin)."
+        description="Build automatizado dos APKs ConsertaPraMim (cliente, prestador, admin e Fire TV)."
     )
     parser.add_argument(
         "--api-base-url",
@@ -393,7 +400,7 @@ def main() -> int:
         choices=sorted(APP_INDEX.keys()),
         default=None,
         help=(
-            "Seleciona app(s) para build: client, provider, admin. "
+            "Seleciona app(s) para build: client, provider, admin, firetv. "
             "Pode repetir --app para multiplos valores."
         ),
     )

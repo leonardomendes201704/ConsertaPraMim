@@ -10,6 +10,24 @@
 
 ## Released
 
+- [2026-03-08] [ST-066][ADMIN-FIRETV-APK] Build padrao e instalacao do APK Fire TV
+- Tipo: feat
+- Resumo: o script oficial `scripts/build_apks.py` passou a gerar os artefatos `ConsertaPraMim-FireTV-debug.apk` e `ConsertaPraMim-FireTV-compat.apk`, usando por padrao `https://api.consertapramim.com`, com runbook de instalacao via `adb` no Fire Stick / Fire TV.
+- Arquivos principais: `scripts/build_apks.py`, `conserta-pra-mim-firetv app/README.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-066-build-apk-instalacao-fire-stick.md`, `Documentacao/ADMIN_PORTAL/RUNBOOKS/RUNBOOK_FIRE_TV_DASHBOARD_ST-066.md`
+- Risco/Impacto: medio
+
+- [2026-03-08] [ST-065][ADMIN-FIRETV-APP] App Fire TV para acompanhamento da landing
+- Tipo: feat
+- Resumo: criado o app `ConsertaPraMim TV` em React + Capacitor para Fire TV / Android TV, com login admin, leitura continua dos 8 KPIs principais da landing, heatmap fase 1, top origens/localidades, sessoes recentes, auto refresh e manifesto Android TV com `LEANBACK_LAUNCHER`.
+- Arquivos principais: `conserta-pra-mim-firetv app/App.tsx`, `conserta-pra-mim-firetv app/components/DashboardScreen.tsx`, `conserta-pra-mim-firetv app/components/LoginScreen.tsx`, `conserta-pra-mim-firetv app/services/auth.ts`, `conserta-pra-mim-firetv app/services/dashboard.ts`, `conserta-pra-mim-firetv app/android/app/src/main/AndroidManifest.xml`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-065-app-fire-tv-kpis-landing.md`
+- Risco/Impacto: medio
+
+- [2026-03-08] [ST-064][ADMIN-FIRETV-API] Endpoint e runtime config do dashboard Fire TV
+- Tipo: feat
+- Resumo: a API passou a expor `GET /api/admin/fire-tv/landing-dashboard`, com snapshot executivo da landing para TV, e a secao runtime `FireTvDashboard` passou a ficar persistida em `SystemSettings`, com defaults seguros e edicao pela tela de `Configuracoes` do Admin.
+- Arquivos principais: `Backend/src/ConsertaPraMim.API/Controllers/AdminFireTvDashboardController.cs`, `Backend/src/ConsertaPraMim.Application/DTOs/AdminFireTvDashboardDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminFireTvDashboardService.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Services/FireTvDashboardRuntimeSettings.cs`, `Backend/src/ConsertaPraMim.Application/Constants/RuntimeConfigSections.cs`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-064-api-runtime-config-dashboard-fire-tv.md`
+- Risco/Impacto: medio
+
 - [2026-03-08] [ST-060][ADMIN-LANDING-ANALYTICS] Analytics comportamental da landing no Portal Admin
 - Tipo: feat
 - Resumo: o Portal Admin passou a expor o modulo `Analytics Landing`, com menu proprio, filtros em drawer/offcanvas, KPI de sessoes/visitantes/GeoIP/heartbeat/scroll/cliques/leads, breakdown por pagina/origem/geografia/eventos, heatmap agregado fase 1 e detalhe operacional por sessao com timeline, metadados tecnicos e correlacao com lead quando existir.

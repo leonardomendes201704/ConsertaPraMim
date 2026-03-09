@@ -30,6 +30,8 @@
 - [EPIC-026 - Leads publicos da landing no Portal Admin](EPICS/EPIC-026-leads-publicos-landing-admin.md)
 - [EPIC-027 - KPIs da landing no dashboard admin](EPICS/EPIC-027-kpis-landing-no-dashboard-admin.md)
 - [EPIC-028 - Analytics comportamental da landing no Portal Admin](EPICS/EPIC-028-analytics-comportamental-da-landing-no-admin.md)
+- [EPIC-029 - Analytics avancado da landing no Portal Admin](EPICS/EPIC-029-analytics-avancado-da-landing-no-admin.md)
+- [EPIC-030 - Dashboard Fire TV da landing no ecossistema Admin](EPICS/EPIC-030-dashboard-fire-tv-landing-admin.md)
 
 ## Stories
 
@@ -40,6 +42,9 @@
 - [ST-024 - UI de atendimento no portal admin](STORIES/BACKLOG/ST-024-ui-atendimento-portal-admin.md)
 - [ST-025 - Realtime, notificacoes e SLA basico de suporte](STORIES/BACKLOG/ST-025-realtime-notificacoes-sla-suporte.md)
 - [ST-026 - Auditoria, QA e rollout do modulo de suporte](STORIES/BACKLOG/ST-026-auditoria-qa-rollout-suporte.md)
+- [ST-061 - Filtros avancados e visao comparativa do analytics da landing](STORIES/BACKLOG/ST-061-filtros-avancados-e-visao-comparativa-analytics-landing.md)
+- [ST-062 - Heatmap contextual, scrollmap e ranking de elementos no Admin](STORIES/BACKLOG/ST-062-heatmap-contextual-scrollmap-e-ranking-elementos-landing.md)
+- [ST-063 - Sessoes, cohorts e qualidade de trafego da landing no Admin](STORIES/BACKLOG/ST-063-sessoes-cohorts-e-qualidade-de-trafego-landing.md)
 
 ### In Progress
 
@@ -99,11 +104,12 @@
 - [ST-058 - Gestao administrativa de leads captados pela landing](STORIES/DONE/ST-058-gestao-admin-leads-landing.md)
 - [ST-059 - KPIs de visitas, cadastros e conversao da landing na home admin](STORIES/DONE/ST-059-kpis-visitas-cadastros-e-conversao-landing-dashboard.md)
 - [ST-060 - Dashboard e detalhe operacional de analytics da landing](STORIES/DONE/ST-060-dashboard-e-detalhe-operacional-de-analytics-da-landing.md)
+- [ST-064 - API e runtime config do dashboard Fire TV](STORIES/DONE/ST-064-api-runtime-config-dashboard-fire-tv.md)
+- [ST-065 - App Fire TV para KPIs da landing](STORIES/DONE/ST-065-app-fire-tv-kpis-landing.md)
+- [ST-066 - Build APK e instalacao no Fire Stick](STORIES/DONE/ST-066-build-apk-instalacao-fire-stick.md)
 
 ## Runbooks
 
 - [RUNBOOK ST-046 - Operacao e Contestacao de No-show/Cancelamento](RUNBOOKS/RUNBOOK_NO_SHOW_CANCELAMENTO_ST-046.md)
 - [RUNBOOK ST-050 - Melhoria Operacional por Baixa Avaliacao](RUNBOOKS/RUNBOOK_MELHORIA_BAIXA_AVALIACAO_ST-050.md)
-
-
-
+- [RUNBOOK ST-066 - Build e instalacao do dashboard Fire TV](RUNBOOKS/RUNBOOK_FIRE_TV_DASHBOARD_ST-066.md)
