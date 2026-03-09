@@ -1716,26 +1716,32 @@ jobs:
           APK_RELEASE_PUSH_TOKEN: ${{ secrets.APK_RELEASE_PUSH_TOKEN }}
         run: |
           if ([string]::IsNullOrWhiteSpace($env:APK_RELEASE_PUSH_TOKEN)) {
-            Write-Host "::warning::Secret APK_RELEASE_PUSH_TOKEN nao configurada. Metadados de APK nao publicados."
+            Write-Host "::notice::Secret APK_RELEASE_PUSH_TOKEN nao configurada. Metadados de APK nao publicados."
             exit 0
           }
-          $vpsHostRaw = "${{ secrets.VPS_PUBLIC_HOST }}".Trim().TrimEnd("/")
-          $apiBase = if ($vpsHostRaw.StartsWith("http://") -or $vpsHostRaw.StartsWith("https://")) {
-            $vpsHostRaw
-          } else {
-            "http://$vpsHostRaw"
+          $apiBaseRaw = "${{ secrets.PUBLIC_API_URL }}".Trim().TrimEnd("/")
+          if ([string]::IsNullOrWhiteSpace($apiBaseRaw)) {
+            $vpsHostRaw = "${{ secrets.VPS_PUBLIC_HOST }}".Trim().TrimEnd("/")
+            $apiBaseRaw = if ($vpsHostRaw.StartsWith("http://") -or $vpsHostRaw.StartsWith("https://")) {
+              $vpsHostRaw
+            } else {
+              "http://$vpsHostRaw"
+            }
           }
           try {
-            $apiBuilder = [System.UriBuilder]$apiBase
+            $apiBaseUri = [System.Uri]$apiBaseRaw
           } catch {
-            Write-Host "::warning::VPS_PUBLIC_HOST invalido para publicar metadado de APK (client)."
+            Write-Host "::notice::PUBLIC_API_URL/VPS_PUBLIC_HOST invalido para publicar metadado de APK (client)."
             exit 0
           }
-          $apiBuilder.Port = [int]"${{ env.API_PORT }}"
+          $apiBuilder = [System.UriBuilder]$apiBaseUri
+          if ($apiBuilder.Port -le 0) {
+            $apiBuilder.Port = [int]"${{ env.API_PORT }}"
+          }
           $apiBuilder.Path = "/api/internal/deploy/apk-publication"
           $apiBuilder.Query = ""
           $apiBuilder.Fragment = ""
-          $metadataUrl = $apiBuilder.Uri.ToString()
+          $metadataUrl = $apiBuilder.Uri.AbsoluteUri
 
           $payload = @{
             appKind = "client"
@@ -1755,7 +1761,7 @@ jobs:
               -TimeoutSec 30
             Write-Host "Metadado de APK client publicado: $($response.publishedAtUtc)"
           } catch {
-            Write-Host "::warning::Falha ao publicar metadado de APK client: $($_.Exception.Message)"
+            Write-Host "::notice::Falha ao publicar metadado de APK client: $($_.Exception.Message)"
           }
 
   build-apk-mobile-provider:
@@ -1975,26 +1981,32 @@ jobs:
           APK_RELEASE_PUSH_TOKEN: ${{ secrets.APK_RELEASE_PUSH_TOKEN }}
         run: |
           if ([string]::IsNullOrWhiteSpace($env:APK_RELEASE_PUSH_TOKEN)) {
-            Write-Host "::warning::Secret APK_RELEASE_PUSH_TOKEN nao configurada. Metadados de APK nao publicados."
+            Write-Host "::notice::Secret APK_RELEASE_PUSH_TOKEN nao configurada. Metadados de APK nao publicados."
             exit 0
           }
-          $vpsHostRaw = "${{ secrets.VPS_PUBLIC_HOST }}".Trim().TrimEnd("/")
-          $apiBase = if ($vpsHostRaw.StartsWith("http://") -or $vpsHostRaw.StartsWith("https://")) {
-            $vpsHostRaw
-          } else {
-            "http://$vpsHostRaw"
+          $apiBaseRaw = "${{ secrets.PUBLIC_API_URL }}".Trim().TrimEnd("/")
+          if ([string]::IsNullOrWhiteSpace($apiBaseRaw)) {
+            $vpsHostRaw = "${{ secrets.VPS_PUBLIC_HOST }}".Trim().TrimEnd("/")
+            $apiBaseRaw = if ($vpsHostRaw.StartsWith("http://") -or $vpsHostRaw.StartsWith("https://")) {
+              $vpsHostRaw
+            } else {
+              "http://$vpsHostRaw"
+            }
           }
           try {
-            $apiBuilder = [System.UriBuilder]$apiBase
+            $apiBaseUri = [System.Uri]$apiBaseRaw
           } catch {
-            Write-Host "::warning::VPS_PUBLIC_HOST invalido para publicar metadado de APK (provider)."
+            Write-Host "::notice::PUBLIC_API_URL/VPS_PUBLIC_HOST invalido para publicar metadado de APK (provider)."
             exit 0
           }
-          $apiBuilder.Port = [int]"${{ env.API_PORT }}"
+          $apiBuilder = [System.UriBuilder]$apiBaseUri
+          if ($apiBuilder.Port -le 0) {
+            $apiBuilder.Port = [int]"${{ env.API_PORT }}"
+          }
           $apiBuilder.Path = "/api/internal/deploy/apk-publication"
           $apiBuilder.Query = ""
           $apiBuilder.Fragment = ""
-          $metadataUrl = $apiBuilder.Uri.ToString()
+          $metadataUrl = $apiBuilder.Uri.AbsoluteUri
 
           $payload = @{
             appKind = "provider"
@@ -2014,7 +2026,7 @@ jobs:
               -TimeoutSec 30
             Write-Host "Metadado de APK provider publicado: $($response.publishedAtUtc)"
           } catch {
-            Write-Host "::warning::Falha ao publicar metadado de APK provider: $($_.Exception.Message)"
+            Write-Host "::notice::Falha ao publicar metadado de APK provider: $($_.Exception.Message)"
           }
 
       - name: Notify APK release push (provider)
@@ -2023,18 +2035,43 @@ jobs:
           APK_RELEASE_PUSH_TOKEN: ${{ secrets.APK_RELEASE_PUSH_TOKEN }}
         run: |
           if ([string]::IsNullOrWhiteSpace($env:APK_RELEASE_PUSH_TOKEN)) {
-            Write-Host "::warning::Secret APK_RELEASE_PUSH_TOKEN nao configurada. Push de release ignorado."
+            Write-Host "::notice::Secret APK_RELEASE_PUSH_TOKEN nao configurada. Push de release ignorado."
             exit 0
           }
-          $vpsHostRaw = "${{ secrets.VPS_PUBLIC_HOST }}".Trim().TrimEnd("/")
-          $apiBase = if ($vpsHostRaw.StartsWith("http://") -or $vpsHostRaw.StartsWith("https://")) {
-            $vpsHostRaw
-          } else {
-            "http://$vpsHostRaw"
+          $apiBaseRaw = "${{ secrets.PUBLIC_API_URL }}".Trim().TrimEnd("/")
+          if ([string]::IsNullOrWhiteSpace($apiBaseRaw)) {
+            $vpsHostRaw = "${{ secrets.VPS_PUBLIC_HOST }}".Trim().TrimEnd("/")
+            $apiBaseRaw = if ($vpsHostRaw.StartsWith("http://") -or $vpsHostRaw.StartsWith("https://")) {
+              $vpsHostRaw
+            } else {
+              "http://$vpsHostRaw"
+            }
           }
-          $notifyUrl = "$apiBase:${{ env.API_PORT }}/api/internal/deploy/apk-release"
-          $apiBaseUri = [System.Uri]$apiBase
-          $fileserverUrl = "http://$($apiBaseUri.Host):8080/files/apks/"
+          try {
+            $apiBaseUri = [System.Uri]$apiBaseRaw
+          } catch {
+            Write-Host "::notice::PUBLIC_API_URL/VPS_PUBLIC_HOST invalido para push de release dos APKs."
+            exit 0
+          }
+          $notifyBuilder = [System.UriBuilder]$apiBaseUri
+          if ($notifyBuilder.Port -le 0) {
+            $notifyBuilder.Port = [int]"${{ env.API_PORT }}"
+          }
+          $notifyBuilder.Path = "/api/internal/deploy/apk-release"
+          $notifyBuilder.Query = ""
+          $notifyBuilder.Fragment = ""
+          $notifyUrl = $notifyBuilder.Uri.AbsoluteUri
+
+          $fileserverHostRaw = "${{ secrets.VPS_PUBLIC_HOST }}".Trim().TrimEnd("/")
+          if ($fileserverHostRaw -match '^https?://') {
+            $fileserverHost = ([System.Uri]$fileserverHostRaw).Host
+          } else {
+            $fileserverHost = $fileserverHostRaw.Split('/')[0].Split(':')[0]
+          }
+          if ([string]::IsNullOrWhiteSpace($fileserverHost)) {
+            $fileserverHost = $apiBaseUri.Host
+          }
+          $fileserverUrl = "http://$fileserverHost:8080/files/apks/"
           $payload = @{
             title = "Nova versao do app disponivel"
             body = "Toque para abrir o fileserver e baixar o APK."
@@ -2052,7 +2089,7 @@ jobs:
               -TimeoutSec 30
             Write-Host "Push de release enviado para appKind=$($response.targetAppKind) devices=$($response.attemptedDevices)"
           } catch {
-            Write-Host "::warning::Falha ao enviar push de release dos APKs: $($_.Exception.Message)"
+            Write-Host "::notice::Falha ao enviar push de release dos APKs: $($_.Exception.Message)"
           }
 
   build-apk-mobile-admin:
@@ -2272,26 +2309,32 @@ jobs:
           APK_RELEASE_PUSH_TOKEN: ${{ secrets.APK_RELEASE_PUSH_TOKEN }}
         run: |
           if ([string]::IsNullOrWhiteSpace($env:APK_RELEASE_PUSH_TOKEN)) {
-            Write-Host "::warning::Secret APK_RELEASE_PUSH_TOKEN nao configurada. Metadados de APK nao publicados."
+            Write-Host "::notice::Secret APK_RELEASE_PUSH_TOKEN nao configurada. Metadados de APK nao publicados."
             exit 0
           }
-          $vpsHostRaw = "${{ secrets.VPS_PUBLIC_HOST }}".Trim().TrimEnd("/")
-          $apiBase = if ($vpsHostRaw.StartsWith("http://") -or $vpsHostRaw.StartsWith("https://")) {
-            $vpsHostRaw
-          } else {
-            "http://$vpsHostRaw"
+          $apiBaseRaw = "${{ secrets.PUBLIC_API_URL }}".Trim().TrimEnd("/")
+          if ([string]::IsNullOrWhiteSpace($apiBaseRaw)) {
+            $vpsHostRaw = "${{ secrets.VPS_PUBLIC_HOST }}".Trim().TrimEnd("/")
+            $apiBaseRaw = if ($vpsHostRaw.StartsWith("http://") -or $vpsHostRaw.StartsWith("https://")) {
+              $vpsHostRaw
+            } else {
+              "http://$vpsHostRaw"
+            }
           }
           try {
-            $apiBuilder = [System.UriBuilder]$apiBase
+            $apiBaseUri = [System.Uri]$apiBaseRaw
           } catch {
-            Write-Host "::warning::VPS_PUBLIC_HOST invalido para publicar metadado de APK (admin)."
+            Write-Host "::notice::PUBLIC_API_URL/VPS_PUBLIC_HOST invalido para publicar metadado de APK (admin)."
             exit 0
           }
-          $apiBuilder.Port = [int]"${{ env.API_PORT }}"
+          $apiBuilder = [System.UriBuilder]$apiBaseUri
+          if ($apiBuilder.Port -le 0) {
+            $apiBuilder.Port = [int]"${{ env.API_PORT }}"
+          }
           $apiBuilder.Path = "/api/internal/deploy/apk-publication"
           $apiBuilder.Query = ""
           $apiBuilder.Fragment = ""
-          $metadataUrl = $apiBuilder.Uri.ToString()
+          $metadataUrl = $apiBuilder.Uri.AbsoluteUri
 
           $payload = @{
             appKind = "admin"
@@ -2311,7 +2354,7 @@ jobs:
               -TimeoutSec 30
             Write-Host "Metadado de APK admin publicado: $($response.publishedAtUtc)"
           } catch {
-            Write-Host "::warning::Falha ao publicar metadado de APK admin: $($_.Exception.Message)"
+            Write-Host "::notice::Falha ao publicar metadado de APK admin: $($_.Exception.Message)"
           }
 
   skip:
@@ -2448,14 +2491,7 @@ jobs:
             exit 0
           fi
 
-          host_raw="${{ secrets.VPS_PUBLIC_HOST }}"
-          host_raw="${host_raw%/}"
-          if [[ "$host_raw" =~ ^https?:// ]]; then
-            api_base="$host_raw"
-          else
-            api_base="http://$host_raw"
-          fi
-          endpoint="${api_base}:${{ env.API_PORT }}/api/internal/deploy/admin-summary"
+          endpoint="http://127.0.0.1:${{ env.API_PORT }}/api/internal/deploy/admin-summary"
           run_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
           api_deploy_result="${{ needs.deploy-api.result }}"
@@ -2530,7 +2566,7 @@ jobs:
           elif [[ "$http_code" == "404" ]]; then
             echo "::notice::Push de resumo ignorado: endpoint /api/internal/deploy/admin-summary nao encontrado na API em execucao."
           else
-            echo "::warning::Falha ao enviar push de resumo do deploy (HTTP ${http_code})."
+            echo "::notice::Falha ao enviar push de resumo do deploy (HTTP ${http_code})."
             cat "$response_file"
           fi
 
