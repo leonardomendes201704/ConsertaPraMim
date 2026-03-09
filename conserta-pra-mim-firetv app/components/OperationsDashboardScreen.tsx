@@ -1,6 +1,14 @@
 import * as signalR from '@microsoft/signalr/dist/esm/index.js';
 import L from 'leaflet';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  XAxis,
+  YAxis
+} from 'recharts';
 import { FireTvDashboardApiError, fetchFireTvOperationsDashboard } from '../services/dashboard';
 import { getApiBaseUrl } from '../services/http';
 import type {
@@ -18,13 +26,6 @@ interface OperationsDashboardScreenProps {
   session: FireTvAuthSession;
   onBack: () => void;
   onLogout: () => void;
-}
-
-function formatGeneratedAt(value: string): string {
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime())
-    ? '--'
-    : parsed.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
 function getToneColor(index: number): string {
@@ -52,15 +53,6 @@ function buildCategoryGradient(categories: FireTvOperationalCategory[]): string 
   return `conic-gradient(${slices.join(', ')})`;
 }
 
-function resolveHealthSummary(targets: FireTvHealthTargetStatus[]): string {
-  if (targets.length === 0) {
-    return 'Sem alvos';
-  }
-
-  const healthyTargets = targets.filter((item) => item.healthy).length;
-  return healthyTargets === targets.length ? 'APIs: OK' : `${healthyTargets}/${targets.length} OK`;
-}
-
 function createMapIcon(type: 'provider' | 'request', tone: string, label: string): L.DivIcon {
   return L.divIcon({
     className: 'tv-map-marker-shell',
@@ -75,43 +67,23 @@ const HealthStrip: React.FC<{
   realtimeConnected: boolean;
   currentTimeLabel: string;
 }> = ({ dashboard, realtimeConnected, currentTimeLabel }) => {
-  const statusClass = dashboard.overallStatus === 'online'
-    ? 'is-success'
-    : dashboard.overallStatus === 'warning'
-      ? 'is-warning'
-      : 'is-danger';
-
   return (
     <div className="tv-operations-status">
-      <div className={`tv-live-pill ${statusClass}`}>
-        <span className="tv-live-dot" />
-        {realtimeConnected ? 'ONLINE' : 'RECONNECT'}
+      <span>Latencia: {dashboard.averageLatencyMs ?? '--'}ms{!realtimeConnected ? ' • Reconnect' : ''}</span>
+      <div className="tv-health-badge-list">
+        {dashboard.healthTargets.map((item) => (
+          <span
+            key={item.key}
+            className={`tv-health-badge ${item.healthy ? 'is-healthy' : 'is-unhealthy'}`}
+          >
+            {item.label} {item.healthy ? 'Online' : 'Offline'}
+          </span>
+        ))}
       </div>
-      <span>Latencia: {dashboard.averageLatencyMs ?? '--'}ms</span>
-      <span>{resolveHealthSummary(dashboard.healthTargets)}</span>
       <span className="tv-clock">{currentTimeLabel}</span>
     </div>
   );
 };
-
-const HealthTargetsPanel: React.FC<{ targets: FireTvHealthTargetStatus[] }> = ({ targets }) => (
-  <section className="tv-panel tv-panel--glass">
-    <div className="tv-panel-header">
-      <h2>Health check</h2>
-    </div>
-    <div className="tv-health-target-list">
-      {targets.map((item) => (
-        <article key={item.key} className={`tv-health-target ${item.healthy ? 'is-healthy' : 'is-unhealthy'}`}>
-          <div>
-            <strong>{item.label}</strong>
-            <span>{item.statusLabel}</span>
-          </div>
-          <small>{item.latencyMs ? `${item.latencyMs}ms` : item.detail || '--'}</small>
-        </article>
-      ))}
-    </div>
-  </section>
-);
 
 const CategoryPanel: React.FC<{ categories: FireTvOperationalCategory[]; panelHeight?: number | null }> = ({ categories, panelHeight }) => (
   <section className="tv-panel tv-panel--glass tv-panel--equal-height" style={panelHeight ? { height: `${panelHeight}px` } : undefined}>
@@ -343,42 +315,8 @@ const RecentActivityPanel: React.FC<{
 };
 
 const DailySeriesPanel: React.FC<{ items: FireTvOperationalDailySeriesItem[] }> = ({ items }) => {
-  const maxValue = items.reduce((max, item) => Math.max(max, item.requests, item.attendances), 0);
-
-  const chartGeometry = useMemo(() => {
-    const width = 420;
-    const height = 190;
-    const left = 18;
-    const right = 18;
-    const top = 18;
-    const bottom = 26;
-    const innerWidth = Math.max(1, width - left - right);
-    const innerHeight = Math.max(1, height - top - bottom);
-    const denominator = Math.max(1, items.length - 1);
-
-    const buildPoints = (selector: (item: FireTvOperationalDailySeriesItem) => number) =>
-      items.map((item, index) => {
-        const value = selector(item);
-        const x = left + (innerWidth * index) / denominator;
-        const normalized = maxValue === 0 ? 0 : value / maxValue;
-        const y = top + innerHeight - normalized * innerHeight;
-        return { x, y, label: item.label, value };
-      });
-
-    return {
-      width,
-      height,
-      requestPoints: buildPoints((item) => item.requests),
-      attendancePoints: buildPoints((item) => item.attendances),
-      gridLines: Array.from({ length: 4 }, (_, index) => top + (innerHeight * index) / 3)
-    };
-  }, [items, maxValue]);
-
-  const toPolyline = (points: Array<{ x: number; y: number }>) =>
-    points.map((point) => `${point.x},${point.y}`).join(' ');
-
   return (
-    <section className="tv-panel tv-panel--glass">
+    <section className="tv-panel tv-panel--glass tv-panel--daily-series">
       <div className="tv-panel-header">
         <h2>Pedidos e atendimentos por dia</h2>
       </div>
@@ -386,59 +324,36 @@ const DailySeriesPanel: React.FC<{ items: FireTvOperationalDailySeriesItem[] }> 
         <p className="tv-empty-state">Sem serie diaria disponivel.</p>
       ) : (
         <div className="tv-line-chart">
-          <svg
-            className="tv-line-chart-svg"
-            viewBox={`0 0 ${chartGeometry.width} ${chartGeometry.height}`}
-            role="img"
-            aria-label="Serie diaria de pedidos e atendimentos"
-          >
-            {chartGeometry.gridLines.map((y, index) => (
-              <line
-                key={`grid-${index}`}
-                x1="18"
-                x2={chartGeometry.width - 18}
-                y1={y}
-                y2={y}
-                className="tv-line-chart-grid"
-              />
-            ))}
-            <polyline
-              className="tv-line-chart-path is-requests"
-              points={toPolyline(chartGeometry.requestPoints)}
-              fill="none"
-            />
-            <polyline
-              className="tv-line-chart-path is-attendances"
-              points={toPolyline(chartGeometry.attendancePoints)}
-              fill="none"
-            />
-            {chartGeometry.requestPoints.map((point, index) => (
-              <circle
-                key={`request-point-${items[index].label}`}
-                cx={point.x}
-                cy={point.y}
-                r="4.5"
-                className="tv-line-chart-dot is-requests"
-              />
-            ))}
-            {chartGeometry.attendancePoints.map((point, index) => (
-              <circle
-                key={`attendance-point-${items[index].label}`}
-                cx={point.x}
-                cy={point.y}
-                r="4.5"
-                className="tv-line-chart-dot is-attendances"
-              />
-            ))}
-          </svg>
-          <div className="tv-line-chart-axis">
-            {items.map((item) => (
-              <strong key={item.label}>{item.label}</strong>
-            ))}
-          </div>
-          <div className="tv-line-chart-legend">
-            <span><i className="tv-line-chart-legend-dot is-requests" /> Pedidos</span>
-            <span><i className="tv-line-chart-legend-dot is-attendances" /> Atendimentos</span>
+          <div className="tv-line-chart-canvas" role="img" aria-label="Serie diaria de pedidos e atendimentos">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={items} margin={{ top: 4, right: 6, left: 6, bottom: -6 }}>
+                <CartesianGrid vertical={false} stroke="rgba(148,163,184,0.12)" />
+                <XAxis
+                  dataKey="label"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: '#cbd5e1', fontSize: 13, fontWeight: 700 }}
+                  dy={2}
+                />
+                <YAxis hide domain={[0, 'dataMax']} />
+                <Line
+                  type="monotone"
+                  dataKey="requests"
+                  stroke="#38bdf8"
+                  strokeWidth={3}
+                  dot={{ r: 4, fill: '#38bdf8', stroke: '#08142a', strokeWidth: 1.5 }}
+                  activeDot={false}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="attendances"
+                  stroke="#22c55e"
+                  strokeWidth={3}
+                  dot={{ r: 4, fill: '#22c55e', stroke: '#08142a', strokeWidth: 1.5 }}
+                  activeDot={false}
+                />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
         </div>
       )}
@@ -450,20 +365,42 @@ const ProgressMetricCard: React.FC<{
   item?: FireTvDashboardKpi;
   progressPercent: number;
   progressTone: 'success' | 'danger';
-}> = ({ item, progressPercent, progressTone }) => (
-  <section className={`tv-kpi-card tv-kpi-card--compact tv-kpi-card--progress tv-kpi-card--progress-${progressTone}`}>
-    <div className="tv-kpi-progress-layout">
-      <strong>{item?.value ?? '--'}</strong>
-      <div className="tv-kpi-progress-copy">
-        <span>{item?.label ?? '--'}</span>
-        {item?.helperText ? <small>{item.helperText}</small> : null}
+}> = ({ item, progressPercent, progressTone }) => {
+  const isCompletedServices = item?.key === 'completedServices';
+  const isCancelledCalls = item?.key === 'cancelledCalls';
+  const usesStackedCopy = isCompletedServices || isCancelledCalls;
+
+  return (
+    <section className={`tv-kpi-card tv-kpi-card--compact tv-kpi-card--progress tv-kpi-card--progress-${progressTone}`}>
+      <div className="tv-kpi-progress-layout">
+        <strong className={usesStackedCopy ? 'tv-kpi-progress-value--hero' : undefined}>{item?.value ?? '--'}</strong>
+        <div className={`tv-kpi-progress-copy ${usesStackedCopy ? 'tv-kpi-progress-copy--stacked' : ''}`}>
+          {isCompletedServices ? (
+            <>
+              <span>Servicos</span>
+              <small>Concluidos</small>
+              <em>Hoje</em>
+            </>
+          ) : isCancelledCalls ? (
+            <>
+              <span>Chamados</span>
+              <small>Cancelados</small>
+              <em>Hoje</em>
+            </>
+          ) : (
+            <>
+              <span>{item?.label ?? '--'}</span>
+              {item?.helperText ? <small>{item.helperText}</small> : null}
+            </>
+          )}
+        </div>
       </div>
-    </div>
-    <div className="tv-kpi-progress-track" aria-hidden="true">
-      <div style={{ width: `${Math.max(0, Math.min(100, progressPercent))}%` }} />
-    </div>
-  </section>
-);
+      <div className="tv-kpi-progress-track" aria-hidden="true">
+        <div style={{ width: `${Math.max(0, Math.min(100, progressPercent))}%` }} />
+      </div>
+    </section>
+  );
+};
 
 const DualMetricPanel: React.FC<{
   left?: FireTvDashboardKpi;
@@ -705,13 +642,6 @@ const OperationsDashboardScreen: React.FC<OperationsDashboardScreenProps> = ({
               <ProgressMetricCard item={completedServicesKpi} progressPercent={72} progressTone="success" />
               <DualMetricPanel left={slaKpi} right={monthlyRevenueKpi} />
               <ProgressMetricCard item={cancelledCallsKpi} progressPercent={34} progressTone="danger" />
-            </div>
-
-            <HealthTargetsPanel targets={dashboard.healthTargets} />
-
-            <div className="tv-status-footer">
-              <span>Ultima atualizacao: {formatGeneratedAt(dashboard.generatedAtUtc)}</span>
-              <span>Janela operacional: {dashboard.historyDays} dia(s)</span>
             </div>
           </div>
         ) : null}

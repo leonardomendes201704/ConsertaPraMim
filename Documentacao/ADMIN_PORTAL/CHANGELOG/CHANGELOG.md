@@ -10,6 +10,18 @@
 
 ## Released
 
+- [2026-03-09] [ST-071][ADMIN-FIRETV-OPS-UX] Refino visual e estabilidade operacional da visao Fire TV
+- Tipo: fix
+- Resumo: a visao operacional do app Fire TV recebeu ajuste fino de layout 10-foot (cards compactos, tipografia e alinhamentos), troca do grafico diario para linha responsiva, consolidacao de badges de status no topo, lista de `Ultimos servicos`, melhor ajuste de bounds/zoom no mapa, persistencia da legenda no refresh e reequilibrio das proporcoes dos cards para evitar overflow.
+- Arquivos principais: `conserta-pra-mim-firetv app/components/OperationsDashboardScreen.tsx`, `conserta-pra-mim-firetv app/styles.css`, `conserta-pra-mim-firetv app/package.json`, `conserta-pra-mim-firetv app/package-lock.json`, `Documentacao/ADMIN_PORTAL/RUNBOOKS/RUNBOOK_FIRE_TV_DASHBOARD_ST-066.md`
+- Risco/Impacto: medio
+
+- [2026-03-09] [GOV-003][SHELL-WINDOWS-PADRAO] Diretrizes obrigatorias para execucao atomica e escrita deterministica no shell
+- Tipo: docs
+- Resumo: o `AGENTS.md` da solution passou a formalizar padrao operacional no Windows para evitar reincidencia de falhas em edicoes e automacoes (`pipeline aninhada`, escapes com backtick, comando monolitico bloqueado por politica, `spawn EPERM`, lock em `.git`), impondo execucao em etapas atomicas, validacao por etapa e escrita deterministica de arquivos.
+- Arquivos principais: `AGENTS.md`
+- Risco/Impacto: baixo
+
 - [2026-03-09] [ST-070][ADMIN-FIRETV-REALTIME] Realtime, health check e atualizacao continua do Fire TV
 - Tipo: feat
 - Resumo: o ecossistema Fire TV passou a contar com um hub SignalR dedicado, pulse server-side configuravel e health checks configuraveis para API e portais, exibidos na nova visao operacional com resumo de latencia, conectividade e fallback de refresh por timer.

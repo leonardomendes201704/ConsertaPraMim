@@ -1,4 +1,4 @@
-# AGENTS.md
+﻿# AGENTS.md
 
 ## Escopo
 
@@ -116,3 +116,50 @@ Uma tarefa so deve ser considerada concluida quando:
 2. validacao/build/testes aplicaveis tiverem sido executados;
 3. changelog estiver registrado e marcado como `Released` antes de commit/push (quando aplicavel);
 4. manual de QA/Operacao da trilha/projeto estiver criado/atualizado (quando aplicavel).
+
+## Diretriz obrigatoria de ambiente local Windows (PowerShell, Node e Git)
+
+1. Em projetos Node/Vite/Capacitor do repositorio, no Windows, nao usar `npm` direto no PowerShell quando houver risco de bloqueio por `ExecutionPolicy`; o padrao obrigatorio e executar via `cmd.exe /c npm ...` ou `npm.cmd ...`.
+2. `PowerShell` local nao deve usar `&&` como padrao operacional do repositorio. Sequencias de comandos devem ser:
+   - separadas em comandos independentes; ou
+   - encadeadas com `;` quando seguro; ou
+   - encapsuladas explicitamente em `cmd.exe /c "comando1 && comando2"` quando realmente necessario.
+3. Se `vite build`, `npm run build` ou `esbuild` falharem com `spawn EPERM`, o procedimento obrigatorio e:
+   - encerrar processos Node/Vite/preview/dev ainda abertos do mesmo app;
+   - executar novo build a partir de shell limpo;
+   - preferir `cmd.exe /c npm run build` para evitar o caminho `npm.ps1` do PowerShell;
+   - evitar rodar build, dev server e preview simultaneamente no mesmo app quando houver lock de arquivo no Windows.
+4. Se houver falha recorrente de `spawn EPERM`, tratar como problema de lock/antivirus/processo do ambiente local Windows, nao como erro automatico de codigo. Nesses casos, a resposta operacional padrao deve orientar rebuild limpo e reinicio do processo local antes de qualquer refatoracao desnecessaria.
+5. Quando for necessario validar build publicado localmente, preferir a sequencia:
+   - `cmd.exe /c npm run build`
+   - `cmd.exe /c npx vite preview --host 127.0.0.1 --port <porta>`
+   em vez de manter instancias antigas que podem servir bundle stale.
+6. Se Git falhar com `Unable to create .git/index.lock`, `Permission denied` ou erro equivalente de escrita em `.git`, nao repetir `git add`/`commit`/`push` em loop. O procedimento obrigatorio e:
+   - verificar se existe `index.lock` residual;
+   - verificar se outro processo/editor/antivirus esta segurando `.git`;
+   - confirmar se o shell atual possui permissao real de escrita em `.git`;
+   - se a escrita continuar negada, interromper a tentativa e reportar o bloqueio operacional ao usuario com os comandos exatos para execucao manual.
+7. Em ambiente Windows deste repositorio, `git add`, `git commit` e `git push` devem ser executados como passos separados quando houver qualquer suspeita de restricao no shell, evitando comandos compostos que escondam a etapa que falhou.
+8. Arquivos locais/transientes de diagnostico, como `Backend/src/debug.log`, nunca devem ser incluidos em commit por causa de workaround operacional de build ou de shell.
+9. Toda vez que uma task depender de build Node no Windows, a resposta final deve registrar explicitamente qual comando foi considerado o caminho estavel de execucao local (`cmd.exe /c npm ...`, `npm.cmd ...`, preview rebuildado, etc.), para reduzir reincidencia do mesmo erro.
+10. Operacoes com mais de um passo (ex.: kill de porta + build + start + healthcheck) nao podem ser executadas em comando unico monolitico no terminal automatizado. O padrao obrigatorio e executar em etapas separadas e observaveis.
+11. Em caso de bloqueio por politica do ambiente ao executar uma operacao composta, o fallback obrigatorio e:
+   - quebrar em comandos atomicos;
+   - validar cada etapa por codigo de saida/resultado;
+   - somente avancar para a proxima etapa apos sucesso explicito da anterior.
+12. Para fluxos recorrentes de operacao local (ex.: restart de app em porta fixa), preferir script versionado em `scripts/` e chamar o script diretamente, em vez de one-liners longos.
+
+## Diretriz obrigatoria de escrita deterministica de arquivos no shell
+
+1. Para alterar arquivo textual versionado (`.md`, `.cs`, `.cshtml`, `.js`, `.json`, `.yml`), priorizar `apply_patch` com contexto explicito; nao usar comando de append como fallback quando a insercao no ponto esperado falhar.
+2. Nao usar pipeline aninhada de PowerShell para escrita (ex.: `... | powershell -Command -` dentro de outro `powershell`). Em caso de comando shell necessario, executar um unico processo PowerShell por etapa.
+3. Quando o conteudo tiver crase/backtick, aspas ou markdown sensivel, usar here-string literal (`@' ... '@`) para evitar escape/interpolacao acidental do PowerShell.
+4. Se a insercao contextual falhar, interromper a escrita e validar o alvo antes de tentar novamente:
+   - localizar marcador com `rg`/`Select-String`;
+   - revisar diff parcial do arquivo;
+   - reaplicar patch com contexto correto.
+5. Apos qualquer escrita por shell, validar obrigatoriamente no mesmo ciclo:
+   - conteudo no ponto esperado;
+   - ausencia de caracteres quebrados;
+   - diff restrito ao trecho intencional.
+6. E proibido concluir tarefa com mensagem de "append no final para garantir"; esse comportamento e considerado falha de processo e deve ser corrigido antes do encerramento.

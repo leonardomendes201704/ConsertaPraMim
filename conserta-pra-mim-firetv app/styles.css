@@ -13,7 +13,9 @@ html,
 body,
 #root {
   margin: 0;
+  height: 100%;
   min-height: 100%;
+  overflow: hidden;
   background:
     radial-gradient(circle at top left, rgba(14, 165, 233, 0.18), transparent 28%),
     radial-gradient(circle at top right, rgba(37, 99, 235, 0.18), transparent 24%),
@@ -53,13 +55,16 @@ input:focus-visible {
 }
 
 .tv-shell {
+  height: 100vh;
   min-height: 100vh;
+  overflow: hidden;
   padding: 28px 32px 36px;
 }
 
 .tv-stage {
   width: min(100%, 1820px);
   margin: 0 auto;
+  height: 100%;
 }
 
 .tv-shell--centered {
@@ -638,6 +643,7 @@ input:focus-visible {
 
 .tv-shell--operations {
   padding-top: 22px;
+  padding-bottom: 22px;
 }
 
 .tv-topbar--operations {
@@ -652,11 +658,12 @@ input:focus-visible {
   border: 0;
   background: transparent;
   display: grid;
-  grid-template-columns: auto auto auto 1fr;
-  gap: 18px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 14px;
   align-items: center;
   padding: 0;
   font-size: 21px;
+  min-width: 0;
 }
 
 .tv-topbar-actions--operations {
@@ -667,9 +674,55 @@ input:focus-visible {
 
 .tv-topbar-actions--operations .tv-operations-status {
   flex: 1;
-  max-width: 980px;
+  max-width: 1320px;
   min-width: 0;
   margin-bottom: 0;
+}
+
+.tv-health-badge-list {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  justify-content: flex-start;
+  overflow: hidden;
+}
+
+.tv-health-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(15, 23, 42, 0.52);
+  color: #e2e8f0;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.tv-health-badge::before {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: currentColor;
+  flex: 0 0 auto;
+}
+
+.tv-health-badge.is-healthy {
+  color: #4ade80;
+  background: rgba(20, 83, 45, 0.2);
+  border-color: rgba(74, 222, 128, 0.28);
+}
+
+.tv-health-badge.is-unhealthy {
+  color: #f87171;
+  background: rgba(127, 29, 29, 0.22);
+  border-color: rgba(248, 113, 113, 0.28);
 }
 
 .tv-live-pill {
@@ -696,11 +749,13 @@ input:focus-visible {
   justify-self: end;
   font-size: 42px;
   font-weight: 800;
+  white-space: nowrap;
 }
 
 .tv-operations-layout {
   display: grid;
-  gap: 18px;
+  gap: 8px;
+  min-height: 0;
 }
 
 .tv-kpi-grid--operations .tv-kpi-card {
@@ -765,24 +820,26 @@ input:focus-visible {
 .tv-kpi-hero-icon.tv-kpi-hero-icon-key--rating .bi { color: #fbbf24; }
 
 .tv-kpi-hero-copy {
-  display: grid;
-  gap: 4px;
-  align-content: center;
-  align-self: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  align-self: stretch;
 }
 
-.tv-kpi-hero-label {
+.tv-kpi-card .tv-kpi-hero-label {
   display: block;
-  font-size: 20px;
+  font-size: 21px;
   font-weight: 800;
-  line-height: 1.02;
+  line-height: 1;
   color: #f8fafc;
 }
 
-.tv-kpi-hero-helper {
+.tv-kpi-card .tv-kpi-hero-helper {
   display: block;
-  font-size: 16px;
+  font-size: 21px;
   font-weight: 600;
+  line-height: 1;
   color: #dbeafe;
 }
 
@@ -807,12 +864,13 @@ input:focus-visible {
 }
 
 .tv-kpi-card--compact {
-  min-height: 132px;
-  padding: 16px 18px;
+  min-height: 104px;
+  padding: 10px 12px;
+  align-content: center;
 }
 
 .tv-kpi-card--compact strong {
-  font-size: 56px;
+  font-size: 42px;
 }
 
 .tv-operations-main-grid {
@@ -836,8 +894,8 @@ input:focus-visible {
 
 .tv-operations-bottom-grid {
   display: grid;
-  grid-template-columns: 4fr 2fr 3fr 3fr;
-  gap: 18px;
+  grid-template-columns: 4fr 2fr 4fr 2fr;
+  gap: 13px;
   align-items: stretch;
 }
 
@@ -871,7 +929,7 @@ input:focus-visible {
   aspect-ratio: 1;
   width: 220px;
   max-width: 100%;
-  margin: 0 auto;
+  margin: 35px auto 0;
   justify-self: center;
   flex: 0 0 auto;
   border-radius: 50%;
@@ -909,6 +967,7 @@ input:focus-visible {
 
 .tv-map-surface {
   position: relative;
+  isolation: isolate;
   min-height: 0;
   height: 100%;
   border-radius: 22px;
@@ -919,6 +978,7 @@ input:focus-visible {
 .tv-leaflet-map {
   position: absolute;
   inset: 0;
+  z-index: 1;
 }
 
 .tv-leaflet-map .leaflet-pane,
@@ -981,6 +1041,8 @@ input:focus-visible {
   border-radius: 999px;
   background: rgba(8, 20, 42, 0.78);
   font-size: 18px;
+  z-index: 10;
+  pointer-events: none;
 }
 
 .tv-legend-bullet {
@@ -1047,84 +1109,39 @@ input:focus-visible {
 .tv-activity-category-icon.is-accent { color: #f472b6; }
 .tv-activity-category-icon.is-neutral { color: #e2e8f0; }
 
-.tv-line-chart {
-  display: grid;
-  gap: 10px;
-  min-height: 246px;
+.tv-panel--daily-series {
+  padding: 12px 14px;
 }
 
-.tv-line-chart-svg {
+.tv-panel--daily-series .tv-panel-header {
+  margin-bottom: 6px;
+}
+
+.tv-panel--daily-series .tv-panel-header h2 {
+  font-size: 16px;
+}
+
+.tv-line-chart {
+  display: block;
+  min-height: 108px;
+}
+
+.tv-line-chart-canvas {
   width: 100%;
-  height: 180px;
+  height: 96px;
   display: block;
 }
 
-.tv-line-chart-grid {
+.tv-line-chart .recharts-surface {
+  overflow: visible;
+}
+
+.tv-line-chart .recharts-cartesian-grid-horizontal line {
   stroke: rgba(148, 163, 184, 0.12);
-  stroke-width: 1;
 }
 
-.tv-line-chart-path {
-  stroke-width: 4;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.tv-line-chart-path.is-requests {
-  stroke: #38bdf8;
-}
-
-.tv-line-chart-path.is-attendances {
-  stroke: #22c55e;
-}
-
-.tv-line-chart-dot {
-  stroke: rgba(8, 20, 42, 0.92);
-  stroke-width: 2;
-}
-
-.tv-line-chart-dot.is-requests {
-  fill: #38bdf8;
-}
-
-.tv-line-chart-dot.is-attendances {
-  fill: #22c55e;
-}
-
-.tv-line-chart-axis {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.tv-line-chart-axis strong {
-  text-align: center;
-  font-size: 18px;
-  color: #cbd5e1;
-}
-
-.tv-line-chart-legend {
-  display: flex;
-  gap: 18px;
-  flex-wrap: wrap;
-  font-size: 16px;
-  color: #cbd5e1;
-}
-
-.tv-line-chart-legend-dot {
-  display: inline-block;
-  width: 12px;
-  height: 12px;
-  margin-right: 8px;
-  border-radius: 999px;
-}
-
-.tv-line-chart-legend-dot.is-requests {
-  background: #38bdf8;
-}
-
-.tv-line-chart-legend-dot.is-attendances {
-  background: #22c55e;
+.tv-line-chart .recharts-cartesian-axis-tick-value {
+  fill: #cbd5e1;
 }
 
 .tv-kpi-stack {
@@ -1169,14 +1186,15 @@ input:focus-visible {
 .tv-kpi-card--progress {
   display: grid;
   grid-template-rows: minmax(0, 1fr) auto;
-  gap: 12px;
+  gap: 8px;
   align-content: center;
+  height: 100%;
 }
 
 .tv-kpi-progress-layout {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  gap: 14px;
+  gap: 10px;
   align-items: center;
 }
 
@@ -1187,19 +1205,51 @@ input:focus-visible {
 }
 
 .tv-kpi-progress-copy span {
-  font-size: 20px;
+  font-size: 16px;
   font-weight: 800;
   color: #f8fafc;
   line-height: 1.02;
 }
 
 .tv-kpi-progress-copy small {
-  font-size: 16px;
+  font-size: 13px;
   color: #cbd5e1;
 }
 
+.tv-kpi-progress-copy em {
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 600;
+  color: #93c5fd;
+  line-height: 1;
+}
+
+.tv-kpi-progress-value--hero {
+  font-size: 60px !important;
+  line-height: 0.96;
+}
+
+.tv-kpi-progress-copy--stacked {
+  gap: 1px;
+}
+
+.tv-kpi-progress-copy--stacked span {
+  font-size: 28px;
+  line-height: 0.98;
+}
+
+.tv-kpi-progress-copy--stacked small {
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.tv-kpi-progress-copy--stacked em {
+  font-size: 12px;
+}
+
 .tv-kpi-progress-track {
-  height: 6px;
+  height: 4px;
   border-radius: 999px;
   background: rgba(148, 163, 184, 0.16);
   overflow: hidden;
@@ -1225,30 +1275,33 @@ input:focus-visible {
 .tv-kpi-card--dual {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px;
+  gap: 14px;
   align-items: center;
+  align-content: center;
+  height: 100%;
 }
 
 .tv-kpi-dual-metric {
   display: grid;
-  gap: 4px;
+  gap: 3px;
   align-content: center;
+  margin-top: 15px;
 }
 
 .tv-kpi-dual-metric strong {
-  font-size: 48px;
+  font-size: 60px;
   line-height: 0.94;
 }
 
 .tv-kpi-dual-metric span {
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 800;
   color: #f8fafc;
   line-height: 1.02;
 }
 
 .tv-kpi-dual-metric small {
-  font-size: 15px;
+  font-size: 12px;
   color: #cbd5e1;
 }
 
@@ -1284,14 +1337,6 @@ input:focus-visible {
 
 .tv-health-target.is-unhealthy {
   border: 1px solid rgba(248, 113, 113, 0.24);
-}
-
-.tv-status-footer {
-  display: flex;
-  justify-content: space-between;
-  gap: 18px;
-  color: #94a3b8;
-  font-size: 18px;
 }
 
 @media (max-width: 1680px) {
