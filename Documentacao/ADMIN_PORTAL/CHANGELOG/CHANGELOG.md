@@ -12,6 +12,12 @@
 
 ## Released
 
+- [2026-03-09] [ST-072][OPS-VPS-DEV-PROD-BRANCH-DEPLOY] Deploy branch-aware `dev-local` e `main` na mesma VPS
+- Tipo: feat
+- Resumo: o pipeline `deploy-vps` passou a suportar dois perfis automaticos por branch, com `dev-local` publicando stack DEV por `IP:porta` e `main/master` mantendo stack PROD por dominio/subdominios; o isolamento agora usa portas dedicadas, `CONTAINER_PREFIX`, `VOLUME_PREFIX`, `DB_NAME`, bind host por ambiente e escrita branch-aware do `.env.vps`.
+- Arquivos principais: `.github/workflows/deploy-vps.yml`, `Backend/docker-compose.vps.api.yml`, `Backend/docker-compose.vps.web-landing.yml`, `Backend/docker-compose.vps.web-admin.yml`, `Backend/docker-compose.vps.web-client.yml`, `Backend/docker-compose.vps.web-provider.yml`, `Backend/docker-compose.vps.mobile-webview-client.yml`, `Backend/docker-compose.vps.mobile-webview-provider.yml`, `Backend/docker-compose.vps.mobile-webview-admin.yml`, `Backend/docker-compose.vps.yml`, `scripts/deploy/vps-deploy-service.sh`, `Backend/.env.vps.example`, `Backend/DEPLOY_VPS.md`, `Documentacao/ADMIN_PORTAL/EPICS/EPIC-031-deploy-dual-stack-dev-prod-na-mesma-vps.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-072-deploy-branch-aware-dev-local-main-na-mesma-vps.md`
+- Risco/Impacto: alto
+
 - [2026-03-09] [ST-071][ADMIN-FIRETV-BACK-TO-MENU] Botao voltar do controle retorna ao menu central
 - Tipo: fix
 - Resumo: nas views `Metricas da landing` e `Visao operacional`, o app Fire TV passou a interceptar o botao de voltar do controle remoto (listener nativo `@capacitor/app` com fallback por teclado/webview) para sempre retornar ao `Menu` sem encerrar o app.

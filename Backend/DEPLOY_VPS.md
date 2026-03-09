@@ -26,7 +26,9 @@ Arquivos de apoio para HTTPS:
 
 ## Topologia recomendada
 
-Os portais web, a landing e a API devem ficar atras de Nginx em `80/443`, com os containers publicados apenas em `127.0.0.1`.
+Em `main/master` (PROD), os portais web, a landing e a API devem ficar atras de Nginx em `80/443`, com os containers publicados em `127.0.0.1`.
+
+Em `dev-local` (DEV), a mesma stack sobe na VPS por `IP:porta`, com bind `0.0.0.0` e portas dedicadas para nao conflitar com producao.
 
 URLs publicas recomendadas:
 - `https://www.consertapramim.com`
@@ -75,7 +77,11 @@ chmod +x scripts/deploy/vps-deploy.sh scripts/deploy/vps-deploy-service.sh
 ```
 
 Preencha no `Backend/.env.vps` pelo menos:
-- `APP_ENVIRONMENT=Production`
+- `DEPLOY_PROFILE` (`production` ou `development`)
+- `APP_ENVIRONMENT` (`Production` ou `Development`)
+- `BIND_HOST` (`127.0.0.1` em prod / `0.0.0.0` em dev)
+- `CONTAINER_PREFIX` (`cpm` em prod / `cpm-dev` em dev)
+- `VOLUME_PREFIX` (`cpm` em prod / `cpm_dev` em dev)
 - `VPS_PUBLIC_HOST` (host ou IP cru, sem `http://` ou `https://`)
 - `INTERNAL_API_URL`
 - `PUBLIC_LANDING_URL`
@@ -88,10 +94,14 @@ Preencha no `Backend/.env.vps` pelo menos:
 - `JWT_SECRET_KEY`
 - `SEED_DEFAULT_PASSWORD`
 
-Exemplo minimo:
+Exemplo minimo (PROD):
 
 ```env
+DEPLOY_PROFILE=production
 APP_ENVIRONMENT=Production
+BIND_HOST=127.0.0.1
+CONTAINER_PREFIX=cpm
+VOLUME_PREFIX=cpm
 VPS_PUBLIC_HOST=SEU_IP_OU_HOST_DA_VPS
 
 INTERNAL_API_URL=http://cpm-api:8080
@@ -117,11 +127,45 @@ JWT_SECRET_KEY=ALTERAR_PARA_UMA_CHAVE_BEM_FORTE_COM_32+_CARACTERES
 SEED_DEFAULT_PASSWORD=ALTERAR_AQUI
 ```
 
+Exemplo minimo (DEV na mesma VPS):
+
+```env
+DEPLOY_PROFILE=development
+APP_ENVIRONMENT=Development
+BIND_HOST=0.0.0.0
+CONTAINER_PREFIX=cpm-dev
+VOLUME_PREFIX=cpm_dev
+VPS_PUBLIC_HOST=187.77.48.150
+
+INTERNAL_API_URL=http://cpm-dev-api:8080
+PUBLIC_LANDING_URL=http://187.77.48.150:6088
+PUBLIC_API_URL=http://187.77.48.150:6193
+PUBLIC_ADMIN_URL=http://187.77.48.150:6151
+PUBLIC_CLIENT_URL=http://187.77.48.150:6069
+PUBLIC_PROVIDER_URL=http://187.77.48.150:6140
+ENFORCE_API_HTTPS_REDIRECTION=false
+
+API_PORT=6193
+LANDING_PORT=6088
+ADMIN_PORT=6151
+CLIENT_PORT=6069
+PROVIDER_PORT=6140
+
+DB_NAME=ConsertaPraMimDbDev
+DB_USER=sa
+DB_PASSWORD=ALTERAR_AQUI
+DB_HOST=mssql
+
+JWT_SECRET_KEY=ALTERAR_PARA_UMA_CHAVE_BEM_FORTE_COM_32+_CARACTERES
+SEED_DEFAULT_PASSWORD=ALTERAR_AQUI
+```
+
 ## 3) Instalar Nginx e Certbot na VPS
 
 Firewall recomendado:
 - deixar abertas publicamente apenas `80` e `443`;
-- manter `5088`, `5151`, `5069`, `5140` e `5193` bloqueadas externamente, porque os containers passam a atender via `127.0.0.1`.
+- em `production`, manter `5088`, `5151`, `5069`, `5140` e `5193` bloqueadas externamente, porque os containers atendem via `127.0.0.1`;
+- em `development`, abrir apenas as portas de DEV se necessario (`6088`, `6151`, `6069`, `6140`, `6193`) e restringir por IP de origem no firewall sempre que possivel.
 
 Ubuntu/Debian:
 
@@ -215,8 +259,9 @@ MSSQL_CONTAINER_NAME=mssql-mssql-1 MSSQL_HOST_ALIAS=mssql scripts/deploy/vps-dep
 ```
 
 Observacao operacional:
-- o script `scripts/deploy/vps-deploy-service.sh` faz `build` antes do `up` e remove o container fixo existente (`cpm-api`, `cpm-web-landing`, `cpm-web-admin`, etc.) para evitar conflito de `container_name`;
-- `web-landing`, `api`, `web-admin`, `web-client` e `web-provider` ficam publicados apenas em `127.0.0.1`, por isso o acesso externo precisa passar pelo Nginx;
+- o script `scripts/deploy/vps-deploy-service.sh` faz `build` antes do `up` e remove o container alvo do ambiente corrente (`<CONTAINER_PREFIX>-api`, `<CONTAINER_PREFIX>-web-landing`, etc.) para evitar conflito de `container_name`;
+- em `production`, `web-landing`, `api`, `web-admin`, `web-client` e `web-provider` ficam publicados em `127.0.0.1`, por isso o acesso externo precisa passar pelo Nginx;
+- em `development`, os mesmos servicos podem ser publicados por `IP:porta` (bind `0.0.0.0`) para validacao rapida;
 - os portais usam `INTERNAL_API_URL` para chamadas server-side na rede Docker e `PUBLIC_API_URL` para URLs injetadas no browser;
 - a landing usa `PUBLIC_LANDING_URL`, `PUBLIC_CLIENT_URL`, `PUBLIC_PROVIDER_URL`, `PUBLIC_ADMIN_URL` e `PUBLIC_API_URL` para montar CTA, canonical e links publicos.
 
@@ -251,12 +296,14 @@ docker inspect cpm-web-admin --format '{{range .Config.Env}}{{println .}}{{end}}
 docker inspect cpm-web-client --format '{{range .Config.Env}}{{println .}}{{end}}' | grep -E '^(ApiBaseUrl|BrowserApiBaseUrl)='
 docker inspect cpm-web-provider --format '{{range .Config.Env}}{{println .}}{{end}}' | grep -E '^(ApiBaseUrl|BrowserApiBaseUrl)='
 docker run --rm --network conserta_net curlimages/curl:8.12.1 -I http://cpm-api:8080/health
+# em DEV (CONTAINER_PREFIX=cpm-dev):
+# docker run --rm --network conserta_net curlimages/curl:8.12.1 -I http://cpm-dev-api:8080/health
 docker run --rm --network conserta_net curlimages/curl:8.12.1 -I https://api.consertapramim.com/health
 ```
 
 Esperado:
-- `ApiBaseUrl=http://cpm-api:8080`
-- `BrowserApiBaseUrl=https://api.consertapramim.com`
+- `ApiBaseUrl=http://<CONTAINER_PREFIX>-api:8080` (ex.: `cpm-api` em prod, `cpm-dev-api` em dev)
+- `BrowserApiBaseUrl=https://api.consertapramim.com` (prod) ou `http://<IP>:6193` (dev-local)
 
 Validacao funcional no navegador:
 - abrir `https://www.consertapramim.com`;
@@ -272,9 +319,42 @@ Validacao funcional no navegador:
 Workflow: `.github/workflows/deploy-vps.yml`
 
 Comportamento:
-- `push` para `main/master`: deploya apenas o(s) projeto(s) alterado(s)
+- `push` para `dev-local`: deploya stack `DEV` na mesma VPS, publicada por `IP:porta`
+- `push` para `main/master`: deploya stack `PROD` na mesma VPS, publicada por dominio/subdominios
 - `workflow_dispatch`: deploya todos os projetos
 - se alterar arquivos globais de infra/deploy, deploya todos
+
+Isolamento automatico por branch (workflow):
+
+- `dev-local`:
+  `DEPLOY_PROFILE=development`,
+  `BIND_HOST=0.0.0.0`,
+  `CONTAINER_PREFIX=cpm-dev`,
+  `VOLUME_PREFIX=cpm_dev`,
+  `DB_NAME=ConsertaPraMimDbDev`
+- `main/master`:
+  `DEPLOY_PROFILE=production`,
+  `BIND_HOST=127.0.0.1`,
+  `CONTAINER_PREFIX=cpm`,
+  `VOLUME_PREFIX=cpm`,
+  `DB_NAME=ConsertaPraMimDb`
+
+Portas por ambiente:
+
+- `dev-local`:
+  API `6193`, Landing `6088`, Admin `6151`, Cliente `6069`, Prestador `6140`,
+  Mobile WebViews `6181/6182/6183`
+- `main/master`:
+  API `5193`, Landing `5088`, Admin `5151`, Cliente `5069`, Prestador `5140`,
+  Mobile WebViews `5181/5182/5183`
+
+Configuracao recomendada no GitHub:
+
+- criar environments `development` e `production`;
+- cadastrar os mesmos nomes de secrets em ambos os environments;
+- em `development`, manter `VPS_PUBLIC_HOST` com IP da VPS;
+- em `production`, manter `PUBLIC_*_URL` com dominios/subdominios HTTPS;
+- em `development`, o workflow sobrescreve automaticamente `PUBLIC_*_URL` para `http://<IP>:<PORTA>`.
 
 Secrets obrigatorios:
 - `VPS_PUBLIC_HOST`
@@ -282,6 +362,11 @@ Secrets obrigatorios:
 - `JWT_SECRET_KEY`
 - `SEED_DEFAULT_PASSWORD`
 - `VPS_SSH_KEY`
+
+Recomendacao de seguranca:
+- criar environments do GitHub Actions `development` e `production`;
+- cadastrar os mesmos nomes de secrets nos dois environments;
+- restringir aprovacoes/permissoes do environment `production`.
 
 Secrets opcionais:
 - `VPS_APP_ENVIRONMENT` (default `Production`)
@@ -296,7 +381,8 @@ Secrets opcionais:
 - `PUBLIC_PROVIDER_URL`
 - `ENFORCE_API_HTTPS_REDIRECTION`
 
-Se os secrets `PUBLIC_*_URL` nao forem preenchidos, os compose mantem fallback para o modelo legado em `http://host:porta`, exceto a landing que faz fallback para `https://www.consertapramim.com`.
+Em `dev-local`, o workflow sobrescreve `PUBLIC_*_URL` para `http://<VPS_PUBLIC_HOST>:<porta-dev>` automaticamente.
+Em `main/master`, os `PUBLIC_*_URL` devem apontar para os dominios/subdominios HTTPS de producao.
 
 ## 9) Operacao por projeto
 
@@ -331,4 +417,14 @@ docker logs -f cpm-web-provider
 docker logs -f cpm-mobile-webview-client
 docker logs -f cpm-mobile-webview-provider
 docker logs -f cpm-mobile-webview-admin
+
+# Stack DEV (branch dev-local)
+docker logs -f cpm-dev-web-landing
+docker logs -f cpm-dev-api
+docker logs -f cpm-dev-web-admin
+docker logs -f cpm-dev-web-client
+docker logs -f cpm-dev-web-provider
+docker logs -f cpm-dev-mobile-webview-client
+docker logs -f cpm-dev-mobile-webview-provider
+docker logs -f cpm-dev-mobile-webview-admin
 ```

@@ -32,15 +32,15 @@ declare -A COMPOSE_FILES=(
   [mobile-webview-admin]="Backend/docker-compose.vps.mobile-webview-admin.yml"
 )
 
-declare -A CONTAINER_NAMES=(
-  [api]="cpm-api"
-  [web-landing]="cpm-web-landing"
-  [web-admin]="cpm-web-admin"
-  [web-client]="cpm-web-client"
-  [web-provider]="cpm-web-provider"
-  [mobile-webview-client]="cpm-mobile-webview-client"
-  [mobile-webview-provider]="cpm-mobile-webview-provider"
-  [mobile-webview-admin]="cpm-mobile-webview-admin"
+declare -A CONTAINER_SUFFIXES=(
+  [api]="api"
+  [web-landing]="web-landing"
+  [web-admin]="web-admin"
+  [web-client]="web-client"
+  [web-provider]="web-provider"
+  [mobile-webview-client]="mobile-webview-client"
+  [mobile-webview-provider]="mobile-webview-provider"
+  [mobile-webview-admin]="mobile-webview-admin"
 )
 
 if [[ -z "${COMPOSE_FILES[$TARGET_SERVICE]+x}" ]]; then
@@ -50,7 +50,6 @@ if [[ -z "${COMPOSE_FILES[$TARGET_SERVICE]+x}" ]]; then
 fi
 
 COMPOSE_FILE="${COMPOSE_FILES[$TARGET_SERVICE]}"
-TARGET_CONTAINER_NAME="${CONTAINER_NAMES[$TARGET_SERVICE]}"
 
 cd "$REPO_DIR"
 
@@ -65,6 +64,14 @@ if [[ ! -f "$ENV_FILE" ]]; then
   echo "Edite as credenciais e execute novamente."
   exit 1
 fi
+
+# Carrega parametros do stack para resolver nome efetivo do container por ambiente.
+set -a
+source "$ENV_FILE"
+set +a
+
+CONTAINER_PREFIX_VALUE="${CONTAINER_PREFIX:-cpm}"
+TARGET_CONTAINER_NAME="${CONTAINER_PREFIX_VALUE}-${CONTAINER_SUFFIXES[$TARGET_SERVICE]}"
 
 echo "[${TARGET_SERVICE}] [1/5] Atualizando codigo..."
 if [[ "${SKIP_GIT_PULL:-0}" == "1" || "${GITHUB_ACTIONS:-false}" == "true" ]]; then

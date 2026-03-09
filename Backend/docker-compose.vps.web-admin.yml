@@ -2,20 +2,20 @@ name: backend-web-admin
 
 services:
   web-admin:
-    container_name: cpm-web-admin
+    container_name: "${CONTAINER_PREFIX:-cpm}-web-admin"
     build:
       context: .
       dockerfile: docker/vps/Dockerfile.web.admin
     restart: unless-stopped
     ports:
-      - "127.0.0.1:${ADMIN_PORT:-5151}:${ADMIN_PORT:-5151}"
+      - "${BIND_HOST:-127.0.0.1}:${ADMIN_PORT:-5151}:${ADMIN_PORT:-5151}"
     environment:
       ASPNETCORE_ENVIRONMENT: "${APP_ENVIRONMENT:-Development}"
       ASPNETCORE_URLS: "http://+:${ADMIN_PORT:-5151}"
       DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: "false"
       LANG: "pt_BR.UTF-8"
       LC_ALL: "pt_BR.UTF-8"
-      ApiBaseUrl: "${INTERNAL_API_URL:-http://cpm-api:8080}"
+      ApiBaseUrl: "${INTERNAL_API_URL:-http://${CONTAINER_PREFIX:-cpm}-api:8080}"
       BrowserApiBaseUrl: "${PUBLIC_API_URL:-http://${VPS_PUBLIC_HOST}:${API_PORT:-5193}}"
       Portals__ClientUrl: "${PUBLIC_CLIENT_URL:-http://${VPS_PUBLIC_HOST}:${CLIENT_PORT:-5069}}"
       Portals__ProviderUrl: "${PUBLIC_PROVIDER_URL:-http://${VPS_PUBLIC_HOST}:${PROVIDER_PORT:-5140}}"

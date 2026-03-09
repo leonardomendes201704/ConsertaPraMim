@@ -2,22 +2,27 @@
 
 on:
   push:
-    branches: ["master", "main"]
+    branches: ["master", "main", "dev-local"]
   workflow_dispatch:
 
 concurrency:
-  group: deploy-vps
+  group: deploy-vps-${{ github.ref_name }}
   cancel-in-progress: true
 
 env:
-  API_PORT: "5193"
-  LANDING_PORT: "5088"
-  ADMIN_PORT: "5151"
-  CLIENT_PORT: "5069"
-  PROVIDER_PORT: "5140"
-  MOBILE_CLIENT_WEBVIEW_PORT: "5181"
-  MOBILE_PROVIDER_WEBVIEW_PORT: "5182"
-  MOBILE_ADMIN_WEBVIEW_PORT: "5183"
+  DEPLOY_PROFILE: ${{ github.ref_name == 'dev-local' && 'development' || 'production' }}
+  API_PORT: ${{ github.ref_name == 'dev-local' && '6193' || '5193' }}
+  LANDING_PORT: ${{ github.ref_name == 'dev-local' && '6088' || '5088' }}
+  ADMIN_PORT: ${{ github.ref_name == 'dev-local' && '6151' || '5151' }}
+  CLIENT_PORT: ${{ github.ref_name == 'dev-local' && '6069' || '5069' }}
+  PROVIDER_PORT: ${{ github.ref_name == 'dev-local' && '6140' || '5140' }}
+  MOBILE_CLIENT_WEBVIEW_PORT: ${{ github.ref_name == 'dev-local' && '6181' || '5181' }}
+  MOBILE_PROVIDER_WEBVIEW_PORT: ${{ github.ref_name == 'dev-local' && '6182' || '5182' }}
+  MOBILE_ADMIN_WEBVIEW_PORT: ${{ github.ref_name == 'dev-local' && '6183' || '5183' }}
+  BIND_HOST: ${{ github.ref_name == 'dev-local' && '0.0.0.0' || '127.0.0.1' }}
+  CONTAINER_PREFIX: ${{ github.ref_name == 'dev-local' && 'cpm-dev' || 'cpm' }}
+  VOLUME_PREFIX: ${{ github.ref_name == 'dev-local' && 'cpm_dev' || 'cpm' }}
+  DB_NAME: ${{ github.ref_name == 'dev-local' && 'ConsertaPraMimDbDev' || 'ConsertaPraMimDb' }}
   APK_SFTP_USER: "root"
   APK_SFTP_DIR: "/opt/filebrowser/srv/apks"
 
@@ -25,6 +30,7 @@ jobs:
   targets:
     name: Resolve Deploy Targets
     runs-on: [self-hosted, Linux, X64]
+    environment: ${{ github.ref_name == 'dev-local' && 'development' || 'production' }}
     timeout-minutes: 10
     outputs:
       deploy_api: ${{ steps.targets.outputs.deploy_api }}
@@ -347,6 +353,10 @@ jobs:
           {
             echo "## Deploy Plan"
             echo ""
+            echo "- Profile: \`${{ env.DEPLOY_PROFILE }}\`"
+            echo "- Host binding: \`${{ env.BIND_HOST }}\`"
+            echo "- Ports: API=${{ env.API_PORT }}, Landing=${{ env.LANDING_PORT }}, Admin=${{ env.ADMIN_PORT }}, Cliente=${{ env.CLIENT_PORT }}, Prestador=${{ env.PROVIDER_PORT }}"
+            echo ""
             echo "| No | Executa? |"
             echo "|---|---|"
             echo "| Resolve Deploy Targets | $(bool_icon "true") |"
@@ -386,6 +396,7 @@ jobs:
     needs: targets
     if: needs.targets.outputs.deploy_api == 'true'
     runs-on: [self-hosted, Linux, X64]
+    environment: ${{ github.ref_name == 'dev-local' && 'development' || 'production' }}
     timeout-minutes: 20
     steps:
       - name: Checkout
@@ -398,18 +409,54 @@ jobs:
         run: |
           APP_ENVIRONMENT_VALUE="${{ secrets.VPS_APP_ENVIRONMENT }}"
           if [[ -z "$APP_ENVIRONMENT_VALUE" ]]; then
-            APP_ENVIRONMENT_VALUE="Production"
+            if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+              APP_ENVIRONMENT_VALUE="Development"
+            else
+              APP_ENVIRONMENT_VALUE="Production"
+            fi
+          fi
+
+          VPS_PUBLIC_HOST_VALUE="${{ secrets.VPS_PUBLIC_HOST }}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE#http://}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE#https://}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE%%/*}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE%%:*}"
+          PUBLIC_API_URL_VALUE="${{ secrets.PUBLIC_API_URL }}"
+          PUBLIC_ADMIN_URL_VALUE="${{ secrets.PUBLIC_ADMIN_URL }}"
+          PUBLIC_CLIENT_URL_VALUE="${{ secrets.PUBLIC_CLIENT_URL }}"
+          PUBLIC_PROVIDER_URL_VALUE="${{ secrets.PUBLIC_PROVIDER_URL }}"
+          PUBLIC_LANDING_URL_VALUE="${{ secrets.PUBLIC_LANDING_URL }}"
+          ENFORCE_API_HTTPS_REDIRECTION_VALUE="${{ secrets.ENFORCE_API_HTTPS_REDIRECTION }}"
+
+          if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+            PUBLIC_API_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.API_PORT }}"
+            PUBLIC_ADMIN_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.ADMIN_PORT }}"
+            PUBLIC_CLIENT_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.CLIENT_PORT }}"
+            PUBLIC_PROVIDER_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.PROVIDER_PORT }}"
+            PUBLIC_LANDING_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.LANDING_PORT }}"
+            if [[ -z "$ENFORCE_API_HTTPS_REDIRECTION_VALUE" ]]; then
+              ENFORCE_API_HTTPS_REDIRECTION_VALUE="false"
+            fi
+          fi
+
+          if [[ -z "$ENFORCE_API_HTTPS_REDIRECTION_VALUE" ]]; then
+            ENFORCE_API_HTTPS_REDIRECTION_VALUE="true"
           fi
 
           cat > Backend/.env.vps <<EOF
           APP_ENVIRONMENT=$APP_ENVIRONMENT_VALUE
-          VPS_PUBLIC_HOST=${{ secrets.VPS_PUBLIC_HOST }}
-          PUBLIC_API_URL=${{ secrets.PUBLIC_API_URL }}
-          PUBLIC_ADMIN_URL=${{ secrets.PUBLIC_ADMIN_URL }}
-          PUBLIC_CLIENT_URL=${{ secrets.PUBLIC_CLIENT_URL }}
-          PUBLIC_PROVIDER_URL=${{ secrets.PUBLIC_PROVIDER_URL }}
-          PUBLIC_LANDING_URL=${{ secrets.PUBLIC_LANDING_URL }}
-          ENFORCE_API_HTTPS_REDIRECTION=${{ secrets.ENFORCE_API_HTTPS_REDIRECTION }}
+          DEPLOY_PROFILE=${{ env.DEPLOY_PROFILE }}
+          BIND_HOST=${{ env.BIND_HOST }}
+          CONTAINER_PREFIX=${{ env.CONTAINER_PREFIX }}
+          VOLUME_PREFIX=${{ env.VOLUME_PREFIX }}
+          INTERNAL_API_URL=http://${{ env.CONTAINER_PREFIX }}-api:8080
+          VPS_PUBLIC_HOST=$VPS_PUBLIC_HOST_VALUE
+          PUBLIC_API_URL=$PUBLIC_API_URL_VALUE
+          PUBLIC_ADMIN_URL=$PUBLIC_ADMIN_URL_VALUE
+          PUBLIC_CLIENT_URL=$PUBLIC_CLIENT_URL_VALUE
+          PUBLIC_PROVIDER_URL=$PUBLIC_PROVIDER_URL_VALUE
+          PUBLIC_LANDING_URL=$PUBLIC_LANDING_URL_VALUE
+          ENFORCE_API_HTTPS_REDIRECTION=$ENFORCE_API_HTTPS_REDIRECTION_VALUE
           API_PORT=${{ env.API_PORT }}
           LANDING_PORT=${{ env.LANDING_PORT }}
           ADMIN_PORT=${{ env.ADMIN_PORT }}
@@ -418,7 +465,7 @@ jobs:
           MOBILE_CLIENT_WEBVIEW_PORT=${{ env.MOBILE_CLIENT_WEBVIEW_PORT }}
           MOBILE_PROVIDER_WEBVIEW_PORT=${{ env.MOBILE_PROVIDER_WEBVIEW_PORT }}
           MOBILE_ADMIN_WEBVIEW_PORT=${{ env.MOBILE_ADMIN_WEBVIEW_PORT }}
-          DB_NAME=ConsertaPraMimDb
+          DB_NAME=${{ env.DB_NAME }}
           DB_USER=sa
           DB_PASSWORD=${{ secrets.VPS_DB_PASSWORD }}
           DB_HOST=${{ secrets.VPS_DB_HOST }}
@@ -444,6 +491,7 @@ jobs:
     needs: [targets, deploy-api]
     if: always() && needs.targets.outputs.deploy_api == 'true' && needs.deploy-api.result == 'success'
     runs-on: [self-hosted, Linux, X64]
+    environment: ${{ github.ref_name == 'dev-local' && 'development' || 'production' }}
     timeout-minutes: 8
     outputs:
       endpoint: ${{ steps.health.outputs.endpoint }}
@@ -483,6 +531,7 @@ jobs:
     needs: targets
     if: needs.targets.outputs.deploy_web_landing == 'true'
     runs-on: [self-hosted, Linux, X64]
+    environment: ${{ github.ref_name == 'dev-local' && 'development' || 'production' }}
     timeout-minutes: 20
     steps:
       - name: Checkout
@@ -495,18 +544,54 @@ jobs:
         run: |
           APP_ENVIRONMENT_VALUE="${{ secrets.VPS_APP_ENVIRONMENT }}"
           if [[ -z "$APP_ENVIRONMENT_VALUE" ]]; then
-            APP_ENVIRONMENT_VALUE="Production"
+            if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+              APP_ENVIRONMENT_VALUE="Development"
+            else
+              APP_ENVIRONMENT_VALUE="Production"
+            fi
+          fi
+
+          VPS_PUBLIC_HOST_VALUE="${{ secrets.VPS_PUBLIC_HOST }}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE#http://}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE#https://}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE%%/*}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE%%:*}"
+          PUBLIC_API_URL_VALUE="${{ secrets.PUBLIC_API_URL }}"
+          PUBLIC_ADMIN_URL_VALUE="${{ secrets.PUBLIC_ADMIN_URL }}"
+          PUBLIC_CLIENT_URL_VALUE="${{ secrets.PUBLIC_CLIENT_URL }}"
+          PUBLIC_PROVIDER_URL_VALUE="${{ secrets.PUBLIC_PROVIDER_URL }}"
+          PUBLIC_LANDING_URL_VALUE="${{ secrets.PUBLIC_LANDING_URL }}"
+          ENFORCE_API_HTTPS_REDIRECTION_VALUE="${{ secrets.ENFORCE_API_HTTPS_REDIRECTION }}"
+
+          if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+            PUBLIC_API_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.API_PORT }}"
+            PUBLIC_ADMIN_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.ADMIN_PORT }}"
+            PUBLIC_CLIENT_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.CLIENT_PORT }}"
+            PUBLIC_PROVIDER_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.PROVIDER_PORT }}"
+            PUBLIC_LANDING_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.LANDING_PORT }}"
+            if [[ -z "$ENFORCE_API_HTTPS_REDIRECTION_VALUE" ]]; then
+              ENFORCE_API_HTTPS_REDIRECTION_VALUE="false"
+            fi
+          fi
+
+          if [[ -z "$ENFORCE_API_HTTPS_REDIRECTION_VALUE" ]]; then
+            ENFORCE_API_HTTPS_REDIRECTION_VALUE="true"
           fi
 
           cat > Backend/.env.vps <<EOF
           APP_ENVIRONMENT=$APP_ENVIRONMENT_VALUE
-          VPS_PUBLIC_HOST=${{ secrets.VPS_PUBLIC_HOST }}
-          PUBLIC_API_URL=${{ secrets.PUBLIC_API_URL }}
-          PUBLIC_ADMIN_URL=${{ secrets.PUBLIC_ADMIN_URL }}
-          PUBLIC_CLIENT_URL=${{ secrets.PUBLIC_CLIENT_URL }}
-          PUBLIC_PROVIDER_URL=${{ secrets.PUBLIC_PROVIDER_URL }}
-          PUBLIC_LANDING_URL=${{ secrets.PUBLIC_LANDING_URL }}
-          ENFORCE_API_HTTPS_REDIRECTION=${{ secrets.ENFORCE_API_HTTPS_REDIRECTION }}
+          DEPLOY_PROFILE=${{ env.DEPLOY_PROFILE }}
+          BIND_HOST=${{ env.BIND_HOST }}
+          CONTAINER_PREFIX=${{ env.CONTAINER_PREFIX }}
+          VOLUME_PREFIX=${{ env.VOLUME_PREFIX }}
+          INTERNAL_API_URL=http://${{ env.CONTAINER_PREFIX }}-api:8080
+          VPS_PUBLIC_HOST=$VPS_PUBLIC_HOST_VALUE
+          PUBLIC_API_URL=$PUBLIC_API_URL_VALUE
+          PUBLIC_ADMIN_URL=$PUBLIC_ADMIN_URL_VALUE
+          PUBLIC_CLIENT_URL=$PUBLIC_CLIENT_URL_VALUE
+          PUBLIC_PROVIDER_URL=$PUBLIC_PROVIDER_URL_VALUE
+          PUBLIC_LANDING_URL=$PUBLIC_LANDING_URL_VALUE
+          ENFORCE_API_HTTPS_REDIRECTION=$ENFORCE_API_HTTPS_REDIRECTION_VALUE
           API_PORT=${{ env.API_PORT }}
           LANDING_PORT=${{ env.LANDING_PORT }}
           ADMIN_PORT=${{ env.ADMIN_PORT }}
@@ -515,7 +600,7 @@ jobs:
           MOBILE_CLIENT_WEBVIEW_PORT=${{ env.MOBILE_CLIENT_WEBVIEW_PORT }}
           MOBILE_PROVIDER_WEBVIEW_PORT=${{ env.MOBILE_PROVIDER_WEBVIEW_PORT }}
           MOBILE_ADMIN_WEBVIEW_PORT=${{ env.MOBILE_ADMIN_WEBVIEW_PORT }}
-          DB_NAME=ConsertaPraMimDb
+          DB_NAME=${{ env.DB_NAME }}
           DB_USER=sa
           DB_PASSWORD=${{ secrets.VPS_DB_PASSWORD }}
           DB_HOST=${{ secrets.VPS_DB_HOST }}
@@ -541,6 +626,7 @@ jobs:
     needs: [targets, deploy-web-landing]
     if: always() && needs.targets.outputs.deploy_web_landing == 'true' && needs.deploy-web-landing.result == 'success'
     runs-on: [self-hosted, Linux, X64]
+    environment: ${{ github.ref_name == 'dev-local' && 'development' || 'production' }}
     timeout-minutes: 8
     outputs:
       endpoint: ${{ steps.health.outputs.endpoint }}
@@ -580,6 +666,7 @@ jobs:
     needs: targets
     if: needs.targets.outputs.deploy_web_admin == 'true'
     runs-on: [self-hosted, Linux, X64]
+    environment: ${{ github.ref_name == 'dev-local' && 'development' || 'production' }}
     timeout-minutes: 20
     steps:
       - name: Checkout
@@ -592,18 +679,54 @@ jobs:
         run: |
           APP_ENVIRONMENT_VALUE="${{ secrets.VPS_APP_ENVIRONMENT }}"
           if [[ -z "$APP_ENVIRONMENT_VALUE" ]]; then
-            APP_ENVIRONMENT_VALUE="Production"
+            if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+              APP_ENVIRONMENT_VALUE="Development"
+            else
+              APP_ENVIRONMENT_VALUE="Production"
+            fi
+          fi
+
+          VPS_PUBLIC_HOST_VALUE="${{ secrets.VPS_PUBLIC_HOST }}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE#http://}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE#https://}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE%%/*}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE%%:*}"
+          PUBLIC_API_URL_VALUE="${{ secrets.PUBLIC_API_URL }}"
+          PUBLIC_ADMIN_URL_VALUE="${{ secrets.PUBLIC_ADMIN_URL }}"
+          PUBLIC_CLIENT_URL_VALUE="${{ secrets.PUBLIC_CLIENT_URL }}"
+          PUBLIC_PROVIDER_URL_VALUE="${{ secrets.PUBLIC_PROVIDER_URL }}"
+          PUBLIC_LANDING_URL_VALUE="${{ secrets.PUBLIC_LANDING_URL }}"
+          ENFORCE_API_HTTPS_REDIRECTION_VALUE="${{ secrets.ENFORCE_API_HTTPS_REDIRECTION }}"
+
+          if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+            PUBLIC_API_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.API_PORT }}"
+            PUBLIC_ADMIN_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.ADMIN_PORT }}"
+            PUBLIC_CLIENT_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.CLIENT_PORT }}"
+            PUBLIC_PROVIDER_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.PROVIDER_PORT }}"
+            PUBLIC_LANDING_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.LANDING_PORT }}"
+            if [[ -z "$ENFORCE_API_HTTPS_REDIRECTION_VALUE" ]]; then
+              ENFORCE_API_HTTPS_REDIRECTION_VALUE="false"
+            fi
+          fi
+
+          if [[ -z "$ENFORCE_API_HTTPS_REDIRECTION_VALUE" ]]; then
+            ENFORCE_API_HTTPS_REDIRECTION_VALUE="true"
           fi
 
           cat > Backend/.env.vps <<EOF
           APP_ENVIRONMENT=$APP_ENVIRONMENT_VALUE
-          VPS_PUBLIC_HOST=${{ secrets.VPS_PUBLIC_HOST }}
-          PUBLIC_API_URL=${{ secrets.PUBLIC_API_URL }}
-          PUBLIC_ADMIN_URL=${{ secrets.PUBLIC_ADMIN_URL }}
-          PUBLIC_CLIENT_URL=${{ secrets.PUBLIC_CLIENT_URL }}
-          PUBLIC_PROVIDER_URL=${{ secrets.PUBLIC_PROVIDER_URL }}
-          PUBLIC_LANDING_URL=${{ secrets.PUBLIC_LANDING_URL }}
-          ENFORCE_API_HTTPS_REDIRECTION=${{ secrets.ENFORCE_API_HTTPS_REDIRECTION }}
+          DEPLOY_PROFILE=${{ env.DEPLOY_PROFILE }}
+          BIND_HOST=${{ env.BIND_HOST }}
+          CONTAINER_PREFIX=${{ env.CONTAINER_PREFIX }}
+          VOLUME_PREFIX=${{ env.VOLUME_PREFIX }}
+          INTERNAL_API_URL=http://${{ env.CONTAINER_PREFIX }}-api:8080
+          VPS_PUBLIC_HOST=$VPS_PUBLIC_HOST_VALUE
+          PUBLIC_API_URL=$PUBLIC_API_URL_VALUE
+          PUBLIC_ADMIN_URL=$PUBLIC_ADMIN_URL_VALUE
+          PUBLIC_CLIENT_URL=$PUBLIC_CLIENT_URL_VALUE
+          PUBLIC_PROVIDER_URL=$PUBLIC_PROVIDER_URL_VALUE
+          PUBLIC_LANDING_URL=$PUBLIC_LANDING_URL_VALUE
+          ENFORCE_API_HTTPS_REDIRECTION=$ENFORCE_API_HTTPS_REDIRECTION_VALUE
           API_PORT=${{ env.API_PORT }}
           LANDING_PORT=${{ env.LANDING_PORT }}
           ADMIN_PORT=${{ env.ADMIN_PORT }}
@@ -612,7 +735,7 @@ jobs:
           MOBILE_CLIENT_WEBVIEW_PORT=${{ env.MOBILE_CLIENT_WEBVIEW_PORT }}
           MOBILE_PROVIDER_WEBVIEW_PORT=${{ env.MOBILE_PROVIDER_WEBVIEW_PORT }}
           MOBILE_ADMIN_WEBVIEW_PORT=${{ env.MOBILE_ADMIN_WEBVIEW_PORT }}
-          DB_NAME=ConsertaPraMimDb
+          DB_NAME=${{ env.DB_NAME }}
           DB_USER=sa
           DB_PASSWORD=${{ secrets.VPS_DB_PASSWORD }}
           DB_HOST=${{ secrets.VPS_DB_HOST }}
@@ -638,6 +761,7 @@ jobs:
     needs: [targets, deploy-web-admin]
     if: always() && needs.targets.outputs.deploy_web_admin == 'true' && needs.deploy-web-admin.result == 'success'
     runs-on: [self-hosted, Linux, X64]
+    environment: ${{ github.ref_name == 'dev-local' && 'development' || 'production' }}
     timeout-minutes: 8
     outputs:
       endpoint: ${{ steps.health.outputs.endpoint }}
@@ -677,6 +801,7 @@ jobs:
     needs: targets
     if: needs.targets.outputs.deploy_web_client == 'true'
     runs-on: [self-hosted, Linux, X64]
+    environment: ${{ github.ref_name == 'dev-local' && 'development' || 'production' }}
     timeout-minutes: 20
     steps:
       - name: Checkout
@@ -689,18 +814,54 @@ jobs:
         run: |
           APP_ENVIRONMENT_VALUE="${{ secrets.VPS_APP_ENVIRONMENT }}"
           if [[ -z "$APP_ENVIRONMENT_VALUE" ]]; then
-            APP_ENVIRONMENT_VALUE="Production"
+            if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+              APP_ENVIRONMENT_VALUE="Development"
+            else
+              APP_ENVIRONMENT_VALUE="Production"
+            fi
+          fi
+
+          VPS_PUBLIC_HOST_VALUE="${{ secrets.VPS_PUBLIC_HOST }}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE#http://}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE#https://}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE%%/*}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE%%:*}"
+          PUBLIC_API_URL_VALUE="${{ secrets.PUBLIC_API_URL }}"
+          PUBLIC_ADMIN_URL_VALUE="${{ secrets.PUBLIC_ADMIN_URL }}"
+          PUBLIC_CLIENT_URL_VALUE="${{ secrets.PUBLIC_CLIENT_URL }}"
+          PUBLIC_PROVIDER_URL_VALUE="${{ secrets.PUBLIC_PROVIDER_URL }}"
+          PUBLIC_LANDING_URL_VALUE="${{ secrets.PUBLIC_LANDING_URL }}"
+          ENFORCE_API_HTTPS_REDIRECTION_VALUE="${{ secrets.ENFORCE_API_HTTPS_REDIRECTION }}"
+
+          if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+            PUBLIC_API_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.API_PORT }}"
+            PUBLIC_ADMIN_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.ADMIN_PORT }}"
+            PUBLIC_CLIENT_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.CLIENT_PORT }}"
+            PUBLIC_PROVIDER_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.PROVIDER_PORT }}"
+            PUBLIC_LANDING_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.LANDING_PORT }}"
+            if [[ -z "$ENFORCE_API_HTTPS_REDIRECTION_VALUE" ]]; then
+              ENFORCE_API_HTTPS_REDIRECTION_VALUE="false"
+            fi
+          fi
+
+          if [[ -z "$ENFORCE_API_HTTPS_REDIRECTION_VALUE" ]]; then
+            ENFORCE_API_HTTPS_REDIRECTION_VALUE="true"
           fi
 
           cat > Backend/.env.vps <<EOF
           APP_ENVIRONMENT=$APP_ENVIRONMENT_VALUE
-          VPS_PUBLIC_HOST=${{ secrets.VPS_PUBLIC_HOST }}
-          PUBLIC_API_URL=${{ secrets.PUBLIC_API_URL }}
-          PUBLIC_ADMIN_URL=${{ secrets.PUBLIC_ADMIN_URL }}
-          PUBLIC_CLIENT_URL=${{ secrets.PUBLIC_CLIENT_URL }}
-          PUBLIC_PROVIDER_URL=${{ secrets.PUBLIC_PROVIDER_URL }}
-          PUBLIC_LANDING_URL=${{ secrets.PUBLIC_LANDING_URL }}
-          ENFORCE_API_HTTPS_REDIRECTION=${{ secrets.ENFORCE_API_HTTPS_REDIRECTION }}
+          DEPLOY_PROFILE=${{ env.DEPLOY_PROFILE }}
+          BIND_HOST=${{ env.BIND_HOST }}
+          CONTAINER_PREFIX=${{ env.CONTAINER_PREFIX }}
+          VOLUME_PREFIX=${{ env.VOLUME_PREFIX }}
+          INTERNAL_API_URL=http://${{ env.CONTAINER_PREFIX }}-api:8080
+          VPS_PUBLIC_HOST=$VPS_PUBLIC_HOST_VALUE
+          PUBLIC_API_URL=$PUBLIC_API_URL_VALUE
+          PUBLIC_ADMIN_URL=$PUBLIC_ADMIN_URL_VALUE
+          PUBLIC_CLIENT_URL=$PUBLIC_CLIENT_URL_VALUE
+          PUBLIC_PROVIDER_URL=$PUBLIC_PROVIDER_URL_VALUE
+          PUBLIC_LANDING_URL=$PUBLIC_LANDING_URL_VALUE
+          ENFORCE_API_HTTPS_REDIRECTION=$ENFORCE_API_HTTPS_REDIRECTION_VALUE
           API_PORT=${{ env.API_PORT }}
           LANDING_PORT=${{ env.LANDING_PORT }}
           ADMIN_PORT=${{ env.ADMIN_PORT }}
@@ -709,7 +870,7 @@ jobs:
           MOBILE_CLIENT_WEBVIEW_PORT=${{ env.MOBILE_CLIENT_WEBVIEW_PORT }}
           MOBILE_PROVIDER_WEBVIEW_PORT=${{ env.MOBILE_PROVIDER_WEBVIEW_PORT }}
           MOBILE_ADMIN_WEBVIEW_PORT=${{ env.MOBILE_ADMIN_WEBVIEW_PORT }}
-          DB_NAME=ConsertaPraMimDb
+          DB_NAME=${{ env.DB_NAME }}
           DB_USER=sa
           DB_PASSWORD=${{ secrets.VPS_DB_PASSWORD }}
           DB_HOST=${{ secrets.VPS_DB_HOST }}
@@ -735,6 +896,7 @@ jobs:
     needs: [targets, deploy-web-client]
     if: always() && needs.targets.outputs.deploy_web_client == 'true' && needs.deploy-web-client.result == 'success'
     runs-on: [self-hosted, Linux, X64]
+    environment: ${{ github.ref_name == 'dev-local' && 'development' || 'production' }}
     timeout-minutes: 8
     outputs:
       endpoint: ${{ steps.health.outputs.endpoint }}
@@ -774,6 +936,7 @@ jobs:
     needs: targets
     if: needs.targets.outputs.deploy_web_provider == 'true'
     runs-on: [self-hosted, Linux, X64]
+    environment: ${{ github.ref_name == 'dev-local' && 'development' || 'production' }}
     timeout-minutes: 20
     steps:
       - name: Checkout
@@ -786,18 +949,54 @@ jobs:
         run: |
           APP_ENVIRONMENT_VALUE="${{ secrets.VPS_APP_ENVIRONMENT }}"
           if [[ -z "$APP_ENVIRONMENT_VALUE" ]]; then
-            APP_ENVIRONMENT_VALUE="Production"
+            if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+              APP_ENVIRONMENT_VALUE="Development"
+            else
+              APP_ENVIRONMENT_VALUE="Production"
+            fi
+          fi
+
+          VPS_PUBLIC_HOST_VALUE="${{ secrets.VPS_PUBLIC_HOST }}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE#http://}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE#https://}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE%%/*}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE%%:*}"
+          PUBLIC_API_URL_VALUE="${{ secrets.PUBLIC_API_URL }}"
+          PUBLIC_ADMIN_URL_VALUE="${{ secrets.PUBLIC_ADMIN_URL }}"
+          PUBLIC_CLIENT_URL_VALUE="${{ secrets.PUBLIC_CLIENT_URL }}"
+          PUBLIC_PROVIDER_URL_VALUE="${{ secrets.PUBLIC_PROVIDER_URL }}"
+          PUBLIC_LANDING_URL_VALUE="${{ secrets.PUBLIC_LANDING_URL }}"
+          ENFORCE_API_HTTPS_REDIRECTION_VALUE="${{ secrets.ENFORCE_API_HTTPS_REDIRECTION }}"
+
+          if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+            PUBLIC_API_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.API_PORT }}"
+            PUBLIC_ADMIN_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.ADMIN_PORT }}"
+            PUBLIC_CLIENT_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.CLIENT_PORT }}"
+            PUBLIC_PROVIDER_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.PROVIDER_PORT }}"
+            PUBLIC_LANDING_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.LANDING_PORT }}"
+            if [[ -z "$ENFORCE_API_HTTPS_REDIRECTION_VALUE" ]]; then
+              ENFORCE_API_HTTPS_REDIRECTION_VALUE="false"
+            fi
+          fi
+
+          if [[ -z "$ENFORCE_API_HTTPS_REDIRECTION_VALUE" ]]; then
+            ENFORCE_API_HTTPS_REDIRECTION_VALUE="true"
           fi
 
           cat > Backend/.env.vps <<EOF
           APP_ENVIRONMENT=$APP_ENVIRONMENT_VALUE
-          VPS_PUBLIC_HOST=${{ secrets.VPS_PUBLIC_HOST }}
-          PUBLIC_API_URL=${{ secrets.PUBLIC_API_URL }}
-          PUBLIC_ADMIN_URL=${{ secrets.PUBLIC_ADMIN_URL }}
-          PUBLIC_CLIENT_URL=${{ secrets.PUBLIC_CLIENT_URL }}
-          PUBLIC_PROVIDER_URL=${{ secrets.PUBLIC_PROVIDER_URL }}
-          PUBLIC_LANDING_URL=${{ secrets.PUBLIC_LANDING_URL }}
-          ENFORCE_API_HTTPS_REDIRECTION=${{ secrets.ENFORCE_API_HTTPS_REDIRECTION }}
+          DEPLOY_PROFILE=${{ env.DEPLOY_PROFILE }}
+          BIND_HOST=${{ env.BIND_HOST }}
+          CONTAINER_PREFIX=${{ env.CONTAINER_PREFIX }}
+          VOLUME_PREFIX=${{ env.VOLUME_PREFIX }}
+          INTERNAL_API_URL=http://${{ env.CONTAINER_PREFIX }}-api:8080
+          VPS_PUBLIC_HOST=$VPS_PUBLIC_HOST_VALUE
+          PUBLIC_API_URL=$PUBLIC_API_URL_VALUE
+          PUBLIC_ADMIN_URL=$PUBLIC_ADMIN_URL_VALUE
+          PUBLIC_CLIENT_URL=$PUBLIC_CLIENT_URL_VALUE
+          PUBLIC_PROVIDER_URL=$PUBLIC_PROVIDER_URL_VALUE
+          PUBLIC_LANDING_URL=$PUBLIC_LANDING_URL_VALUE
+          ENFORCE_API_HTTPS_REDIRECTION=$ENFORCE_API_HTTPS_REDIRECTION_VALUE
           API_PORT=${{ env.API_PORT }}
           LANDING_PORT=${{ env.LANDING_PORT }}
           ADMIN_PORT=${{ env.ADMIN_PORT }}
@@ -806,7 +1005,7 @@ jobs:
           MOBILE_CLIENT_WEBVIEW_PORT=${{ env.MOBILE_CLIENT_WEBVIEW_PORT }}
           MOBILE_PROVIDER_WEBVIEW_PORT=${{ env.MOBILE_PROVIDER_WEBVIEW_PORT }}
           MOBILE_ADMIN_WEBVIEW_PORT=${{ env.MOBILE_ADMIN_WEBVIEW_PORT }}
-          DB_NAME=ConsertaPraMimDb
+          DB_NAME=${{ env.DB_NAME }}
           DB_USER=sa
           DB_PASSWORD=${{ secrets.VPS_DB_PASSWORD }}
           DB_HOST=${{ secrets.VPS_DB_HOST }}
@@ -832,6 +1031,7 @@ jobs:
     needs: [targets, deploy-web-provider]
     if: always() && needs.targets.outputs.deploy_web_provider == 'true' && needs.deploy-web-provider.result == 'success'
     runs-on: [self-hosted, Linux, X64]
+    environment: ${{ github.ref_name == 'dev-local' && 'development' || 'production' }}
     timeout-minutes: 8
     outputs:
       endpoint: ${{ steps.health.outputs.endpoint }}
@@ -878,6 +1078,7 @@ jobs:
       !contains(needs.*.result, 'failure') &&
       !contains(needs.*.result, 'cancelled')
     runs-on: [self-hosted, Linux, X64]
+    environment: ${{ github.ref_name == 'dev-local' && 'development' || 'production' }}
     timeout-minutes: 20
     steps:
       - name: Checkout
@@ -890,18 +1091,54 @@ jobs:
         run: |
           APP_ENVIRONMENT_VALUE="${{ secrets.VPS_APP_ENVIRONMENT }}"
           if [[ -z "$APP_ENVIRONMENT_VALUE" ]]; then
-            APP_ENVIRONMENT_VALUE="Production"
+            if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+              APP_ENVIRONMENT_VALUE="Development"
+            else
+              APP_ENVIRONMENT_VALUE="Production"
+            fi
+          fi
+
+          VPS_PUBLIC_HOST_VALUE="${{ secrets.VPS_PUBLIC_HOST }}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE#http://}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE#https://}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE%%/*}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE%%:*}"
+          PUBLIC_API_URL_VALUE="${{ secrets.PUBLIC_API_URL }}"
+          PUBLIC_ADMIN_URL_VALUE="${{ secrets.PUBLIC_ADMIN_URL }}"
+          PUBLIC_CLIENT_URL_VALUE="${{ secrets.PUBLIC_CLIENT_URL }}"
+          PUBLIC_PROVIDER_URL_VALUE="${{ secrets.PUBLIC_PROVIDER_URL }}"
+          PUBLIC_LANDING_URL_VALUE="${{ secrets.PUBLIC_LANDING_URL }}"
+          ENFORCE_API_HTTPS_REDIRECTION_VALUE="${{ secrets.ENFORCE_API_HTTPS_REDIRECTION }}"
+
+          if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+            PUBLIC_API_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.API_PORT }}"
+            PUBLIC_ADMIN_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.ADMIN_PORT }}"
+            PUBLIC_CLIENT_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.CLIENT_PORT }}"
+            PUBLIC_PROVIDER_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.PROVIDER_PORT }}"
+            PUBLIC_LANDING_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.LANDING_PORT }}"
+            if [[ -z "$ENFORCE_API_HTTPS_REDIRECTION_VALUE" ]]; then
+              ENFORCE_API_HTTPS_REDIRECTION_VALUE="false"
+            fi
+          fi
+
+          if [[ -z "$ENFORCE_API_HTTPS_REDIRECTION_VALUE" ]]; then
+            ENFORCE_API_HTTPS_REDIRECTION_VALUE="true"
           fi
 
           cat > Backend/.env.vps <<EOF
           APP_ENVIRONMENT=$APP_ENVIRONMENT_VALUE
-          VPS_PUBLIC_HOST=${{ secrets.VPS_PUBLIC_HOST }}
-          PUBLIC_API_URL=${{ secrets.PUBLIC_API_URL }}
-          PUBLIC_ADMIN_URL=${{ secrets.PUBLIC_ADMIN_URL }}
-          PUBLIC_CLIENT_URL=${{ secrets.PUBLIC_CLIENT_URL }}
-          PUBLIC_PROVIDER_URL=${{ secrets.PUBLIC_PROVIDER_URL }}
-          PUBLIC_LANDING_URL=${{ secrets.PUBLIC_LANDING_URL }}
-          ENFORCE_API_HTTPS_REDIRECTION=${{ secrets.ENFORCE_API_HTTPS_REDIRECTION }}
+          DEPLOY_PROFILE=${{ env.DEPLOY_PROFILE }}
+          BIND_HOST=${{ env.BIND_HOST }}
+          CONTAINER_PREFIX=${{ env.CONTAINER_PREFIX }}
+          VOLUME_PREFIX=${{ env.VOLUME_PREFIX }}
+          INTERNAL_API_URL=http://${{ env.CONTAINER_PREFIX }}-api:8080
+          VPS_PUBLIC_HOST=$VPS_PUBLIC_HOST_VALUE
+          PUBLIC_API_URL=$PUBLIC_API_URL_VALUE
+          PUBLIC_ADMIN_URL=$PUBLIC_ADMIN_URL_VALUE
+          PUBLIC_CLIENT_URL=$PUBLIC_CLIENT_URL_VALUE
+          PUBLIC_PROVIDER_URL=$PUBLIC_PROVIDER_URL_VALUE
+          PUBLIC_LANDING_URL=$PUBLIC_LANDING_URL_VALUE
+          ENFORCE_API_HTTPS_REDIRECTION=$ENFORCE_API_HTTPS_REDIRECTION_VALUE
           API_PORT=${{ env.API_PORT }}
           LANDING_PORT=${{ env.LANDING_PORT }}
           ADMIN_PORT=${{ env.ADMIN_PORT }}
@@ -910,7 +1147,7 @@ jobs:
           MOBILE_CLIENT_WEBVIEW_PORT=${{ env.MOBILE_CLIENT_WEBVIEW_PORT }}
           MOBILE_PROVIDER_WEBVIEW_PORT=${{ env.MOBILE_PROVIDER_WEBVIEW_PORT }}
           MOBILE_ADMIN_WEBVIEW_PORT=${{ env.MOBILE_ADMIN_WEBVIEW_PORT }}
-          DB_NAME=ConsertaPraMimDb
+          DB_NAME=${{ env.DB_NAME }}
           DB_USER=sa
           DB_PASSWORD=${{ secrets.VPS_DB_PASSWORD }}
           DB_HOST=${{ secrets.VPS_DB_HOST }}
@@ -936,6 +1173,7 @@ jobs:
     needs: [targets, deploy-mobile-webview-client]
     if: always() && needs.targets.outputs.deploy_mobile_webview_client == 'true' && needs.deploy-mobile-webview-client.result == 'success'
     runs-on: [self-hosted, Linux, X64]
+    environment: ${{ github.ref_name == 'dev-local' && 'development' || 'production' }}
     timeout-minutes: 8
     outputs:
       endpoint: ${{ steps.health.outputs.endpoint }}
@@ -982,6 +1220,7 @@ jobs:
       !contains(needs.*.result, 'failure') &&
       !contains(needs.*.result, 'cancelled')
     runs-on: [self-hosted, Linux, X64]
+    environment: ${{ github.ref_name == 'dev-local' && 'development' || 'production' }}
     timeout-minutes: 20
     steps:
       - name: Checkout
@@ -994,18 +1233,54 @@ jobs:
         run: |
           APP_ENVIRONMENT_VALUE="${{ secrets.VPS_APP_ENVIRONMENT }}"
           if [[ -z "$APP_ENVIRONMENT_VALUE" ]]; then
-            APP_ENVIRONMENT_VALUE="Production"
+            if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+              APP_ENVIRONMENT_VALUE="Development"
+            else
+              APP_ENVIRONMENT_VALUE="Production"
+            fi
+          fi
+
+          VPS_PUBLIC_HOST_VALUE="${{ secrets.VPS_PUBLIC_HOST }}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE#http://}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE#https://}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE%%/*}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE%%:*}"
+          PUBLIC_API_URL_VALUE="${{ secrets.PUBLIC_API_URL }}"
+          PUBLIC_ADMIN_URL_VALUE="${{ secrets.PUBLIC_ADMIN_URL }}"
+          PUBLIC_CLIENT_URL_VALUE="${{ secrets.PUBLIC_CLIENT_URL }}"
+          PUBLIC_PROVIDER_URL_VALUE="${{ secrets.PUBLIC_PROVIDER_URL }}"
+          PUBLIC_LANDING_URL_VALUE="${{ secrets.PUBLIC_LANDING_URL }}"
+          ENFORCE_API_HTTPS_REDIRECTION_VALUE="${{ secrets.ENFORCE_API_HTTPS_REDIRECTION }}"
+
+          if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+            PUBLIC_API_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.API_PORT }}"
+            PUBLIC_ADMIN_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.ADMIN_PORT }}"
+            PUBLIC_CLIENT_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.CLIENT_PORT }}"
+            PUBLIC_PROVIDER_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.PROVIDER_PORT }}"
+            PUBLIC_LANDING_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.LANDING_PORT }}"
+            if [[ -z "$ENFORCE_API_HTTPS_REDIRECTION_VALUE" ]]; then
+              ENFORCE_API_HTTPS_REDIRECTION_VALUE="false"
+            fi
+          fi
+
+          if [[ -z "$ENFORCE_API_HTTPS_REDIRECTION_VALUE" ]]; then
+            ENFORCE_API_HTTPS_REDIRECTION_VALUE="true"
           fi
 
           cat > Backend/.env.vps <<EOF
           APP_ENVIRONMENT=$APP_ENVIRONMENT_VALUE
-          VPS_PUBLIC_HOST=${{ secrets.VPS_PUBLIC_HOST }}
-          PUBLIC_API_URL=${{ secrets.PUBLIC_API_URL }}
-          PUBLIC_ADMIN_URL=${{ secrets.PUBLIC_ADMIN_URL }}
-          PUBLIC_CLIENT_URL=${{ secrets.PUBLIC_CLIENT_URL }}
-          PUBLIC_PROVIDER_URL=${{ secrets.PUBLIC_PROVIDER_URL }}
-          PUBLIC_LANDING_URL=${{ secrets.PUBLIC_LANDING_URL }}
-          ENFORCE_API_HTTPS_REDIRECTION=${{ secrets.ENFORCE_API_HTTPS_REDIRECTION }}
+          DEPLOY_PROFILE=${{ env.DEPLOY_PROFILE }}
+          BIND_HOST=${{ env.BIND_HOST }}
+          CONTAINER_PREFIX=${{ env.CONTAINER_PREFIX }}
+          VOLUME_PREFIX=${{ env.VOLUME_PREFIX }}
+          INTERNAL_API_URL=http://${{ env.CONTAINER_PREFIX }}-api:8080
+          VPS_PUBLIC_HOST=$VPS_PUBLIC_HOST_VALUE
+          PUBLIC_API_URL=$PUBLIC_API_URL_VALUE
+          PUBLIC_ADMIN_URL=$PUBLIC_ADMIN_URL_VALUE
+          PUBLIC_CLIENT_URL=$PUBLIC_CLIENT_URL_VALUE
+          PUBLIC_PROVIDER_URL=$PUBLIC_PROVIDER_URL_VALUE
+          PUBLIC_LANDING_URL=$PUBLIC_LANDING_URL_VALUE
+          ENFORCE_API_HTTPS_REDIRECTION=$ENFORCE_API_HTTPS_REDIRECTION_VALUE
           API_PORT=${{ env.API_PORT }}
           LANDING_PORT=${{ env.LANDING_PORT }}
           ADMIN_PORT=${{ env.ADMIN_PORT }}
@@ -1014,7 +1289,7 @@ jobs:
           MOBILE_CLIENT_WEBVIEW_PORT=${{ env.MOBILE_CLIENT_WEBVIEW_PORT }}
           MOBILE_PROVIDER_WEBVIEW_PORT=${{ env.MOBILE_PROVIDER_WEBVIEW_PORT }}
           MOBILE_ADMIN_WEBVIEW_PORT=${{ env.MOBILE_ADMIN_WEBVIEW_PORT }}
-          DB_NAME=ConsertaPraMimDb
+          DB_NAME=${{ env.DB_NAME }}
           DB_USER=sa
           DB_PASSWORD=${{ secrets.VPS_DB_PASSWORD }}
           DB_HOST=${{ secrets.VPS_DB_HOST }}
@@ -1040,6 +1315,7 @@ jobs:
     needs: [targets, deploy-mobile-webview-provider]
     if: always() && needs.targets.outputs.deploy_mobile_webview_provider == 'true' && needs.deploy-mobile-webview-provider.result == 'success'
     runs-on: [self-hosted, Linux, X64]
+    environment: ${{ github.ref_name == 'dev-local' && 'development' || 'production' }}
     timeout-minutes: 8
     outputs:
       endpoint: ${{ steps.health.outputs.endpoint }}
@@ -1086,6 +1362,7 @@ jobs:
       !contains(needs.*.result, 'failure') &&
       !contains(needs.*.result, 'cancelled')
     runs-on: [self-hosted, Linux, X64]
+    environment: ${{ github.ref_name == 'dev-local' && 'development' || 'production' }}
     timeout-minutes: 20
     steps:
       - name: Checkout
@@ -1098,18 +1375,54 @@ jobs:
         run: |
           APP_ENVIRONMENT_VALUE="${{ secrets.VPS_APP_ENVIRONMENT }}"
           if [[ -z "$APP_ENVIRONMENT_VALUE" ]]; then
-            APP_ENVIRONMENT_VALUE="Production"
+            if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+              APP_ENVIRONMENT_VALUE="Development"
+            else
+              APP_ENVIRONMENT_VALUE="Production"
+            fi
+          fi
+
+          VPS_PUBLIC_HOST_VALUE="${{ secrets.VPS_PUBLIC_HOST }}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE#http://}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE#https://}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE%%/*}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE%%:*}"
+          PUBLIC_API_URL_VALUE="${{ secrets.PUBLIC_API_URL }}"
+          PUBLIC_ADMIN_URL_VALUE="${{ secrets.PUBLIC_ADMIN_URL }}"
+          PUBLIC_CLIENT_URL_VALUE="${{ secrets.PUBLIC_CLIENT_URL }}"
+          PUBLIC_PROVIDER_URL_VALUE="${{ secrets.PUBLIC_PROVIDER_URL }}"
+          PUBLIC_LANDING_URL_VALUE="${{ secrets.PUBLIC_LANDING_URL }}"
+          ENFORCE_API_HTTPS_REDIRECTION_VALUE="${{ secrets.ENFORCE_API_HTTPS_REDIRECTION }}"
+
+          if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+            PUBLIC_API_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.API_PORT }}"
+            PUBLIC_ADMIN_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.ADMIN_PORT }}"
+            PUBLIC_CLIENT_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.CLIENT_PORT }}"
+            PUBLIC_PROVIDER_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.PROVIDER_PORT }}"
+            PUBLIC_LANDING_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.LANDING_PORT }}"
+            if [[ -z "$ENFORCE_API_HTTPS_REDIRECTION_VALUE" ]]; then
+              ENFORCE_API_HTTPS_REDIRECTION_VALUE="false"
+            fi
+          fi
+
+          if [[ -z "$ENFORCE_API_HTTPS_REDIRECTION_VALUE" ]]; then
+            ENFORCE_API_HTTPS_REDIRECTION_VALUE="true"
           fi
 
           cat > Backend/.env.vps <<EOF
           APP_ENVIRONMENT=$APP_ENVIRONMENT_VALUE
-          VPS_PUBLIC_HOST=${{ secrets.VPS_PUBLIC_HOST }}
-          PUBLIC_API_URL=${{ secrets.PUBLIC_API_URL }}
-          PUBLIC_ADMIN_URL=${{ secrets.PUBLIC_ADMIN_URL }}
-          PUBLIC_CLIENT_URL=${{ secrets.PUBLIC_CLIENT_URL }}
-          PUBLIC_PROVIDER_URL=${{ secrets.PUBLIC_PROVIDER_URL }}
-          PUBLIC_LANDING_URL=${{ secrets.PUBLIC_LANDING_URL }}
-          ENFORCE_API_HTTPS_REDIRECTION=${{ secrets.ENFORCE_API_HTTPS_REDIRECTION }}
+          DEPLOY_PROFILE=${{ env.DEPLOY_PROFILE }}
+          BIND_HOST=${{ env.BIND_HOST }}
+          CONTAINER_PREFIX=${{ env.CONTAINER_PREFIX }}
+          VOLUME_PREFIX=${{ env.VOLUME_PREFIX }}
+          INTERNAL_API_URL=http://${{ env.CONTAINER_PREFIX }}-api:8080
+          VPS_PUBLIC_HOST=$VPS_PUBLIC_HOST_VALUE
+          PUBLIC_API_URL=$PUBLIC_API_URL_VALUE
+          PUBLIC_ADMIN_URL=$PUBLIC_ADMIN_URL_VALUE
+          PUBLIC_CLIENT_URL=$PUBLIC_CLIENT_URL_VALUE
+          PUBLIC_PROVIDER_URL=$PUBLIC_PROVIDER_URL_VALUE
+          PUBLIC_LANDING_URL=$PUBLIC_LANDING_URL_VALUE
+          ENFORCE_API_HTTPS_REDIRECTION=$ENFORCE_API_HTTPS_REDIRECTION_VALUE
           API_PORT=${{ env.API_PORT }}
           LANDING_PORT=${{ env.LANDING_PORT }}
           ADMIN_PORT=${{ env.ADMIN_PORT }}
@@ -1118,7 +1431,7 @@ jobs:
           MOBILE_CLIENT_WEBVIEW_PORT=${{ env.MOBILE_CLIENT_WEBVIEW_PORT }}
           MOBILE_PROVIDER_WEBVIEW_PORT=${{ env.MOBILE_PROVIDER_WEBVIEW_PORT }}
           MOBILE_ADMIN_WEBVIEW_PORT=${{ env.MOBILE_ADMIN_WEBVIEW_PORT }}
-          DB_NAME=ConsertaPraMimDb
+          DB_NAME=${{ env.DB_NAME }}
           DB_USER=sa
           DB_PASSWORD=${{ secrets.VPS_DB_PASSWORD }}
           DB_HOST=${{ secrets.VPS_DB_HOST }}
@@ -1144,6 +1457,7 @@ jobs:
     needs: [targets, deploy-mobile-webview-admin]
     if: always() && needs.targets.outputs.deploy_mobile_webview_admin == 'true' && needs.deploy-mobile-webview-admin.result == 'success'
     runs-on: [self-hosted, Linux, X64]
+    environment: ${{ github.ref_name == 'dev-local' && 'development' || 'production' }}
     timeout-minutes: 8
     outputs:
       endpoint: ${{ steps.health.outputs.endpoint }}
@@ -2005,6 +2319,7 @@ jobs:
     needs: targets
     if: needs.targets.outputs.any_work != 'true'
     runs-on: [self-hosted, Linux, X64]
+    environment: ${{ github.ref_name == 'dev-local' && 'development' || 'production' }}
     timeout-minutes: 5
     steps:
       - name: Skip deploy (no relevant changes)
@@ -2045,6 +2360,7 @@ jobs:
       - skip
     if: always()
     runs-on: [self-hosted, Linux, X64]
+    environment: ${{ github.ref_name == 'dev-local' && 'development' || 'production' }}
     timeout-minutes: 5
     steps:
       - name: Publish workflow summary
@@ -2213,3 +2529,7 @@ jobs:
             echo "::warning::Falha ao enviar push de resumo do deploy (HTTP ${http_code})."
             cat "$response_file"
           fi
+
+
+
+
