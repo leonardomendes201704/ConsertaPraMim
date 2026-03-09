@@ -2,20 +2,21 @@ name: backend-web-client
 
 services:
   web-client:
-    container_name: cpm-web-client
+    container_name: "${CONTAINER_PREFIX:-cpm}-web-client"
     build:
       context: .
       dockerfile: docker/vps/Dockerfile.web.client
     restart: unless-stopped
     ports:
-      - "${CLIENT_PORT:-5069}:${CLIENT_PORT:-5069}"
+      - "${BIND_HOST:-127.0.0.1}:${CLIENT_PORT:-5069}:${CLIENT_PORT:-5069}"
     environment:
       ASPNETCORE_ENVIRONMENT: "${APP_ENVIRONMENT:-Development}"
       ASPNETCORE_URLS: "http://+:${CLIENT_PORT:-5069}"
       DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: "false"
       LANG: "pt_BR.UTF-8"
       LC_ALL: "pt_BR.UTF-8"
-      ApiBaseUrl: "http://${VPS_PUBLIC_HOST}:${API_PORT:-5193}"
+      ApiBaseUrl: "${INTERNAL_API_URL:-http://${CONTAINER_PREFIX:-cpm}-api:8080}"
+      BrowserApiBaseUrl: "${PUBLIC_API_URL:-http://${VPS_PUBLIC_HOST}:${API_PORT:-5193}}"
       JwtSettings__SecretKey: "${JWT_SECRET_KEY}"
       JwtSettings__Issuer: "ConsertaPraMim"
       JwtSettings__Audience: "ConsertaPraMimWebApps"
@@ -27,6 +28,7 @@ services:
 
 volumes:
   web_client_dataprotection:
+    name: "${VOLUME_PREFIX:-cpm}_web_client_dataprotection"
 
 networks:
   conserta_net:

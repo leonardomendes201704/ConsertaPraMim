@@ -1,4 +1,5 @@
 @using ConsertaPraMim.Application.DTOs
+@using ConsertaPraMim.Web.Client.Services
 @inject IConfiguration Configuration
 @model ConsertaPraMim.Application.DTOs.ServiceRequestDto
 @{
@@ -15,7 +16,10 @@
     var warrantyClaims = ViewBag.WarrantyClaims as IEnumerable<object> ?? Enumerable.Empty<object>();
     var disputes = ViewBag.Disputes as IEnumerable<object> ?? Enumerable.Empty<object>();
     var appointmentPayload = ViewBag.AppointmentPayload;
-    var apiBaseUrl = (Configuration["ApiBaseUrl"] ?? string.Empty).TrimEnd('/');
+    var apiBaseUrl = ClientPublicUrlResolver.ResolveApiBaseUrl(
+        Configuration["BrowserApiBaseUrl"] ?? Configuration["ApiBaseUrl"],
+        (Context.Request.Host.Host ?? string.Empty).Trim(),
+        "http://localhost:5193");
     var currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? string.Empty;
     var statusBadgeClass = Model.Status switch
     {
@@ -711,7 +715,7 @@
                                                 <i class="@SupportAttachmentIconClass(attachment.MediaKind)"></i>
                                                 <span class="support-help-attachment-text">
                                                     <span class="support-help-attachment-name">@attachment.FileName</span>
-                                                    <span class="support-help-attachment-meta">@FormatAttachmentSize(attachment.SizeBytes) • @SupportAttachmentActionLabel(attachment.MediaKind)</span>
+                                                    <span class="support-help-attachment-meta">@FormatAttachmentSize(attachment.SizeBytes) &bull; @SupportAttachmentActionLabel(attachment.MediaKind)</span>
                                                 </span>
                                             </button>
                                         }

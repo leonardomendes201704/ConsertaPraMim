@@ -1,0 +1,18 @@
+﻿flowchart TD
+    A[Admin abre Analytics Landing] --> B[Web.Admin chama /api/admin/landing-analytics]
+    B --> C[AdminLandingAnalyticsService]
+    C --> D[LandingAccessEvents]
+    C --> E[LandingTelemetryEvents]
+    C --> F[LandingLeads]
+    C --> G[Runtime config LandingAnalytics]
+    D --> H[KPIs e breakdown geografico]
+    E --> I[Heatmap fase 1 e funil de eventos]
+    F --> J[Correlacao de conversao]
+    H --> K[Overview no portal admin]
+    I --> K
+    J --> K
+    K --> L[Drawer de filtros por busca/origem/localidade/periodo]
+    A --> M[Admin abre detalhe de sessao]
+    M --> N[/api/admin/landing-analytics/sessions/{sessionId}]
+    N --> O[Timeline de acesso, telemetria e lead]
+    O --> P[Tela de detalhe operacional]

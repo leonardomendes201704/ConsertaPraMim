@@ -19,6 +19,7 @@ public class ServiceAppointmentService : IServiceAppointmentService
     private const int MinimumSlotDurationMinutes = 15;
     private const int MaximumSlotDurationMinutes = 240;
     private const int MaximumSlotsQueryRangeDays = 31;
+    private const int PublicProviderSlotsRangeDays = 15;
     private const int MaximumAppointmentWindowMinutes = 8 * 60;
     private const int DefaultWarrantyWindowDays = 30;
     private const int DefaultWarrantyProviderResponseSlaHours = 48;
@@ -302,6 +303,71 @@ public class ServiceAppointmentService : IServiceAppointmentService
             query.SlotDurationMinutes);
 
         return new ServiceAppointmentSlotsResultDto(true, slots);
+    }
+
+    public async Task<PublicProvidersAvailabilityWindowDto> GetPublicProvidersAvailableSlotsNext15DaysAsync()
+    {
+        var rangeStartUtc = NormalizeToUtc(DateTime.UtcNow);
+        var rangeEndUtc = rangeStartUtc.AddDays(PublicProviderSlotsRangeDays);
+
+        var users = await _userRepository.GetAllAsync();
+        var activeProviders = users
+            .Where(user => user.Role == UserRole.Provider && user.IsActive)
+            .OrderBy(user => user.Name)
+            .ThenBy(user => user.Id)
+            .ToList();
+
+        if (activeProviders.Count == 0)
+        {
+            return new PublicProvidersAvailabilityWindowDto(
+                rangeStartUtc,
+                rangeEndUtc,
+                Array.Empty<PublicProviderAvailabilitySlotsDto>());
+        }
+
+        var providers = new List<PublicProviderAvailabilitySlotsDto>(activeProviders.Count);
+        foreach (var provider in activeProviders)
+        {
+            var providerName = ResolvePublicProviderName(provider);
+            var rules = await _serviceAppointmentRepository.GetAvailabilityRulesByProviderAsync(provider.Id);
+            if (rules.Count == 0)
+            {
+                providers.Add(new PublicProviderAvailabilitySlotsDto(
+                    provider.Id,
+                    providerName,
+                    Array.Empty<ServiceAppointmentSlotDto>()));
+                continue;
+            }
+
+            var exceptions = await _serviceAppointmentRepository.GetAvailabilityExceptionsByProviderAsync(
+                provider.Id,
+                rangeStartUtc,
+                rangeEndUtc);
+
+            var reservedAppointments = await _serviceAppointmentRepository.GetProviderAppointmentsByStatusesInRangeAsync(
+                provider.Id,
+                rangeStartUtc,
+                rangeEndUtc,
+                BlockingStatuses);
+
+            var slots = BuildAvailableSlots(
+                rules,
+                exceptions,
+                reservedAppointments,
+                rangeStartUtc,
+                rangeEndUtc,
+                requestedSlotDurationMinutes: null);
+
+            providers.Add(new PublicProviderAvailabilitySlotsDto(
+                provider.Id,
+                providerName,
+                slots));
+        }
+
+        return new PublicProvidersAvailabilityWindowDto(
+            rangeStartUtc,
+            rangeEndUtc,
+            providers);
     }
 
     public async Task<ProviderAvailabilityOverviewResultDto> GetProviderAvailabilityOverviewAsync(
@@ -5579,6 +5645,13 @@ public class ServiceAppointmentService : IServiceAppointmentService
             exception.IsActive,
             exception.CreatedAt,
             exception.UpdatedAt);
+    }
+
+    private static string ResolvePublicProviderName(User provider)
+    {
+        return string.IsNullOrWhiteSpace(provider.Name)
+            ? "Prestador sem nome"
+            : provider.Name.Trim();
     }
 
     private static ServiceAppointmentStatus ResolveStatusBeforePendingReschedule(ServiceAppointment appointment)

@@ -1,0 +1,27 @@
+sequenceDiagram
+    autonumber
+    actor ClienteAnonimo as Cliente (anonimo)
+    participant API as ServiceAppointmentsController
+    participant Service as ServiceAppointmentService
+    participant UserRepo as IUserRepository
+    participant AppointmentRepo as IServiceAppointmentRepository
+
+    ClienteAnonimo->>API: GET /api/service-appointments/public/providers/slots/next-15-days
+    API->>Service: GetPublicProvidersAvailableSlotsNext15DaysAsync()
+    Service->>UserRepo: GetAllAsync()
+    UserRepo-->>Service: Usuarios ativos/inativos
+    Service->>Service: Filtrar prestadores ativos
+
+    loop para cada prestador ativo
+        Service->>AppointmentRepo: GetAvailabilityRulesByProviderAsync(providerId)
+        alt possui regras
+            Service->>AppointmentRepo: GetAvailabilityExceptionsByProviderAsync(providerId, fromUtc, toUtc)
+            Service->>AppointmentRepo: GetProviderAppointmentsByStatusesInRangeAsync(providerId, fromUtc, toUtc, blockingStatuses)
+            Service->>Service: BuildAvailableSlots(...)
+        else sem regra
+            Service->>Service: slots = []
+        end
+    end
+
+    Service-->>API: PublicProvidersAvailabilityWindowDto
+    API-->>ClienteAnonimo: 200 OK com disponibilidade agregada (UTC)

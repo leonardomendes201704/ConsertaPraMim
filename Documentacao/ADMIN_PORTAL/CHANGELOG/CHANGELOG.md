@@ -8,31 +8,291 @@
 
 ## Unreleased
 
+- (sem itens)
+
 ## Released
 
-- [2026-03-04] [WEB-TELEGRAMBRIDGE] Correcao de `InvalidOperationException` no login por partial ausente
+- [2026-03-09] [ST-072][OPS-VPS-APK-UPLOAD-LOCAL-RUNNER] Upload de APK sem SSH externo no pipeline
 - Tipo: fix
-- Resumo: a tela `Account/Login` do `ConsertaPraMim.Web.TelegramBridge` deixou de falhar em runtime com `The partial view '_ValidationScriptsPartial' was not found`; foi criado o partial em `Views/Shared` com fallback seguro para carregar scripts de validacao apenas quando os arquivos existem no `wwwroot/lib`.
-- Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/Views/Shared/_ValidationScriptsPartial.cshtml`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_TELEGRAM_BRIDGE_ST-003.md`
-- Risco/Impacto: baixo
-
-- [2026-03-04] [ST-013] Estabilizacao da suite de cancelamento apos regra de 48h para cliente
-- Tipo: test
-- Resumo: os testes de cancelamento em `ServiceAppointmentServiceTests` foram ajustados para refletir a regra vigente de no minimo 48h de antecedencia quando o ator e cliente, evitando falso-negativo nos cenarios de cancelamento com sync Google e compensacao financeira.
-- Arquivos principais: `Backend/tests/ConsertaPraMim.Tests.Unit/Services/ServiceAppointmentServiceTests.cs`
-- Risco/Impacto: baixo
-
-- [2026-03-04] [ST-013] Observabilidade, retry, dead-letter e reprocessamento da sincronizacao Google Calendar
-- Tipo: feat
-- Resumo: a trilha Google Calendar recebeu operacao completa de confiabilidade com metricas de sync (`created|updated|deleted|failed|retry_count|latency_ms`), retry com backoff/jitter, dead-letter para falhas permanentes, worker de reprocessamento automatico e endpoints admin para visao operacional e reprocessamento manual por `appointmentId`/intervalo.
-- Arquivos principais: `Backend/src/ConsertaPraMim.Application/Services/GoogleCalendarSyncOperationsService.cs`, `Backend/src/ConsertaPraMim.Application/Services/GoogleCalendarSyncTelemetry.cs`, `Backend/src/ConsertaPraMim.API/Controllers/AdminGoogleCalendarSyncController.cs`, `Backend/src/ConsertaPraMim.API/BackgroundJobs/GoogleCalendarSyncRetryWorker.cs`, `Backend/src/ConsertaPraMim.Domain/Entities/ServiceAppointmentCalendarSync.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Migrations/20260304194940_AddGoogleCalendarSyncRetryDeadLetterObservability.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/DONE/ST-013-observabilidade-reprocessamento-qa-rollout-google-calendar.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_GOOGLE_CALENDAR_SYNC_ST-013.md`
+- Resumo: os jobs `Upload APK Mobile Client/Provider/Admin` foram movidos para `self-hosted Linux` e passaram a publicar os APKs no fileserver via `docker cp` local (`filebrowser`), removendo a dependencia de acesso SSH externo na porta 22 a partir de `windows-latest` e eliminando falhas por timeout de conectividade de rede entre runner hospedado e VPS.
+- Arquivos principais: `.github/workflows/deploy-vps.yml`, `Backend/DEPLOY_VPS.md`
 - Risco/Impacto: medio
 
-- [2026-03-04] [ST-012] Fechamento da sincronizacao Google Calendar com compensacao, descricao de negocio e cobertura de testes
-- Tipo: feat
-- Resumo: a ST-012 foi concluida com reforco de compensacao para falha de create/fallback (limpeza de `GoogleEventId` residual), padronizacao da descricao dos eventos com contexto de negocio, ampliacao de testes unitarios de sucesso/falha/idempotencia e novos testes de integracao com fake Google client para cenarios de create/update/delete.
-- Arquivos principais: `Backend/src/ConsertaPraMim.Application/Services/TelegramChatbotSchedulingService.cs`, `Backend/src/ConsertaPraMim.Application/Services/ServiceAppointmentService.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramChatbotSchedulingServiceTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/ServiceAppointmentServiceTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Integration/Controllers/TelegramChatbotControllerSqliteIntegrationTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Integration/Services/ServiceAppointmentServiceSqliteIntegrationTests.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/DONE/ST-012-sync-automatica-agendamento-google-calendar.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_GOOGLE_CALENDAR_SYNC_ST-011.md`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-012-sync-agendamento-google-calendar/fluxo-sync-agendamento-google-calendar.mmd`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-012-sync-agendamento-google-calendar/sequencia-sync-agendamento-google-calendar.mmd`
+- [2026-03-09] [ST-072][OPS-VPS-WARNINGS-APK-METADATA-SUMMARY] Reducao de warnings opcionais no pipeline de deploy
+- Tipo: fix
+- Resumo: o workflow `deploy-vps` passou a resolver a URL da API de forma robusta para publicacao de metadados de APK (`PUBLIC_API_URL` com fallback para `VPS_PUBLIC_HOST`), corrigiu a montagem da URL de push de release para evitar `Invalid URI`, e moveu o push de resumo final para endpoint local da API (`127.0.0.1`); falhas desses passos opcionais agora sao registradas como `notice`, evitando ruidos de warning no run quando a API/webhook estiver indisponivel.
+- Arquivos principais: `.github/workflows/deploy-vps.yml`, `Backend/DEPLOY_VPS.md`
+- Risco/Impacto: baixo
+
+- [2026-03-09] [ST-072][OPS-VPS-DEPLOY-HOTFIX-ENVFILE] Hotfix de leitura do `.env.vps` no deploy service
+- Tipo: fix
+- Resumo: corrigido o `vps-deploy-service.sh` para nao executar (`source`) o arquivo `.env.vps` durante resolucao de `CONTAINER_PREFIX`, evitando quebra de deploy quando secrets possuem caracteres especiais; a etapa de push de resumo no workflow tambem passou a tolerar indisponibilidade da API sem falhar o job de `summary`.
+- Arquivos principais: `scripts/deploy/vps-deploy-service.sh`, `.github/workflows/deploy-vps.yml`
 - Risco/Impacto: medio
+
+- [2026-03-09] [ST-072][OPS-VPS-DEV-PROD-BRANCH-DEPLOY] Deploy branch-aware `dev-local` e `main` na mesma VPS
+- Tipo: feat
+- Resumo: o pipeline `deploy-vps` passou a suportar dois perfis automaticos por branch, com `dev-local` publicando stack DEV por `IP:porta` e `main/master` mantendo stack PROD por dominio/subdominios; o isolamento agora usa portas dedicadas, `CONTAINER_PREFIX`, `VOLUME_PREFIX`, `DB_NAME`, bind host por ambiente e escrita branch-aware do `.env.vps`.
+- Arquivos principais: `.github/workflows/deploy-vps.yml`, `Backend/docker-compose.vps.api.yml`, `Backend/docker-compose.vps.web-landing.yml`, `Backend/docker-compose.vps.web-admin.yml`, `Backend/docker-compose.vps.web-client.yml`, `Backend/docker-compose.vps.web-provider.yml`, `Backend/docker-compose.vps.mobile-webview-client.yml`, `Backend/docker-compose.vps.mobile-webview-provider.yml`, `Backend/docker-compose.vps.mobile-webview-admin.yml`, `Backend/docker-compose.vps.yml`, `scripts/deploy/vps-deploy-service.sh`, `Backend/.env.vps.example`, `Backend/DEPLOY_VPS.md`, `Documentacao/ADMIN_PORTAL/EPICS/EPIC-031-deploy-dual-stack-dev-prod-na-mesma-vps.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-072-deploy-branch-aware-dev-local-main-na-mesma-vps.md`
+- Risco/Impacto: alto
+
+- [2026-03-09] [ST-071][ADMIN-FIRETV-BACK-TO-MENU] Botao voltar do controle retorna ao menu central
+- Tipo: fix
+- Resumo: nas views `Metricas da landing` e `Visao operacional`, o app Fire TV passou a interceptar o botao de voltar do controle remoto (listener nativo `@capacitor/app` com fallback por teclado/webview) para sempre retornar ao `Menu` sem encerrar o app.
+- Arquivos principais: `conserta-pra-mim-firetv app/App.tsx`, `conserta-pra-mim-firetv app/package.json`, `conserta-pra-mim-firetv app/package-lock.json`, `Documentacao/ADMIN_PORTAL/RUNBOOKS/RUNBOOK_FIRE_TV_DASHBOARD_ST-066.md`
+- Risco/Impacto: baixo
+
+- [2026-03-09] [ST-060][ADMIN-LANDING-ANALYTICS-BOT-FILTER] Filtro de bots/datacenter no Analytics Landing
+- Tipo: fix
+- Resumo: o modulo `Analytics Landing` passou a excluir por padrao sessoes suspeitas de automacao (bot/datacenter), com novo toggle de filtro (`Incluir trafego suspeito`) no drawer para reintroduzir esse trafego somente quando necessario para investigacao.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/Services/AdminLandingAnalyticsService.cs`, `Backend/src/ConsertaPraMim.API/Controllers/AdminLandingAnalyticsController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminLandingAnalytics/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminLandingAnalyticsController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/AdminOperationsApiClient.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminLandingAnalyticsServiceTests.cs`
+- Risco/Impacto: medio
+
+- [2026-03-09] [ST-071][ADMIN-FIRETV-OPS-ENTER-SFX] Sinal sonoro ao entrar na visao operacional
+- Tipo: feat
+- Resumo: a tela `Visao Operacional` do app Fire TV passou a tocar um alerta sonoro unico no momento de entrada (`mount`), usando o asset local `public/sounds/operational-enter.mp3`, sem repetir durante polling/realtime e com fallback silencioso para eventuais restricoes de autoplay.
+- Arquivos principais: `conserta-pra-mim-firetv app/components/OperationsDashboardScreen.tsx`, `conserta-pra-mim-firetv app/public/sounds/operational-enter.mp3`
+- Risco/Impacto: baixo
+
+- [2026-03-09] [ST-071][ADMIN-FIRETV-ICON-BRANDING] Icone Android TV atualizado com logo oficial
+- Tipo: feat
+- Resumo: o app `ConsertaPraMim TV` passou a usar a arte `so-logo-consertapramim-fundo-branco.png` como base dos recursos de launcher Android (`ic_launcher`, `ic_launcher_round` e `ic_launcher_foreground`) em todas as densidades `mipmap`, alinhando a identidade visual do app na home do Fire Stick.
+- Arquivos principais: `conserta-pra-mim-firetv app/android/app/src/main/res/mipmap-mdpi/ic_launcher.png`, `conserta-pra-mim-firetv app/android/app/src/main/res/mipmap-hdpi/ic_launcher.png`, `conserta-pra-mim-firetv app/android/app/src/main/res/mipmap-xhdpi/ic_launcher.png`, `conserta-pra-mim-firetv app/android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png`, `conserta-pra-mim-firetv app/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png`
+- Risco/Impacto: baixo
+
+- [2026-03-09] [ST-071][ADMIN-FIRETV-TV-CENTERING] Centralizacao do canvas 16:9 no Fire Stick
+- Tipo: fix
+- Resumo: a shell fixa da app Fire TV passou a calcular `offsetX/offsetY` em runtime e aplicar o stage com `transform-origin: top left`, eliminando deslocamento lateral/vertical observado em TV real quando a viewport do WebView nao casa exatamente com o canvas base.
+- Arquivos principais: `conserta-pra-mim-firetv app/App.tsx`, `conserta-pra-mim-firetv app/styles.css`
+- Risco/Impacto: baixo
+
+- [2026-03-09] [ST-071][ADMIN-FIRETV-OPS-UX] Refino visual e estabilidade operacional da visao Fire TV
+- Tipo: fix
+- Resumo: a visao operacional do app Fire TV recebeu ajuste fino de layout 10-foot (cards compactos, tipografia e alinhamentos), troca do grafico diario para linha responsiva, consolidacao de badges de status no topo, lista de `Ultimos servicos`, melhor ajuste de bounds/zoom no mapa, persistencia da legenda no refresh e reequilibrio das proporcoes dos cards para evitar overflow.
+- Arquivos principais: `conserta-pra-mim-firetv app/components/OperationsDashboardScreen.tsx`, `conserta-pra-mim-firetv app/styles.css`, `conserta-pra-mim-firetv app/package.json`, `conserta-pra-mim-firetv app/package-lock.json`, `Documentacao/ADMIN_PORTAL/RUNBOOKS/RUNBOOK_FIRE_TV_DASHBOARD_ST-066.md`
+- Risco/Impacto: medio
+
+- [2026-03-09] [GOV-003][SHELL-WINDOWS-PADRAO] Diretrizes obrigatorias para execucao atomica e escrita deterministica no shell
+- Tipo: docs
+- Resumo: o `AGENTS.md` da solution passou a formalizar padrao operacional no Windows para evitar reincidencia de falhas em edicoes e automacoes (`pipeline aninhada`, escapes com backtick, comando monolitico bloqueado por politica, `spawn EPERM`, lock em `.git`), impondo execucao em etapas atomicas, validacao por etapa e escrita deterministica de arquivos.
+- Arquivos principais: `AGENTS.md`
+- Risco/Impacto: baixo
+
+- [2026-03-09] [ST-070][ADMIN-FIRETV-REALTIME] Realtime, health check e atualizacao continua do Fire TV
+- Tipo: feat
+- Resumo: o ecossistema Fire TV passou a contar com um hub SignalR dedicado, pulse server-side configuravel e health checks configuraveis para API e portais, exibidos na nova visao operacional com resumo de latencia, conectividade e fallback de refresh por timer.
+- Arquivos principais: `Backend/src/ConsertaPraMim.API/BackgroundJobs/FireTvDashboardPulseWorker.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Hubs/FireTvDashboardHub.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Services/FireTvDashboardHealthProbe.cs`, `Backend/src/ConsertaPraMim.API/Program.cs`, `conserta-pra-mim-firetv app/components/OperationsDashboardScreen.tsx`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-070-realtime-signalr-health-check-e-atualizacao-fire-tv.md`
+- Risco/Impacto: medio
+
+- [2026-03-09] [ST-069][ADMIN-FIRETV-OPS-VIEW] Menu central e segunda visao operacional no Fire TV
+- Tipo: feat
+- Resumo: o app `ConsertaPraMim TV` passou a abrir um menu central apos o login e ganhou uma segunda view operacional, com health strip, relogio, KPIs executivos, categorias, mapa georreferenciado, barras diarias, receita mensal, SLA e chamados cancelados em layout 10-foot inspirado no cockpit de TV.
+- Arquivos principais: `Backend/src/ConsertaPraMim.API/Controllers/AdminFireTvOperationsDashboardController.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminFireTvDashboardService.cs`, `Backend/src/ConsertaPraMim.Application/DTOs/AdminFireTvDashboardDTOs.cs`, `conserta-pra-mim-firetv app/App.tsx`, `conserta-pra-mim-firetv app/components/MenuScreen.tsx`, `conserta-pra-mim-firetv app/components/OperationsDashboardScreen.tsx`, `conserta-pra-mim-firetv app/styles.css`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-069-menu-central-e-segunda-visao-operacional-fire-tv.md`
+- Risco/Impacto: medio
+
+- [2026-03-09] [ST-068][ADMIN-FIRETV-SCROLLMAP] Scrollmap e ranking de elementos no app Fire TV
+- Tipo: feat
+- Resumo: o ecossistema Fire TV da landing passou a consumir `scrollmap` por milestones e ranking dos elementos mais clicados, calculados no backend a partir da telemetria existente; o app ganhou paines 10-foot dedicados para profundidade de scroll e elementos ranqueados.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/AdminLandingAnalyticsDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminLandingAnalyticsService.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminFireTvDashboardService.cs`, `conserta-pra-mim-firetv app/components/DashboardScreen.tsx`, `conserta-pra-mim-firetv app/styles.css`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-068-fire-tv-scrollmap-ranking-elementos.md`
+- Risco/Impacto: medio
+
+- [2026-03-09] [ST-067][ADMIN-FIRETV-PHASE2] Filtros comparativos e UI 10-foot no dashboard Fire TV
+- Tipo: feat
+- Resumo: o dashboard Fire TV passou a expor filtros de `Janela`, `Origem` e `Comparacao`, com snapshot comparativo contra periodo anterior, 8 KPIs com delta e uma UI mais legivel para TV, sustentada por parametros runtime persistidos em banco e editaveis na tela de `Configuracoes` do Admin.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/AdminFireTvDashboardDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminFireTvDashboardService.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Services/FireTvDashboardRuntimeSettings.cs`, `Backend/src/ConsertaPraMim.Application/Constants/RuntimeConfigSections.cs`, `Backend/src/ConsertaPraMim.API/Controllers/AdminFireTvDashboardController.cs`, `conserta-pra-mim-firetv app/components/DashboardScreen.tsx`, `conserta-pra-mim-firetv app/services/dashboard.ts`, `conserta-pra-mim-firetv app/types.ts`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-067-fire-tv-filtros-comparativos-e-ui-10-foot.md`
+- Risco/Impacto: medio
+
+- [2026-03-08] [ST-066][ADMIN-FIRETV-APK] Build padrao e instalacao do APK Fire TV
+- Tipo: feat
+- Resumo: o script oficial `scripts/build_apks.py` passou a gerar os artefatos `ConsertaPraMim-FireTV-debug.apk` e `ConsertaPraMim-FireTV-compat.apk`, usando por padrao `https://api.consertapramim.com`, com runbook de instalacao via `adb` no Fire Stick / Fire TV.
+- Arquivos principais: `scripts/build_apks.py`, `conserta-pra-mim-firetv app/README.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-066-build-apk-instalacao-fire-stick.md`, `Documentacao/ADMIN_PORTAL/RUNBOOKS/RUNBOOK_FIRE_TV_DASHBOARD_ST-066.md`
+- Risco/Impacto: medio
+
+- [2026-03-08] [ST-065][ADMIN-FIRETV-APP] App Fire TV para acompanhamento da landing
+- Tipo: feat
+- Resumo: criado o app `ConsertaPraMim TV` em React + Capacitor para Fire TV / Android TV, com login admin, leitura continua dos 8 KPIs principais da landing, heatmap fase 1, top origens/localidades, sessoes recentes, auto refresh e manifesto Android TV com `LEANBACK_LAUNCHER`.
+- Arquivos principais: `conserta-pra-mim-firetv app/App.tsx`, `conserta-pra-mim-firetv app/components/DashboardScreen.tsx`, `conserta-pra-mim-firetv app/components/LoginScreen.tsx`, `conserta-pra-mim-firetv app/services/auth.ts`, `conserta-pra-mim-firetv app/services/dashboard.ts`, `conserta-pra-mim-firetv app/android/app/src/main/AndroidManifest.xml`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-065-app-fire-tv-kpis-landing.md`
+- Risco/Impacto: medio
+
+- [2026-03-08] [ST-064][ADMIN-FIRETV-API] Endpoint e runtime config do dashboard Fire TV
+- Tipo: feat
+- Resumo: a API passou a expor `GET /api/admin/fire-tv/landing-dashboard`, com snapshot executivo da landing para TV, e a secao runtime `FireTvDashboard` passou a ficar persistida em `SystemSettings`, com defaults seguros e edicao pela tela de `Configuracoes` do Admin.
+- Arquivos principais: `Backend/src/ConsertaPraMim.API/Controllers/AdminFireTvDashboardController.cs`, `Backend/src/ConsertaPraMim.Application/DTOs/AdminFireTvDashboardDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminFireTvDashboardService.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Services/FireTvDashboardRuntimeSettings.cs`, `Backend/src/ConsertaPraMim.Application/Constants/RuntimeConfigSections.cs`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-064-api-runtime-config-dashboard-fire-tv.md`
+- Risco/Impacto: medio
+
+- [2026-03-08] [ST-060][ADMIN-LANDING-ANALYTICS] Analytics comportamental da landing no Portal Admin
+- Tipo: feat
+- Resumo: o Portal Admin passou a expor o modulo `Analytics Landing`, com menu proprio, filtros em drawer/offcanvas, KPI de sessoes/visitantes/GeoIP/heartbeat/scroll/cliques/leads, breakdown por pagina/origem/geografia/eventos, heatmap agregado fase 1 e detalhe operacional por sessao com timeline, metadados tecnicos e correlacao com lead quando existir.
+- Arquivos principais: `Backend/src/ConsertaPraMim.API/Controllers/AdminLandingAnalyticsController.cs`, `Backend/src/ConsertaPraMim.Application/DTOs/AdminLandingAnalyticsDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminLandingAnalyticsService.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminLandingAnalyticsController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminLandingAnalytics/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminLandingAnalytics/Details.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/Shared/_Layout.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-060-dashboard-e-detalhe-operacional-de-analytics-da-landing.md`
+- Risco/Impacto: medio
+
+- [2026-03-08] [ST-004][LANDING-TELEMETRY-GEOIP] Telemetria fase 1 e GeoIP da landing
+- Tipo: feat
+- Resumo: a landing publica passou a capturar `sessionId`, heartbeat de aba visivel, marcos de scroll, cliques em elementos interativos e localidade estimada por IP, com configuracao runtime persistida em banco (`Landing Analytics`), endpoint publico de config/ingestao e base historica para heatmap fase 1 e correlacao com leads.
+- Arquivos principais: `Backend/src/ConsertaPraMim.API/Controllers/LandingAnalyticsController.cs`, `Backend/src/ConsertaPraMim.Application/DTOs/LandingAnalyticsDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Services/LandingAccessEventService.cs`, `Backend/src/ConsertaPraMim.Application/Services/LandingTelemetryEventService.cs`, `Backend/src/ConsertaPraMim.Domain/Entities/LandingAccessEvent.cs`, `Backend/src/ConsertaPraMim.Domain/Entities/LandingTelemetryEvent.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Services/LandingAnalyticsRuntimeSettings.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Services/LandingGeoIpService.cs`, `Backend/src/ConsertaPraMim.Web.Landing/Controllers/HomeController.cs`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/js/site.js`, `Documentacao/LANDING_PAGE/STORIES/DONE/ST-004-telemetria-fase-1-e-geoip-da-landing.md`
+- Risco/Impacto: medio
+
+- [2026-03-08] [ST-059][ADMIN-LANDING-RECURRING-VISITORS] KPI de visitas com recorrencia da landing
+- Tipo: feat
+- Resumo: o card `Visitas` da landing na home admin passou a detalhar, alem de `Visitantes únicos`, a quantidade de `Visitantes recorrentes`, calculada por `visitorId` estavel da landing em vez de IP bruto compartilhado; com isso, a leitura do topo de funil fica mais confiavel para retorno de visitantes no periodo filtrado.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/AdminDashboardDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminDashboardService.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminHome/Index.cshtml`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminDashboardServiceTests.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `Documentacao/LANDING_PAGE/MANUAL_QA_OPERACAO_LANDING.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-059-kpis-visitas-cadastros-e-conversao-landing-dashboard.md`
+- Risco/Impacto: baixo
+
+- [2026-03-08] [ST-059][ADMIN-LANDING-KPIS] KPIs da landing na home do dashboard admin
+- Tipo: feat
+- Resumo: a landing passou a persistir cada acesso relevante (`/`, `/Cliente`, `/Prestador`) em `LandingAccessEvents` com `visitorId` estavel por navegador, e a home do portal admin passou a exibir os KPIs incrementais `Visitas`, `Cadastros Prestador`, `Cadastros Cliente` e `Taxa de Conversão`; os cards respeitam o recorte global de periodo do dashboard, `Visitas` detalha visitantes unicos e `Taxa de Conversão` detalha cadastros totais e visitantes convertidos correlacionados entre acesso e lead.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Domain/Entities/LandingAccessEvent.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Migrations/20260308213916_AddLandingAccessEventsAnalytics.cs`, `Backend/src/ConsertaPraMim.Application/Services/LandingAccessEventService.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminDashboardService.cs`, `Backend/src/ConsertaPraMim.Web.Landing/Controllers/HomeController.cs`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/js/site.js`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminHome/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `Documentacao/LANDING_PAGE/MANUAL_QA_OPERACAO_LANDING.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-059-kpis-visitas-cadastros-e-conversao-landing-dashboard.md`
+- Risco/Impacto: medio
+
+- [2026-03-08] [ST-003][LANDING-ADMIN-PUSH] Push admin para acesso publico e lead captado na landing
+- Tipo: feat
+- Resumo: a landing publica passou a publicar cada acesso de `/`, `/Cliente` e `/Prestador` em um webhook interno autenticado por token, e a API passou a fan-out esses eventos para admins ativos usando o barramento existente de notificacoes, cobrindo portal admin em tempo real e app admin quando houver device registrado; alem disso, a captura de leads `Cliente` e `Prestador` agora dispara notificacao administrativa com contexto comercial e link para o detalhe do lead, enquanto o endpoint interno `POST /api/internal/landing/access` permanece fora do Swagger com `ApiExplorerSettings(IgnoreApi = true)`.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/Services/LandingAdminNotificationService.cs`, `Backend/src/ConsertaPraMim.Application/DTOs/LandingAdminNotificationDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Interfaces/ILandingAdminNotificationService.cs`, `Backend/src/ConsertaPraMim.Application/Services/LandingLeadService.cs`, `Backend/src/ConsertaPraMim.API/Controllers/InternalLandingNotificationsController.cs`, `Backend/src/ConsertaPraMim.Web.Landing/Controllers/HomeController.cs`, `Backend/src/ConsertaPraMim.Web.Landing/Services/LandingAdminNotificationsClient.cs`, `Backend/docker-compose.vps.web-landing.yml`, `Backend/docker-compose.vps.yml`, `Documentacao/LANDING_PAGE/MANUAL_QA_OPERACAO_LANDING.md`, `Documentacao/LANDING_PAGE/STORIES/DONE/ST-003-push-admin-para-acesso-publico-e-lead-captado-na-landing.md`
+- Risco/Impacto: medio
+
+- [2026-03-08] [LANDING-FOOTER-CLEANUP] Rodape da landing sem links operacionais
+- Tipo: fix
+- Resumo: o rodape da landing deixou de exibir os links `Cliente`, `Prestador`, `Admin` e `Swagger`, mantendo apenas o copyright institucional para reduzir ruído de navegação e concentrar a jornada principal nos CTAs da home e no header.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Landing/Views/Shared/_Layout.cshtml`, `Backend/tests/ConsertaPraMim.Tests.Unit/Frontend/LandingPageRegressionTests.cs`, `Documentacao/LANDING_PAGE/MANUAL_QA_OPERACAO_LANDING.md`
+- Risco/Impacto: baixo
+
+- [2026-03-08] [LANDING-PUBLIC-URL-RESOLVER] Landing resolve URLs publicas HTTPS a partir do host publicado
+- Tipo: fix
+- Resumo: a landing passou a resolver `LeadCaptureUrl`, `ApiBaseUrl`, `ApiSwaggerUrl` e links de portal a partir do host real da requisicao quando a configuracao ainda trouxer `localhost` ou IP HTTP legado da VPS; com isso, o browser deixa de enviar leads para `http://187.77.48.150:5193` e passa a usar `https://api.consertapramim.com`, eliminando o erro amigavel recorrente no submit causado por destino stale no HTML publicado.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Landing/Services/LandingPublicUrlResolver.cs`, `Backend/src/ConsertaPraMim.Web.Landing/Controllers/HomeController.cs`, `Backend/src/ConsertaPraMim.Web.Landing/Views/Shared/_Layout.cshtml`, `Backend/src/ConsertaPraMim.Web.Landing/Program.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Controllers/LandingHomeControllerTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/LandingPublicUrlResolverTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Frontend/LandingPageRegressionTests.cs`, `Documentacao/LANDING_PAGE/MANUAL_QA_OPERACAO_LANDING.md`
+- Risco/Impacto: medio
+
+- [2026-03-08] [LANDING-LEADS-FEEDBACK] Mensagens amigaveis e confirmacao visual no envio de leads
+- Tipo: fix
+- Resumo: o envio dos formularios `Cliente` e `Prestador` da landing passou a traduzir falhas tecnicas de rede para mensagens amigaveis, exibir confirmacao visual `Dados enviados com sucesso!` e fechar automaticamente o modal apos submissao bem-sucedida.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/js/site.js`, `Backend/src/ConsertaPraMim.Web.Landing/Views/Home/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/css/site.css`, `Backend/tests/ConsertaPraMim.Tests.Unit/Frontend/LandingPageRegressionTests.cs`, `Documentacao/LANDING_PAGE/MANUAL_QA_OPERACAO_LANDING.md`
+- Risco/Impacto: baixo
+
+- [2026-03-08] [LANDING-FAVICON-LOGO] Favicon da landing com logo quadrada oficial
+- Tipo: fix
+- Resumo: a landing passou a usar `og-logo-consertapramim.png` tambem como favicon e `apple-touch-icon`, alinhando a identidade visual da aba do navegador com o preview social publicado em `Open Graph` e `Twitter Card`.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Landing/Views/Shared/_Layout.cshtml`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/og-logo-consertapramim.png`, `Backend/tests/ConsertaPraMim.Tests.Unit/Frontend/LandingPageRegressionTests.cs`, `Documentacao/LANDING_PAGE/MANUAL_QA_OPERACAO_LANDING.md`
+- Risco/Impacto: baixo
+
+- [2026-03-08] [LANDING-OG-LOGO] Preview social da landing com logo quadrada oficial
+- Tipo: fix
+- Resumo: a landing passou a apontar `og:image` e `twitter:image` para a arte `og-logo-consertapramim.png`, baseada na logo quadrada oficial, para melhorar a visualizacao do preview no WhatsApp e outras plataformas que consomem `Open Graph`.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Landing/Controllers/HomeController.cs`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/og-logo-consertapramim.png`, `Backend/tests/ConsertaPraMim.Tests.Unit/Controllers/LandingHomeControllerTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Frontend/LandingPageRegressionTests.cs`, `Documentacao/LANDING_PAGE/MANUAL_QA_OPERACAO_LANDING.md`
+- Risco/Impacto: baixo
+
+- [2026-03-08] [LANDING-TOPBAR-BRANDING] Wordmark oficial na topbar da landing
+- Tipo: feat
+- Resumo: a topbar da landing passou a usar a arte oficial `logo-top-bar-consertapramim.png` como wordmark unico da marca, removendo o texto duplicado ao lado do logo e alinhando a identidade visual publicada em `www.consertapramim.com`.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Landing/Views/Shared/_Layout.cshtml`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/css/site.css`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/images/logo-top-bar-consertapramim.png`, `Backend/tests/ConsertaPraMim.Tests.Unit/Frontend/LandingPageRegressionTests.cs`, `Documentacao/LANDING_PAGE/MANUAL_QA_OPERACAO_LANDING.md`
+- Risco/Impacto: baixo
+
+- [2026-03-08] [LANDING-SEO-DEEPLINKS] Open Graph da landing e rotas diretas de captacao
+- Tipo: feat
+- Resumo: a landing publica passou a expor metadados `Open Graph` e `Twitter Card` com imagem publica `og-image.jpg`, titulo/descricao prontos para compartilhamento e URLs dedicadas `https://www.consertapramim.com/Cliente` e `https://www.consertapramim.com/Prestador` que abrem automaticamente o modal do formulario correspondente.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Landing/Controllers/HomeController.cs`, `Backend/src/ConsertaPraMim.Web.Landing/Models/LandingPageViewModel.cs`, `Backend/src/ConsertaPraMim.Web.Landing/Views/Shared/_Layout.cshtml`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/js/site.js`, `Backend/src/ConsertaPraMim.Web.Landing/Program.cs`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/og-image.jpg`, `Backend/tests/ConsertaPraMim.Tests.Unit/Frontend/LandingPageRegressionTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Controllers/LandingHomeControllerTests.cs`, `Documentacao/LANDING_PAGE/MANUAL_QA_OPERACAO_LANDING.md`
+- Risco/Impacto: medio
+
+- [2026-03-08] [LANDING-LEADS-MODAL] Captacao da landing migrada para modal Bootstrap
+- Tipo: fix
+- Resumo: os formularios de lead `Cliente` e `Prestador` deixaram de ser renderizados no fim da pagina e passaram a abrir em um modal Bootstrap local, sem scroll ate `#captacao`; o link `Contato` do header agora reutiliza o mesmo fluxo por query string, mantendo a landing limpa e o CSP compativel com `script-src 'self'`.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Landing/Views/Shared/_Layout.cshtml`, `Backend/src/ConsertaPraMim.Web.Landing/Views/Home/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/js/site.js`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/css/site.css`, `Backend/tests/ConsertaPraMim.Tests.Unit/Frontend/LandingPageRegressionTests.cs`, `Documentacao/LANDING_PAGE/MANUAL_QA_OPERACAO_LANDING.md`
+- Risco/Impacto: medio
+
+- [2026-03-08] [LANDING-TESTEMUNHOS] Seção pública de testemunhos com clientes e prestadores
+- Tipo: feat
+- Resumo: a landing pública passou a exibir, logo abaixo do bloco institucional, uma seção de prova social com 20 depoimentos estáticos em PT-BR, sendo 10 de clientes e 10 de prestadores, distribuídos em duas colunas com visual próprio para reforçar confiança e previsibilidade operacional.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Landing/Views/Home/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/css/site.css`, `Backend/tests/ConsertaPraMim.Tests.Unit/Frontend/LandingPageRegressionTests.cs`, `Documentacao/LANDING_PAGE/MANUAL_QA_OPERACAO_LANDING.md`
+- Risco/Impacto: baixo
+
+- [2026-03-08] [LANDING-LEADS-UX-VISIBILITY] Captacao da landing sem toggles e com heading visivel apenas no clique
+- Tipo: fix
+- Resumo: a secao de captacao da landing foi refinada para nao exibir toggles `Cliente/Prestador` acima dos formularios; o bloco `Contato` passou a ficar oculto no carregamento inicial e so aparece junto com o formulario correspondente quando um CTA principal ou o link `Contato` do header e acionado.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Landing/Views/Home/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/js/site.js`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/css/site.css`, `Backend/tests/ConsertaPraMim.Tests.Unit/Frontend/LandingPageRegressionTests.cs`, `Documentacao/LANDING_PAGE/MANUAL_QA_OPERACAO_LANDING.md`
+- Risco/Impacto: baixo
+
+- [2026-03-08] [LANDING-LEADS-UX-CSP] Formularios da landing ocultos no load e sem script inline
+- Tipo: fix
+- Resumo: a landing publica passou a respeitar o estado oculto da secao de captacao no carregamento inicial, exibindo apenas o formulario correspondente ao CTA acionado (`Cliente` ou `Prestador`); a configuracao do endpoint de captura deixou de ser injetada por `<script>` inline e passou a usar `data-*` no `body`, eliminando bloqueio de `Content-Security-Policy` com `script-src 'self'`.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Landing/Views/Shared/_Layout.cshtml`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/js/site.js`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/css/site.css`, `Backend/tests/ConsertaPraMim.Tests.Unit/Frontend/LandingPageRegressionTests.cs`, `Documentacao/LANDING_PAGE/MANUAL_QA_OPERACAO_LANDING.md`
+- Risco/Impacto: medio
+
+- [2026-03-08] [ST-058][ADMIN-LANDING-LEADS] Modulo administrativo para leads captados na landing
+- Tipo: feat
+- Resumo: o portal admin passou a ter o item de menu `Leads Landing`, com grid paginado, filtros em drawer offcanvas por origem/busca/cidade/UF/periodo, totalizadores por origem e tela de detalhe para consulta da localidade real do lead (`bairro - cidade/UF`), contexto comercial, UTM e metadados tecnicos capturados na landing; a API recebeu endpoints administrativos autenticados para listagem e detalhe desse backlog comercial.
+- Arquivos principais: `Backend/src/ConsertaPraMim.API/Controllers/AdminLandingLeadsController.cs`, `Backend/src/ConsertaPraMim.Application/DTOs/AdminLandingLeadDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminLandingLeadService.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Repositories/LandingLeadRepository.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminLandingLeadsController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminLandingLeads/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminLandingLeads/Details.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/Shared/_Layout.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `Documentacao/ADMIN_PORTAL/EPICS/EPIC-026-leads-publicos-landing-admin.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-058-gestao-admin-leads-landing.md`
+- Risco/Impacto: medio
+
+- [2026-03-08] [ST-002][LANDING-LEADS] Captura publica de leads cliente/prestador na landing
+- Tipo: feat
+- Resumo: os CTAs principais da landing `www.consertapramim.com` deixaram de redirecionar direto para os portais e passaram a abrir formularios ocultos no fim da pagina para captacao de leads `Cliente` e `Prestador`; a API recebeu o endpoint anonimo `POST /api/landing-leads/public`, tabela dedicada `LandingLeads`, persistencia de cidade/UF/bairro e metadados tecnicos de navegacao (`IP`, `X-Forwarded-For`, `User-Agent`, `Accept-Language`, `Referer`, host, path, query/UTM, idioma, resolucao e plataforma), com CORS/CSP/deploy alinhados para envio browser -> API em HTTPS.
+- Arquivos principais: `Backend/src/ConsertaPraMim.API/Controllers/LandingLeadsController.cs`, `Backend/src/ConsertaPraMim.Application/DTOs/LandingLeadDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Services/LandingLeadService.cs`, `Backend/src/ConsertaPraMim.Application/Validators/LandingLeadValidators.cs`, `Backend/src/ConsertaPraMim.Domain/Entities/LandingLead.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Data/ConsertaPraMimDbContext.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Migrations/20260308132932_AddLandingLeadCapture.cs`, `Backend/src/ConsertaPraMim.Web.Landing/Views/Home/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/js/site.js`, `Backend/docker-compose.vps.yml`, `Backend/docker-compose.vps.api.yml`, `Backend/docker-compose.vps.web-landing.yml`, `Documentacao/LANDING_PAGE/MANUAL_QA_OPERACAO_LANDING.md`, `Documentacao/LANDING_PAGE/STORIES/DONE/ST-002-captura-leads-publicos-landing.md`
+- Risco/Impacto: alto
+
+- [2026-03-08] [LANDING-HOME-REFATORACAO] Refatoracao visual da home publica da landing
+- Tipo: feat
+- Resumo: a home publica `https://www.consertapramim.com` foi redesenhada para um layout mais direto e comercial, com header claro, hero centralizado, duas cards principais de entrada (`Para Clientes` e `Para Profissionais`), ilustracoes locais versionadas em `SVG`, secoes compactas de `Sobre`, `Contato`, `Termos`, `Privacidade` e `FAQ`, alem de footer simplificado; a entrega preserva CSP estrita sem depender de assets externos.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Landing/Views/Home/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Landing/Views/Shared/_Layout.cshtml`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/css/site.css`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/images/landing-client-card.svg`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/images/landing-provider-card.svg`, `Backend/src/ConsertaPraMim.Web.Landing/Controllers/HomeController.cs`, `Documentacao/LANDING_PAGE/MANUAL_QA_OPERACAO_LANDING.md`
+- Risco/Impacto: medio
+
+- [2026-03-08] [LANDING-WWW-VPS] Landing page publica em `www.consertapramim.com`
+- Tipo: feat
+- Resumo: criado o projeto `ConsertaPraMim.Web.Landing` para servir a home institucional publica em `https://www.consertapramim.com`, com `healthcheck`, `robots.txt`, `sitemap.xml`, CTA para os portais existentes e deploy integrado na VPS via Docker, Nginx, Certbot, scripts de deploy e workflow seletivo do GitHub Actions; o dominio raiz `consertapramim.com` passou a ser tratado como redirect para `www`.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Landing/Program.cs`, `Backend/src/ConsertaPraMim.Web.Landing/Views/Home/Index.cshtml`, `Backend/docker/vps/Dockerfile.web.landing`, `Backend/docker-compose.vps.web-landing.yml`, `Backend/docker-compose.vps.yml`, `Backend/docker/vps/nginx.portals.https.conf.example`, `Backend/DEPLOY_VPS.md`, `.github/workflows/deploy-vps.yml`, `Documentacao/LANDING_PAGE/MANUAL_QA_OPERACAO_LANDING.md`, `Documentacao/LANDING_PAGE/STORIES/DONE/ST-001-landing-page-publica-www.md`
+- Risco/Impacto: alto
+
+- [2026-03-08] [OPS-VPS-CLIENT-MIXED-CONTENT] URL publica HTTPS da API no portal cliente
+- Tipo: fix
+- Resumo: o portal cliente passou a resolver a URL publica HTTPS da API por host da requisicao antes de montar o layout browser-side e o `Content-Security-Policy`, eliminando `Mixed Content` em `notificationHub` e `chatHub` quando a configuracao ainda trouxer `localhost` ou o IP HTTP legado da VPS.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Client/Services/ClientPublicUrlResolver.cs`, `Backend/src/ConsertaPraMim.Web.Client/Program.cs`, `Backend/src/ConsertaPraMim.Web.Client/Views/Shared/_Layout.cshtml`, `Backend/src/ConsertaPraMim.Web.Client/Views/ServiceRequests/Details.cshtml`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/ClientPublicUrlResolverTests.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: medio
+
+- [2026-03-08] [OPS-VPS-ADMIN-CSP] CSP do portal admin alinhado com a URL publica HTTPS da API
+- Tipo: fix
+- Resumo: o portal admin passou a resolver a URL publica HTTPS da API por host da requisicao antes de montar o `Content-Security-Policy`, eliminando o bloqueio de `notificationHub`/SignalR causado por `connect-src` com IP HTTP legado; a tela `AdminMonitoring` tambem passou a consumir a mesma URL publica resolvida no browser.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Program.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminMonitoring/Index.cshtml`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminPublicUrlResolverTests.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: medio
+
+- [2026-03-08] [OPS-VPS-PROVIDER-MIXED-CONTENT] URL publica HTTPS da API no portal prestador
+- Tipo: fix
+- Resumo: o portal do prestador passou a resolver a URL publica HTTPS da API a partir do host da requisicao quando a configuracao browser ainda trouxer `localhost` ou o IP HTTP legado da VPS; a correcao elimina `Mixed Content` em `Profile`, `notificationHub` e `chatHub`, mantendo o fallback local para desenvolvimento.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Provider/Services/ProviderPublicUrlResolver.cs`, `Backend/src/ConsertaPraMim.Web.Provider/Views/Shared/_Layout.cshtml`, `Backend/src/ConsertaPraMim.Web.Provider/Views/Profile/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Provider/Program.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/ProviderPublicUrlResolverTests.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: medio
+
+- [2026-03-07] [OPS-VPS-MENU-LINKS] Links publicos HTTPS no menu lateral do portal admin
+- Tipo: fix
+- Resumo: os atalhos `Portal Cliente`, `Portal Prestador` e `Swagger API` do menu lateral do portal admin passaram a priorizar URLs publicas HTTPS com dominio (`cliente.consertapramim.com`, `prestador.consertapramim.com`, `api.consertapramim.com/swagger`), evitando sobrescrita por IP/porta legado vindo de configuracao runtime.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Services/AdminPublicUrlResolver.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/AdminPortalLinksService.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/Shared/_Layout.cshtml`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminPublicUrlResolverTests.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: medio
+
+- [2026-03-07] [OPS-VPS-API-URL-SPLIT] Separacao entre URL interna e publica da API nos portais web
+- Tipo: fix
+- Resumo: os portais web da VPS passaram a usar `ApiBaseUrl` interno via rede Docker (`http://cpm-api:8080`) para chamadas server-side e `BrowserApiBaseUrl` publico (`https://api.consertapramim.com`) para chat, upload, SignalR e links Swagger no navegador, eliminando falha de autenticacao causada pelo uso do IP publico legado `http://187.77.48.150:5193` dentro dos containers.
+- Arquivos principais: `Backend/docker-compose.vps.web-admin.yml`, `Backend/docker-compose.vps.web-client.yml`, `Backend/docker-compose.vps.web-provider.yml`, `Backend/docker-compose.vps.yml`, `Backend/.env.vps.example`, `Backend/src/ConsertaPraMim.Web.Admin/Program.cs`, `Backend/src/ConsertaPraMim.Web.Client/Program.cs`, `Backend/src/ConsertaPraMim.Web.Provider/Program.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/Shared/_Layout.cshtml`, `Backend/src/ConsertaPraMim.Web.Client/Views/Shared/_Layout.cshtml`, `Backend/src/ConsertaPraMim.Web.Provider/Views/Shared/_Layout.cshtml`, `Backend/src/ConsertaPraMim.Web.Provider/Views/Profile/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminMonitoring/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminApplicationsController.cs`, `Backend/DEPLOY_VPS.md`
+- Risco/Impacto: alto
+
+- [2026-03-07] [OPS-HTTPS-VPS] Reverse proxy HTTPS para API e portais web na VPS
+- Tipo: feat
+- Resumo: a stack de deploy da VPS passou a suportar publicacao segura via Nginx + Certbot para API, portal admin, portal cliente e portal prestador, com `ForwardedHeaders` nos apps ASP.NET, bind local em `127.0.0.1`, URLs publicas HTTPS parametrizadas no compose e workflow ajustado para gerar `.env.vps` com os novos hosts publicos.
+- Arquivos principais: `Backend/src/ConsertaPraMim.API/Program.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Program.cs`, `Backend/src/ConsertaPraMim.Web.Client/Program.cs`, `Backend/src/ConsertaPraMim.Web.Provider/Program.cs`, `Backend/docker-compose.vps.api.yml`, `Backend/docker-compose.vps.web-admin.yml`, `Backend/docker-compose.vps.web-client.yml`, `Backend/docker-compose.vps.web-provider.yml`, `Backend/docker-compose.vps.yml`, `Backend/docker/vps/nginx.portals.https.conf.example`, `Backend/DEPLOY_VPS.md`, `.github/workflows/deploy-vps.yml`
+- Risco/Impacto: alto
+
+- [2026-03-05] [ST-019][API-PROVIDER-GALLERY] Endpoint publico de fotos da galeria em Base64 por prestador
+- Tipo: feat
+- Resumo: adicionada a rota anonima `GET /api/provider-gallery/public/providers/{providerId}/albums/photos/base64` para retornar todas as fotos (`image/*`) dos albuns do prestador agrupadas por album, com conteudo em Base64 e contadores de fotos indisponiveis quando o arquivo fisico nao existir no storage.
+- Arquivos principais: `Backend/src/ConsertaPraMim.API/Controllers/ProviderGalleryController.cs`, `Backend/src/ConsertaPraMim.Application/DTOs/ProviderGalleryDTOs.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ApiEndpointDocumentationCatalog.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Controllers/ProviderGalleryControllerTests.cs`, `Documentacao/OPERACAO_SERVICO_POS_AGENDAMENTO/RUNBOOK_QA_GALERIA_PUBLICA_BASE64_ST-019.md`, `Documentacao/DIAGRAMAS/OPERACAO_SERVICO_POS_AGENDAMENTO/ST-019-galeria-publica-base64-prestador/fluxo-galeria-publica-base64-prestador.mmd`
+- Risco/Impacto: medio
+
+- [2026-03-04] [ST-002][API-SERVICE-APPOINTMENTS] Endpoint publico para disponibilidade agregada de prestadores (15 dias)
+- Tipo: feat
+- Resumo: adicionada a rota anonima `GET /api/service-appointments/public/providers/slots/next-15-days` para listar, em uma unica consulta, os horarios disponiveis dos prestadores ativos nos proximos 15 dias; o retorno foi padronizado em UTC com janela `fromUtc/toUtc` e slots por prestador, reutilizando as mesmas regras de disponibilidade, bloqueios e conflitos de agenda do fluxo autenticado.
+- Arquivos principais: `Backend/src/ConsertaPraMim.API/Controllers/ServiceAppointmentsController.cs`, `Backend/src/ConsertaPraMim.Application/Services/ServiceAppointmentService.cs`, `Backend/src/ConsertaPraMim.Application/DTOs/ServiceAppointmentDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Interfaces/IServiceAppointmentService.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ApiEndpointDocumentationCatalog.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/ServiceAppointmentServiceTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Controllers/ServiceAppointmentsControllerTests.cs`, `Documentacao/AGENDA_SERVICOS_JANELAS_LEMBRETES/MANUAL_ADMIN_QA_AGENDA_ST-008.md`, `Documentacao/DIAGRAMAS/AGENDA_SERVICOS_JANELAS_LEMBRETES/ST-008-observabilidade-qa-runbook-agenda/sequencia-consulta-publica-slots-15-dias.mmd`
+- Risco/Impacto: medio
+
+- [2026-03-03] [ST-009][WEB-CLIENT] Ocultacao da secao de cancelamento quando pedido nao elegivel
+- Tipo: fix
+- Resumo: na tela `ServiceRequests/Details` do portal cliente, a secao/card `Cancelar pedido` passou a ser renderizada somente quando o cancelamento e permitido; para estados bloqueados (ex.: pedido concluido), a secao nao aparece mais na interface.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Client/wwwroot/js/views/service-requests/details.js`, `Documentacao/AGENDA_SERVICOS_JANELAS_LEMBRETES/MANUAL_ADMIN_QA_AGENDA_ST-008.md`
+- Risco/Impacto: baixo
 
 - [2026-03-03] [WEB-CLIENT][PAYMENTS] Correcao de timezone na exibicao de atualizacao de pagamento
 - Tipo: fix
@@ -84,7 +344,7 @@
 
 - [2026-03-02] [ADMIN-GROWTH-AI] Datas do AI Copilot Growth exibidas em America/Sao_Paulo
 - Tipo: fix
-- Resumo: a tela `AI Copilot Growth` deixou de depender do fuso local do servidor para renderizar as datas das analises, passando a exibir historico, badges e opcoes de comparacao no fuso de negocio `America/Sao_Paulo`; os rótulos de comparacao gerados pelo servico tambem foram ajustados para a mesma regra.
+- Resumo: a tela `AI Copilot Growth` deixou de depender do fuso local do servidor para renderizar as datas das analises, passando a exibir historico, badges e opcoes de comparacao no fuso de negocio `America/Sao_Paulo`; os rotulos de comparacao gerados pelo servico tambem foram ajustados para a mesma regra.
 - Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminGrowthAi/Index.cshtml`, `Backend/src/ConsertaPraMim.Application/Services/AdminGrowthAiService.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminGrowthAiServiceTests.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
 - Risco/Impacto: baixo
 
@@ -114,7 +374,7 @@
 
 - [2026-03-01] [WEB-PROVIDER] Correcao de mojibake e reforco de governanca UTF-8
 - Tipo: fix
-- Resumo: os ultimos arquivos alterados do portal prestador que passaram a exibir textos corrompidos (`Descrição`, `Serviços`, `Distância`, etc.) foram revisados e corrigidos para PT-BR com acentuacao valida; os arquivos impactados foram regravados em UTF-8 e a governanca de encoding foi reforcada com varredura obrigatoria por caracteres quebrados antes do encerramento da task.
+- Resumo: os ultimos arquivos alterados do portal prestador que passaram a exibir textos corrompidos (`Descricao`, `Servicos`, `Distancia`, etc.) foram revisados e corrigidos para PT-BR com acentuacao valida; os arquivos impactados foram regravados em UTF-8 e a governanca de encoding foi reforcada com varredura obrigatoria por caracteres quebrados antes do encerramento da task.
 - Arquivos principais: `Backend/src/ConsertaPraMim.Web.Provider/Views/Home/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Provider/Views/ServiceRequests/Agenda.cshtml`, `Backend/src/ConsertaPraMim.Web.Provider/Views/ServiceRequests/Details.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `AGENTS.md`
 - Risco/Impacto: medio
 
@@ -150,7 +410,7 @@
 
 - [2026-02-28] [GOV-ENCODING] Normalizacao de arquivos textuais para UTF-8 e enforcement por diretriz
 - Tipo: fix
-- Resumo: os arquivos textuais versionados que ainda estavam em `ANSI/Windows-1252` foram convertidos para `UTF-8`, eliminando artefatos como `está` no ambiente publicado; o repositorio tambem passou a ter enforcement tecnico via `.editorconfig` e diretriz formal em `AGENTS.md` para impedir regressao de encoding.
+- Resumo: os arquivos textuais versionados que ainda estavam em `ANSI/Windows-1252` foram convertidos para `UTF-8`, eliminando artefatos como `esta` no ambiente publicado; o repositorio tambem passou a ter enforcement tecnico via `.editorconfig` e diretriz formal em `AGENTS.md` para impedir regressao de encoding.
 - Arquivos principais: `AGENTS.md`, `.editorconfig`, `Backend/src/ConsertaPraMim.Web.Provider/Views/Home/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Provider/Views/Shared/_Layout.cshtml`, `Backend/src/ConsertaPraMim.Web.Provider/Views/Account/Register.cshtml`, `Backend/src/ConsertaPraMim.Web.Provider/Views/SupportTickets/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Provider/wwwroot/js/views/profile/index.js`, `Backend/src/ConsertaPraMim.Web.Client/wwwroot/js/views/service-requests/details.js`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminMonitoring/Index.cshtml`, `Documentacao/PROVIDER_DASHBOARD_MAPA_COBERTURA/EPICS/EPIC-001-mapa-cobertura-dashboard-prestador.md`
 - Risco/Impacto: medio
 
@@ -1019,7 +1279,7 @@
 - Risco/Impacto: medio
 - [2026-02-24] [ST-048] Elegibilidade de prestadores integrada no contrato PJ recorrente (PF/PJ/ambos)
 - Tipo: feat
-- Resumo: o fluxo PJ recorrente passou a calcular oferta elegivel por categoria e preferencia (`Both`/`PjOnly`), bloqueando contratacao sem prestadores aptos e retornando `eligibleProvidersCount` no payload para transparência operacional; cobertura de testes ampliada para cenarios positivos e negativos.
+- Resumo: o fluxo PJ recorrente passou a calcular oferta elegivel por categoria e preferencia (`Both`/`PjOnly`), bloqueando contratacao sem prestadores aptos e retornando `eligibleProvidersCount` no payload para transparencia operacional; cobertura de testes ampliada para cenarios positivos e negativos.
 - Arquivos principais: `Backend/src/ConsertaPraMim.Application/Services/PjRecurringContractService.cs`, `Backend/src/ConsertaPraMim.Application/DTOs/PjRecurringContractsDTOs.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/PjRecurringContractServiceTests.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `Documentacao/ADMIN_PORTAL/STORIES/IN_PROGRESS/ST-048-pacotes-pj-recorrentes.md`
 - Risco/Impacto: medio
 - [2026-02-24] [ST-048] Fluxo mobile de contratacao e renovacao de pacotes PJ recorrentes
@@ -1229,7 +1489,7 @@
 - Risco/Impacto: medio
 - [2026-02-18] [ST-019] Monitoramento E2E da API com dashboard operacional no portal admin
 - Tipo: feat
-- Resumo: implementado monitoramento completo de requests da API com middleware global (correlationId, severidade, warnings, sanitizacao), buffer assíncrono + workers de flush/agregacao/retencao, endpoints admin dedicados (`/api/admin/monitoring/*`), dashboard de monitoramento no Web.Admin, seeds para validacao local, testes unitarios/integracao e diagramas Mermaid (fluxo e sequencia).
+- Resumo: implementado monitoramento completo de requests da API com middleware global (correlationId, severidade, warnings, sanitizacao), buffer assincrono + workers de flush/agregacao/retencao, endpoints admin dedicados (`/api/admin/monitoring/*`), dashboard de monitoramento no Web.Admin, seeds para validacao local, testes unitarios/integracao e diagramas Mermaid (fluxo e sequencia).
 - Arquivos principais: `ConsertaPraMim.API/Middleware/RequestTelemetryMiddleware.cs`, `ConsertaPraMim.API/Controllers/AdminMonitoringController.cs`, `ConsertaPraMim.Infrastructure/Services/AdminMonitoringService.cs`, `ConsertaPraMim.Web.Admin/Views/AdminMonitoring/Index.cshtml`, `ConsertaPraMim.Infrastructure/Migrations/20260218192717_AddApiMonitoringTelemetry.cs`, `tests/ConsertaPraMim.Tests.Unit/Middleware/RequestTelemetryMiddlewareTests.cs`, `tests/ConsertaPraMim.Tests.Unit/Integration/Controllers/AdminMonitoringControllerSqliteIntegrationTests.cs`
 - Risco/Impacto: medio
 - [2026-02-16] [ST-017] Regressao E2E de creditos: concessao admin ate abatimento da mensalidade

@@ -1,0 +1,207 @@
+@using ConsertaPraMim.Domain.Enums
+@model ConsertaPraMim.Web.Admin.Models.AdminLandingAnalyticsDetailsViewModel
+@{
+    ViewData["Title"] = "Detalhe da Sessao Landing";
+    var details = Model.Details;
+}
+
+@functions {
+    private static readonly TimeZoneInfo BusinessTimeZone = ResolveBusinessTimeZone();
+
+    private static string FormatBusinessDate(DateTime value, string format = "dd/MM/yyyy HH:mm:ss")
+    {
+        var utcValue = value.Kind == DateTimeKind.Utc
+            ? value
+            : DateTime.SpecifyKind(value, DateTimeKind.Utc);
+
+        return TimeZoneInfo.ConvertTimeFromUtc(utcValue, BusinessTimeZone).ToString(format);
+    }
+
+    private static TimeZoneInfo ResolveBusinessTimeZone()
+    {
+        foreach (var candidate in new[] { "America/Sao_Paulo", "E. South America Standard Time" })
+        {
+            try
+            {
+                return TimeZoneInfo.FindSystemTimeZoneById(candidate);
+            }
+            catch
+            {
+            }
+        }
+
+        return TimeZoneInfo.Utc;
+    }
+
+    private static string ResolveOriginLabel(LandingLeadOrigin? origin)
+    {
+        return origin switch
+        {
+            LandingLeadOrigin.Client => "Cliente",
+            LandingLeadOrigin.Provider => "Prestador",
+            _ => "Nao informada"
+        };
+    }
+}
+
+<style>
+    .analytics-card {
+        border: 0;
+        border-radius: 16px;
+        box-shadow: 0 10px 22px rgba(15, 23, 42, .08);
+    }
+
+    .analytics-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 16px;
+    }
+</style>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+        <h1 class="h4 fw-bold mb-1">Detalhe da sessao</h1>
+        <p class="text-muted mb-0">Correlacao de acesso, heartbeat, heatmap, scroll e lead captado.</p>
+    </div>
+    <a asp-action="Index" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left me-1"></i> Voltar
+    </a>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <div class="alert alert-danger">@Model.ErrorMessage</div>
+}
+else if (details != null)
+{
+    <section class="analytics-grid mb-4">
+        <article class="analytics-card card">
+            <div class="card-header bg-white fw-semibold">Sessao</div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Sessao</dt>
+                    <dd class="col-sm-8 font-monospace">@details.SessionId</dd>
+                    <dt class="col-sm-4">Visitante</dt>
+                    <dd class="col-sm-8 font-monospace">@details.VisitorId</dd>
+                    <dt class="col-sm-4">Origem</dt>
+                    <dd class="col-sm-8">@ResolveOriginLabel(details.InitialLeadOrigin)</dd>
+                    <dt class="col-sm-4">Pagina</dt>
+                    <dd class="col-sm-8">@details.Path</dd>
+                    <dt class="col-sm-4">Inicio</dt>
+                    <dd class="col-sm-8">@FormatBusinessDate(details.StartedAtUtc)</dd>
+                    <dt class="col-sm-4">Ultima atividade</dt>
+                    <dd class="col-sm-8">@FormatBusinessDate(details.LastActivityAtUtc)</dd>
+                </dl>
+            </div>
+        </article>
+
+        <article class="analytics-card card">
+            <div class="card-header bg-white fw-semibold">KPIs da sessao</div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-5">Tempo ativo</dt>
+                    <dd class="col-sm-7">@details.ActiveSeconds s</dd>
+                    <dt class="col-sm-5">Scroll maximo</dt>
+                    <dd class="col-sm-7">@details.MaxScrollPercent%</dd>
+                    <dt class="col-sm-5">Cliques</dt>
+                    <dd class="col-sm-7">@details.Clicks</dd>
+                    <dt class="col-sm-5">Modais abertos</dt>
+                    <dd class="col-sm-7">@details.ModalOpens</dd>
+                    <dt class="col-sm-5">Leads captados</dt>
+                    <dd class="col-sm-7">@details.LeadSubmissions</dd>
+                    <dt class="col-sm-5">Localidade</dt>
+                    <dd class="col-sm-7">@details.EstimatedLocality</dd>
+                </dl>
+            </div>
+        </article>
+
+        <article class="analytics-card card">
+            <div class="card-header bg-white fw-semibold">Contexto tecnico</div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">IP</dt>
+                    <dd class="col-sm-8">@details.IpAddress</dd>
+                    <dt class="col-sm-4">X-Forwarded-For</dt>
+                    <dd class="col-sm-8">@details.ForwardedFor</dd>
+                    <dt class="col-sm-4">Idioma</dt>
+                    <dd class="col-sm-8">@details.AcceptLanguage</dd>
+                    <dt class="col-sm-4">Referer</dt>
+                    <dd class="col-sm-8 text-break">@details.RefererUrl</dd>
+                    <dt class="col-sm-4">User-Agent</dt>
+                    <dd class="col-sm-8 text-break">@details.UserAgent</dd>
+                </dl>
+            </div>
+        </article>
+
+        <article class="analytics-card card">
+            <div class="card-header bg-white fw-semibold">GeoIP estimado</div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Pais</dt>
+                    <dd class="col-sm-8">@details.Geo.Country (@details.Geo.CountryCode)</dd>
+                    <dt class="col-sm-4">UF/Regiao</dt>
+                    <dd class="col-sm-8">@details.Geo.Region (@details.Geo.RegionCode)</dd>
+                    <dt class="col-sm-4">Cidade</dt>
+                    <dd class="col-sm-8">@details.Geo.City</dd>
+                    <dt class="col-sm-4">Provider</dt>
+                    <dd class="col-sm-8">@details.Geo.Provider</dd>
+                    <dt class="col-sm-4">Status</dt>
+                    <dd class="col-sm-8">@details.Geo.LookupStatus</dd>
+                </dl>
+            </div>
+        </article>
+    </section>
+
+    @if (details.Lead != null)
+    {
+        <section class="analytics-card card mb-4">
+            <div class="card-header bg-white fw-semibold">Lead correlacionado</div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-3"><strong>Origem</strong><div>@ResolveOriginLabel(details.Lead.Origin)</div></div>
+                    <div class="col-md-3"><strong>Nome</strong><div>@details.Lead.FullName</div></div>
+                    <div class="col-md-3"><strong>E-mail</strong><div>@details.Lead.Email</div></div>
+                    <div class="col-md-3"><strong>WhatsApp</strong><div>@details.Lead.Phone</div></div>
+                    <div class="col-md-6"><strong>Localidade</strong><div>@details.Lead.Locality</div></div>
+                    <div class="col-md-6"><strong>Captado em</strong><div>@FormatBusinessDate(details.Lead.CreatedAtUtc)</div></div>
+                </div>
+            </div>
+        </section>
+    }
+
+    <section class="analytics-card card">
+        <div class="card-header bg-white fw-semibold">Timeline da sessao</div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                <tr>
+                    <th>Quando</th>
+                    <th>Fonte</th>
+                    <th>Tipo</th>
+                    <th>Descricao</th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var item in details.Timeline)
+                {
+                    <tr>
+                        <td>@FormatBusinessDate(item.OccurredAtUtc)</td>
+                        <td>@item.Source</td>
+                        <td>@item.Type</td>
+                        <td>
+                            <div>@item.Description</div>
+                            @if (!string.IsNullOrWhiteSpace(item.MetadataJson))
+                            {
+                                <details class="mt-2">
+                                    <summary class="small text-muted">Metadados</summary>
+                                    <pre class="small mb-0 text-wrap">@item.MetadataJson</pre>
+                                </details>
+                            }
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </section>
+}

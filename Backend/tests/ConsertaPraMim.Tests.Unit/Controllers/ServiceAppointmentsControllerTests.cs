@@ -31,6 +31,45 @@ public class ServiceAppointmentsControllerTests
     }
 
     /// <summary>
+    /// Cenario: a rota publica de disponibilidade agregada e chamada sem token.
+    /// Passos: o teste executa a acao anonima sem claims de usuario.
+    /// Resultado esperado: o controller responde 200 com o payload de disponibilidade por prestador.
+    /// </summary>
+    [Fact(DisplayName = "Servico appointments controller | Obter slots publicos 15 dias | Deve retornar ok sem autenticacao")]
+    public async Task GetPublicProvidersAvailableSlotsNext15Days_ShouldReturnOk_WhenAnonymous()
+    {
+        var nowUtc = DateTime.UtcNow;
+        var expected = new PublicProvidersAvailabilityWindowDto(
+            nowUtc,
+            nowUtc.AddDays(15),
+            new List<PublicProviderAvailabilitySlotsDto>
+            {
+                new(
+                    Guid.NewGuid(),
+                    "Prestador Publico",
+                    new List<ServiceAppointmentSlotDto>
+                    {
+                        new(nowUtc.AddHours(2), nowUtc.AddHours(3))
+                    })
+            });
+
+        var serviceMock = new Mock<IServiceAppointmentService>();
+        serviceMock
+            .Setup(s => s.GetPublicProvidersAvailableSlotsNext15DaysAsync())
+            .ReturnsAsync(expected);
+
+        var controller = CreateController(serviceMock.Object);
+        var result = await controller.GetPublicProvidersAvailableSlotsNext15Days();
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        var payload = Assert.IsType<PublicProvidersAvailabilityWindowDto>(ok.Value);
+
+        Assert.Equal(expected.FromUtc, payload.FromUtc);
+        Assert.Equal(expected.ToUtc, payload.ToUtc);
+        Assert.Single(payload.Providers);
+    }
+
+    /// <summary>
     /// Cenario: o cliente tenta criar agendamento em horario indisponivel.
     /// Passos: o teste configura o servico para retornar erro de conflito por slot nao disponivel.
     /// Resultado esperado: o controller traduz a resposta para HTTP 409 Conflict.

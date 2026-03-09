@@ -2,23 +2,27 @@ name: backend-api
 
 services:
   api:
-    container_name: cpm-api
+    container_name: "${CONTAINER_PREFIX:-cpm}-api"
     build:
       context: .
       dockerfile: docker/vps/Dockerfile.api
     restart: unless-stopped
     ports:
-      - "${API_PORT:-5193}:8080"
+      - "${BIND_HOST:-127.0.0.1}:${API_PORT:-5193}:8080"
     environment:
       ASPNETCORE_ENVIRONMENT: "${APP_ENVIRONMENT:-Development}"
       ASPNETCORE_URLS: "http://+:8080"
       VPS_PUBLIC_HOST: "${VPS_PUBLIC_HOST}"
+      Security__EnforceHttpsRedirection: "${ENFORCE_API_HTTPS_REDIRECTION:-true}"
       ADMIN_PORT: "${ADMIN_PORT:-5151}"
       CLIENT_PORT: "${CLIENT_PORT:-5069}"
       PROVIDER_PORT: "${PROVIDER_PORT:-5140}"
       MOBILE_CLIENT_WEBVIEW_PORT: "${MOBILE_CLIENT_WEBVIEW_PORT:-5181}"
       MOBILE_PROVIDER_WEBVIEW_PORT: "${MOBILE_PROVIDER_WEBVIEW_PORT:-5182}"
       MOBILE_ADMIN_WEBVIEW_PORT: "${MOBILE_ADMIN_WEBVIEW_PORT:-5183}"
+      Portals__AdminUrl: "${PUBLIC_ADMIN_URL:-http://${VPS_PUBLIC_HOST}:${ADMIN_PORT:-5151}}"
+      Portals__ClientUrl: "${PUBLIC_CLIENT_URL:-http://${VPS_PUBLIC_HOST}:${CLIENT_PORT:-5069}}"
+      Portals__ProviderUrl: "${PUBLIC_PROVIDER_URL:-http://${VPS_PUBLIC_HOST}:${PROVIDER_PORT:-5140}}"
       DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: "false"
       LANG: "pt_BR.UTF-8"
       LC_ALL: "pt_BR.UTF-8"
@@ -31,18 +35,20 @@ services:
       Seed__CreateDefaultAdmin: "true"
       Seed__DefaultPassword: "${SEED_DEFAULT_PASSWORD}"
       Seed__ResetSecurityCode: "${SEED_RESET_SECURITY_CODE:-}"
-      Cors__AllowedOrigins__0: "http://${VPS_PUBLIC_HOST}:${ADMIN_PORT:-5151}"
-      Cors__AllowedOrigins__1: "http://${VPS_PUBLIC_HOST}:${CLIENT_PORT:-5069}"
-      Cors__AllowedOrigins__2: "http://${VPS_PUBLIC_HOST}:${PROVIDER_PORT:-5140}"
-      Cors__AllowedOrigins__3: "http://localhost:${ADMIN_PORT:-5151}"
-      Cors__AllowedOrigins__4: "http://localhost:${CLIENT_PORT:-5069}"
-      Cors__AllowedOrigins__5: "http://localhost:${PROVIDER_PORT:-5140}"
-      Cors__AllowedOrigins__6: "http://${VPS_PUBLIC_HOST}:${MOBILE_CLIENT_WEBVIEW_PORT:-5181}"
-      Cors__AllowedOrigins__7: "http://${VPS_PUBLIC_HOST}:${MOBILE_PROVIDER_WEBVIEW_PORT:-5182}"
-      Cors__AllowedOrigins__8: "http://${VPS_PUBLIC_HOST}:${MOBILE_ADMIN_WEBVIEW_PORT:-5183}"
-      Cors__AllowedOrigins__9: "http://localhost:${MOBILE_CLIENT_WEBVIEW_PORT:-5181}"
-      Cors__AllowedOrigins__10: "http://localhost:${MOBILE_PROVIDER_WEBVIEW_PORT:-5182}"
-      Cors__AllowedOrigins__11: "http://localhost:${MOBILE_ADMIN_WEBVIEW_PORT:-5183}"
+      Cors__AllowedOrigins__0: "${PUBLIC_ADMIN_URL:-http://${VPS_PUBLIC_HOST}:${ADMIN_PORT:-5151}}"
+      Cors__AllowedOrigins__1: "${PUBLIC_CLIENT_URL:-http://${VPS_PUBLIC_HOST}:${CLIENT_PORT:-5069}}"
+      Cors__AllowedOrigins__2: "${PUBLIC_PROVIDER_URL:-http://${VPS_PUBLIC_HOST}:${PROVIDER_PORT:-5140}}"
+      Cors__AllowedOrigins__3: "${PUBLIC_LANDING_URL:-https://www.consertapramim.com}"
+      Cors__AllowedOrigins__4: "http://localhost:${ADMIN_PORT:-5151}"
+      Cors__AllowedOrigins__5: "http://localhost:${CLIENT_PORT:-5069}"
+      Cors__AllowedOrigins__6: "http://localhost:${PROVIDER_PORT:-5140}"
+      Cors__AllowedOrigins__7: "http://${VPS_PUBLIC_HOST}:${MOBILE_CLIENT_WEBVIEW_PORT:-5181}"
+      Cors__AllowedOrigins__8: "http://${VPS_PUBLIC_HOST}:${MOBILE_PROVIDER_WEBVIEW_PORT:-5182}"
+      Cors__AllowedOrigins__9: "http://${VPS_PUBLIC_HOST}:${MOBILE_ADMIN_WEBVIEW_PORT:-5183}"
+      Cors__AllowedOrigins__10: "http://localhost:${MOBILE_CLIENT_WEBVIEW_PORT:-5181}"
+      Cors__AllowedOrigins__11: "http://localhost:${MOBILE_PROVIDER_WEBVIEW_PORT:-5182}"
+      Cors__AllowedOrigins__12: "http://localhost:${MOBILE_ADMIN_WEBVIEW_PORT:-5183}"
+      Cors__AllowedOrigins__13: "https://localhost"
       PushNotifications__Firebase__ServiceAccountPath: "${FIREBASE_SERVICE_ACCOUNT_PATH:-}"
       PushNotifications__Firebase__ServiceAccountJsonBase64: "${FIREBASE_SERVICE_ACCOUNT_JSON_BASE64:-}"
       PushNotifications__Firebase__ProjectId: "${FIREBASE_PROJECT_ID:-}"
@@ -55,6 +61,7 @@ services:
 
 volumes:
   api_uploads:
+    name: "${VOLUME_PREFIX:-cpm}_api_uploads"
 
 networks:
   conserta_net:

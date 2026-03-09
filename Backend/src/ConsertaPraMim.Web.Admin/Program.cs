@@ -1,5 +1,6 @@
 using ConsertaPraMim.Web.Admin.Services;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using System.Globalization;
 using Microsoft.AspNetCore.Localization;
@@ -31,7 +32,17 @@ builder.Services.AddScoped<IAdminWikiService, AdminWikiService>();
 builder.Services.AddScoped<IAdminChangeLogsService, AdminChangeLogsService>();
 builder.Services.AddScoped<IAdminDiagramsService, AdminDiagramsService>();
 builder.Services.AddScoped<IAdminRoadmapService, AdminRoadmapService>();
-var apiOrigin = ResolveOrigin(builder.Configuration["ApiBaseUrl"]);
+var configuredBrowserApiBaseUrl = builder.Configuration["BrowserApiBaseUrl"] ?? builder.Configuration["ApiBaseUrl"];
+
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders =
+        ForwardedHeaders.XForwardedFor |
+        ForwardedHeaders.XForwardedProto |
+        ForwardedHeaders.XForwardedHost;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
@@ -55,6 +66,8 @@ var localizationOptions = new RequestLocalizationOptions
     SupportedUICultures = new List<CultureInfo> { ptBrCulture }
 };
 
+app.UseForwardedHeaders();
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Account/AccessDenied");
@@ -66,6 +79,12 @@ app.UseRequestLocalization(localizationOptions);
 
 app.Use(async (context, next) =>
 {
+    var resolvedBrowserApiBaseUrl = AdminPublicUrlResolver.ResolveApiBaseUrl(
+        configuredBrowserApiBaseUrl,
+        context.Request.Host.Host,
+        "http://localhost:5193");
+    var apiOrigin = ResolveOrigin(resolvedBrowserApiBaseUrl);
+
     context.Response.Headers["X-Content-Type-Options"] = "nosniff";
     context.Response.Headers["X-Frame-Options"] = "DENY";
     context.Response.Headers["Referrer-Policy"] = "strict-origin-when-cross-origin";

@@ -6,6 +6,7 @@ ENV_FILE="Backend/.env.vps"
 DEPLOY_SERVICE_SCRIPT="scripts/deploy/vps-deploy-service.sh"
 SERVICES=(
   "api"
+  "web-landing"
   "web-admin"
   "web-client"
   "web-provider"

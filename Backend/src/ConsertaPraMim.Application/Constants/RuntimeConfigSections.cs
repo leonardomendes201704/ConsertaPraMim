@@ -227,6 +227,102 @@ public static class RuntimeConfigSections
               }
             }
             """)
+        ,
+        new RuntimeConfigSectionDefinition(
+            SettingKey: SystemSettingKeys.ConfigLandingAnalytics,
+            SectionPath: "LandingAnalytics",
+            DisplayName: "Landing Analytics",
+            Description: "Configura heartbeat, heatmap fase 1, scroll milestones e GeoIP da landing publica.",
+            DefaultJson:
+            """
+            {
+              "ClientTelemetryEnabled": true,
+              "Heartbeat": {
+                "Enabled": true,
+                "IntervalSeconds": 15,
+                "MaxSessionDurationMinutes": 30
+              },
+              "Scroll": {
+                "Enabled": true,
+                "MilestonesPercent": [25, 50, 75, 100]
+              },
+              "Clicks": {
+                "Enabled": true,
+                "TrackInteractiveOnly": true,
+                "HeatmapGridRows": 6,
+                "HeatmapGridColumns": 6
+              },
+              "GeoIp": {
+                "Enabled": true,
+                "Provider": "ipwhois",
+                "BaseUrl": "https://ipwho.is",
+                "TimeoutMs": 1200,
+                "CacheMinutes": 1440
+              }
+            }
+            """,
+            RequiresRestart: false),
+        new RuntimeConfigSectionDefinition(
+            SettingKey: SystemSettingKeys.ConfigFireTvDashboard,
+            SectionPath: "FireTvDashboard",
+            DisplayName: "Fire TV Dashboard",
+            Description: "Configura o dashboard read-only da landing exibido no app Fire TV, incluindo KPIs, janelas e auto refresh.",
+            DefaultJson:
+            """
+            {
+              "Enabled": true,
+              "AppTitle": "ConsertaPraMim Analytics TV",
+              "AppSubtitle": "Landing publica",
+              "ShowLandingView": true,
+              "ShowOperationsView": true,
+              "DefaultView": "menu",
+              "DefaultRangeDays": 7,
+              "AllowedRangeDays": [1, 7, 30],
+              "DefaultOriginFilter": "all",
+              "OriginFilters": [
+                { "Value": "all", "Label": "Todas as origens" },
+                { "Value": "client", "Label": "Cliente" },
+                { "Value": "provider", "Label": "Prestador" }
+              ],
+              "DefaultComparisonMode": "previous_period",
+              "ComparisonModes": [
+                { "Value": "none", "Label": "Sem comparacao" },
+                { "Value": "previous_period", "Label": "Periodo anterior" }
+              ],
+              "AutoRefreshSeconds": 30,
+              "SessionPageSize": 6,
+              "TopListSize": 5,
+              "OperationsHistoryDays": 7,
+              "OperationsRefreshSeconds": 20,
+              "SignalRPulseSeconds": 20,
+              "OperationsMapMaxProviders": 12,
+              "OperationsMapMaxRequests": 12,
+              "OperationsRecentActivitySize": 6,
+              "OperationsHealthCheckTimeoutMs": 2500,
+              "ShowHeatmap": true,
+              "ShowComparison": true,
+              "ShowScrollmap": true,
+              "ShowElementRanking": true,
+              "ElementRankingSize": 6,
+              "HealthTargets": [
+                { "Key": "api", "Label": "API", "Url": "https://api.consertapramim.com/health" },
+                { "Key": "admin", "Label": "Portal Admin", "Url": "https://admin.consertapramim.com/Account/Login" },
+                { "Key": "client", "Label": "Portal Cliente", "Url": "https://cliente.consertapramim.com/Account/Login" },
+                { "Key": "provider", "Label": "Portal Prestador", "Url": "https://prestador.consertapramim.com/Account/Login" }
+              ],
+              "KpiKeys": [
+                "totalSessions",
+                "uniqueVisitors",
+                "leadSubmissions",
+                "leadSubmissionRatePercent",
+                "leadModalOpens",
+                "totalClicks",
+                "averageActiveSecondsPerSession",
+                "averageMaxScrollPercent"
+              ]
+            }
+            """,
+            RequiresRestart: false)
     ];
 
     private static readonly Dictionary<string, RuntimeConfigSectionDefinition> BySettingKey =

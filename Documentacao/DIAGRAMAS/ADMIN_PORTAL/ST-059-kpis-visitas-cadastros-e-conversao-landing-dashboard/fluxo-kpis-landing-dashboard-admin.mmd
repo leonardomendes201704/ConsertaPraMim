@@ -1,0 +1,15 @@
+flowchart TD
+    A[Usuario acessa landing publica] --> B[HomeController resolve visitorId]
+    B --> C[Webhook interno /api/internal/landing/access]
+    C --> D[Persistir LandingAccessEvents]
+    D --> E[Notificar admins ativos]
+
+    F[Usuario envia lead Cliente ou Prestador] --> G[POST /api/landing-leads/public]
+    G --> H[Persistir LandingLeads com visitorId]
+    H --> I[Notificar admins ativos]
+
+    D --> J[AdminDashboardService agrega visitas]
+    H --> K[AdminDashboardService agrega cadastros]
+    J --> L[Calcular taxa de conversao]
+    K --> L
+    L --> M[Home admin exibe KPIs incrementais]

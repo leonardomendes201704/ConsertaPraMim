@@ -120,8 +120,8 @@ public static class ApiEndpointDocumentationCatalog
         {
             return new OperationNarrativeContext(
                 BusinessObjective: "Carregar KPI isolado da home admin para renderizacao incremental sem bloquear os demais cards executivos.",
-                Scenario: "Portal admin consulta um card especifico (`usuarios`, `agenda`, `creditos`, `NPS`) preservando filtros globais e exibindo skeleton/spinner por componente.",
-                ExpectedOutcome: "Payload enxuto do KPI com valor principal, caption e linhas auxiliares, pronto para refresh seletivo e tratamento de erro localizado.");
+                Scenario: "Portal admin consulta um card especifico (`usuarios`, `agenda`, `creditos`, `NPS`, `visitas da landing`, `cadastros`, `conversao`) preservando filtros globais e exibindo skeleton/spinner por componente.",
+                ExpectedOutcome: "Payload enxuto do KPI com valor principal, caption e linhas auxiliares, pronto para refresh seletivo e tratamento de erro localizado, incluindo o topo do funil da landing quando solicitado.");
         }
 
         if (path.Contains("/api/admin/dashboard", StringComparison.Ordinal) &&
@@ -134,14 +134,52 @@ public static class ApiEndpointDocumentationCatalog
                 ExpectedOutcome: "Snapshot retorna prestadores e pedidos com cidade/bairro suficientes para a UI desenhar o mapa e derivar tabelas de bairros atendidos e nao atendidos no mesmo recorte filtrado.");
         }
 
+        if (path.Contains("/api/admin/landing-leads", StringComparison.Ordinal) &&
+            httpMethod == "GET" &&
+            hasIdentifier)
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Auditar um lead especifico captado na landing com todo o contexto comercial e tecnico necessario para follow-up.",
+                Scenario: "Operacao admin abre o detalhe de um lead para validar localidade, origem do CTA, interesse declarado, UTM e metadados de navegacao antes de entrar em contato.",
+                ExpectedOutcome: "Resposta completa do lead com dados de captacao, localidade real (bairro/cidade/UF) e metadados tecnicos consolidados para leitura operacional.");
+        }
+
+        if (path.Contains("/api/admin/landing-leads", StringComparison.Ordinal) &&
+            httpMethod == "GET" &&
+            !hasIdentifier)
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Dar visibilidade operacional aos leads publicos captados na landing institucional.",
+                Scenario: "Portal admin consulta a fila de leads para triagem por origem, localidade, periodo e busca textual, sem depender de acesso manual ao banco.",
+                ExpectedOutcome: "Lista paginada com totalizadores por origem e itens suficientes para o grid administrativo navegar para o detalhe do lead.");
+        }
+
+        if (path.Contains("/api/admin/fire-tv/landing-dashboard", StringComparison.Ordinal) &&
+            httpMethod == "GET")
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Entregar um snapshot enxuto dos principais KPIs da landing para exibicao continua em app Fire TV/Android TV.",
+                Scenario: "App read-only do time interno autentica como admin e consome um payload consolidado com 8 KPIs, filtros de origem/comparacao, heatmap agregado, scrollmap, ranking de elementos, origens, localidades e sessoes recentes.",
+                ExpectedOutcome: "Resposta otimizada para TV com refresh automatico, comparativo de periodo anterior e blocos executivos de engajamento, sem depender da navegacao completa do portal admin.");
+        }
+
+        if (path.Contains("/api/admin/fire-tv/operations-dashboard", StringComparison.Ordinal) &&
+            httpMethod == "GET")
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Exibir na TV uma visao operacional sintetica do marketplace com status da plataforma, operacao geografica e metricas executivas de atendimento.",
+                Scenario: "App Fire TV autentica como admin e carrega um snapshot pronto para tela grande com health checks dos portais, servicos do dia, prestadores cadastrados, atendimentos ativos, avaliacao media, categorias, mapa, serie diaria, SLA, receita mensal e chamados cancelados.",
+                ExpectedOutcome: "Payload consolidado e leve para atualizacao continua via polling ou pulse SignalR, sem depender da navegacao integral do portal admin.");
+        }
+
         if (path.Contains("/api/admin/dashboard", StringComparison.Ordinal) &&
             !path.Contains("/coverage-map", StringComparison.Ordinal) &&
             httpMethod == "GET")
         {
             return new OperationNarrativeContext(
                 BusinessObjective: "Consolidar desempenho operacional e sinais de retencao do marketplace em uma unica visao executiva.",
-                Scenario: "Lideranca/admin acompanha volume de pedidos, reputacao, no-show, recompras e NPS operacional para orientar a rotina semanal de growth.",
-                ExpectedOutcome: "Dashboard retorna KPIs de qualidade pos-servico (`operationalNpsScore`, `operationalQualityScore`) e recompra (`repurchaseRatePercent`) junto dos demais indicadores de operacao.");
+                Scenario: "Lideranca/admin acompanha volume de pedidos, reputacao, no-show, recompras, NPS operacional e o topo do funil da landing (`visitas`, `cadastros cliente`, `cadastros prestador`, `taxa de conversao`) para orientar a rotina semanal de growth.",
+                ExpectedOutcome: "Dashboard retorna KPIs de qualidade pos-servico (`operationalNpsScore`, `operationalQualityScore`), recompra (`repurchaseRatePercent`) e analytics da landing no mesmo payload executivo.");
         }
 
         if (path.Contains("/api/admin/google-calendar-sync/overview", StringComparison.Ordinal) && httpMethod == "GET")
@@ -308,6 +346,14 @@ public static class ApiEndpointDocumentationCatalog
                 ExpectedOutcome: "Resumo estatistico consistente para suporte a governanca de atendimento.");
         }
 
+        if (path.Contains("/api/landing-leads/public", StringComparison.Ordinal) && httpMethod == "POST")
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Capturar intencao comercial da landing publica antes do usuario entrar em um portal transacional.",
+                Scenario: "Landing `www.consertapramim.com` envia um lead de cliente interessado ou prestador parceiro com dados de contato, localidade e metadados tecnicos de navegacao.",
+                ExpectedOutcome: "Lead persistido com origem (`Client` ou `Provider`), contexto tecnico suficiente para metricas de aquisicao e mensagem de confirmacao pronta para a UI.");
+        }
+
         if (path.Contains("/proposals/comparison/interactions", StringComparison.Ordinal) && httpMethod == "POST")
         {
             return new OperationNarrativeContext(
@@ -330,6 +376,25 @@ public static class ApiEndpointDocumentationCatalog
                 BusinessObjective: "Consolidar impacto do comparador em experimento A/B para validar ganho de conversao.",
                 Scenario: "Admin consulta janela temporal para comparar volume de interacoes e aceite apos comparacao por bucket.",
                 ExpectedOutcome: "Resumo por grupo (`control`/`variant`) com taxa de conversao e volume de eventos.");
+        }
+
+        if (path.Contains("/api/service-appointments/public/providers/slots/next-15-days", StringComparison.Ordinal) &&
+            httpMethod == "GET")
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Expor vitrine publica de disponibilidade dos prestadores para facilitar descoberta de agenda antes da autenticacao.",
+                Scenario: "Portal/cliente consulta em uma unica chamada os slots livres dos proximos 15 dias para todos os prestadores ativos, considerando regras, bloqueios e conflitos ja reservados.",
+                ExpectedOutcome: "Resposta consolidada por prestador com janela UTC (`fromUtc`/`toUtc`) e lista ordenada de horarios disponiveis para agendamento.");
+        }
+
+        if (path.Contains("/api/provider-gallery/public/providers/", StringComparison.Ordinal) &&
+            path.Contains("/albums/photos/base64", StringComparison.Ordinal) &&
+            httpMethod == "GET")
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Disponibilizar fotos do portifolio do prestador em Base64 para consumo publico de canais externos e integrações sem sessao autenticada.",
+                Scenario: "Cliente bot/app integra em uma unica chamada todas as fotos dos albuns do prestador, agrupadas por album e com fallback para arquivos indisponiveis.",
+                ExpectedOutcome: "Resposta publica com fotos de imagem (`image/*`) codificadas em Base64, totalizadores do lote e contador de arquivos indisponiveis para observabilidade.");
         }
 
         if (path.Contains("/slots", StringComparison.Ordinal))
@@ -867,6 +932,69 @@ public static class ApiEndpointDocumentationCatalog
                     "Nunca logar credenciais em texto puro.",
                     "Renovar token conforme politica de expiracao do backend.",
                     "Aplicar hardening de tentativas para reduzir abuso."
+                ]),
+            "LandingLeads" => new CatalogEntry(
+                DomainTitle: "Captacao Comercial da Landing",
+                ResourceLabel: "leads publicos da landing",
+                BusinessContext: "Consolida contatos comerciais originados do site institucional antes da entrada em fluxos autenticados da plataforma.",
+                TechnicalContext: "Consumido pela landing publica em `www.consertapramim.com`, com endpoint anonimo, CORS liberado para o dominio institucional e persistencia centralizada na API.",
+                Audience: "Landing/Growth/Operacao Comercial/QA",
+                Rules:
+                [
+                    "O campo `origin` do payload deve ser enviado como texto (`Client` ou `Provider`) para refletir a origem do CTA acionado na landing.",
+                    "Persistir origem do lead (`Client` ou `Provider`) junto dos dados de contato e localidade.",
+                    "Capturar metadados tecnicos de navegacao relevantes para metricas sem depender apenas dos logs gerais da API.",
+                    "Nao exigir autenticacao nem cookies de sessao para o envio do formulario publico."
+                ]),
+            "AdminLandingLeads" => new CatalogEntry(
+                DomainTitle: "Operacao Administrativa de Leads da Landing",
+                ResourceLabel: "consulta admin dos leads publicos",
+                BusinessContext: "Permite que o portal admin acompanhe os contatos captados pela landing, com visibilidade de origem, localidade e contexto tecnico para follow-up comercial.",
+                TechnicalContext: "Consumido exclusivamente pelo portal admin em endpoints protegidos por JWT/Cookie admin, lendo a tabela `LandingLeads` persistida pela captacao publica.",
+                Audience: "Portal Admin/Operacao Comercial/QA",
+                Rules:
+                [
+                    "A listagem deve refletir a localidade real do lead, consolidando bairro, cidade e UF em leitura amigavel.",
+                    "A consulta administrativa nao altera o lead; apenas exibe dados comerciais e metadados tecnicos para triagem e auditoria.",
+                    "Os filtros do portal admin devem permanecer consistentes com o recorte suportado pela API (`origem`, `busca`, `cidade`, `UF` e periodo`)."
+                ]),
+            "LandingAnalytics" => new CatalogEntry(
+                DomainTitle: "Telemetria Comportamental da Landing",
+                ResourceLabel: "heartbeat, heatmap fase 1 e scroll da landing publica",
+                BusinessContext: "Permite medir engajamento real no site institucional, com sessao, tempo ativo, scroll, cliques e abertura/envio de formularios.",
+                TechnicalContext: "Consumido pela landing publica em endpoints anonimos para carregar configuracao runtime e registrar batches de eventos browser-side correlacionados por `visitorId` e `sessionId`.",
+                Audience: "Landing/Growth/Operacao Comercial/QA",
+                Rules:
+                [
+                    "A configuracao publica deve ser derivada do runtime salvo em banco e nunca hardcoded na pagina.",
+                    "Os batches devem ser correlacionados por `sessionId` para consolidar heartbeat, scroll, click heatmap e submit de lead na mesma jornada.",
+                    "A API deve aceitar apenas os tipos de evento previstos na fase 1 (`heartbeat`, `scroll_milestone`, `click`, `lead_modal_open`, `lead_submit_success`)."
+                ]),
+            "AdminLandingAnalytics" => new CatalogEntry(
+                DomainTitle: "Analytics Administrativa da Landing",
+                ResourceLabel: "overview e detalhe de sessao da landing",
+                BusinessContext: "Permite ao portal admin acompanhar audiencia, engajamento, geografia estimada e conversao da landing em uma leitura operacional unica.",
+                TechnicalContext: "Consumido exclusivamente pelo portal admin em endpoints protegidos por JWT/Cookie admin, cruzando `LandingAccessEvents`, `LandingTelemetryEvents` e `LandingLeads`.",
+                Audience: "Portal Admin/Growth/Operacao Comercial/QA",
+                Rules:
+                [
+                    "Filtros administrativos devem usar periodo, origem, pagina, pais, regiao, cidade e busca textual por sessao/visitante/lead.",
+                    "Por padrao, o overview deve excluir trafego suspeito de bot/datacenter; o include explicito ocorre via query param `includeSuspectedAutomation=true`.",
+                    "Heatmap fase 1 deve ser agregado por grid e nao por replay de sessao.",
+                    "O detalhe administrativo da sessao deve exibir timeline correlacionada com acesso, eventos comportamentais e lead captado."
+                ]),
+            "AdminFireTvDashboard" => new CatalogEntry(
+                DomainTitle: "Dashboard TV da Landing",
+                ResourceLabel: "snapshot executivo para Fire TV",
+                BusinessContext: "Disponibiliza uma leitura executiva, continua e simplificada da landing publica em telas de operacao conectadas a Fire TV/Android TV.",
+                TechnicalContext: "Consumido por um app read-only autenticado como admin, com payload reduzido para TV contendo KPIs, comparacao com periodo anterior, heatmap, scrollmap, ranking de elementos, origens, localidades e sessoes recentes.",
+                Audience: "App Fire TV/Admin/Growth/Operacao Comercial",
+                Rules:
+                [
+                    "Todos os parametros do dashboard TV devem ser configurados por runtime config em banco e editaveis via UI admin.",
+                    "O payload deve permanecer enxuto e estavel para refresh automatico frequente em dispositivos TV.",
+                    "Filtros de origem e modos de comparacao devem ser tratados no backend para manter o app TV somente leitura e sem logica analitica duplicada.",
+                    "O dashboard TV e somente leitura; qualquer triagem detalhada continua no portal admin."
                 ]),
             "Files" => new CatalogEntry(
                 DomainTitle: "Arquivos e Midia",

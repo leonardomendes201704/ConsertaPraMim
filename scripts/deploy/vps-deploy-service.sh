@@ -16,13 +16,14 @@ elif [[ $# -eq 2 ]]; then
 fi
 
 if [[ -z "$TARGET_SERVICE" ]]; then
-  echo "Uso: $0 [repo_dir] <api|web-admin|web-client|web-provider|mobile-webview-client|mobile-webview-provider|mobile-webview-admin>"
-  echo "Ou:  $0 <api|web-admin|web-client|web-provider|mobile-webview-client|mobile-webview-provider|mobile-webview-admin>"
+  echo "Uso: $0 [repo_dir] <api|web-landing|web-admin|web-client|web-provider|mobile-webview-client|mobile-webview-provider|mobile-webview-admin>"
+  echo "Ou:  $0 <api|web-landing|web-admin|web-client|web-provider|mobile-webview-client|mobile-webview-provider|mobile-webview-admin>"
   exit 1
 fi
 
 declare -A COMPOSE_FILES=(
   [api]="Backend/docker-compose.vps.api.yml"
+  [web-landing]="Backend/docker-compose.vps.web-landing.yml"
   [web-admin]="Backend/docker-compose.vps.web-admin.yml"
   [web-client]="Backend/docker-compose.vps.web-client.yml"
   [web-provider]="Backend/docker-compose.vps.web-provider.yml"
@@ -31,24 +32,24 @@ declare -A COMPOSE_FILES=(
   [mobile-webview-admin]="Backend/docker-compose.vps.mobile-webview-admin.yml"
 )
 
-declare -A CONTAINER_NAMES=(
-  [api]="cpm-api"
-  [web-admin]="cpm-web-admin"
-  [web-client]="cpm-web-client"
-  [web-provider]="cpm-web-provider"
-  [mobile-webview-client]="cpm-mobile-webview-client"
-  [mobile-webview-provider]="cpm-mobile-webview-provider"
-  [mobile-webview-admin]="cpm-mobile-webview-admin"
+declare -A CONTAINER_SUFFIXES=(
+  [api]="api"
+  [web-landing]="web-landing"
+  [web-admin]="web-admin"
+  [web-client]="web-client"
+  [web-provider]="web-provider"
+  [mobile-webview-client]="mobile-webview-client"
+  [mobile-webview-provider]="mobile-webview-provider"
+  [mobile-webview-admin]="mobile-webview-admin"
 )
 
 if [[ -z "${COMPOSE_FILES[$TARGET_SERVICE]+x}" ]]; then
   echo "Servico invalido: '$TARGET_SERVICE'."
-  echo "Servicos suportados: api, web-admin, web-client, web-provider, mobile-webview-client, mobile-webview-provider, mobile-webview-admin"
+  echo "Servicos suportados: api, web-landing, web-admin, web-client, web-provider, mobile-webview-client, mobile-webview-provider, mobile-webview-admin"
   exit 1
 fi
 
 COMPOSE_FILE="${COMPOSE_FILES[$TARGET_SERVICE]}"
-TARGET_CONTAINER_NAME="${CONTAINER_NAMES[$TARGET_SERVICE]}"
 
 cd "$REPO_DIR"
 
@@ -63,6 +64,15 @@ if [[ ! -f "$ENV_FILE" ]]; then
   echo "Edite as credenciais e execute novamente."
   exit 1
 fi
+
+# Resolve prefixo do container sem executar/sourcar o .env (evita quebra por caracteres especiais em secrets).
+CONTAINER_PREFIX_VALUE="$(grep -E '^CONTAINER_PREFIX=' "$ENV_FILE" | head -n1 | cut -d'=' -f2- || true)"
+CONTAINER_PREFIX_VALUE="${CONTAINER_PREFIX_VALUE%\"}"
+CONTAINER_PREFIX_VALUE="${CONTAINER_PREFIX_VALUE#\"}"
+CONTAINER_PREFIX_VALUE="${CONTAINER_PREFIX_VALUE%\'}"
+CONTAINER_PREFIX_VALUE="${CONTAINER_PREFIX_VALUE#\'}"
+CONTAINER_PREFIX_VALUE="${CONTAINER_PREFIX_VALUE:-cpm}"
+TARGET_CONTAINER_NAME="${CONTAINER_PREFIX_VALUE}-${CONTAINER_SUFFIXES[$TARGET_SERVICE]}"
 
 echo "[${TARGET_SERVICE}] [1/5] Atualizando codigo..."
 if [[ "${SKIP_GIT_PULL:-0}" == "1" || "${GITHUB_ACTIONS:-false}" == "true" ]]; then

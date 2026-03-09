@@ -60,11 +60,18 @@ public static class DependencyInjection
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IReviewRepository, ConsertaPraMim.Infrastructure.Repositories.ReviewRepository>();
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IMobilePushDeviceRepository, ConsertaPraMim.Infrastructure.Repositories.MobilePushDeviceRepository>();
         services.AddScoped<ConsertaPraMim.Domain.Repositories.ILegalTermsRepository, ConsertaPraMim.Infrastructure.Repositories.LegalTermsRepository>();
+        services.AddScoped<ConsertaPraMim.Domain.Repositories.ILandingLeadRepository, ConsertaPraMim.Infrastructure.Repositories.LandingLeadRepository>();
+        services.AddScoped<ConsertaPraMim.Domain.Repositories.ILandingAccessEventRepository, ConsertaPraMim.Infrastructure.Repositories.LandingAccessEventRepository>();
+        services.AddScoped<ConsertaPraMim.Domain.Repositories.ILandingTelemetryEventRepository, ConsertaPraMim.Infrastructure.Repositories.LandingTelemetryEventRepository>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminMailboxStore, ConsertaPraMim.Infrastructure.Services.AdminMailboxSystemSettingsStore>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminGrowthAiStore, ConsertaPraMim.Infrastructure.Services.AdminGrowthAiSystemSettingsStore>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminMailboxGateway, ConsertaPraMim.Infrastructure.Services.GmailSmtpPop3MailboxGateway>();
         services.AddSingleton<ConsertaPraMim.Application.Interfaces.IMonitoringRuntimeSettings, ConsertaPraMim.Infrastructure.Services.MonitoringRuntimeSettings>();
         services.AddSingleton<ConsertaPraMim.Application.Interfaces.ICorsRuntimeSettings, ConsertaPraMim.Infrastructure.Services.CorsRuntimeSettings>();
+        services.AddSingleton<ConsertaPraMim.Application.Interfaces.ILandingAnalyticsRuntimeSettings, ConsertaPraMim.Infrastructure.Services.LandingAnalyticsRuntimeSettings>();
+        services.AddSingleton<ConsertaPraMim.Application.Interfaces.IFireTvDashboardRuntimeSettings, ConsertaPraMim.Infrastructure.Services.FireTvDashboardRuntimeSettings>();
+        services.AddSingleton<ConsertaPraMim.Application.Interfaces.IFireTvDashboardHealthProbe, ConsertaPraMim.Infrastructure.Services.FireTvDashboardHealthProbe>();
+        services.AddSingleton<ConsertaPraMim.Application.Interfaces.ILandingGeoIpService, ConsertaPraMim.Infrastructure.Services.LandingGeoIpService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminMonitoringService, ConsertaPraMim.Infrastructure.Services.AdminMonitoringService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminLoadTestRunService, ConsertaPraMim.Infrastructure.Services.AdminLoadTestRunService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IRequestWarningCollector, ConsertaPraMim.Infrastructure.Services.RequestWarningCollector>();

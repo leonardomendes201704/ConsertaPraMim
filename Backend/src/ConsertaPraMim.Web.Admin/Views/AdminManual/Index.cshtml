@@ -92,6 +92,7 @@
 
     .bg-dashboard { background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%); }
     .bg-users { background: linear-gradient(135deg, #0891b2 0%, #06b6d4 100%); }
+    .bg-leads { background: linear-gradient(135deg, #0f766e 0%, #22c55e 100%); }
     .bg-requests { background: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%); }
     .bg-proposals { background: linear-gradient(135deg, #4f46e5 0%, #6366f1 100%); }
     .bg-chats { background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%); }
@@ -99,6 +100,7 @@
     .bg-disputes { background: linear-gradient(135deg, #b91c1c 0%, #ef4444 100%); }
     .bg-plans { background: linear-gradient(135deg, #b45309 0%, #d97706 100%); }
     .bg-docs { background: linear-gradient(135deg, #1f2937 0%, #374151 100%); }
+    .bg-analytics { background: linear-gradient(135deg, #0f172a 0%, #2563eb 100%); }
 
     .qa-table th {
         font-size: .75rem;
@@ -171,6 +173,8 @@
                             <tr><td>AI Copilot Growth</td><td>AI Copilot Growth</td><td>Configuracao OpenAI via modal no cabecalho + analise assistida com contexto de funil/liquidez/cockpit</td><td>Admin gera diagnostico acionavel, com riscos e plano de acao, sem sair do portal</td></tr>
                             <tr><td>Score Liquidez</td><td>Score Liquidez</td><td>Ranking de deficit por regiao/categoria com historico, alertas e filtros em drawer offcanvas</td><td>Priorizacao comercial/operacional orientada por score de liquidez</td></tr>
                             <tr><td>Usuarios</td><td>Usuarios + Confianca</td><td>Filtro na listagem, criacao de admin, ativacao/inativacao e fila de confianca com drawer</td><td>Conta administrativa provisionada e status da conta/confianca alterado com trilha auditavel</td></tr>
+                            <tr><td>Leads Landing</td><td>Leads Landing</td><td>Triagem de contatos captados na landing com drawer de filtros e tela de detalhe</td><td>Operacao identifica origem, localidade real e contexto tecnico do lead sem consultar banco</td></tr>
+                            <tr><td>Analytics Landing</td><td>Analytics Landing</td><td>Overview comportamental da landing com filtros em drawer, heatmap fase 1 e detalhe por sessao</td><td>Operacao acompanha engajamento, localidade estimada, funil de eventos e correlacao com lead sem sair do portal admin</td></tr>
                             <tr><td>Pedidos</td><td>Pedidos</td><td>Busca, detalhe e troca de status</td><td>Status atualizado e navegacao para propostas/chats</td></tr>
                             <tr><td>Propostas</td><td>Propostas</td><td>Auditoria/invalidacao com filtros em drawer</td><td>Proposta bloqueada com motivo administrativo</td></tr>
                             <tr><td>Conversas</td><td>Conversas</td><td>Historico completo + anexos com filtros em drawer</td><td>Rastreamento operacional da comunicacao</td></tr>
@@ -243,6 +247,8 @@
                         <ul class="mb-0">
                             <li>Filtros: periodo, tipo de evento, busca textual.</li>
                             <li>KPIs: usuarios, online, pedidos, propostas, conversas, receita.</li>
+                            <li>KPIs incrementais da landing: `Visitas`, `Cadastros Prestador`, `Cadastros Cliente` e `Taxa de Conversão` no mesmo recorte global de datas.</li>
+                            <li>O card `Visitas` detalha `Visitantes únicos` e `Visitantes recorrentes`, calculados por `visitorId` estável da landing.</li>
                             <li>Widgets: status de pedidos, ranking por categoria, eventos recentes.</li>
                             <li>Monitoramento de pagamento: falhas por prestador e por canal (PIX/Cartao).</li>
                             <li>Atualizacao: botao manual + polling automatico.</li>
@@ -260,6 +266,33 @@
                             <li>Tela de detalhes com perfil e navegacao cruzada.</li>
                             <li>Envio de notificacao manual para usuario especifico.</li>
                             <li>Fila de confianca de prestadores com drawer offcanvas (confianca, risco e quantidade).</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-lg-6">
+                <div class="manual-card card h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center gap-2 mb-2"><span class="manual-module-icon bg-leads"><i class="fas fa-bullseye"></i></span><h3 class="h6 mb-0">Leads Landing</h3></div>
+                        <ul class="mb-0">
+                            <li>Listagem paginada de leads captados pela landing publica.</li>
+                            <li>Drawer offcanvas com filtros de busca, origem, cidade, UF e periodo.</li>
+                            <li>Coluna `Localidade` consolidando bairro, cidade e UF do lead.</li>
+                            <li>Tela de detalhe com contexto comercial, UTM e metadados tecnicos de navegacao.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-lg-6">
+                <div class="manual-card card h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center gap-2 mb-2"><span class="manual-module-icon bg-analytics"><i class="fas fa-chart-area"></i></span><h3 class="h6 mb-0">Analytics Landing</h3></div>
+                        <ul class="mb-0">
+                            <li>Overview com KPI de sessoes, visitantes unicos, GeoIP, heartbeat, scroll, clique e leads.</li>
+                            <li>Drawer offcanvas com filtros de busca, origem, pagina, pais, regiao, cidade, periodo e toggle para incluir/excluir trafego suspeito (bot/datacenter).</li>
+                            <li>Breakdowns por pagina, origem, pais, regiao, cidade e tipo de evento.</li>
+                            <li>Heatmap agregado fase 1 e grid paginado de sessoes com link para detalhe operacional.</li>
+                            <li>Tela de detalhe por sessao com timeline, localidade estimada por GeoIP e lead correlacionado.</li>
                         </ul>
                     </div>
                 </div>
@@ -388,6 +421,7 @@
         <ul class="mb-0">
             <li>Como admin, quero filtrar usuarios por role/status para atuar rapidamente em contas com problema.</li>
             <li>Como admin, quero criar novos operadores com role `Admin` via modal para escalar o time sem depender de seed/manual no banco.</li>
+            <li>Como admin/comercial, quero acompanhar os leads captados pela landing com origem, localidade e detalhe tecnico para follow-up.</li>
             <li>Como admin, quero alterar status de pedido para corrigir fluxo operacional sem precisar acessar banco.</li>
             <li>Como operacao, quero visualizar funil `pedido -> proposta -> aceite` com SLA para detectar gargalos de liquidez e acionar plano corretivo.</li>
             <li>Como growth/comercial, quero priorizar regioes/categorias por score de liquidez para reduzir deficit de propostas.</li>
@@ -802,7 +836,7 @@
                     <tr>
                         <td>QA-ADM-063</td>
                         <td>Validacao de acentuacao/encoding em telas publicadas</td>
-                        <td>No ambiente publicado, abrir telas com textos acentuados nos tres portais (ex.: dashboards, modais e listas) e validar frases de referencia como `Veja o que estÃ¡ acontecendo hoje no seu radar.`.</td>
+                        <td>No ambiente publicado, abrir telas com textos acentuados nos tres portais (ex.: dashboards, modais e listas) e validar frases de referencia como `Veja o que está acontecendo hoje no seu radar.`.</td>
                         <td>Nenhuma tela deve exibir caracteres quebrados (ex.: replacement-char, A-tilde ou A-circumflex); em caso de regressao, o arquivo-fonte correspondente deve ser revisado, regravado em UTF-8 e revalidado antes do proximo deploy.</td>
                     </tr>
                     <tr>
@@ -835,6 +869,30 @@
                         <td>No portal cliente (`ServiceRequests/Details`), gerar ou simular pagamento e validar os blocos `Ultimo status registrado` e `Comprovantes de Pagamento`; comparar horario exibido com o horario esperado do negocio em `America/Sao_Paulo`.</td>
                         <td>A exibicao de `Atualizado` e `Processado` deve usar fuso `America/Sao_Paulo` sem deslocamento de `+3h/-3h`; timestamps UTC sem sufixo de timezone devem ser interpretados corretamente como UTC antes da renderizacao.</td>
                     </tr>
+                    <tr>
+                        <td>QA-ADM-069</td>
+                        <td>Leads Landing com filtros, localidade e detalhe tecnico</td>
+                        <td>No portal admin, abrir `Leads Landing`, aplicar filtros pelo drawer (`origem`, `cidade`, `UF`, `periodo`, `busca`), validar a coluna `Localidade` no grid e abrir o detalhe de um lead cliente e outro prestador.</td>
+                        <td>A listagem deve refletir apenas o recorte aplicado, a coluna `Localidade` precisa consolidar `bairro - cidade/UF` com os dados reais persistidos do lead e a tela de detalhe deve exibir contexto comercial, UTM e metadados tecnicos (`IP`, `User-Agent`, `Accept-Language`, `Referrer`, `path/query`).</td>
+                    </tr>
+                    <tr>
+                        <td>QA-ADM-070</td>
+                        <td>KPIs da landing no dashboard admin</td>
+                        <td>Gerar acessos em `https://www.consertapramim.com`, `https://www.consertapramim.com/Cliente` e `https://www.consertapramim.com/Prestador`, enviar ao menos um lead `Cliente` e um `Prestador`, depois abrir `Dashboard` no admin com o recorte do periodo correspondente.</td>
+                        <td>Os cards `Visitas`, `Cadastros Prestador`, `Cadastros Cliente` e `Taxa de Conversão` devem refletir o recorte aplicado; `Visitas` deve exibir `Visitantes únicos` e `Visitantes recorrentes` no detalhe, enquanto `Taxa de Conversão` deve mostrar cadastros totais e visitantes convertidos com base no `visitorId` correlacionado entre acesso e lead.</td>
+                    </tr>
+                    <tr>
+                        <td>QA-ADM-071</td>
+                        <td>Overview do modulo Analytics Landing</td>
+                        <td>No portal admin, abrir `Analytics Landing`, aplicar filtros pelo drawer (`busca`, `origem`, `pagina`, `pais`, `regiao`, `cidade`, `periodo`) e validar o toggle `Incluir trafego suspeito (bots/datacenter)` ligado e desligado.</td>
+                        <td>Com toggle desligado (padrao), a tela deve priorizar audiencia humana; com toggle ligado, o volume total de sessoes pode subir ao incluir trafego suspeito. Em ambos os cenarios, KPI, breakdowns, heatmap e grid precisam respeitar o recorte aplicado e manter labels em PT-BR.</td>
+                    </tr>
+                    <tr>
+                        <td>QA-ADM-072</td>
+                        <td>Detalhe operacional por sessao da landing</td>
+                        <td>No modulo `Analytics Landing`, abrir o detalhe de uma sessao com lead correlacionado e outra sem lead; revisar `sessionId`, `visitorId`, GeoIP, metadados tecnicos e timeline.</td>
+                        <td>O detalhe deve consolidar acesso inicial, heartbeats, scroll milestones, cliques, abertura de modal e sucesso de lead em ordem cronologica; quando houver lead, a correlacao deve exibir nome, contato, origem e localidade informada no formulario sem expor enums crus.</td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -852,6 +910,9 @@
                 <ul class="mb-0">
                     <li>Login admin funcionando.</li>
                     <li>Dashboard carregando sem erro.</li>
+                    <li>Cards `Visitas`, `Cadastros Prestador`, `Cadastros Cliente` e `Taxa de Conversão` da landing carregando sem erro, com detalhe de recorrencia e respeitando o periodo filtrado.</li>
+                    <li>Modulo `Leads Landing` carregando grid e detalhe sem erro.</li>
+                    <li>Modulo `Analytics Landing` carregando KPI, heatmap e detalhe por sessao sem erro.</li>
                     <li>Busca de usuarios retornando dados.</li>
                     <li>Criacao de usuario admin via modal `Novo Admin` exibindo overlay de status (`Salvando/Salvo/Erro`).</li>
                     <li>Detalhe de pedido abrindo e trocando status.</li>
@@ -867,6 +928,9 @@
                     <li>Secao `Swagger` em `Configuracoes Runtime` deve permitir ligar/desligar exposicao do `/swagger` em producao com restart assistido da API.</li>
                     <li>Relatorio consolidado de creditos com filtros e paginação retornando dados coerentes.</li>
                     <li>Atalho `Swagger API` abre documentacao OpenAPI em nova aba.</li>
+                    <li>Atalhos `Portal Cliente`, `Portal Prestador` e `Swagger API` no menu lateral devem abrir os dominios publicos HTTPS (`cliente.consertapramim.com`, `prestador.consertapramim.com`, `api.consertapramim.com/swagger`), nunca IP/porta legado da VPS.</li>
+                    <li>Portal admin em HTTPS nao pode bloquear `notificationHub`/SignalR por `Content-Security-Policy`; o `connect-src` deve permitir `https://api.consertapramim.com` e `wss://api.consertapramim.com` quando o acesso ocorrer por `admin.consertapramim.com`.</li>
+                    <li>Portal cliente em HTTPS nao pode registrar `Mixed Content` ou bloqueio de SignalR; `notificationHub`, `chatHub` e uploads do chat devem usar `https://api.consertapramim.com`/`wss://api.consertapramim.com`, nunca o IP HTTP legado da VPS.</li>
                     <li>Swagger exibe documentacao completa por endpoint (negocio + tecnico + cURL) sem lacunas de `summary`/`description`.</li>
                     <li>Endpoint `GET /api/admin/growth/funnel` retorna funil com SLA e alertas sem erro de autorizacao.</li>
                     <li>Endpoint `GET /api/admin/growth/executive-cockpit` retorna North Star, metas trimestrais e tendencia semanal sem erro de autorizacao.</li>
@@ -900,6 +964,7 @@
                     <li>Na home do portal prestador, o widget `Mapa de Cobertura e Oportunidades` deve ocupar toda a largura util do card, manter proporcao 1:1 no modo padrao, mostrar apenas pedidos dentro do raio atual de atendimento do prestador e iniciar o zoom enquadrando o proprio circulo de cobertura; a lista de oportunidades do bloco deve permanecer sincronizada com esse mesmo recorte.</li>
                     <li>Na tela `Configuracoes` do portal prestador, o mapa da base tambem deve iniciar enquadrando o raio atual de atendimento e reajustar o enquadramento quando o slider de raio for alterado.</li>
                     <li>Na tela `Configuracoes` do portal prestador, latitude/longitude automaticas nao devem aparecer como campos visiveis; a localizacao continua sendo gerida pelo CEP e pelo mapa.</li>
+                    <li>Na tela `Configuracoes` do portal prestador em HTTPS, o console do navegador nao pode registrar `Mixed Content`; `statusEndpoint`, `notificationHub` e `chatHub` devem usar `https://api.consertapramim.com`/`wss://api.consertapramim.com`, nunca o IP HTTP legado da VPS.</li>
                     <li>Endpoint `POST /api/reviews/admin/repurchase/run` executa dry-run e rodada real retornando elegiveis/supressoes sem erro de autorizacao.</li>
                     <li>Dashboard exibe `Taxa de Recompra` e `NPS Operacional` com valores coerentes ao payload de `GET /api/admin/dashboard`.</li>
                     <li>Runbook `RUNBOOK_MELHORIA_BAIXA_AVALIACAO_ST-050.md` esta publicado no `INDEX` e cobre gatilhos/SLA/owner para baixa avaliacao.</li>
@@ -949,6 +1014,26 @@
                 </thead>
                 <tbody>
                     <tr>
+                        <td>Leads Landing nao retorna itens esperados</td>
+                        <td>Recorte padrao de 30 dias, filtros de localidade divergentes ou lead salvo sem dados obrigatorios da busca</td>
+                        <td>Limpar o drawer, revisar `fromUtc/toUtc`, conferir origem (`Cliente/Prestador`) e validar no detalhe se `bairro/cidade/UF` foram persistidos pela captura da landing.</td>
+                    </tr>
+                    <tr>
+                        <td>Dashboard mostra `Visitas`/`Taxa de Conversão` zeradas para a landing</td>
+                        <td>Acesso publico nao foi persistido, `visitorId` nao foi emitido/correlacionado ou o recorte do dashboard nao cobre o horario dos eventos</td>
+                        <td>Validar se a landing gerou o cookie `cpm_landing_vid`, conferir `LandingAccessEvents` e `LandingLeads` no banco com `CreatedAt` em UTC, revisar `fromUtc/toUtc` do dashboard e repetir o smoke acessando `/`, `/Cliente` ou `/Prestador` antes de reenviar o lead; recorrencia deve ser analisada por `visitorId`, nao por IP compartilhado.</td>
+                    </tr>
+                    <tr>
+                        <td>`Analytics Landing` abre sem sessoes, heatmap ou GeoIP</td>
+                        <td>Telemetria runtime desabilitada, periodo fora do recorte, ingestao de eventos nao executada ou GeoIP ignorado por IP privado/proxy sem `X-Forwarded-For`</td>
+                        <td>Validar a secao `Landing Analytics` em `Configuracoes`, conferir `GET /api/landing-analytics/public/config`, revisar `LandingAccessEvents`/`LandingTelemetryEvents` no banco e confirmar se a VPS/Nginx esta repassando `X-Forwarded-For` publico.</td>
+                    </tr>
+                    <tr>
+                        <td>`Analytics Landing` mostra cidades de datacenter dominando o ranking (ex.: Ashburn, Council Bluffs)</td>
+                        <td>Toggle `Incluir trafego suspeito (bots/datacenter)` habilitado ou trafego automatizado recente no periodo filtrado</td>
+                        <td>Desligar o toggle no drawer para voltar ao recorte humano padrao; se precisar investigar anomalia, ligar novamente e cruzar `User-Agent`, `GeoProvider` e engajamento (`tempo ativo`, `cliques`, `leads`) no detalhe das sessoes.</td>
+                    </tr>
+                    <tr>
                         <td>Telas admin retornam "Token ausente"</td>
                         <td>Cookie expirado ou login invalido</td>
                         <td>Executar logout/login e validar claims do usuario.</td>
@@ -967,6 +1052,21 @@
                         <td>Prestador nao consegue salvar perfil</td>
                         <td>Excede limite operacional do plano</td>
                         <td>Revisar regras do plano em `Planos e Ofertas`.</td>
+                    </tr>
+                    <tr>
+                        <td>Portal prestador (`/Profile`) registra `Mixed Content` no console</td>
+                        <td>`BrowserApiBaseUrl`/`ApiBaseUrl` chegou no front com IP HTTP legado ou o CSP nao contemplou o host publico HTTPS da API</td>
+                        <td>Validar `window.providerLayoutConfig.apiBaseUrl`, confirmar `https://api.consertapramim.com` no HTML renderizado, revisar `INTERNAL_API_URL`/`PUBLIC_API_URL` da VPS e reexecutar o deploy do `web-provider`.</td>
+                    </tr>
+                    <tr>
+                        <td>Portal admin bloqueia `notificationHub` por `Content-Security-Policy`</td>
+                        <td>O layout resolveu `https://api.consertapramim.com`, mas o middleware do admin ainda montou `connect-src` com `ApiBaseUrl` legado (`http://IP:5193`)</td>
+                        <td>Validar o header `Content-Security-Policy`, confirmar `https://api.consertapramim.com` e `wss://api.consertapramim.com` em `connect-src`, revisar `PUBLIC_API_URL` na VPS e redeployar `web-admin`.</td>
+                    </tr>
+                    <tr>
+                        <td>Portal cliente registra `Mixed Content` em `notificationHub` ou `chatHub`</td>
+                        <td>O front do cliente herdou `BrowserApiBaseUrl`/`ApiBaseUrl` com IP HTTP legado ou o middleware montou CSP sem a URL publica HTTPS da API</td>
+                        <td>Validar `window.clientLayoutConfig.browserApiBaseUrl`, conferir `https://api.consertapramim.com` no HTML renderizado, revisar `PUBLIC_API_URL` na VPS e redeployar `web-client`.</td>
                     </tr>
                     <tr>
                         <td>Dados desatualizados no dashboard</td>
@@ -1057,7 +1157,7 @@
         <h3 class="h6 fw-semibold">Rotina continua de revisao</h3>
         <ol class="mb-0">
             <li>A cada story `DONE` do Admin, registrar revisao no bloco "Historico de revisoes".</li>
-            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`, `QA-ADM-023`, `QA-ADM-024`, `QA-ADM-026`, `QA-ADM-027`, `QA-ADM-028`, `QA-ADM-030`, `QA-ADM-031`, `QA-ADM-032`, `QA-ADM-033`, `QA-ADM-034`, `QA-ADM-035`, `QA-ADM-036`, `QA-ADM-037`, `QA-ADM-038`, `QA-ADM-039`, `QA-ADM-040`, `QA-ADM-041`, `QA-ADM-042`, `QA-ADM-043`, `QA-ADM-044`, `QA-ADM-045`, `QA-ADM-046`, `QA-ADM-047`, `QA-ADM-048`, `QA-ADM-049`, `QA-ADM-050`, `QA-ADM-051`, `QA-ADM-052`, `QA-ADM-053`, `QA-ADM-056`, `QA-ADM-057`, `QA-ADM-058`, `QA-ADM-061`, `QA-ADM-064`, `QA-ADM-065`, `QA-ADM-066`, `QA-ADM-067`, `QA-ADM-068`) apos update do manual.</li>
+            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`, `QA-ADM-023`, `QA-ADM-024`, `QA-ADM-026`, `QA-ADM-027`, `QA-ADM-028`, `QA-ADM-030`, `QA-ADM-031`, `QA-ADM-032`, `QA-ADM-033`, `QA-ADM-034`, `QA-ADM-035`, `QA-ADM-036`, `QA-ADM-037`, `QA-ADM-038`, `QA-ADM-039`, `QA-ADM-040`, `QA-ADM-041`, `QA-ADM-042`, `QA-ADM-043`, `QA-ADM-044`, `QA-ADM-045`, `QA-ADM-046`, `QA-ADM-047`, `QA-ADM-048`, `QA-ADM-049`, `QA-ADM-050`, `QA-ADM-051`, `QA-ADM-052`, `QA-ADM-053`, `QA-ADM-056`, `QA-ADM-057`, `QA-ADM-058`, `QA-ADM-061`, `QA-ADM-064`, `QA-ADM-065`, `QA-ADM-066`, `QA-ADM-067`, `QA-ADM-068`, `QA-ADM-069`, `QA-ADM-070`, `QA-ADM-071`, `QA-ADM-072`) apos update do manual.</li>
             <li>Validar links de menu/rotas e manter sincronismo com `Documentacao/ADMIN_PORTAL/INDEX.md`.</li>
         </ol>
     </div>
@@ -1078,6 +1178,41 @@
                     </tr>
                 </thead>
                 <tbody>
+                    <tr>
+                        <td>08/03/2026</td>
+                        <td>ST-060</td>
+                        <td>Novo modulo `Analytics Landing` no menu admin com overview comportamental, breakdown geografico, heatmap fase 1, detalhe por sessao, casos `QA-ADM-071` e `QA-ADM-072` e troubleshooting para runtime/GeoIP/ingestao de eventos.</td>
+                    </tr>
+                    <tr>
+                        <td>08/03/2026</td>
+                        <td>ST-058</td>
+                        <td>Novo modulo `Leads Landing` no menu admin com grid filtravel, detalhe completo do lead, caso `QA-ADM-069` e troubleshooting para localizar captacoes por origem/localidade.</td>
+                    </tr>
+                    <tr>
+                        <td>08/03/2026</td>
+                        <td>ST-059</td>
+                        <td>Dashboard admin recebeu os KPIs incrementais `Visitas`, `Cadastros Prestador`, `Cadastros Cliente` e `Taxa de Conversão` da landing, com detalhe adicional de `Visitantes recorrentes`, caso `QA-ADM-070` e troubleshooting para correlacao por `visitorId` entre acesso e lead.</td>
+                    </tr>
+                    <tr>
+                        <td>08/03/2026</td>
+                        <td>OPS-VPS-CLIENT-MIXED-CONTENT</td>
+                        <td>Portal cliente passou a resolver a URL publica HTTPS da API por host da requisicao antes de montar o layout browser-side e o `Content-Security-Policy`, eliminando `Mixed Content` em `notificationHub` e `chatHub` quando a configuracao ainda trouxer IP HTTP legado.</td>
+                    </tr>
+                    <tr>
+                        <td>08/03/2026</td>
+                        <td>OPS-VPS-ADMIN-CSP</td>
+                        <td>Portal admin passou a montar o `Content-Security-Policy` com a URL publica HTTPS da API resolvida por request, liberando `notificationHub`/SignalR em `https://api.consertapramim.com`; a tela `Monitoramento` tambem deixou de herdar IP HTTP legado no browser.</td>
+                    </tr>
+                    <tr>
+                        <td>08/03/2026</td>
+                        <td>OPS-VPS-PROVIDER-MIXED-CONTENT</td>
+                        <td>Portal do prestador passou a resolver a URL publica HTTPS da API a partir do host da requisicao quando a configuracao ainda trouxer `localhost` ou IP legado; o manual ganhou checklist e troubleshooting para `Profile` sem `Mixed Content` em `statusEndpoint`, `notificationHub` e `chatHub`.</td>
+                    </tr>
+                    <tr>
+                        <td>07/03/2026</td>
+                        <td>OPS-VPS-MENU-LINKS</td>
+                        <td>Menu lateral do portal admin passou a priorizar os dominios publicos HTTPS para `Portal Cliente`, `Portal Prestador` e `Swagger API`, evitando sobrescrita por IP legado vindo de configuracao runtime.</td>
+                    </tr>
                     <tr>
                         <td>03/03/2026</td>
                         <td>WEB-CLIENT / PAYMENTS</td>

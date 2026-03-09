@@ -339,3 +339,18 @@ public enum SupportTicketStatus
     Resolved = 4,
     Closed = 5
 }
+
+public enum LandingLeadOrigin
+{
+    Client = 1,
+    Provider = 2
+}
+
+public enum LandingTelemetryEventType
+{
+    Heartbeat = 1,
+    ScrollMilestone = 2,
+    Click = 3,
+    LeadModalOpen = 4,
+    LeadSubmitSuccess = 5
+}

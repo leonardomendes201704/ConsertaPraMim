@@ -27,6 +27,120 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
         _logger = logger;
     }
 
+    public async Task<AdminApiResult<AdminLandingLeadsListResponseDto>> GetLandingLeadsAsync(
+        AdminLandingLeadsFilterModel filters,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminLandingLeadsListResponseDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = BuildLandingLeadsUrl(baseUrl, filters);
+        var response = await SendAsync(HttpMethod.Get, url, accessToken, null, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminLandingLeadsListResponseDto>.Fail(
+                response.ErrorMessage ?? "Falha ao consultar leads da landing.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminLandingLeadsListResponseDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminLandingLeadsListResponseDto>.Fail("Resposta vazia da API de leads da landing.")
+            : AdminApiResult<AdminLandingLeadsListResponseDto>.Ok(payload);
+    }
+
+    public async Task<AdminApiResult<AdminLandingLeadDetailsDto>> GetLandingLeadByIdAsync(
+        Guid leadId,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminLandingLeadDetailsDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = $"{baseUrl}/api/admin/landing-leads/{leadId:D}";
+        var response = await SendAsync(HttpMethod.Get, url, accessToken, null, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminLandingLeadDetailsDto>.Fail(
+                response.ErrorMessage ?? "Falha ao consultar detalhes do lead.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminLandingLeadDetailsDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminLandingLeadDetailsDto>.Fail("Resposta vazia da API de detalhe do lead.")
+            : AdminApiResult<AdminLandingLeadDetailsDto>.Ok(payload);
+    }
+
+    public async Task<AdminApiResult<AdminLandingAnalyticsOverviewDto>> GetLandingAnalyticsAsync(
+        AdminLandingAnalyticsFilterModel filters,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminLandingAnalyticsOverviewDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var url = BuildLandingAnalyticsUrl(baseUrl, filters);
+        var response = await SendAsync(HttpMethod.Get, url, accessToken, null, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminLandingAnalyticsOverviewDto>.Fail(
+                response.ErrorMessage ?? "Falha ao consultar analytics da landing.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminLandingAnalyticsOverviewDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminLandingAnalyticsOverviewDto>.Fail("Resposta vazia da API de analytics da landing.")
+            : AdminApiResult<AdminLandingAnalyticsOverviewDto>.Ok(payload);
+    }
+
+    public async Task<AdminApiResult<AdminLandingAnalyticsSessionDetailsDto>> GetLandingAnalyticsSessionDetailsAsync(
+        string sessionId,
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        var baseUrl = GetApiBaseUrl();
+        if (baseUrl == null)
+        {
+            return AdminApiResult<AdminLandingAnalyticsSessionDetailsDto>.Fail("ApiBaseUrl nao configurada.");
+        }
+
+        var normalizedSessionId = sessionId?.Trim();
+        if (string.IsNullOrWhiteSpace(normalizedSessionId))
+        {
+            return AdminApiResult<AdminLandingAnalyticsSessionDetailsDto>.Fail("SessionId invalido.");
+        }
+
+        var url = $"{baseUrl}/api/admin/landing-analytics/sessions/{Uri.EscapeDataString(normalizedSessionId)}";
+        var response = await SendAsync(HttpMethod.Get, url, accessToken, null, cancellationToken);
+        if (!response.Success || response.HttpResponse == null)
+        {
+            return AdminApiResult<AdminLandingAnalyticsSessionDetailsDto>.Fail(
+                response.ErrorMessage ?? "Falha ao consultar detalhes da sessao.",
+                response.ErrorCode,
+                response.StatusCode);
+        }
+
+        var payload = await response.HttpResponse.Content.ReadFromJsonAsync<AdminLandingAnalyticsSessionDetailsDto>(JsonOptions, cancellationToken);
+        return payload == null
+            ? AdminApiResult<AdminLandingAnalyticsSessionDetailsDto>.Fail("Resposta vazia da API de detalhe da sessao.")
+            : AdminApiResult<AdminLandingAnalyticsSessionDetailsDto>.Ok(payload);
+    }
+
     public async Task<AdminApiResult<AdminServiceRequestsListResponseDto>> GetServiceRequestsAsync(
         AdminServiceRequestsFilterModel filters,
         string accessToken,
@@ -2516,6 +2630,43 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
         return string.IsNullOrWhiteSpace(baseUrl) ? null : baseUrl.TrimEnd('/');
     }
 
+    private static string BuildLandingLeadsUrl(string baseUrl, AdminLandingLeadsFilterModel filters)
+    {
+        var query = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["searchTerm"] = string.IsNullOrWhiteSpace(filters.SearchTerm) ? null : filters.SearchTerm.Trim(),
+            ["origin"] = NormalizeLandingLeadOrigin(filters.Origin),
+            ["city"] = string.IsNullOrWhiteSpace(filters.City) ? null : filters.City.Trim(),
+            ["state"] = string.IsNullOrWhiteSpace(filters.State) ? null : filters.State.Trim().ToUpperInvariant(),
+            ["page"] = Math.Max(1, filters.Page).ToString(CultureInfo.InvariantCulture),
+            ["pageSize"] = Math.Clamp(filters.PageSize, 1, 100).ToString(CultureInfo.InvariantCulture),
+            ["fromUtc"] = filters.FromUtc?.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture),
+            ["toUtc"] = filters.ToUtc?.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture)
+        };
+
+        return QueryHelpers.AddQueryString($"{baseUrl}/api/admin/landing-leads", FilterQuery(query));
+    }
+
+    private static string BuildLandingAnalyticsUrl(string baseUrl, AdminLandingAnalyticsFilterModel filters)
+    {
+        var query = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["searchTerm"] = string.IsNullOrWhiteSpace(filters.SearchTerm) ? null : filters.SearchTerm.Trim(),
+            ["origin"] = NormalizeLandingLeadOrigin(filters.Origin),
+            ["path"] = string.IsNullOrWhiteSpace(filters.Path) ? null : filters.Path.Trim(),
+            ["countryCode"] = string.IsNullOrWhiteSpace(filters.CountryCode) ? null : filters.CountryCode.Trim().ToUpperInvariant(),
+            ["region"] = string.IsNullOrWhiteSpace(filters.Region) ? null : filters.Region.Trim(),
+            ["city"] = string.IsNullOrWhiteSpace(filters.City) ? null : filters.City.Trim(),
+            ["includeSuspectedAutomation"] = filters.IncludeSuspectedAutomation.ToString().ToLowerInvariant(),
+            ["page"] = Math.Max(1, filters.Page).ToString(CultureInfo.InvariantCulture),
+            ["pageSize"] = Math.Clamp(filters.PageSize, 1, 100).ToString(CultureInfo.InvariantCulture),
+            ["fromUtc"] = filters.FromUtc?.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture),
+            ["toUtc"] = filters.ToUtc?.ToUniversalTime().ToString("o", CultureInfo.InvariantCulture)
+        };
+
+        return QueryHelpers.AddQueryString($"{baseUrl}/api/admin/landing-analytics", FilterQuery(query));
+    }
+
     private static string BuildServiceRequestsUrl(string baseUrl, AdminServiceRequestsFilterModel filters)
     {
         var query = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase)
@@ -2867,6 +3018,17 @@ public class AdminOperationsApiClient : IAdminOperationsApiClient
         if (string.IsNullOrWhiteSpace(status)) return null;
         var normalized = status.Trim().ToLowerInvariant();
         return normalized == "all" ? null : status.Trim();
+    }
+
+    private static string? NormalizeLandingLeadOrigin(string? origin)
+    {
+        if (string.IsNullOrWhiteSpace(origin))
+        {
+            return null;
+        }
+
+        var normalized = origin.Trim().ToLowerInvariant();
+        return normalized == "all" ? null : origin.Trim();
     }
 
     private static string? NormalizeCategory(string? category)

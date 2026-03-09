@@ -809,41 +809,368 @@ namespace ConsertaPraMim.Infrastructure.Migrations
                     b.ToTable("ChatMessages");
                 });
 
-            modelBuilder.Entity("ConsertaPraMim.Domain.Entities.ChatbotActionLog", b =>
+            modelBuilder.Entity("ConsertaPraMim.Domain.Entities.LandingAccessEvent", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("ActionType")
-                        .IsRequired()
-                        .HasMaxLength(80)
-                        .HasColumnType("nvarchar(80)");
-
-                    b.Property<Guid>("ClientId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("ConversationId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("CorrelationId")
-                        .HasMaxLength(80)
-                        .HasColumnType("nvarchar(80)");
+                    b.Property<string>("AcceptLanguage")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("ErrorCode")
+                    b.Property<string>("CurrentUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("ForwardedFor")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<string>("GeoCity")
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("GeoCountry")
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("GeoCountryCode")
+                        .HasMaxLength(8)
+                        .HasColumnType("nvarchar(8)");
+
+                    b.Property<string>("GeoLookupStatus")
                         .HasMaxLength(80)
                         .HasColumnType("nvarchar(80)");
 
-                    b.Property<string>("ErrorMessage")
-                        .HasMaxLength(1200)
-                        .HasColumnType("nvarchar(1200)");
+                    b.Property<string>("GeoProvider")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
 
-                    b.Property<string>("IntentName")
+                    b.Property<string>("GeoRegion")
                         .HasMaxLength(120)
                         .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("GeoRegionCode")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<string>("Host")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int?>("InitialLeadOrigin")
+                        .HasColumnType("int");
+
+                    b.Property<string>("IpAddress")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<string>("MetadataJson")
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<string>("Path")
+                        .HasMaxLength(260)
+                        .HasColumnType("nvarchar(260)");
+
+                    b.Property<string>("RefererUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Scheme")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("SessionId")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(512)
+                        .HasColumnType("nvarchar(512)");
+
+                    b.Property<string>("VisitorId")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("GeoCity", "CreatedAt");
+
+                    b.HasIndex("GeoCountryCode", "CreatedAt");
+
+                    b.HasIndex("GeoRegionCode", "CreatedAt");
+
+                    b.HasIndex("InitialLeadOrigin", "CreatedAt");
+
+                    b.HasIndex("Path", "CreatedAt");
+
+                    b.HasIndex("SessionId", "CreatedAt");
+
+                    b.HasIndex("VisitorId", "CreatedAt");
+
+                    b.ToTable("LandingAccessEvents", t =>
+                        {
+                            t.HasCheckConstraint("CK_LandingAccessEvents_InitialLeadOrigin_Valid", "[InitialLeadOrigin] IS NULL OR [InitialLeadOrigin] IN (1,2)");
+
+                            t.HasCheckConstraint("CK_LandingAccessEvents_SessionId_NotEmpty", "LEN([SessionId]) > 0");
+
+                            t.HasCheckConstraint("CK_LandingAccessEvents_VisitorId_NotEmpty", "LEN([VisitorId]) > 0");
+                        });
+                });
+
+            modelBuilder.Entity("ConsertaPraMim.Domain.Entities.LandingLead", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("AcceptLanguage")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<string>("BrowserLanguage")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<string>("City")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("CompanyDocument")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<string>("CompanyName")
+                        .HasMaxLength(180)
+                        .HasColumnType("nvarchar(180)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CurrentPageUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("DevicePlatform")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("ForwardedFor")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<string>("FullName")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<string>("Host")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("IpAddress")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<string>("Message")
+                        .HasMaxLength(1600)
+                        .HasColumnType("nvarchar(1600)");
+
+                    b.Property<string>("MetadataJson")
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<string>("Neighborhood")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<int>("Origin")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Path")
+                        .HasMaxLength(260)
+                        .HasColumnType("nvarchar(260)");
+
+                    b.Property<string>("Phone")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<string>("QueryString")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("ReferrerUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("RequestedService")
+                        .HasMaxLength(220)
+                        .HasColumnType("nvarchar(220)");
+
+                    b.Property<string>("Scheme")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("ScreenResolution")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<string>("ServiceCategory")
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<string>("SessionId")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(2)
+                        .HasColumnType("nvarchar(2)");
+
+                    b.Property<string>("TimeZone")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(512)
+                        .HasColumnType("nvarchar(512)");
+
+                    b.Property<string>("UtmCampaign")
+                        .HasMaxLength(180)
+                        .HasColumnType("nvarchar(180)");
+
+                    b.Property<string>("UtmContent")
+                        .HasMaxLength(180)
+                        .HasColumnType("nvarchar(180)");
+
+                    b.Property<string>("UtmMedium")
+                        .HasMaxLength(180)
+                        .HasColumnType("nvarchar(180)");
+
+                    b.Property<string>("UtmSource")
+                        .HasMaxLength(180)
+                        .HasColumnType("nvarchar(180)");
+
+                    b.Property<string>("UtmTerm")
+                        .HasMaxLength(180)
+                        .HasColumnType("nvarchar(180)");
+
+                    b.Property<string>("VisitorId")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<int?>("YearsOfExperience")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Origin", "CreatedAt");
+
+                    b.HasIndex("SessionId", "CreatedAt");
+
+                    b.HasIndex("UtmCampaign", "CreatedAt");
+
+                    b.HasIndex("VisitorId", "CreatedAt");
+
+                    b.HasIndex("City", "State", "CreatedAt");
+
+                    b.ToTable("LandingLeads", t =>
+                        {
+                            t.HasCheckConstraint("CK_LandingLeads_Origin_Valid", "[Origin] IN (1,2)");
+
+                            t.HasCheckConstraint("CK_LandingLeads_YearsOfExperience_Range", "[YearsOfExperience] IS NULL OR ([YearsOfExperience] >= 0 AND [YearsOfExperience] <= 60)");
+                        });
+                });
+
+            modelBuilder.Entity("ConsertaPraMim.Domain.Entities.LandingTelemetryEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("AcceptLanguage")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<int?>("ActiveSeconds")
+                        .HasColumnType("int");
+
+                    b.Property<string>("BrowserLanguage")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<double?>("ClickXPercent")
+                        .HasColumnType("float");
+
+                    b.Property<double?>("ClickYPercent")
+                        .HasColumnType("float");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CurrentUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("ElementHref")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("ElementKey")
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<string>("ElementLabel")
+                        .HasMaxLength(240)
+                        .HasColumnType("nvarchar(240)");
+
+                    b.Property<int>("EventType")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ForwardedFor")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<int?>("HeatmapColumn")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("HeatmapRow")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Host")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int?>("InitialLeadOrigin")
+                        .HasColumnType("int");
+
+                    b.Property<string>("IpAddress")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
 
                     b.Property<string>("MetadataJson")
                         .HasMaxLength(4000)
@@ -852,220 +1179,65 @@ namespace ConsertaPraMim.Infrastructure.Migrations
                     b.Property<DateTime>("OccurredAtUtc")
                         .HasColumnType("datetime2");
 
-                    b.Property<string>("PayloadJson")
-                        .HasMaxLength(16000)
-                        .HasColumnType("nvarchar(max)");
+                    b.Property<string>("Path")
+                        .HasMaxLength(260)
+                        .HasColumnType("nvarchar(260)");
 
-                    b.Property<string>("ResultJson")
-                        .HasMaxLength(16000)
-                        .HasColumnType("nvarchar(max)");
+                    b.Property<string>("Scheme")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
 
-                    b.Property<int>("Status")
+                    b.Property<int?>("ScrollDepthPercent")
                         .HasColumnType("int");
 
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ClientId", "OccurredAtUtc");
-
-                    b.HasIndex("ConversationId", "OccurredAtUtc");
-
-                    b.ToTable("ChatbotActionLogs", t =>
-                        {
-                            t.HasCheckConstraint("CK_ChatbotActionLogs_Status_Valid", "[Status] IN (1,2,3)");
-                        });
-                });
-
-            modelBuilder.Entity("ConsertaPraMim.Domain.Entities.ChatbotContextSnapshot", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CapturedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid>("ClientId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int?>("CompletionTokens")
-                        .HasColumnType("int");
-
-                    b.Property<string>("ContextJson")
-                        .IsRequired()
-                        .HasMaxLength(16000)
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<Guid>("ConversationId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("ModelName")
-                        .HasMaxLength(120)
-                        .HasColumnType("nvarchar(120)");
-
-                    b.Property<int?>("PromptTokens")
-                        .HasColumnType("int");
-
-                    b.Property<string>("PromptVersion")
-                        .HasMaxLength(60)
-                        .HasColumnType("nvarchar(60)");
-
-                    b.Property<string>("SnapshotType")
+                    b.Property<string>("SessionId")
                         .IsRequired()
                         .HasMaxLength(80)
                         .HasColumnType("nvarchar(80)");
 
-                    b.Property<int?>("TotalTokens")
-                        .HasColumnType("int");
-
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
 
-                    b.HasKey("Id");
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(512)
+                        .HasColumnType("nvarchar(512)");
 
-                    b.HasIndex("ClientId", "CapturedAtUtc");
-
-                    b.HasIndex("ConversationId", "CapturedAtUtc");
-
-                    b.ToTable("ChatbotContextSnapshots", t =>
-                        {
-                            t.HasCheckConstraint("CK_ChatbotContextSnapshots_Tokens_NonNegative", "([PromptTokens] IS NULL OR [PromptTokens] >= 0) AND ([CompletionTokens] IS NULL OR [CompletionTokens] >= 0) AND ([TotalTokens] IS NULL OR [TotalTokens] >= 0)");
-                        });
-                });
-
-            modelBuilder.Entity("ConsertaPraMim.Domain.Entities.ChatbotConversation", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Channel")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("nvarchar(32)");
-
-                    b.Property<string>("ChannelConversationId")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)");
-
-                    b.Property<Guid>("ClientId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("LastIntent")
-                        .HasMaxLength(120)
-                        .HasColumnType("nvarchar(120)");
-
-                    b.Property<DateTime>("LastInteractionAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("LastStep")
-                        .HasMaxLength(120)
-                        .HasColumnType("nvarchar(120)");
-
-                    b.Property<string>("MetadataJson")
-                        .HasMaxLength(4000)
-                        .HasColumnType("nvarchar(4000)");
-
-                    b.Property<DateTime>("StartedAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("Status")
+                    b.Property<int?>("ViewportHeight")
                         .HasColumnType("int");
 
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
+                    b.Property<int?>("ViewportWidth")
+                        .HasColumnType("int");
+
+                    b.Property<string>("VisitorId")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ClientId", "Channel", "ChannelConversationId")
-                        .IsUnique();
+                    b.HasIndex("OccurredAtUtc");
 
-                    b.HasIndex("ClientId", "Status", "LastInteractionAtUtc");
+                    b.HasIndex("EventType", "OccurredAtUtc");
 
-                    b.ToTable("ChatbotConversations", t =>
+                    b.HasIndex("SessionId", "OccurredAtUtc");
+
+                    b.HasIndex("HeatmapRow", "HeatmapColumn", "OccurredAtUtc");
+
+                    b.ToTable("LandingTelemetryEvents", t =>
                         {
-                            t.HasCheckConstraint("CK_ChatbotConversations_Status_Valid", "[Status] IN (1,2)");
-                        });
-                });
+                            t.HasCheckConstraint("CK_LandingTelemetryEvents_ActiveSeconds_Range", "[ActiveSeconds] IS NULL OR ([ActiveSeconds] >= 0 AND [ActiveSeconds] <= 300)");
 
-            modelBuilder.Entity("ConsertaPraMim.Domain.Entities.ChatbotMessage", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
+                            t.HasCheckConstraint("CK_LandingTelemetryEvents_ClickXPercent_Range", "[ClickXPercent] IS NULL OR ([ClickXPercent] >= 0 AND [ClickXPercent] <= 100)");
 
-                    b.Property<string>("ChannelMessageId")
-                        .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)");
+                            t.HasCheckConstraint("CK_LandingTelemetryEvents_ClickYPercent_Range", "[ClickYPercent] IS NULL OR ([ClickYPercent] >= 0 AND [ClickYPercent] <= 100)");
 
-                    b.Property<Guid>("ClientId")
-                        .HasColumnType("uniqueidentifier");
+                            t.HasCheckConstraint("CK_LandingTelemetryEvents_EventType_Valid", "[EventType] IN (1,2,3,4,5)");
 
-                    b.Property<int?>("CompletionTokens")
-                        .HasColumnType("int");
+                            t.HasCheckConstraint("CK_LandingTelemetryEvents_ScrollDepth_Range", "[ScrollDepthPercent] IS NULL OR ([ScrollDepthPercent] >= 0 AND [ScrollDepthPercent] <= 100)");
 
-                    b.Property<string>("Content")
-                        .HasMaxLength(8000)
-                        .HasColumnType("nvarchar(max)");
+                            t.HasCheckConstraint("CK_LandingTelemetryEvents_SessionId_NotEmpty", "LEN([SessionId]) > 0");
 
-                    b.Property<Guid>("ConversationId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("Direction")
-                        .HasColumnType("int");
-
-                    b.Property<string>("IntentName")
-                        .HasMaxLength(120)
-                        .HasColumnType("nvarchar(120)");
-
-                    b.Property<string>("MetadataJson")
-                        .HasMaxLength(4000)
-                        .HasColumnType("nvarchar(4000)");
-
-                    b.Property<string>("ModelName")
-                        .HasMaxLength(120)
-                        .HasColumnType("nvarchar(120)");
-
-                    b.Property<int?>("PromptTokens")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("SentAtUtc")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Source")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("nvarchar(32)");
-
-                    b.Property<int?>("TotalTokens")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ClientId", "SentAtUtc");
-
-                    b.HasIndex("ConversationId", "SentAtUtc");
-
-                    b.ToTable("ChatbotMessages", t =>
-                        {
-                            t.HasCheckConstraint("CK_ChatbotMessages_Direction_Valid", "[Direction] IN (1,2,3)");
-
-                            t.HasCheckConstraint("CK_ChatbotMessages_Tokens_NonNegative", "([PromptTokens] IS NULL OR [PromptTokens] >= 0) AND ([CompletionTokens] IS NULL OR [CompletionTokens] >= 0) AND ([TotalTokens] IS NULL OR [TotalTokens] >= 0)");
+                            t.HasCheckConstraint("CK_LandingTelemetryEvents_VisitorId_NotEmpty", "LEN([VisitorId]) > 0");
                         });
                 });
 

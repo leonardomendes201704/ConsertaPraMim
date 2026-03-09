@@ -1,0 +1,317 @@
+﻿@using ConsertaPraMim.Domain.Enums
+@model ConsertaPraMim.Web.Admin.Models.AdminLandingLeadsIndexViewModel
+@{
+    ViewData["Title"] = "Leads Landing";
+    var data = Model.Leads;
+    var hasItems = data?.Items?.Any() == true;
+}
+
+@functions {
+    private static readonly TimeZoneInfo BusinessTimeZone = ResolveBusinessTimeZone();
+
+    private static string ResolveOriginLabel(LandingLeadOrigin origin)
+    {
+        return origin == LandingLeadOrigin.Provider ? "Prestador" : "Cliente";
+    }
+
+    private static string ResolveOriginBadgeClass(LandingLeadOrigin origin)
+    {
+        return origin == LandingLeadOrigin.Provider
+            ? "bg-warning-subtle text-warning-emphasis"
+            : "bg-primary-subtle text-primary-emphasis";
+    }
+
+    private static string ResolveOriginFilterLabel(string origin)
+    {
+        return origin.Trim().ToLowerInvariant() switch
+        {
+            "client" => "Cliente",
+            "provider" => "Prestador",
+            _ => "Todas"
+        };
+    }
+
+    private static string FormatBusinessDate(DateTime value, string format = "dd/MM/yyyy HH:mm:ss")
+    {
+        var utcValue = value.Kind == DateTimeKind.Utc
+            ? value
+            : DateTime.SpecifyKind(value, DateTimeKind.Utc);
+
+        return TimeZoneInfo.ConvertTimeFromUtc(utcValue, BusinessTimeZone).ToString(format);
+    }
+
+    private static TimeZoneInfo ResolveBusinessTimeZone()
+    {
+        foreach (var candidate in new[] { "America/Sao_Paulo", "E. South America Standard Time" })
+        {
+            try
+            {
+                return TimeZoneInfo.FindSystemTimeZoneById(candidate);
+            }
+            catch
+            {
+            }
+        }
+
+        return TimeZoneInfo.Utc;
+    }
+}
+
+<style>
+    .admin-card {
+        border: 0;
+        border-radius: 14px;
+        box-shadow: 0 10px 22px rgba(15, 23, 42, .08);
+    }
+
+    .admin-table th {
+        font-size: .75rem;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        color: #64748b;
+        border-top: 0;
+        white-space: nowrap;
+    }
+
+    .landing-leads-filters-drawer {
+        width: min(460px, 100vw);
+    }
+
+    .lead-summary-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+    }
+
+    .lead-summary-card {
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 14px;
+        padding: 14px 16px;
+    }
+
+    .lead-summary-label {
+        font-size: .78rem;
+        color: #64748b;
+        text-transform: uppercase;
+        font-weight: 700;
+    }
+
+    .lead-summary-value {
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: #0f172a;
+    }
+</style>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+        <h1 class="h4 fw-bold mb-1">Leads Landing</h1>
+        <p class="text-muted mb-0">Triagem operacional dos contatos captados na landing publica.</p>
+    </div>
+    <div class="text-muted small">
+        Atualizado em @FormatBusinessDate(Model.LastUpdatedUtc)
+    </div>
+</div>
+
+<section class="lead-summary-grid mb-4">
+    <article class="lead-summary-card">
+        <div class="lead-summary-label">Leads filtrados</div>
+        <div class="lead-summary-value">@(data?.TotalCount ?? 0)</div>
+    </article>
+    <article class="lead-summary-card">
+        <div class="lead-summary-label">Clientes</div>
+        <div class="lead-summary-value">@(data?.TotalClientLeads ?? 0)</div>
+    </article>
+    <article class="lead-summary-card">
+        <div class="lead-summary-label">Prestadores</div>
+        <div class="lead-summary-value">@(data?.TotalProviderLeads ?? 0)</div>
+    </article>
+</section>
+
+<div class="admin-card card mb-4">
+    <div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div class="d-flex flex-wrap gap-2">
+            <button type="button"
+                    class="btn btn-outline-primary"
+                    data-bs-toggle="offcanvas"
+                    data-bs-target="#landingLeadsFiltersDrawer"
+                    aria-controls="landingLeadsFiltersDrawer">
+                <i class="fas fa-sliders-h me-1"></i> Filtros
+            </button>
+            <a asp-action="Index" class="btn btn-outline-secondary">
+                <i class="fas fa-eraser me-1"></i> Limpar
+            </a>
+        </div>
+        <div class="text-muted small">
+            Origem: <strong>@ResolveOriginFilterLabel(Model.Filters.Origin)</strong>
+            <span class="mx-1">|</span>
+            Periodo: <strong>@Model.Filters.FromUtc?.ToString("dd/MM/yyyy") ate @Model.Filters.ToUtc?.ToString("dd/MM/yyyy")</strong>
+        </div>
+    </div>
+</div>
+
+<div class="offcanvas offcanvas-end landing-leads-filters-drawer" tabindex="-1" id="landingLeadsFiltersDrawer" aria-labelledby="landingLeadsFiltersDrawerLabel">
+    <div class="offcanvas-header">
+        <h2 class="offcanvas-title fs-5" id="landingLeadsFiltersDrawerLabel">Filtros de leads</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Fechar"></button>
+    </div>
+    <div class="offcanvas-body">
+        <form method="get" asp-action="Index" class="d-flex flex-column gap-3">
+            <div>
+                <label class="form-label fw-semibold" for="searchTerm">Busca</label>
+                <input type="text" class="form-control" id="searchTerm" name="searchTerm" value="@Model.Filters.SearchTerm" placeholder="Nome, email, telefone, localidade, interesse ou UTM" />
+            </div>
+            <div>
+                <label class="form-label fw-semibold" for="origin">Origem</label>
+                <select id="origin" name="origin" class="form-select">
+                    @{
+                        var originOptions = new[]
+                        {
+                            (Value: "all", Label: "Todas"),
+                            (Value: "Client", Label: "Cliente"),
+                            (Value: "Provider", Label: "Prestador")
+                        };
+                    }
+                    @foreach (var option in originOptions)
+                    {
+                        var isSelected = Model.Filters.Origin.Equals(option.Value, StringComparison.OrdinalIgnoreCase);
+                        <option value="@option.Value" selected="@isSelected">@option.Label</option>
+                    }
+                </select>
+            </div>
+            <div>
+                <label class="form-label fw-semibold" for="city">Cidade</label>
+                <input type="text" class="form-control" id="city" name="city" value="@Model.Filters.City" />
+            </div>
+            <div>
+                <label class="form-label fw-semibold" for="state">UF</label>
+                <input type="text" class="form-control" id="state" name="state" value="@Model.Filters.State" maxlength="2" />
+            </div>
+            <div>
+                <label class="form-label fw-semibold" for="fromUtc">De</label>
+                <input type="date" class="form-control" id="fromUtc" name="fromUtc" value="@Model.Filters.FromUtc?.ToString("yyyy-MM-dd")" />
+            </div>
+            <div>
+                <label class="form-label fw-semibold" for="toUtc">Ate</label>
+                <input type="date" class="form-control" id="toUtc" name="toUtc" value="@Model.Filters.ToUtc?.ToString("yyyy-MM-dd")" />
+            </div>
+            <div>
+                <label class="form-label fw-semibold" for="pageSize">Itens por pagina</label>
+                <select id="pageSize" name="pageSize" class="form-select">
+                    @foreach (var option in new[] { 10, 20, 50, 100 })
+                    {
+                        var isSelected = Model.Filters.PageSize == option;
+                        <option value="@option" selected="@isSelected">@option</option>
+                    }
+                </select>
+            </div>
+
+            <input type="hidden" name="page" value="1" />
+
+            <div class="d-grid gap-2 mt-2">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-filter me-1"></i> Aplicar filtros
+                </button>
+                <a asp-action="Index" class="btn btn-outline-secondary">Limpar filtros</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <div class="alert alert-danger">@Model.ErrorMessage</div>
+}
+else
+{
+    <div class="admin-card card">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <span class="fw-semibold">Leads encontrados</span>
+            <span class="text-muted small">@data?.TotalCount item(ns)</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 admin-table">
+                <thead>
+                <tr>
+                    <th>Origem</th>
+                    <th>Nome</th>
+                    <th>Contato</th>
+                    <th>Localidade</th>
+                    <th>Interesse</th>
+                    <th>UTM</th>
+                    <th>Captado em</th>
+                    <th class="text-end">Acoes</th>
+                </tr>
+                </thead>
+                <tbody>
+                @if (hasItems)
+                {
+                    @foreach (var item in data!.Items)
+                    {
+                        <tr>
+                            <td>
+                                <span class="badge @ResolveOriginBadgeClass(item.Origin)">@ResolveOriginLabel(item.Origin)</span>
+                            </td>
+                            <td>
+                                <div class="fw-semibold">@item.FullName</div>
+                                <div class="small text-muted">@item.Email</div>
+                            </td>
+                            <td>@item.Phone</td>
+                            <td>@item.Locality</td>
+                            <td>@(string.IsNullOrWhiteSpace(item.PrimaryInterest) ? "Nao informado" : item.PrimaryInterest)</td>
+                            <td>@(string.IsNullOrWhiteSpace(item.UtmCampaign) ? "--" : item.UtmCampaign)</td>
+                            <td class="text-muted">@FormatBusinessDate(item.CreatedAtUtc, "dd/MM/yyyy HH:mm")</td>
+                            <td class="text-end">
+                                <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-outline-secondary btn-sm">
+                                    <i class="fas fa-eye"></i> Detalhes
+                                </a>
+                            </td>
+                        </tr>
+                    }
+                }
+                else
+                {
+                    <tr>
+                        <td colspan="8" class="text-center text-muted py-4">Nenhum lead encontrado para os filtros aplicados.</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+        @if (hasItems && Model.TotalPages > 1)
+        {
+            <div class="card-footer bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <span class="text-muted small">Pagina @Model.Filters.Page de @Model.TotalPages</span>
+                <div class="btn-group">
+                    @if (Model.Filters.Page > 1)
+                    {
+                        <a class="btn btn-outline-secondary"
+                           asp-action="Index"
+                           asp-route-searchTerm="@Model.Filters.SearchTerm"
+                           asp-route-origin="@Model.Filters.Origin"
+                           asp-route-city="@Model.Filters.City"
+                           asp-route-state="@Model.Filters.State"
+                           asp-route-fromUtc="@Model.Filters.FromUtc?.ToString("o")"
+                           asp-route-toUtc="@Model.Filters.ToUtc?.ToString("o")"
+                           asp-route-page="@(Model.Filters.Page - 1)"
+                           asp-route-pageSize="@Model.Filters.PageSize">Anterior</a>
+                    }
+                    @if (Model.Filters.Page < Model.TotalPages)
+                    {
+                        <a class="btn btn-outline-secondary"
+                           asp-action="Index"
+                           asp-route-searchTerm="@Model.Filters.SearchTerm"
+                           asp-route-origin="@Model.Filters.Origin"
+                           asp-route-city="@Model.Filters.City"
+                           asp-route-state="@Model.Filters.State"
+                           asp-route-fromUtc="@Model.Filters.FromUtc?.ToString("o")"
+                           asp-route-toUtc="@Model.Filters.ToUtc?.ToString("o")"
+                           asp-route-page="@(Model.Filters.Page + 1)"
+                           asp-route-pageSize="@Model.Filters.PageSize">Proxima</a>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+}

@@ -1,0 +1,12 @@
+﻿flowchart TD
+    A[Usuario acessa www.consertapramim.com] --> B{CTA clicado}
+    B -->|Encontrar profissional| C[Exibir formulario Cliente]
+    B -->|Cadastrar-se como parceiro| D[Exibir formulario Prestador]
+    C --> E[Scroll ate secao de captacao]
+    D --> E
+    E --> F[Browser coleta dados do formulario + metadados tecnicos]
+    F --> G[POST anonimo para /api/landing-leads/public]
+    G --> H[API valida payload e contexto HTTP]
+    H --> I[Persistir LandingLead com origem, localidade e metadados]
+    I --> J[Retornar confirmacao para a landing]
+    J --> K[UI exibe feedback de envio sem sair da pagina]

@@ -1,22 +1,28 @@
-name: Deploy VPS
+﻿name: Deploy VPS
 
 on:
   push:
-    branches: ["master", "main"]
+    branches: ["master", "main", "dev-local"]
   workflow_dispatch:
 
 concurrency:
-  group: deploy-vps
+  group: deploy-vps-${{ github.ref_name }}
   cancel-in-progress: true
 
 env:
-  API_PORT: "5193"
-  ADMIN_PORT: "5151"
-  CLIENT_PORT: "5069"
-  PROVIDER_PORT: "5140"
-  MOBILE_CLIENT_WEBVIEW_PORT: "5181"
-  MOBILE_PROVIDER_WEBVIEW_PORT: "5182"
-  MOBILE_ADMIN_WEBVIEW_PORT: "5183"
+  DEPLOY_PROFILE: ${{ github.ref_name == 'dev-local' && 'development' || 'production' }}
+  API_PORT: ${{ github.ref_name == 'dev-local' && '6193' || '5193' }}
+  LANDING_PORT: ${{ github.ref_name == 'dev-local' && '6088' || '5088' }}
+  ADMIN_PORT: ${{ github.ref_name == 'dev-local' && '6151' || '5151' }}
+  CLIENT_PORT: ${{ github.ref_name == 'dev-local' && '6069' || '5069' }}
+  PROVIDER_PORT: ${{ github.ref_name == 'dev-local' && '6140' || '5140' }}
+  MOBILE_CLIENT_WEBVIEW_PORT: ${{ github.ref_name == 'dev-local' && '6181' || '5181' }}
+  MOBILE_PROVIDER_WEBVIEW_PORT: ${{ github.ref_name == 'dev-local' && '6182' || '5182' }}
+  MOBILE_ADMIN_WEBVIEW_PORT: ${{ github.ref_name == 'dev-local' && '6183' || '5183' }}
+  BIND_HOST: ${{ github.ref_name == 'dev-local' && '0.0.0.0' || '127.0.0.1' }}
+  CONTAINER_PREFIX: ${{ github.ref_name == 'dev-local' && 'cpm-dev' || 'cpm' }}
+  VOLUME_PREFIX: ${{ github.ref_name == 'dev-local' && 'cpm_dev' || 'cpm' }}
+  DB_NAME: ${{ github.ref_name == 'dev-local' && 'ConsertaPraMimDbDev' || 'ConsertaPraMimDb' }}
   APK_SFTP_USER: "root"
   APK_SFTP_DIR: "/opt/filebrowser/srv/apks"
 
@@ -24,9 +30,11 @@ jobs:
   targets:
     name: Resolve Deploy Targets
     runs-on: [self-hosted, Linux, X64]
+    environment: ${{ github.ref_name == 'dev-local' && 'development' || 'production' }}
     timeout-minutes: 10
     outputs:
       deploy_api: ${{ steps.targets.outputs.deploy_api }}
+      deploy_web_landing: ${{ steps.targets.outputs.deploy_web_landing }}
       deploy_web_admin: ${{ steps.targets.outputs.deploy_web_admin }}
       deploy_web_client: ${{ steps.targets.outputs.deploy_web_client }}
       deploy_web_provider: ${{ steps.targets.outputs.deploy_web_provider }}
@@ -69,6 +77,7 @@ jobs:
               - 'Backend/DEPLOY_VPS.md'
               - 'Backend/docker-compose.vps.yml'
               - 'Backend/docker-compose.vps.api.yml'
+              - 'Backend/docker-compose.vps.web-landing.yml'
               - 'Backend/docker-compose.vps.web-admin.yml'
               - 'Backend/docker-compose.vps.web-client.yml'
               - 'Backend/docker-compose.vps.web-provider.yml'
@@ -78,6 +87,9 @@ jobs:
               - 'Backend/src/ConsertaPraMim.Domain/**'
               - 'Backend/src/ConsertaPraMim.Infrastructure/**'
               - 'Backend/docker/vps/Dockerfile.api'
+            web_landing:
+              - 'Backend/src/ConsertaPraMim.Web.Landing/**'
+              - 'Backend/docker/vps/Dockerfile.web.landing'
             web_admin:
               - 'Backend/src/ConsertaPraMim.Web.Admin/**'
               - 'Backend/src/ConsertaPraMim.Application/**'
@@ -123,6 +135,7 @@ jobs:
         shell: bash
         run: |
           deploy_api="${{ steps.changes.outputs.api }}"
+          deploy_web_landing="${{ steps.changes.outputs.web_landing }}"
           deploy_web_admin="${{ steps.changes.outputs.web_admin }}"
           deploy_web_client="${{ steps.changes.outputs.web_client }}"
           deploy_web_provider="${{ steps.changes.outputs.web_provider }}"
@@ -138,6 +151,7 @@ jobs:
 
           if [[ "${{ steps.changes.outputs.global }}" == "true" ]]; then
             deploy_api="true"
+            deploy_web_landing="true"
             deploy_web_admin="true"
             deploy_web_client="true"
             deploy_web_provider="true"
@@ -148,6 +162,7 @@ jobs:
 
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             deploy_api="true"
+            deploy_web_landing="true"
             deploy_web_admin="true"
             deploy_web_client="true"
             deploy_web_provider="true"
@@ -157,11 +172,12 @@ jobs:
           fi
 
           any="false"
-          if [[ "$deploy_api" == "true" || "$deploy_web_admin" == "true" || "$deploy_web_client" == "true" || "$deploy_web_provider" == "true" || "$deploy_mobile_webview_client" == "true" || "$deploy_mobile_webview_provider" == "true" || "$deploy_mobile_webview_admin" == "true" ]]; then
+          if [[ "$deploy_api" == "true" || "$deploy_web_landing" == "true" || "$deploy_web_admin" == "true" || "$deploy_web_client" == "true" || "$deploy_web_provider" == "true" || "$deploy_mobile_webview_client" == "true" || "$deploy_mobile_webview_provider" == "true" || "$deploy_mobile_webview_admin" == "true" ]]; then
             any="true"
           fi
 
           echo "deploy_api=$deploy_api" >> "$GITHUB_OUTPUT"
+          echo "deploy_web_landing=$deploy_web_landing" >> "$GITHUB_OUTPUT"
           echo "deploy_web_admin=$deploy_web_admin" >> "$GITHUB_OUTPUT"
           echo "deploy_web_client=$deploy_web_client" >> "$GITHUB_OUTPUT"
           echo "deploy_web_provider=$deploy_web_provider" >> "$GITHUB_OUTPUT"
@@ -288,14 +304,17 @@ jobs:
         run: |
           bool_icon() {
             case "$1" in
-              true) echo "✅" ;;
-              false) echo "❌" ;;
-              *) echo "❓" ;;
+              true) echo "[YES]" ;;
+              false) echo "[NO]" ;;
+              *) echo "[?]" ;;
             esac
           }
 
           deploy_api="${{ steps.targets.outputs.deploy_api }}"
           health_api="$deploy_api"
+
+          deploy_web_landing="${{ steps.targets.outputs.deploy_web_landing }}"
+          health_web_landing="$deploy_web_landing"
 
           deploy_web_admin="${{ steps.targets.outputs.deploy_web_admin }}"
           health_web_admin="$deploy_web_admin"
@@ -334,11 +353,17 @@ jobs:
           {
             echo "## Deploy Plan"
             echo ""
+            echo "- Profile: \`${{ env.DEPLOY_PROFILE }}\`"
+            echo "- Host binding: \`${{ env.BIND_HOST }}\`"
+            echo "- Ports: API=${{ env.API_PORT }}, Landing=${{ env.LANDING_PORT }}, Admin=${{ env.ADMIN_PORT }}, Cliente=${{ env.CLIENT_PORT }}, Prestador=${{ env.PROVIDER_PORT }}"
+            echo ""
             echo "| No | Executa? |"
             echo "|---|---|"
             echo "| Resolve Deploy Targets | $(bool_icon "true") |"
             echo "| Deploy API | $(bool_icon "$deploy_api") |"
             echo "| Healthcheck API | $(bool_icon "$health_api") |"
+            echo "| Deploy Web Landing | $(bool_icon "$deploy_web_landing") |"
+            echo "| Healthcheck Web Landing | $(bool_icon "$health_web_landing") |"
             echo "| Deploy Web Admin | $(bool_icon "$deploy_web_admin") |"
             echo "| Healthcheck Web Admin | $(bool_icon "$health_web_admin") |"
             echo "| Deploy Web Client | $(bool_icon "$deploy_web_client") |"
@@ -371,6 +396,7 @@ jobs:
     needs: targets
     if: needs.targets.outputs.deploy_api == 'true'
     runs-on: [self-hosted, Linux, X64]
+    environment: ${{ github.ref_name == 'dev-local' && 'development' || 'production' }}
     timeout-minutes: 20
     steps:
       - name: Checkout
@@ -383,20 +409,63 @@ jobs:
         run: |
           APP_ENVIRONMENT_VALUE="${{ secrets.VPS_APP_ENVIRONMENT }}"
           if [[ -z "$APP_ENVIRONMENT_VALUE" ]]; then
-            APP_ENVIRONMENT_VALUE="Production"
+            if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+              APP_ENVIRONMENT_VALUE="Development"
+            else
+              APP_ENVIRONMENT_VALUE="Production"
+            fi
+          fi
+
+          VPS_PUBLIC_HOST_VALUE="${{ secrets.VPS_PUBLIC_HOST }}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE#http://}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE#https://}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE%%/*}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE%%:*}"
+          PUBLIC_API_URL_VALUE="${{ secrets.PUBLIC_API_URL }}"
+          PUBLIC_ADMIN_URL_VALUE="${{ secrets.PUBLIC_ADMIN_URL }}"
+          PUBLIC_CLIENT_URL_VALUE="${{ secrets.PUBLIC_CLIENT_URL }}"
+          PUBLIC_PROVIDER_URL_VALUE="${{ secrets.PUBLIC_PROVIDER_URL }}"
+          PUBLIC_LANDING_URL_VALUE="${{ secrets.PUBLIC_LANDING_URL }}"
+          ENFORCE_API_HTTPS_REDIRECTION_VALUE="${{ secrets.ENFORCE_API_HTTPS_REDIRECTION }}"
+
+          if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+            PUBLIC_API_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.API_PORT }}"
+            PUBLIC_ADMIN_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.ADMIN_PORT }}"
+            PUBLIC_CLIENT_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.CLIENT_PORT }}"
+            PUBLIC_PROVIDER_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.PROVIDER_PORT }}"
+            PUBLIC_LANDING_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.LANDING_PORT }}"
+            if [[ -z "$ENFORCE_API_HTTPS_REDIRECTION_VALUE" ]]; then
+              ENFORCE_API_HTTPS_REDIRECTION_VALUE="false"
+            fi
+          fi
+
+          if [[ -z "$ENFORCE_API_HTTPS_REDIRECTION_VALUE" ]]; then
+            ENFORCE_API_HTTPS_REDIRECTION_VALUE="true"
           fi
 
           cat > Backend/.env.vps <<EOF
           APP_ENVIRONMENT=$APP_ENVIRONMENT_VALUE
-          VPS_PUBLIC_HOST=${{ secrets.VPS_PUBLIC_HOST }}
+          DEPLOY_PROFILE=${{ env.DEPLOY_PROFILE }}
+          BIND_HOST=${{ env.BIND_HOST }}
+          CONTAINER_PREFIX=${{ env.CONTAINER_PREFIX }}
+          VOLUME_PREFIX=${{ env.VOLUME_PREFIX }}
+          INTERNAL_API_URL=http://${{ env.CONTAINER_PREFIX }}-api:8080
+          VPS_PUBLIC_HOST=$VPS_PUBLIC_HOST_VALUE
+          PUBLIC_API_URL=$PUBLIC_API_URL_VALUE
+          PUBLIC_ADMIN_URL=$PUBLIC_ADMIN_URL_VALUE
+          PUBLIC_CLIENT_URL=$PUBLIC_CLIENT_URL_VALUE
+          PUBLIC_PROVIDER_URL=$PUBLIC_PROVIDER_URL_VALUE
+          PUBLIC_LANDING_URL=$PUBLIC_LANDING_URL_VALUE
+          ENFORCE_API_HTTPS_REDIRECTION=$ENFORCE_API_HTTPS_REDIRECTION_VALUE
           API_PORT=${{ env.API_PORT }}
+          LANDING_PORT=${{ env.LANDING_PORT }}
           ADMIN_PORT=${{ env.ADMIN_PORT }}
           CLIENT_PORT=${{ env.CLIENT_PORT }}
           PROVIDER_PORT=${{ env.PROVIDER_PORT }}
           MOBILE_CLIENT_WEBVIEW_PORT=${{ env.MOBILE_CLIENT_WEBVIEW_PORT }}
           MOBILE_PROVIDER_WEBVIEW_PORT=${{ env.MOBILE_PROVIDER_WEBVIEW_PORT }}
           MOBILE_ADMIN_WEBVIEW_PORT=${{ env.MOBILE_ADMIN_WEBVIEW_PORT }}
-          DB_NAME=ConsertaPraMimDb
+          DB_NAME=${{ env.DB_NAME }}
           DB_USER=sa
           DB_PASSWORD=${{ secrets.VPS_DB_PASSWORD }}
           DB_HOST=${{ secrets.VPS_DB_HOST }}
@@ -422,6 +491,7 @@ jobs:
     needs: [targets, deploy-api]
     if: always() && needs.targets.outputs.deploy_api == 'true' && needs.deploy-api.result == 'success'
     runs-on: [self-hosted, Linux, X64]
+    environment: ${{ github.ref_name == 'dev-local' && 'development' || 'production' }}
     timeout-minutes: 8
     outputs:
       endpoint: ${{ steps.health.outputs.endpoint }}
@@ -431,15 +501,7 @@ jobs:
         id: health
         shell: bash
         run: |
-          host="${{ secrets.VPS_PUBLIC_HOST }}"
-          host="${host%/}"
-          if [[ "$host" =~ ^https?:// ]]; then
-            base="$host"
-          else
-            base="http://$host"
-          fi
-
-          endpoint="$base:${{ env.API_PORT }}/health"
+          endpoint="http://127.0.0.1:${{ env.API_PORT }}/health"
           echo "endpoint=$endpoint" >> "$GITHUB_OUTPUT"
 
           attempts=12
@@ -464,11 +526,12 @@ jobs:
           echo "::error::API healthcheck failed at $endpoint (last HTTP $code)"
           exit 1
 
-  deploy-web-admin:
-    name: Deploy Web Admin
+  deploy-web-landing:
+    name: Deploy Web Landing
     needs: targets
-    if: needs.targets.outputs.deploy_web_admin == 'true'
+    if: needs.targets.outputs.deploy_web_landing == 'true'
     runs-on: [self-hosted, Linux, X64]
+    environment: ${{ github.ref_name == 'dev-local' && 'development' || 'production' }}
     timeout-minutes: 20
     steps:
       - name: Checkout
@@ -481,20 +544,198 @@ jobs:
         run: |
           APP_ENVIRONMENT_VALUE="${{ secrets.VPS_APP_ENVIRONMENT }}"
           if [[ -z "$APP_ENVIRONMENT_VALUE" ]]; then
-            APP_ENVIRONMENT_VALUE="Production"
+            if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+              APP_ENVIRONMENT_VALUE="Development"
+            else
+              APP_ENVIRONMENT_VALUE="Production"
+            fi
+          fi
+
+          VPS_PUBLIC_HOST_VALUE="${{ secrets.VPS_PUBLIC_HOST }}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE#http://}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE#https://}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE%%/*}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE%%:*}"
+          PUBLIC_API_URL_VALUE="${{ secrets.PUBLIC_API_URL }}"
+          PUBLIC_ADMIN_URL_VALUE="${{ secrets.PUBLIC_ADMIN_URL }}"
+          PUBLIC_CLIENT_URL_VALUE="${{ secrets.PUBLIC_CLIENT_URL }}"
+          PUBLIC_PROVIDER_URL_VALUE="${{ secrets.PUBLIC_PROVIDER_URL }}"
+          PUBLIC_LANDING_URL_VALUE="${{ secrets.PUBLIC_LANDING_URL }}"
+          ENFORCE_API_HTTPS_REDIRECTION_VALUE="${{ secrets.ENFORCE_API_HTTPS_REDIRECTION }}"
+
+          if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+            PUBLIC_API_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.API_PORT }}"
+            PUBLIC_ADMIN_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.ADMIN_PORT }}"
+            PUBLIC_CLIENT_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.CLIENT_PORT }}"
+            PUBLIC_PROVIDER_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.PROVIDER_PORT }}"
+            PUBLIC_LANDING_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.LANDING_PORT }}"
+            if [[ -z "$ENFORCE_API_HTTPS_REDIRECTION_VALUE" ]]; then
+              ENFORCE_API_HTTPS_REDIRECTION_VALUE="false"
+            fi
+          fi
+
+          if [[ -z "$ENFORCE_API_HTTPS_REDIRECTION_VALUE" ]]; then
+            ENFORCE_API_HTTPS_REDIRECTION_VALUE="true"
           fi
 
           cat > Backend/.env.vps <<EOF
           APP_ENVIRONMENT=$APP_ENVIRONMENT_VALUE
-          VPS_PUBLIC_HOST=${{ secrets.VPS_PUBLIC_HOST }}
+          DEPLOY_PROFILE=${{ env.DEPLOY_PROFILE }}
+          BIND_HOST=${{ env.BIND_HOST }}
+          CONTAINER_PREFIX=${{ env.CONTAINER_PREFIX }}
+          VOLUME_PREFIX=${{ env.VOLUME_PREFIX }}
+          INTERNAL_API_URL=http://${{ env.CONTAINER_PREFIX }}-api:8080
+          VPS_PUBLIC_HOST=$VPS_PUBLIC_HOST_VALUE
+          PUBLIC_API_URL=$PUBLIC_API_URL_VALUE
+          PUBLIC_ADMIN_URL=$PUBLIC_ADMIN_URL_VALUE
+          PUBLIC_CLIENT_URL=$PUBLIC_CLIENT_URL_VALUE
+          PUBLIC_PROVIDER_URL=$PUBLIC_PROVIDER_URL_VALUE
+          PUBLIC_LANDING_URL=$PUBLIC_LANDING_URL_VALUE
+          ENFORCE_API_HTTPS_REDIRECTION=$ENFORCE_API_HTTPS_REDIRECTION_VALUE
           API_PORT=${{ env.API_PORT }}
+          LANDING_PORT=${{ env.LANDING_PORT }}
           ADMIN_PORT=${{ env.ADMIN_PORT }}
           CLIENT_PORT=${{ env.CLIENT_PORT }}
           PROVIDER_PORT=${{ env.PROVIDER_PORT }}
           MOBILE_CLIENT_WEBVIEW_PORT=${{ env.MOBILE_CLIENT_WEBVIEW_PORT }}
           MOBILE_PROVIDER_WEBVIEW_PORT=${{ env.MOBILE_PROVIDER_WEBVIEW_PORT }}
           MOBILE_ADMIN_WEBVIEW_PORT=${{ env.MOBILE_ADMIN_WEBVIEW_PORT }}
-          DB_NAME=ConsertaPraMimDb
+          DB_NAME=${{ env.DB_NAME }}
+          DB_USER=sa
+          DB_PASSWORD=${{ secrets.VPS_DB_PASSWORD }}
+          DB_HOST=${{ secrets.VPS_DB_HOST }}
+          JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
+          SEED_DEFAULT_PASSWORD=${{ secrets.SEED_DEFAULT_PASSWORD }}
+          FIREBASE_SERVICE_ACCOUNT_PATH=${{ secrets.FIREBASE_SERVICE_ACCOUNT_PATH }}
+          APK_RELEASE_PUSH_TOKEN=${{ secrets.APK_RELEASE_PUSH_TOKEN }}
+          EOF
+
+      - name: Deploy Web Landing
+        shell: bash
+        run: |
+          echo "::group::Deploy Web Landing"
+          chmod +x scripts/deploy/vps-deploy-service.sh
+          export MSSQL_CONTAINER_NAME="${{ secrets.VPS_MSSQL_CONTAINER_NAME }}"
+          export MSSQL_HOST_ALIAS="${{ secrets.VPS_MSSQL_HOST_ALIAS }}"
+          export SKIP_GIT_PULL=1
+          ./scripts/deploy/vps-deploy-service.sh "$GITHUB_WORKSPACE" web-landing
+          echo "::endgroup::"
+
+  health-web-landing:
+    name: Healthcheck Web Landing
+    needs: [targets, deploy-web-landing]
+    if: always() && needs.targets.outputs.deploy_web_landing == 'true' && needs.deploy-web-landing.result == 'success'
+    runs-on: [self-hosted, Linux, X64]
+    environment: ${{ github.ref_name == 'dev-local' && 'development' || 'production' }}
+    timeout-minutes: 8
+    outputs:
+      endpoint: ${{ steps.health.outputs.endpoint }}
+      http_code: ${{ steps.health.outputs.http_code }}
+    steps:
+      - name: Check Web Landing health endpoint
+        id: health
+        shell: bash
+        run: |
+          endpoint="http://127.0.0.1:${{ env.LANDING_PORT }}/health"
+          echo "endpoint=$endpoint" >> "$GITHUB_OUTPUT"
+
+          attempts=12
+          sleep_seconds=5
+          code="000"
+          for ((i=1; i<=attempts; i++)); do
+            code="$(curl -k -sS -o /dev/null -w "%{http_code}" "$endpoint" || true)"
+            echo "Attempt $i/$attempts -> HTTP $code"
+            if [[ "$code" =~ ^2[0-9][0-9]$ || "$code" =~ ^3[0-9][0-9]$ ]]; then
+              echo "http_code=$code" >> "$GITHUB_OUTPUT"
+              {
+                echo "### Web Landing Healthcheck"
+                echo "- Endpoint: $endpoint"
+                echo "- HTTP: $code"
+              } >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep "$sleep_seconds"
+          done
+
+          echo "http_code=$code" >> "$GITHUB_OUTPUT"
+          echo "::error::Web Landing healthcheck failed at $endpoint (last HTTP $code)"
+          exit 1
+
+  deploy-web-admin:
+    name: Deploy Web Admin
+    needs: targets
+    if: needs.targets.outputs.deploy_web_admin == 'true'
+    runs-on: [self-hosted, Linux, X64]
+    environment: ${{ github.ref_name == 'dev-local' && 'development' || 'production' }}
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Write VPS env file
+        shell: bash
+        run: |
+          APP_ENVIRONMENT_VALUE="${{ secrets.VPS_APP_ENVIRONMENT }}"
+          if [[ -z "$APP_ENVIRONMENT_VALUE" ]]; then
+            if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+              APP_ENVIRONMENT_VALUE="Development"
+            else
+              APP_ENVIRONMENT_VALUE="Production"
+            fi
+          fi
+
+          VPS_PUBLIC_HOST_VALUE="${{ secrets.VPS_PUBLIC_HOST }}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE#http://}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE#https://}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE%%/*}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE%%:*}"
+          PUBLIC_API_URL_VALUE="${{ secrets.PUBLIC_API_URL }}"
+          PUBLIC_ADMIN_URL_VALUE="${{ secrets.PUBLIC_ADMIN_URL }}"
+          PUBLIC_CLIENT_URL_VALUE="${{ secrets.PUBLIC_CLIENT_URL }}"
+          PUBLIC_PROVIDER_URL_VALUE="${{ secrets.PUBLIC_PROVIDER_URL }}"
+          PUBLIC_LANDING_URL_VALUE="${{ secrets.PUBLIC_LANDING_URL }}"
+          ENFORCE_API_HTTPS_REDIRECTION_VALUE="${{ secrets.ENFORCE_API_HTTPS_REDIRECTION }}"
+
+          if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+            PUBLIC_API_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.API_PORT }}"
+            PUBLIC_ADMIN_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.ADMIN_PORT }}"
+            PUBLIC_CLIENT_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.CLIENT_PORT }}"
+            PUBLIC_PROVIDER_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.PROVIDER_PORT }}"
+            PUBLIC_LANDING_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.LANDING_PORT }}"
+            if [[ -z "$ENFORCE_API_HTTPS_REDIRECTION_VALUE" ]]; then
+              ENFORCE_API_HTTPS_REDIRECTION_VALUE="false"
+            fi
+          fi
+
+          if [[ -z "$ENFORCE_API_HTTPS_REDIRECTION_VALUE" ]]; then
+            ENFORCE_API_HTTPS_REDIRECTION_VALUE="true"
+          fi
+
+          cat > Backend/.env.vps <<EOF
+          APP_ENVIRONMENT=$APP_ENVIRONMENT_VALUE
+          DEPLOY_PROFILE=${{ env.DEPLOY_PROFILE }}
+          BIND_HOST=${{ env.BIND_HOST }}
+          CONTAINER_PREFIX=${{ env.CONTAINER_PREFIX }}
+          VOLUME_PREFIX=${{ env.VOLUME_PREFIX }}
+          INTERNAL_API_URL=http://${{ env.CONTAINER_PREFIX }}-api:8080
+          VPS_PUBLIC_HOST=$VPS_PUBLIC_HOST_VALUE
+          PUBLIC_API_URL=$PUBLIC_API_URL_VALUE
+          PUBLIC_ADMIN_URL=$PUBLIC_ADMIN_URL_VALUE
+          PUBLIC_CLIENT_URL=$PUBLIC_CLIENT_URL_VALUE
+          PUBLIC_PROVIDER_URL=$PUBLIC_PROVIDER_URL_VALUE
+          PUBLIC_LANDING_URL=$PUBLIC_LANDING_URL_VALUE
+          ENFORCE_API_HTTPS_REDIRECTION=$ENFORCE_API_HTTPS_REDIRECTION_VALUE
+          API_PORT=${{ env.API_PORT }}
+          LANDING_PORT=${{ env.LANDING_PORT }}
+          ADMIN_PORT=${{ env.ADMIN_PORT }}
+          CLIENT_PORT=${{ env.CLIENT_PORT }}
+          PROVIDER_PORT=${{ env.PROVIDER_PORT }}
+          MOBILE_CLIENT_WEBVIEW_PORT=${{ env.MOBILE_CLIENT_WEBVIEW_PORT }}
+          MOBILE_PROVIDER_WEBVIEW_PORT=${{ env.MOBILE_PROVIDER_WEBVIEW_PORT }}
+          MOBILE_ADMIN_WEBVIEW_PORT=${{ env.MOBILE_ADMIN_WEBVIEW_PORT }}
+          DB_NAME=${{ env.DB_NAME }}
           DB_USER=sa
           DB_PASSWORD=${{ secrets.VPS_DB_PASSWORD }}
           DB_HOST=${{ secrets.VPS_DB_HOST }}
@@ -520,6 +761,7 @@ jobs:
     needs: [targets, deploy-web-admin]
     if: always() && needs.targets.outputs.deploy_web_admin == 'true' && needs.deploy-web-admin.result == 'success'
     runs-on: [self-hosted, Linux, X64]
+    environment: ${{ github.ref_name == 'dev-local' && 'development' || 'production' }}
     timeout-minutes: 8
     outputs:
       endpoint: ${{ steps.health.outputs.endpoint }}
@@ -529,15 +771,7 @@ jobs:
         id: health
         shell: bash
         run: |
-          host="${{ secrets.VPS_PUBLIC_HOST }}"
-          host="${host%/}"
-          if [[ "$host" =~ ^https?:// ]]; then
-            base="$host"
-          else
-            base="http://$host"
-          fi
-
-          endpoint="$base:${{ env.ADMIN_PORT }}/Account/Login"
+          endpoint="http://127.0.0.1:${{ env.ADMIN_PORT }}/Account/Login"
           echo "endpoint=$endpoint" >> "$GITHUB_OUTPUT"
 
           attempts=12
@@ -567,6 +801,7 @@ jobs:
     needs: targets
     if: needs.targets.outputs.deploy_web_client == 'true'
     runs-on: [self-hosted, Linux, X64]
+    environment: ${{ github.ref_name == 'dev-local' && 'development' || 'production' }}
     timeout-minutes: 20
     steps:
       - name: Checkout
@@ -579,20 +814,63 @@ jobs:
         run: |
           APP_ENVIRONMENT_VALUE="${{ secrets.VPS_APP_ENVIRONMENT }}"
           if [[ -z "$APP_ENVIRONMENT_VALUE" ]]; then
-            APP_ENVIRONMENT_VALUE="Production"
+            if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+              APP_ENVIRONMENT_VALUE="Development"
+            else
+              APP_ENVIRONMENT_VALUE="Production"
+            fi
+          fi
+
+          VPS_PUBLIC_HOST_VALUE="${{ secrets.VPS_PUBLIC_HOST }}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE#http://}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE#https://}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE%%/*}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE%%:*}"
+          PUBLIC_API_URL_VALUE="${{ secrets.PUBLIC_API_URL }}"
+          PUBLIC_ADMIN_URL_VALUE="${{ secrets.PUBLIC_ADMIN_URL }}"
+          PUBLIC_CLIENT_URL_VALUE="${{ secrets.PUBLIC_CLIENT_URL }}"
+          PUBLIC_PROVIDER_URL_VALUE="${{ secrets.PUBLIC_PROVIDER_URL }}"
+          PUBLIC_LANDING_URL_VALUE="${{ secrets.PUBLIC_LANDING_URL }}"
+          ENFORCE_API_HTTPS_REDIRECTION_VALUE="${{ secrets.ENFORCE_API_HTTPS_REDIRECTION }}"
+
+          if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+            PUBLIC_API_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.API_PORT }}"
+            PUBLIC_ADMIN_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.ADMIN_PORT }}"
+            PUBLIC_CLIENT_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.CLIENT_PORT }}"
+            PUBLIC_PROVIDER_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.PROVIDER_PORT }}"
+            PUBLIC_LANDING_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.LANDING_PORT }}"
+            if [[ -z "$ENFORCE_API_HTTPS_REDIRECTION_VALUE" ]]; then
+              ENFORCE_API_HTTPS_REDIRECTION_VALUE="false"
+            fi
+          fi
+
+          if [[ -z "$ENFORCE_API_HTTPS_REDIRECTION_VALUE" ]]; then
+            ENFORCE_API_HTTPS_REDIRECTION_VALUE="true"
           fi
 
           cat > Backend/.env.vps <<EOF
           APP_ENVIRONMENT=$APP_ENVIRONMENT_VALUE
-          VPS_PUBLIC_HOST=${{ secrets.VPS_PUBLIC_HOST }}
+          DEPLOY_PROFILE=${{ env.DEPLOY_PROFILE }}
+          BIND_HOST=${{ env.BIND_HOST }}
+          CONTAINER_PREFIX=${{ env.CONTAINER_PREFIX }}
+          VOLUME_PREFIX=${{ env.VOLUME_PREFIX }}
+          INTERNAL_API_URL=http://${{ env.CONTAINER_PREFIX }}-api:8080
+          VPS_PUBLIC_HOST=$VPS_PUBLIC_HOST_VALUE
+          PUBLIC_API_URL=$PUBLIC_API_URL_VALUE
+          PUBLIC_ADMIN_URL=$PUBLIC_ADMIN_URL_VALUE
+          PUBLIC_CLIENT_URL=$PUBLIC_CLIENT_URL_VALUE
+          PUBLIC_PROVIDER_URL=$PUBLIC_PROVIDER_URL_VALUE
+          PUBLIC_LANDING_URL=$PUBLIC_LANDING_URL_VALUE
+          ENFORCE_API_HTTPS_REDIRECTION=$ENFORCE_API_HTTPS_REDIRECTION_VALUE
           API_PORT=${{ env.API_PORT }}
+          LANDING_PORT=${{ env.LANDING_PORT }}
           ADMIN_PORT=${{ env.ADMIN_PORT }}
           CLIENT_PORT=${{ env.CLIENT_PORT }}
           PROVIDER_PORT=${{ env.PROVIDER_PORT }}
           MOBILE_CLIENT_WEBVIEW_PORT=${{ env.MOBILE_CLIENT_WEBVIEW_PORT }}
           MOBILE_PROVIDER_WEBVIEW_PORT=${{ env.MOBILE_PROVIDER_WEBVIEW_PORT }}
           MOBILE_ADMIN_WEBVIEW_PORT=${{ env.MOBILE_ADMIN_WEBVIEW_PORT }}
-          DB_NAME=ConsertaPraMimDb
+          DB_NAME=${{ env.DB_NAME }}
           DB_USER=sa
           DB_PASSWORD=${{ secrets.VPS_DB_PASSWORD }}
           DB_HOST=${{ secrets.VPS_DB_HOST }}
@@ -618,6 +896,7 @@ jobs:
     needs: [targets, deploy-web-client]
     if: always() && needs.targets.outputs.deploy_web_client == 'true' && needs.deploy-web-client.result == 'success'
     runs-on: [self-hosted, Linux, X64]
+    environment: ${{ github.ref_name == 'dev-local' && 'development' || 'production' }}
     timeout-minutes: 8
     outputs:
       endpoint: ${{ steps.health.outputs.endpoint }}
@@ -627,15 +906,7 @@ jobs:
         id: health
         shell: bash
         run: |
-          host="${{ secrets.VPS_PUBLIC_HOST }}"
-          host="${host%/}"
-          if [[ "$host" =~ ^https?:// ]]; then
-            base="$host"
-          else
-            base="http://$host"
-          fi
-
-          endpoint="$base:${{ env.CLIENT_PORT }}/Account/Login"
+          endpoint="http://127.0.0.1:${{ env.CLIENT_PORT }}/Account/Login"
           echo "endpoint=$endpoint" >> "$GITHUB_OUTPUT"
 
           attempts=12
@@ -665,6 +936,7 @@ jobs:
     needs: targets
     if: needs.targets.outputs.deploy_web_provider == 'true'
     runs-on: [self-hosted, Linux, X64]
+    environment: ${{ github.ref_name == 'dev-local' && 'development' || 'production' }}
     timeout-minutes: 20
     steps:
       - name: Checkout
@@ -677,20 +949,63 @@ jobs:
         run: |
           APP_ENVIRONMENT_VALUE="${{ secrets.VPS_APP_ENVIRONMENT }}"
           if [[ -z "$APP_ENVIRONMENT_VALUE" ]]; then
-            APP_ENVIRONMENT_VALUE="Production"
+            if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+              APP_ENVIRONMENT_VALUE="Development"
+            else
+              APP_ENVIRONMENT_VALUE="Production"
+            fi
+          fi
+
+          VPS_PUBLIC_HOST_VALUE="${{ secrets.VPS_PUBLIC_HOST }}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE#http://}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE#https://}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE%%/*}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE%%:*}"
+          PUBLIC_API_URL_VALUE="${{ secrets.PUBLIC_API_URL }}"
+          PUBLIC_ADMIN_URL_VALUE="${{ secrets.PUBLIC_ADMIN_URL }}"
+          PUBLIC_CLIENT_URL_VALUE="${{ secrets.PUBLIC_CLIENT_URL }}"
+          PUBLIC_PROVIDER_URL_VALUE="${{ secrets.PUBLIC_PROVIDER_URL }}"
+          PUBLIC_LANDING_URL_VALUE="${{ secrets.PUBLIC_LANDING_URL }}"
+          ENFORCE_API_HTTPS_REDIRECTION_VALUE="${{ secrets.ENFORCE_API_HTTPS_REDIRECTION }}"
+
+          if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+            PUBLIC_API_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.API_PORT }}"
+            PUBLIC_ADMIN_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.ADMIN_PORT }}"
+            PUBLIC_CLIENT_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.CLIENT_PORT }}"
+            PUBLIC_PROVIDER_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.PROVIDER_PORT }}"
+            PUBLIC_LANDING_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.LANDING_PORT }}"
+            if [[ -z "$ENFORCE_API_HTTPS_REDIRECTION_VALUE" ]]; then
+              ENFORCE_API_HTTPS_REDIRECTION_VALUE="false"
+            fi
+          fi
+
+          if [[ -z "$ENFORCE_API_HTTPS_REDIRECTION_VALUE" ]]; then
+            ENFORCE_API_HTTPS_REDIRECTION_VALUE="true"
           fi
 
           cat > Backend/.env.vps <<EOF
           APP_ENVIRONMENT=$APP_ENVIRONMENT_VALUE
-          VPS_PUBLIC_HOST=${{ secrets.VPS_PUBLIC_HOST }}
+          DEPLOY_PROFILE=${{ env.DEPLOY_PROFILE }}
+          BIND_HOST=${{ env.BIND_HOST }}
+          CONTAINER_PREFIX=${{ env.CONTAINER_PREFIX }}
+          VOLUME_PREFIX=${{ env.VOLUME_PREFIX }}
+          INTERNAL_API_URL=http://${{ env.CONTAINER_PREFIX }}-api:8080
+          VPS_PUBLIC_HOST=$VPS_PUBLIC_HOST_VALUE
+          PUBLIC_API_URL=$PUBLIC_API_URL_VALUE
+          PUBLIC_ADMIN_URL=$PUBLIC_ADMIN_URL_VALUE
+          PUBLIC_CLIENT_URL=$PUBLIC_CLIENT_URL_VALUE
+          PUBLIC_PROVIDER_URL=$PUBLIC_PROVIDER_URL_VALUE
+          PUBLIC_LANDING_URL=$PUBLIC_LANDING_URL_VALUE
+          ENFORCE_API_HTTPS_REDIRECTION=$ENFORCE_API_HTTPS_REDIRECTION_VALUE
           API_PORT=${{ env.API_PORT }}
+          LANDING_PORT=${{ env.LANDING_PORT }}
           ADMIN_PORT=${{ env.ADMIN_PORT }}
           CLIENT_PORT=${{ env.CLIENT_PORT }}
           PROVIDER_PORT=${{ env.PROVIDER_PORT }}
           MOBILE_CLIENT_WEBVIEW_PORT=${{ env.MOBILE_CLIENT_WEBVIEW_PORT }}
           MOBILE_PROVIDER_WEBVIEW_PORT=${{ env.MOBILE_PROVIDER_WEBVIEW_PORT }}
           MOBILE_ADMIN_WEBVIEW_PORT=${{ env.MOBILE_ADMIN_WEBVIEW_PORT }}
-          DB_NAME=ConsertaPraMimDb
+          DB_NAME=${{ env.DB_NAME }}
           DB_USER=sa
           DB_PASSWORD=${{ secrets.VPS_DB_PASSWORD }}
           DB_HOST=${{ secrets.VPS_DB_HOST }}
@@ -716,6 +1031,7 @@ jobs:
     needs: [targets, deploy-web-provider]
     if: always() && needs.targets.outputs.deploy_web_provider == 'true' && needs.deploy-web-provider.result == 'success'
     runs-on: [self-hosted, Linux, X64]
+    environment: ${{ github.ref_name == 'dev-local' && 'development' || 'production' }}
     timeout-minutes: 8
     outputs:
       endpoint: ${{ steps.health.outputs.endpoint }}
@@ -725,15 +1041,7 @@ jobs:
         id: health
         shell: bash
         run: |
-          host="${{ secrets.VPS_PUBLIC_HOST }}"
-          host="${host%/}"
-          if [[ "$host" =~ ^https?:// ]]; then
-            base="$host"
-          else
-            base="http://$host"
-          fi
-
-          endpoint="$base:${{ env.PROVIDER_PORT }}/Account/Login"
+          endpoint="http://127.0.0.1:${{ env.PROVIDER_PORT }}/Account/Login"
           echo "endpoint=$endpoint" >> "$GITHUB_OUTPUT"
 
           attempts=12
@@ -770,6 +1078,7 @@ jobs:
       !contains(needs.*.result, 'failure') &&
       !contains(needs.*.result, 'cancelled')
     runs-on: [self-hosted, Linux, X64]
+    environment: ${{ github.ref_name == 'dev-local' && 'development' || 'production' }}
     timeout-minutes: 20
     steps:
       - name: Checkout
@@ -782,20 +1091,63 @@ jobs:
         run: |
           APP_ENVIRONMENT_VALUE="${{ secrets.VPS_APP_ENVIRONMENT }}"
           if [[ -z "$APP_ENVIRONMENT_VALUE" ]]; then
-            APP_ENVIRONMENT_VALUE="Production"
+            if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+              APP_ENVIRONMENT_VALUE="Development"
+            else
+              APP_ENVIRONMENT_VALUE="Production"
+            fi
+          fi
+
+          VPS_PUBLIC_HOST_VALUE="${{ secrets.VPS_PUBLIC_HOST }}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE#http://}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE#https://}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE%%/*}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE%%:*}"
+          PUBLIC_API_URL_VALUE="${{ secrets.PUBLIC_API_URL }}"
+          PUBLIC_ADMIN_URL_VALUE="${{ secrets.PUBLIC_ADMIN_URL }}"
+          PUBLIC_CLIENT_URL_VALUE="${{ secrets.PUBLIC_CLIENT_URL }}"
+          PUBLIC_PROVIDER_URL_VALUE="${{ secrets.PUBLIC_PROVIDER_URL }}"
+          PUBLIC_LANDING_URL_VALUE="${{ secrets.PUBLIC_LANDING_URL }}"
+          ENFORCE_API_HTTPS_REDIRECTION_VALUE="${{ secrets.ENFORCE_API_HTTPS_REDIRECTION }}"
+
+          if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+            PUBLIC_API_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.API_PORT }}"
+            PUBLIC_ADMIN_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.ADMIN_PORT }}"
+            PUBLIC_CLIENT_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.CLIENT_PORT }}"
+            PUBLIC_PROVIDER_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.PROVIDER_PORT }}"
+            PUBLIC_LANDING_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.LANDING_PORT }}"
+            if [[ -z "$ENFORCE_API_HTTPS_REDIRECTION_VALUE" ]]; then
+              ENFORCE_API_HTTPS_REDIRECTION_VALUE="false"
+            fi
+          fi
+
+          if [[ -z "$ENFORCE_API_HTTPS_REDIRECTION_VALUE" ]]; then
+            ENFORCE_API_HTTPS_REDIRECTION_VALUE="true"
           fi
 
           cat > Backend/.env.vps <<EOF
           APP_ENVIRONMENT=$APP_ENVIRONMENT_VALUE
-          VPS_PUBLIC_HOST=${{ secrets.VPS_PUBLIC_HOST }}
+          DEPLOY_PROFILE=${{ env.DEPLOY_PROFILE }}
+          BIND_HOST=${{ env.BIND_HOST }}
+          CONTAINER_PREFIX=${{ env.CONTAINER_PREFIX }}
+          VOLUME_PREFIX=${{ env.VOLUME_PREFIX }}
+          INTERNAL_API_URL=http://${{ env.CONTAINER_PREFIX }}-api:8080
+          VPS_PUBLIC_HOST=$VPS_PUBLIC_HOST_VALUE
+          PUBLIC_API_URL=$PUBLIC_API_URL_VALUE
+          PUBLIC_ADMIN_URL=$PUBLIC_ADMIN_URL_VALUE
+          PUBLIC_CLIENT_URL=$PUBLIC_CLIENT_URL_VALUE
+          PUBLIC_PROVIDER_URL=$PUBLIC_PROVIDER_URL_VALUE
+          PUBLIC_LANDING_URL=$PUBLIC_LANDING_URL_VALUE
+          ENFORCE_API_HTTPS_REDIRECTION=$ENFORCE_API_HTTPS_REDIRECTION_VALUE
           API_PORT=${{ env.API_PORT }}
+          LANDING_PORT=${{ env.LANDING_PORT }}
           ADMIN_PORT=${{ env.ADMIN_PORT }}
           CLIENT_PORT=${{ env.CLIENT_PORT }}
           PROVIDER_PORT=${{ env.PROVIDER_PORT }}
           MOBILE_CLIENT_WEBVIEW_PORT=${{ env.MOBILE_CLIENT_WEBVIEW_PORT }}
           MOBILE_PROVIDER_WEBVIEW_PORT=${{ env.MOBILE_PROVIDER_WEBVIEW_PORT }}
           MOBILE_ADMIN_WEBVIEW_PORT=${{ env.MOBILE_ADMIN_WEBVIEW_PORT }}
-          DB_NAME=ConsertaPraMimDb
+          DB_NAME=${{ env.DB_NAME }}
           DB_USER=sa
           DB_PASSWORD=${{ secrets.VPS_DB_PASSWORD }}
           DB_HOST=${{ secrets.VPS_DB_HOST }}
@@ -821,6 +1173,7 @@ jobs:
     needs: [targets, deploy-mobile-webview-client]
     if: always() && needs.targets.outputs.deploy_mobile_webview_client == 'true' && needs.deploy-mobile-webview-client.result == 'success'
     runs-on: [self-hosted, Linux, X64]
+    environment: ${{ github.ref_name == 'dev-local' && 'development' || 'production' }}
     timeout-minutes: 8
     outputs:
       endpoint: ${{ steps.health.outputs.endpoint }}
@@ -830,15 +1183,7 @@ jobs:
         id: health
         shell: bash
         run: |
-          host="${{ secrets.VPS_PUBLIC_HOST }}"
-          host="${host%/}"
-          if [[ "$host" =~ ^https?:// ]]; then
-            base="$host"
-          else
-            base="http://$host"
-          fi
-
-          endpoint="$base:${{ env.MOBILE_CLIENT_WEBVIEW_PORT }}/"
+          endpoint="http://127.0.0.1:${{ env.MOBILE_CLIENT_WEBVIEW_PORT }}/"
           echo "endpoint=$endpoint" >> "$GITHUB_OUTPUT"
 
           attempts=12
@@ -875,6 +1220,7 @@ jobs:
       !contains(needs.*.result, 'failure') &&
       !contains(needs.*.result, 'cancelled')
     runs-on: [self-hosted, Linux, X64]
+    environment: ${{ github.ref_name == 'dev-local' && 'development' || 'production' }}
     timeout-minutes: 20
     steps:
       - name: Checkout
@@ -887,20 +1233,63 @@ jobs:
         run: |
           APP_ENVIRONMENT_VALUE="${{ secrets.VPS_APP_ENVIRONMENT }}"
           if [[ -z "$APP_ENVIRONMENT_VALUE" ]]; then
-            APP_ENVIRONMENT_VALUE="Production"
+            if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+              APP_ENVIRONMENT_VALUE="Development"
+            else
+              APP_ENVIRONMENT_VALUE="Production"
+            fi
+          fi
+
+          VPS_PUBLIC_HOST_VALUE="${{ secrets.VPS_PUBLIC_HOST }}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE#http://}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE#https://}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE%%/*}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE%%:*}"
+          PUBLIC_API_URL_VALUE="${{ secrets.PUBLIC_API_URL }}"
+          PUBLIC_ADMIN_URL_VALUE="${{ secrets.PUBLIC_ADMIN_URL }}"
+          PUBLIC_CLIENT_URL_VALUE="${{ secrets.PUBLIC_CLIENT_URL }}"
+          PUBLIC_PROVIDER_URL_VALUE="${{ secrets.PUBLIC_PROVIDER_URL }}"
+          PUBLIC_LANDING_URL_VALUE="${{ secrets.PUBLIC_LANDING_URL }}"
+          ENFORCE_API_HTTPS_REDIRECTION_VALUE="${{ secrets.ENFORCE_API_HTTPS_REDIRECTION }}"
+
+          if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+            PUBLIC_API_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.API_PORT }}"
+            PUBLIC_ADMIN_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.ADMIN_PORT }}"
+            PUBLIC_CLIENT_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.CLIENT_PORT }}"
+            PUBLIC_PROVIDER_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.PROVIDER_PORT }}"
+            PUBLIC_LANDING_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.LANDING_PORT }}"
+            if [[ -z "$ENFORCE_API_HTTPS_REDIRECTION_VALUE" ]]; then
+              ENFORCE_API_HTTPS_REDIRECTION_VALUE="false"
+            fi
+          fi
+
+          if [[ -z "$ENFORCE_API_HTTPS_REDIRECTION_VALUE" ]]; then
+            ENFORCE_API_HTTPS_REDIRECTION_VALUE="true"
           fi
 
           cat > Backend/.env.vps <<EOF
           APP_ENVIRONMENT=$APP_ENVIRONMENT_VALUE
-          VPS_PUBLIC_HOST=${{ secrets.VPS_PUBLIC_HOST }}
+          DEPLOY_PROFILE=${{ env.DEPLOY_PROFILE }}
+          BIND_HOST=${{ env.BIND_HOST }}
+          CONTAINER_PREFIX=${{ env.CONTAINER_PREFIX }}
+          VOLUME_PREFIX=${{ env.VOLUME_PREFIX }}
+          INTERNAL_API_URL=http://${{ env.CONTAINER_PREFIX }}-api:8080
+          VPS_PUBLIC_HOST=$VPS_PUBLIC_HOST_VALUE
+          PUBLIC_API_URL=$PUBLIC_API_URL_VALUE
+          PUBLIC_ADMIN_URL=$PUBLIC_ADMIN_URL_VALUE
+          PUBLIC_CLIENT_URL=$PUBLIC_CLIENT_URL_VALUE
+          PUBLIC_PROVIDER_URL=$PUBLIC_PROVIDER_URL_VALUE
+          PUBLIC_LANDING_URL=$PUBLIC_LANDING_URL_VALUE
+          ENFORCE_API_HTTPS_REDIRECTION=$ENFORCE_API_HTTPS_REDIRECTION_VALUE
           API_PORT=${{ env.API_PORT }}
+          LANDING_PORT=${{ env.LANDING_PORT }}
           ADMIN_PORT=${{ env.ADMIN_PORT }}
           CLIENT_PORT=${{ env.CLIENT_PORT }}
           PROVIDER_PORT=${{ env.PROVIDER_PORT }}
           MOBILE_CLIENT_WEBVIEW_PORT=${{ env.MOBILE_CLIENT_WEBVIEW_PORT }}
           MOBILE_PROVIDER_WEBVIEW_PORT=${{ env.MOBILE_PROVIDER_WEBVIEW_PORT }}
           MOBILE_ADMIN_WEBVIEW_PORT=${{ env.MOBILE_ADMIN_WEBVIEW_PORT }}
-          DB_NAME=ConsertaPraMimDb
+          DB_NAME=${{ env.DB_NAME }}
           DB_USER=sa
           DB_PASSWORD=${{ secrets.VPS_DB_PASSWORD }}
           DB_HOST=${{ secrets.VPS_DB_HOST }}
@@ -926,6 +1315,7 @@ jobs:
     needs: [targets, deploy-mobile-webview-provider]
     if: always() && needs.targets.outputs.deploy_mobile_webview_provider == 'true' && needs.deploy-mobile-webview-provider.result == 'success'
     runs-on: [self-hosted, Linux, X64]
+    environment: ${{ github.ref_name == 'dev-local' && 'development' || 'production' }}
     timeout-minutes: 8
     outputs:
       endpoint: ${{ steps.health.outputs.endpoint }}
@@ -935,15 +1325,7 @@ jobs:
         id: health
         shell: bash
         run: |
-          host="${{ secrets.VPS_PUBLIC_HOST }}"
-          host="${host%/}"
-          if [[ "$host" =~ ^https?:// ]]; then
-            base="$host"
-          else
-            base="http://$host"
-          fi
-
-          endpoint="$base:${{ env.MOBILE_PROVIDER_WEBVIEW_PORT }}/"
+          endpoint="http://127.0.0.1:${{ env.MOBILE_PROVIDER_WEBVIEW_PORT }}/"
           echo "endpoint=$endpoint" >> "$GITHUB_OUTPUT"
 
           attempts=12
@@ -980,6 +1362,7 @@ jobs:
       !contains(needs.*.result, 'failure') &&
       !contains(needs.*.result, 'cancelled')
     runs-on: [self-hosted, Linux, X64]
+    environment: ${{ github.ref_name == 'dev-local' && 'development' || 'production' }}
     timeout-minutes: 20
     steps:
       - name: Checkout
@@ -992,20 +1375,63 @@ jobs:
         run: |
           APP_ENVIRONMENT_VALUE="${{ secrets.VPS_APP_ENVIRONMENT }}"
           if [[ -z "$APP_ENVIRONMENT_VALUE" ]]; then
-            APP_ENVIRONMENT_VALUE="Production"
+            if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+              APP_ENVIRONMENT_VALUE="Development"
+            else
+              APP_ENVIRONMENT_VALUE="Production"
+            fi
+          fi
+
+          VPS_PUBLIC_HOST_VALUE="${{ secrets.VPS_PUBLIC_HOST }}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE#http://}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE#https://}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE%%/*}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE%%:*}"
+          PUBLIC_API_URL_VALUE="${{ secrets.PUBLIC_API_URL }}"
+          PUBLIC_ADMIN_URL_VALUE="${{ secrets.PUBLIC_ADMIN_URL }}"
+          PUBLIC_CLIENT_URL_VALUE="${{ secrets.PUBLIC_CLIENT_URL }}"
+          PUBLIC_PROVIDER_URL_VALUE="${{ secrets.PUBLIC_PROVIDER_URL }}"
+          PUBLIC_LANDING_URL_VALUE="${{ secrets.PUBLIC_LANDING_URL }}"
+          ENFORCE_API_HTTPS_REDIRECTION_VALUE="${{ secrets.ENFORCE_API_HTTPS_REDIRECTION }}"
+
+          if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+            PUBLIC_API_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.API_PORT }}"
+            PUBLIC_ADMIN_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.ADMIN_PORT }}"
+            PUBLIC_CLIENT_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.CLIENT_PORT }}"
+            PUBLIC_PROVIDER_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.PROVIDER_PORT }}"
+            PUBLIC_LANDING_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.LANDING_PORT }}"
+            if [[ -z "$ENFORCE_API_HTTPS_REDIRECTION_VALUE" ]]; then
+              ENFORCE_API_HTTPS_REDIRECTION_VALUE="false"
+            fi
+          fi
+
+          if [[ -z "$ENFORCE_API_HTTPS_REDIRECTION_VALUE" ]]; then
+            ENFORCE_API_HTTPS_REDIRECTION_VALUE="true"
           fi
 
           cat > Backend/.env.vps <<EOF
           APP_ENVIRONMENT=$APP_ENVIRONMENT_VALUE
-          VPS_PUBLIC_HOST=${{ secrets.VPS_PUBLIC_HOST }}
+          DEPLOY_PROFILE=${{ env.DEPLOY_PROFILE }}
+          BIND_HOST=${{ env.BIND_HOST }}
+          CONTAINER_PREFIX=${{ env.CONTAINER_PREFIX }}
+          VOLUME_PREFIX=${{ env.VOLUME_PREFIX }}
+          INTERNAL_API_URL=http://${{ env.CONTAINER_PREFIX }}-api:8080
+          VPS_PUBLIC_HOST=$VPS_PUBLIC_HOST_VALUE
+          PUBLIC_API_URL=$PUBLIC_API_URL_VALUE
+          PUBLIC_ADMIN_URL=$PUBLIC_ADMIN_URL_VALUE
+          PUBLIC_CLIENT_URL=$PUBLIC_CLIENT_URL_VALUE
+          PUBLIC_PROVIDER_URL=$PUBLIC_PROVIDER_URL_VALUE
+          PUBLIC_LANDING_URL=$PUBLIC_LANDING_URL_VALUE
+          ENFORCE_API_HTTPS_REDIRECTION=$ENFORCE_API_HTTPS_REDIRECTION_VALUE
           API_PORT=${{ env.API_PORT }}
+          LANDING_PORT=${{ env.LANDING_PORT }}
           ADMIN_PORT=${{ env.ADMIN_PORT }}
           CLIENT_PORT=${{ env.CLIENT_PORT }}
           PROVIDER_PORT=${{ env.PROVIDER_PORT }}
           MOBILE_CLIENT_WEBVIEW_PORT=${{ env.MOBILE_CLIENT_WEBVIEW_PORT }}
           MOBILE_PROVIDER_WEBVIEW_PORT=${{ env.MOBILE_PROVIDER_WEBVIEW_PORT }}
           MOBILE_ADMIN_WEBVIEW_PORT=${{ env.MOBILE_ADMIN_WEBVIEW_PORT }}
-          DB_NAME=ConsertaPraMimDb
+          DB_NAME=${{ env.DB_NAME }}
           DB_USER=sa
           DB_PASSWORD=${{ secrets.VPS_DB_PASSWORD }}
           DB_HOST=${{ secrets.VPS_DB_HOST }}
@@ -1031,6 +1457,7 @@ jobs:
     needs: [targets, deploy-mobile-webview-admin]
     if: always() && needs.targets.outputs.deploy_mobile_webview_admin == 'true' && needs.deploy-mobile-webview-admin.result == 'success'
     runs-on: [self-hosted, Linux, X64]
+    environment: ${{ github.ref_name == 'dev-local' && 'development' || 'production' }}
     timeout-minutes: 8
     outputs:
       endpoint: ${{ steps.health.outputs.endpoint }}
@@ -1040,15 +1467,7 @@ jobs:
         id: health
         shell: bash
         run: |
-          host="${{ secrets.VPS_PUBLIC_HOST }}"
-          host="${host%/}"
-          if [[ "$host" =~ ^https?:// ]]; then
-            base="$host"
-          else
-            base="http://$host"
-          fi
-
-          endpoint="$base:${{ env.MOBILE_ADMIN_WEBVIEW_PORT }}/"
+          endpoint="http://127.0.0.1:${{ env.MOBILE_ADMIN_WEBVIEW_PORT }}/"
           echo "endpoint=$endpoint" >> "$GITHUB_OUTPUT"
 
           attempts=12
@@ -1079,6 +1498,8 @@ jobs:
       - targets
       - deploy-api
       - health-api
+      - deploy-web-landing
+      - health-web-landing
       - deploy-web-admin
       - health-web-admin
       - deploy-web-client
@@ -1172,7 +1593,7 @@ jobs:
       needs.build-apk-mobile-client.result == 'success' &&
       !contains(needs.*.result, 'failure') &&
       !contains(needs.*.result, 'cancelled')
-    runs-on: windows-latest
+    runs-on: [self-hosted, Linux, X64]
     timeout-minutes: 20
     steps:
       - name: Download build artifact (client)
@@ -1181,161 +1602,102 @@ jobs:
           name: apk-client-package-${{ github.run_number }}
           path: apk-upload/client
 
-      - name: Write SSH key for SFTP publish
-        shell: pwsh
-        run: |
-          $keyPath = Join-Path $env:RUNNER_TEMP "vps_ssh_key"
-          $keyRaw = @"
-          ${{ secrets.VPS_SSH_KEY }}
-          "@
-          $keyRaw = [string]::new($keyRaw).Trim()
-          if ($keyRaw -notmatch "`n" -and $keyRaw -match '\\n') {
-            $keyRaw = $keyRaw -replace '\\n', "`n"
-          }
-          $keyRaw = $keyRaw -replace "`r`n", "`n"
-          if (-not $keyRaw.StartsWith("-----BEGIN ")) {
-            throw "Secret VPS_SSH_KEY com formato inesperado (cabecalho BEGIN nao encontrado)."
-          }
-          [System.IO.File]::WriteAllText($keyPath, ($keyRaw + "`n"), [System.Text.UTF8Encoding]::new($false))
-          $sshKeyGen = Get-Command ssh-keygen -ErrorAction SilentlyContinue
-          if ($sshKeyGen) {
-            & $sshKeyGen.Source -lf $keyPath | Out-Null
-            if ($LASTEXITCODE -ne 0) {
-              throw "Falha ao validar VPS_SSH_KEY com ssh-keygen."
-            }
-          }
-          icacls $keyPath /inheritance:r | Out-Null
-          icacls $keyPath /grant:r "$($env:USERNAME):(F)" | Out-Null
-          icacls $keyPath /remove:g "BUILTIN\Users" "NT AUTHORITY\Authenticated Users" "Everyone" | Out-Null
-          "VPS_SSH_KEY_PATH=$keyPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-
       - name: Publish APK fileserver (client)
-        shell: pwsh
+        shell: bash
         run: |
-          $sshArgs = @(
-            "-i", $env:VPS_SSH_KEY_PATH,
-            "-o", "StrictHostKeyChecking=no",
-            "-o", "UserKnownHostsFile=/dev/null"
-          )
-          $hostRaw = "${{ secrets.VPS_PUBLIC_HOST }}".Trim()
-          if ($hostRaw -match '^https?://') {
-            $hostRaw = ([Uri]$hostRaw).Host
-          } else {
-            $hostRaw = $hostRaw.TrimEnd('/')
-            $hostRaw = $hostRaw.Split('/')[0]
+          set -euo pipefail
+          container_apk_dir="/srv/apks"
+          container_debug_dir="/srv/apks/debug"
+
+          docker exec filebrowser sh -lc "mkdir -p '$container_apk_dir' '$container_debug_dir'"
+
+          client_metadata_path="apk-upload/client/apk-publication-client.json"
+          cat > "$client_metadata_path" <<EOF
+          {
+            "appKind": "client",
+            "fileName": "ConsertaPraMim-Cliente-compat.apk",
+            "publishedAtUtc": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "releaseVersion": "${{ github.sha }}",
+            "runId": "${{ github.run_id }}"
           }
-          if ([string]::IsNullOrWhiteSpace($hostRaw)) {
-            throw "VPS_PUBLIC_HOST invalido para SSH."
-          }
-          $target = "${{ env.APK_SFTP_USER }}@$hostRaw"
-          $remoteDir = "${{ env.APK_SFTP_DIR }}".TrimEnd('/')
-          $remoteDebugDir = "$remoteDir/debug"
-          $mkdirCommand = "mkdir -p '$remoteDir' '$remoteDebugDir'"
-          $mkdirOk = $false
-          for ($attempt = 1; $attempt -le 3; $attempt++) {
-            $mkdirOutput = & ssh @sshArgs $target $mkdirCommand 2>&1
-            $mkdirExit = $LASTEXITCODE
-            if ($mkdirOutput) { $mkdirOutput | ForEach-Object { Write-Host $_ } }
-            if ($mkdirExit -eq 0) {
-              $mkdirOk = $true
-              break
-            }
-            Write-Host "::warning::Tentativa $attempt/3 falhou ao preparar diretorio remoto (client)."
-            Start-Sleep -Seconds (2 * $attempt)
-          }
-          if (-not $mkdirOk) {
-            throw "Falha ao preparar diretorio remoto para upload client (target=$target dir=$remoteDir)."
-          }
-          $clientMetadataPath = "apk-upload/client/apk-publication-client.json"
-          $clientMetadata = @{
-            appKind = "client"
-            fileName = "ConsertaPraMim-Cliente-compat.apk"
-            publishedAtUtc = (Get-Date).ToUniversalTime().ToString("o")
-            releaseVersion = "${{ github.sha }}"
-            runId = "${{ github.run_id }}"
-          } | ConvertTo-Json -Depth 5
-          Set-Content -Path $clientMetadataPath -Value $clientMetadata -Encoding UTF8
-          Get-ChildItem -Path "apk-upload/client" -File | ForEach-Object {
-            $destinationDir = if ($_.Name -like "*-debug.apk") { $remoteDebugDir } else { $remoteDir }
-            $destination = "${target}:${destinationDir}/"
-            $sent = $false
-            for ($attempt = 1; $attempt -le 3; $attempt++) {
-              $copyOutput = & scp @sshArgs $_.FullName $destination 2>&1
-              $copyExit = $LASTEXITCODE
-              if ($copyOutput) { $copyOutput | ForEach-Object { Write-Host $_ } }
-              if ($copyExit -eq 0) {
-                $sent = $true
-                break
-              }
-              Write-Host "::warning::Tentativa $attempt/3 falhou ao enviar arquivo client: $($_.Name)"
-              Start-Sleep -Seconds (2 * $attempt)
-            }
-            if (-not $sent) { throw "Falha ao enviar arquivo client: $($_.Name)" }
-          }
-          $fixPermsCommand = "set -e; chown -R `"`$(docker exec filebrowser id -u user 2>/dev/null):`$(docker exec filebrowser id -g user 2>/dev/null)`" '$remoteDir'; find '$remoteDir' -type d -exec chmod 775 {} \;; find '$remoteDir' -type f -exec chmod 664 {} \;;"
-          $fixOk = $false
-          for ($attempt = 1; $attempt -le 3; $attempt++) {
-            $fixOutput = & ssh @sshArgs $target $fixPermsCommand 2>&1
-            $fixExit = $LASTEXITCODE
-            if ($fixOutput) { $fixOutput | ForEach-Object { Write-Host $_ } }
-            if ($fixExit -eq 0) {
-              $fixOk = $true
-              break
-            }
-            Write-Host "::warning::Tentativa $attempt/3 falhou ao ajustar permissoes remotas (client)."
-            Start-Sleep -Seconds (2 * $attempt)
-          }
-          if (-not $fixOk) {
-            throw "Falha ao ajustar ownership/permissoes de APKs no fileserver (client)."
-          }
+          EOF
+
+          while IFS= read -r -d '' file; do
+            base="$(basename "$file")"
+            if [[ "$base" == *-debug.apk ]]; then
+              docker cp "$file" "filebrowser:$container_debug_dir/$base"
+            else
+              docker cp "$file" "filebrowser:$container_apk_dir/$base"
+            fi
+          done < <(find "apk-upload/client" -maxdepth 1 -type f -print0)
+
+          docker exec filebrowser sh -lc 'set -e; uid="$(id -u user 2>/dev/null || echo 0)"; gid="$(id -g user 2>/dev/null || echo 0)"; chown -R "$uid:$gid" /srv/apks; find /srv/apks -type d -exec chmod 775 {} \;; find /srv/apks -type f -exec chmod 664 {} \;;'
 
       - name: Publish APK metadata (client)
-        shell: pwsh
+        shell: bash
         env:
           APK_RELEASE_PUSH_TOKEN: ${{ secrets.APK_RELEASE_PUSH_TOKEN }}
         run: |
-          if ([string]::IsNullOrWhiteSpace($env:APK_RELEASE_PUSH_TOKEN)) {
-            Write-Host "::warning::Secret APK_RELEASE_PUSH_TOKEN nao configurada. Metadados de APK nao publicados."
+          if [[ -z "${APK_RELEASE_PUSH_TOKEN:-}" ]]; then
+            echo "::notice::Secret APK_RELEASE_PUSH_TOKEN nao configurada. Metadados de APK nao publicados."
             exit 0
-          }
-          $vpsHostRaw = "${{ secrets.VPS_PUBLIC_HOST }}".Trim().TrimEnd("/")
-          $apiBase = if ($vpsHostRaw.StartsWith("http://") -or $vpsHostRaw.StartsWith("https://")) {
-            $vpsHostRaw
-          } else {
-            "http://$vpsHostRaw"
-          }
-          try {
-            $apiBuilder = [System.UriBuilder]$apiBase
-          } catch {
-            Write-Host "::warning::VPS_PUBLIC_HOST invalido para publicar metadado de APK (client)."
+          fi
+
+          api_base_raw="${{ secrets.PUBLIC_API_URL }}"
+          api_base_raw="${api_base_raw%/}"
+          if [[ -z "$api_base_raw" ]]; then
+            vps_host_raw="${{ secrets.VPS_PUBLIC_HOST }}"
+            vps_host_raw="${vps_host_raw%/}"
+            if [[ "$vps_host_raw" =~ ^https?:// ]]; then
+              api_base_raw="$vps_host_raw"
+            else
+              api_base_raw="http://$vps_host_raw"
+            fi
+          fi
+
+          if [[ "$api_base_raw" =~ ^https?:// ]]; then
+            api_scheme="${api_base_raw%%://*}"
+            api_rest="${api_base_raw#*://}"
+          else
+            api_scheme="http"
+            api_rest="$api_base_raw"
+          fi
+          api_rest="${api_rest%%/*}"
+          if [[ -z "$api_rest" ]]; then
+            echo "::notice::PUBLIC_API_URL/VPS_PUBLIC_HOST invalido para publicar metadado de APK (client)."
             exit 0
-          }
-          $apiBuilder.Port = [int]"${{ env.API_PORT }}"
-          $apiBuilder.Path = "/api/internal/deploy/apk-publication"
-          $apiBuilder.Query = ""
-          $apiBuilder.Fragment = ""
-          $metadataUrl = $apiBuilder.Uri.ToString()
+          fi
 
-          $payload = @{
-            appKind = "client"
-            fileName = "ConsertaPraMim-Cliente-compat.apk"
-            publishedAtUtc = (Get-Date).ToUniversalTime().ToString("o")
-            releaseVersion = "${{ github.sha }}"
-            runId = "${{ github.run_id }}"
-          } | ConvertTo-Json -Depth 5
+          if [[ "$api_rest" == *:* ]]; then
+            api_authority="$api_rest"
+          else
+            api_authority="$api_rest:${{ env.API_PORT }}"
+          fi
 
-          try {
-            $response = Invoke-RestMethod `
-              -Method Post `
-              -Uri $metadataUrl `
-              -Headers @{ "X-Deploy-Token" = $env:APK_RELEASE_PUSH_TOKEN } `
-              -ContentType "application/json" `
-              -Body $payload `
-              -TimeoutSec 30
-            Write-Host "Metadado de APK client publicado: $($response.publishedAtUtc)"
-          } catch {
-            Write-Host "::warning::Falha ao publicar metadado de APK client: $($_.Exception.Message)"
+          metadata_url="${api_scheme}://${api_authority}/api/internal/deploy/apk-publication"
+          payload="$(cat <<EOF
+          {
+            "appKind":"client",
+            "fileName":"ConsertaPraMim-Cliente-compat.apk",
+            "publishedAtUtc":"$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "releaseVersion":"${{ github.sha }}",
+            "runId":"${{ github.run_id }}"
           }
+          EOF
+          )"
+
+          response_file="$(mktemp)"
+          http_code="$(curl -sS -o "$response_file" -w "%{http_code}" \
+            -X POST "$metadata_url" \
+            -H "X-Deploy-Token: $APK_RELEASE_PUSH_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data "$payload" || true)"
+
+          if [[ "$http_code" =~ ^2[0-9][0-9]$ ]]; then
+            echo "Metadado de APK client publicado com sucesso (HTTP $http_code)."
+          else
+            echo "::notice::Falha ao publicar metadado de APK client (HTTP ${http_code:-000})."
+          fi
 
   build-apk-mobile-provider:
     name: Build APK Mobile Provider
@@ -1431,7 +1793,7 @@ jobs:
       needs.build-apk-mobile-provider.result == 'success' &&
       !contains(needs.*.result, 'failure') &&
       !contains(needs.*.result, 'cancelled')
-    runs-on: windows-latest
+    runs-on: [self-hosted, Linux, X64]
     timeout-minutes: 20
     steps:
       - name: Download build artifact (provider)
@@ -1440,199 +1802,181 @@ jobs:
           name: apk-provider-package-${{ github.run_number }}
           path: apk-upload/provider
 
-      - name: Write SSH key for SFTP publish
-        shell: pwsh
-        run: |
-          $keyPath = Join-Path $env:RUNNER_TEMP "vps_ssh_key"
-          $keyRaw = @"
-          ${{ secrets.VPS_SSH_KEY }}
-          "@
-          $keyRaw = [string]::new($keyRaw).Trim()
-          if ($keyRaw -notmatch "`n" -and $keyRaw -match '\\n') {
-            $keyRaw = $keyRaw -replace '\\n', "`n"
-          }
-          $keyRaw = $keyRaw -replace "`r`n", "`n"
-          if (-not $keyRaw.StartsWith("-----BEGIN ")) {
-            throw "Secret VPS_SSH_KEY com formato inesperado (cabecalho BEGIN nao encontrado)."
-          }
-          [System.IO.File]::WriteAllText($keyPath, ($keyRaw + "`n"), [System.Text.UTF8Encoding]::new($false))
-          $sshKeyGen = Get-Command ssh-keygen -ErrorAction SilentlyContinue
-          if ($sshKeyGen) {
-            & $sshKeyGen.Source -lf $keyPath | Out-Null
-            if ($LASTEXITCODE -ne 0) {
-              throw "Falha ao validar VPS_SSH_KEY com ssh-keygen."
-            }
-          }
-          icacls $keyPath /inheritance:r | Out-Null
-          icacls $keyPath /grant:r "$($env:USERNAME):(F)" | Out-Null
-          icacls $keyPath /remove:g "BUILTIN\Users" "NT AUTHORITY\Authenticated Users" "Everyone" | Out-Null
-          "VPS_SSH_KEY_PATH=$keyPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-
       - name: Publish APK fileserver (provider)
-        shell: pwsh
+        shell: bash
         run: |
-          $sshArgs = @(
-            "-i", $env:VPS_SSH_KEY_PATH,
-            "-o", "StrictHostKeyChecking=no",
-            "-o", "UserKnownHostsFile=/dev/null"
-          )
-          $hostRaw = "${{ secrets.VPS_PUBLIC_HOST }}".Trim()
-          if ($hostRaw -match '^https?://') {
-            $hostRaw = ([Uri]$hostRaw).Host
-          } else {
-            $hostRaw = $hostRaw.TrimEnd('/')
-            $hostRaw = $hostRaw.Split('/')[0]
+          set -euo pipefail
+          container_apk_dir="/srv/apks"
+          container_debug_dir="/srv/apks/debug"
+
+          docker exec filebrowser sh -lc "mkdir -p '$container_apk_dir' '$container_debug_dir'"
+
+          provider_metadata_path="apk-upload/provider/apk-publication-provider.json"
+          cat > "$provider_metadata_path" <<EOF
+          {
+            "appKind": "provider",
+            "fileName": "ConsertaPraMim-Prestador-compat.apk",
+            "publishedAtUtc": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "releaseVersion": "${{ github.sha }}",
+            "runId": "${{ github.run_id }}"
           }
-          if ([string]::IsNullOrWhiteSpace($hostRaw)) {
-            throw "VPS_PUBLIC_HOST invalido para SSH."
-          }
-          $target = "${{ env.APK_SFTP_USER }}@$hostRaw"
-          $remoteDir = "${{ env.APK_SFTP_DIR }}".TrimEnd('/')
-          $remoteDebugDir = "$remoteDir/debug"
-          $mkdirCommand = "mkdir -p '$remoteDir' '$remoteDebugDir'"
-          $mkdirOk = $false
-          for ($attempt = 1; $attempt -le 3; $attempt++) {
-            $mkdirOutput = & ssh @sshArgs $target $mkdirCommand 2>&1
-            $mkdirExit = $LASTEXITCODE
-            if ($mkdirOutput) { $mkdirOutput | ForEach-Object { Write-Host $_ } }
-            if ($mkdirExit -eq 0) {
-              $mkdirOk = $true
-              break
-            }
-            Write-Host "::warning::Tentativa $attempt/3 falhou ao preparar diretorio remoto (provider)."
-            Start-Sleep -Seconds (2 * $attempt)
-          }
-          if (-not $mkdirOk) {
-            throw "Falha ao preparar diretorio remoto para upload provider (target=$target dir=$remoteDir)."
-          }
-          $providerMetadataPath = "apk-upload/provider/apk-publication-provider.json"
-          $providerMetadata = @{
-            appKind = "provider"
-            fileName = "ConsertaPraMim-Prestador-compat.apk"
-            publishedAtUtc = (Get-Date).ToUniversalTime().ToString("o")
-            releaseVersion = "${{ github.sha }}"
-            runId = "${{ github.run_id }}"
-          } | ConvertTo-Json -Depth 5
-          Set-Content -Path $providerMetadataPath -Value $providerMetadata -Encoding UTF8
-          Get-ChildItem -Path "apk-upload/provider" -File | ForEach-Object {
-            $destinationDir = if ($_.Name -like "*-debug.apk") { $remoteDebugDir } else { $remoteDir }
-            $destination = "${target}:${destinationDir}/"
-            $sent = $false
-            for ($attempt = 1; $attempt -le 3; $attempt++) {
-              $copyOutput = & scp @sshArgs $_.FullName $destination 2>&1
-              $copyExit = $LASTEXITCODE
-              if ($copyOutput) { $copyOutput | ForEach-Object { Write-Host $_ } }
-              if ($copyExit -eq 0) {
-                $sent = $true
-                break
-              }
-              Write-Host "::warning::Tentativa $attempt/3 falhou ao enviar arquivo provider: $($_.Name)"
-              Start-Sleep -Seconds (2 * $attempt)
-            }
-            if (-not $sent) { throw "Falha ao enviar arquivo provider: $($_.Name)" }
-          }
-          $fixPermsCommand = "set -e; chown -R `"`$(docker exec filebrowser id -u user 2>/dev/null):`$(docker exec filebrowser id -g user 2>/dev/null)`" '$remoteDir'; find '$remoteDir' -type d -exec chmod 775 {} \;; find '$remoteDir' -type f -exec chmod 664 {} \;;"
-          $fixOk = $false
-          for ($attempt = 1; $attempt -le 3; $attempt++) {
-            $fixOutput = & ssh @sshArgs $target $fixPermsCommand 2>&1
-            $fixExit = $LASTEXITCODE
-            if ($fixOutput) { $fixOutput | ForEach-Object { Write-Host $_ } }
-            if ($fixExit -eq 0) {
-              $fixOk = $true
-              break
-            }
-            Write-Host "::warning::Tentativa $attempt/3 falhou ao ajustar permissoes remotas (provider)."
-            Start-Sleep -Seconds (2 * $attempt)
-          }
-          if (-not $fixOk) {
-            throw "Falha ao ajustar ownership/permissoes de APKs no fileserver (provider)."
-          }
+          EOF
+
+          while IFS= read -r -d '' file; do
+            base="$(basename "$file")"
+            if [[ "$base" == *-debug.apk ]]; then
+              docker cp "$file" "filebrowser:$container_debug_dir/$base"
+            else
+              docker cp "$file" "filebrowser:$container_apk_dir/$base"
+            fi
+          done < <(find "apk-upload/provider" -maxdepth 1 -type f -print0)
+
+          docker exec filebrowser sh -lc 'set -e; uid="$(id -u user 2>/dev/null || echo 0)"; gid="$(id -g user 2>/dev/null || echo 0)"; chown -R "$uid:$gid" /srv/apks; find /srv/apks -type d -exec chmod 775 {} \;; find /srv/apks -type f -exec chmod 664 {} \;;'
 
       - name: Publish APK metadata (provider)
-        shell: pwsh
+        shell: bash
         env:
           APK_RELEASE_PUSH_TOKEN: ${{ secrets.APK_RELEASE_PUSH_TOKEN }}
         run: |
-          if ([string]::IsNullOrWhiteSpace($env:APK_RELEASE_PUSH_TOKEN)) {
-            Write-Host "::warning::Secret APK_RELEASE_PUSH_TOKEN nao configurada. Metadados de APK nao publicados."
+          if [[ -z "${APK_RELEASE_PUSH_TOKEN:-}" ]]; then
+            echo "::notice::Secret APK_RELEASE_PUSH_TOKEN nao configurada. Metadados de APK nao publicados."
             exit 0
-          }
-          $vpsHostRaw = "${{ secrets.VPS_PUBLIC_HOST }}".Trim().TrimEnd("/")
-          $apiBase = if ($vpsHostRaw.StartsWith("http://") -or $vpsHostRaw.StartsWith("https://")) {
-            $vpsHostRaw
-          } else {
-            "http://$vpsHostRaw"
-          }
-          try {
-            $apiBuilder = [System.UriBuilder]$apiBase
-          } catch {
-            Write-Host "::warning::VPS_PUBLIC_HOST invalido para publicar metadado de APK (provider)."
+          fi
+
+          api_base_raw="${{ secrets.PUBLIC_API_URL }}"
+          api_base_raw="${api_base_raw%/}"
+          if [[ -z "$api_base_raw" ]]; then
+            vps_host_raw="${{ secrets.VPS_PUBLIC_HOST }}"
+            vps_host_raw="${vps_host_raw%/}"
+            if [[ "$vps_host_raw" =~ ^https?:// ]]; then
+              api_base_raw="$vps_host_raw"
+            else
+              api_base_raw="http://$vps_host_raw"
+            fi
+          fi
+
+          if [[ "$api_base_raw" =~ ^https?:// ]]; then
+            api_scheme="${api_base_raw%%://*}"
+            api_rest="${api_base_raw#*://}"
+          else
+            api_scheme="http"
+            api_rest="$api_base_raw"
+          fi
+          api_rest="${api_rest%%/*}"
+          if [[ -z "$api_rest" ]]; then
+            echo "::notice::PUBLIC_API_URL/VPS_PUBLIC_HOST invalido para publicar metadado de APK (provider)."
             exit 0
-          }
-          $apiBuilder.Port = [int]"${{ env.API_PORT }}"
-          $apiBuilder.Path = "/api/internal/deploy/apk-publication"
-          $apiBuilder.Query = ""
-          $apiBuilder.Fragment = ""
-          $metadataUrl = $apiBuilder.Uri.ToString()
+          fi
 
-          $payload = @{
-            appKind = "provider"
-            fileName = "ConsertaPraMim-Prestador-compat.apk"
-            publishedAtUtc = (Get-Date).ToUniversalTime().ToString("o")
-            releaseVersion = "${{ github.sha }}"
-            runId = "${{ github.run_id }}"
-          } | ConvertTo-Json -Depth 5
+          if [[ "$api_rest" == *:* ]]; then
+            api_authority="$api_rest"
+          else
+            api_authority="$api_rest:${{ env.API_PORT }}"
+          fi
 
-          try {
-            $response = Invoke-RestMethod `
-              -Method Post `
-              -Uri $metadataUrl `
-              -Headers @{ "X-Deploy-Token" = $env:APK_RELEASE_PUSH_TOKEN } `
-              -ContentType "application/json" `
-              -Body $payload `
-              -TimeoutSec 30
-            Write-Host "Metadado de APK provider publicado: $($response.publishedAtUtc)"
-          } catch {
-            Write-Host "::warning::Falha ao publicar metadado de APK provider: $($_.Exception.Message)"
+          metadata_url="${api_scheme}://${api_authority}/api/internal/deploy/apk-publication"
+          payload="$(cat <<EOF
+          {
+            "appKind":"provider",
+            "fileName":"ConsertaPraMim-Prestador-compat.apk",
+            "publishedAtUtc":"$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "releaseVersion":"${{ github.sha }}",
+            "runId":"${{ github.run_id }}"
           }
+          EOF
+          )"
+
+          response_file="$(mktemp)"
+          http_code="$(curl -sS -o "$response_file" -w "%{http_code}" \
+            -X POST "$metadata_url" \
+            -H "X-Deploy-Token: $APK_RELEASE_PUSH_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data "$payload" || true)"
+
+          if [[ "$http_code" =~ ^2[0-9][0-9]$ ]]; then
+            echo "Metadado de APK provider publicado com sucesso (HTTP $http_code)."
+          else
+            echo "::notice::Falha ao publicar metadado de APK provider (HTTP ${http_code:-000})."
+          fi
 
       - name: Notify APK release push (provider)
-        shell: pwsh
+        shell: bash
         env:
           APK_RELEASE_PUSH_TOKEN: ${{ secrets.APK_RELEASE_PUSH_TOKEN }}
         run: |
-          if ([string]::IsNullOrWhiteSpace($env:APK_RELEASE_PUSH_TOKEN)) {
-            Write-Host "::warning::Secret APK_RELEASE_PUSH_TOKEN nao configurada. Push de release ignorado."
+          if [[ -z "${APK_RELEASE_PUSH_TOKEN:-}" ]]; then
+            echo "::notice::Secret APK_RELEASE_PUSH_TOKEN nao configurada. Push de release ignorado."
             exit 0
+          fi
+
+          api_base_raw="${{ secrets.PUBLIC_API_URL }}"
+          api_base_raw="${api_base_raw%/}"
+          if [[ -z "$api_base_raw" ]]; then
+            vps_host_raw="${{ secrets.VPS_PUBLIC_HOST }}"
+            vps_host_raw="${vps_host_raw%/}"
+            if [[ "$vps_host_raw" =~ ^https?:// ]]; then
+              api_base_raw="$vps_host_raw"
+            else
+              api_base_raw="http://$vps_host_raw"
+            fi
+          fi
+
+          if [[ "$api_base_raw" =~ ^https?:// ]]; then
+            api_scheme="${api_base_raw%%://*}"
+            api_rest="${api_base_raw#*://}"
+          else
+            api_scheme="http"
+            api_rest="$api_base_raw"
+          fi
+          api_rest="${api_rest%%/*}"
+          if [[ -z "$api_rest" ]]; then
+            echo "::notice::PUBLIC_API_URL/VPS_PUBLIC_HOST invalido para push de release dos APKs."
+            exit 0
+          fi
+
+          if [[ "$api_rest" == *:* ]]; then
+            api_authority="$api_rest"
+            api_host="${api_rest%%:*}"
+          else
+            api_authority="$api_rest:${{ env.API_PORT }}"
+            api_host="$api_rest"
+          fi
+
+          notify_url="${api_scheme}://${api_authority}/api/internal/deploy/apk-release"
+
+          fileserver_host_raw="${{ secrets.VPS_PUBLIC_HOST }}"
+          fileserver_host_raw="${fileserver_host_raw#http://}"
+          fileserver_host_raw="${fileserver_host_raw#https://}"
+          fileserver_host_raw="${fileserver_host_raw%%/*}"
+          fileserver_host_raw="${fileserver_host_raw%%:*}"
+          if [[ -z "$fileserver_host_raw" ]]; then
+            fileserver_host_raw="$api_host"
+          fi
+          fileserver_url="http://${fileserver_host_raw}:8080/files/apks/"
+
+          payload="$(cat <<EOF
+          {
+            "title":"Nova versao do app disponivel",
+            "body":"Toque para abrir o fileserver e baixar o APK.",
+            "fileserverUrl":"$fileserver_url",
+            "targetAppKind":"provider",
+            "releaseVersion":"${{ github.sha }}"
           }
-          $vpsHostRaw = "${{ secrets.VPS_PUBLIC_HOST }}".Trim().TrimEnd("/")
-          $apiBase = if ($vpsHostRaw.StartsWith("http://") -or $vpsHostRaw.StartsWith("https://")) {
-            $vpsHostRaw
-          } else {
-            "http://$vpsHostRaw"
-          }
-          $notifyUrl = "$apiBase:${{ env.API_PORT }}/api/internal/deploy/apk-release"
-          $apiBaseUri = [System.Uri]$apiBase
-          $fileserverUrl = "http://$($apiBaseUri.Host):8080/files/apks/"
-          $payload = @{
-            title = "Nova versao do app disponivel"
-            body = "Toque para abrir o fileserver e baixar o APK."
-            fileserverUrl = $fileserverUrl
-            targetAppKind = "provider"
-            releaseVersion = "${{ github.sha }}"
-          } | ConvertTo-Json -Depth 5
-          try {
-            $response = Invoke-RestMethod `
-              -Method Post `
-              -Uri $notifyUrl `
-              -Headers @{ "X-Deploy-Token" = $env:APK_RELEASE_PUSH_TOKEN } `
-              -ContentType "application/json" `
-              -Body $payload `
-              -TimeoutSec 30
-            Write-Host "Push de release enviado para appKind=$($response.targetAppKind) devices=$($response.attemptedDevices)"
-          } catch {
-            Write-Host "::warning::Falha ao enviar push de release dos APKs: $($_.Exception.Message)"
-          }
+          EOF
+          )"
+
+          response_file="$(mktemp)"
+          http_code="$(curl -sS -o "$response_file" -w "%{http_code}" \
+            -X POST "$notify_url" \
+            -H "X-Deploy-Token: $APK_RELEASE_PUSH_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data "$payload" || true)"
+
+          if [[ "$http_code" =~ ^2[0-9][0-9]$ ]]; then
+            echo "Push de release enviado para provider (HTTP $http_code)."
+          else
+            echo "::notice::Falha ao enviar push de release dos APKs (HTTP ${http_code:-000})."
+          fi
 
   build-apk-mobile-admin:
     name: Build APK Mobile Admin
@@ -1728,7 +2072,7 @@ jobs:
       needs.build-apk-mobile-admin.result == 'success' &&
       !contains(needs.*.result, 'failure') &&
       !contains(needs.*.result, 'cancelled')
-    runs-on: windows-latest
+    runs-on: [self-hosted, Linux, X64]
     timeout-minutes: 20
     steps:
       - name: Download build artifact (admin)
@@ -1737,167 +2081,109 @@ jobs:
           name: apk-admin-package-${{ github.run_number }}
           path: apk-upload/admin
 
-      - name: Write SSH key for SFTP publish
-        shell: pwsh
-        run: |
-          $keyPath = Join-Path $env:RUNNER_TEMP "vps_ssh_key"
-          $keyRaw = @"
-          ${{ secrets.VPS_SSH_KEY }}
-          "@
-          $keyRaw = [string]::new($keyRaw).Trim()
-          if ($keyRaw -notmatch "`n" -and $keyRaw -match '\\n') {
-            $keyRaw = $keyRaw -replace '\\n', "`n"
-          }
-          $keyRaw = $keyRaw -replace "`r`n", "`n"
-          if (-not $keyRaw.StartsWith("-----BEGIN ")) {
-            throw "Secret VPS_SSH_KEY com formato inesperado (cabecalho BEGIN nao encontrado)."
-          }
-          [System.IO.File]::WriteAllText($keyPath, ($keyRaw + "`n"), [System.Text.UTF8Encoding]::new($false))
-          $sshKeyGen = Get-Command ssh-keygen -ErrorAction SilentlyContinue
-          if ($sshKeyGen) {
-            & $sshKeyGen.Source -lf $keyPath | Out-Null
-            if ($LASTEXITCODE -ne 0) {
-              throw "Falha ao validar VPS_SSH_KEY com ssh-keygen."
-            }
-          }
-          icacls $keyPath /inheritance:r | Out-Null
-          icacls $keyPath /grant:r "$($env:USERNAME):(F)" | Out-Null
-          icacls $keyPath /remove:g "BUILTIN\Users" "NT AUTHORITY\Authenticated Users" "Everyone" | Out-Null
-          "VPS_SSH_KEY_PATH=$keyPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-
       - name: Publish APK fileserver (admin)
-        shell: pwsh
+        shell: bash
         run: |
-          $sshArgs = @(
-            "-i", $env:VPS_SSH_KEY_PATH,
-            "-o", "StrictHostKeyChecking=no",
-            "-o", "UserKnownHostsFile=/dev/null"
-          )
-          $hostRaw = "${{ secrets.VPS_PUBLIC_HOST }}".Trim()
-          if ($hostRaw -match '^https?://') {
-            $hostRaw = ([Uri]$hostRaw).Host
-          } else {
-            $hostRaw = $hostRaw.TrimEnd('/')
-            $hostRaw = $hostRaw.Split('/')[0]
+          set -euo pipefail
+          container_apk_dir="/srv/apks"
+          container_debug_dir="/srv/apks/debug"
+
+          docker exec filebrowser sh -lc "mkdir -p '$container_apk_dir' '$container_debug_dir'"
+
+          admin_metadata_path="apk-upload/admin/apk-publication-admin.json"
+          cat > "$admin_metadata_path" <<EOF
+          {
+            "appKind": "admin",
+            "fileName": "ConsertaPraMim-Admin-compat.apk",
+            "publishedAtUtc": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "releaseVersion": "${{ github.sha }}",
+            "runId": "${{ github.run_id }}"
           }
-          if ([string]::IsNullOrWhiteSpace($hostRaw)) {
-            throw "VPS_PUBLIC_HOST invalido para SSH."
-          }
-          $target = "${{ env.APK_SFTP_USER }}@$hostRaw"
-          $remoteDir = "${{ env.APK_SFTP_DIR }}".TrimEnd('/')
-          $remoteDebugDir = "$remoteDir/debug"
-          $mkdirCommand = "mkdir -p '$remoteDir' '$remoteDebugDir'"
-          $mkdirOk = $false
-          for ($attempt = 1; $attempt -le 3; $attempt++) {
-            $mkdirOutput = & ssh @sshArgs $target $mkdirCommand 2>&1
-            $mkdirExit = $LASTEXITCODE
-            if ($mkdirOutput) { $mkdirOutput | ForEach-Object { Write-Host $_ } }
-            if ($mkdirExit -eq 0) {
-              $mkdirOk = $true
-              break
-            }
-            Write-Host "::warning::Tentativa $attempt/3 falhou ao preparar diretorio remoto (admin)."
-            Start-Sleep -Seconds (2 * $attempt)
-          }
-          if (-not $mkdirOk) {
-            throw "Falha ao preparar diretorio remoto para upload admin (target=$target dir=$remoteDir)."
-          }
-          $adminMetadataPath = "apk-upload/admin/apk-publication-admin.json"
-          $adminMetadata = @{
-            appKind = "admin"
-            fileName = "ConsertaPraMim-Admin-compat.apk"
-            publishedAtUtc = (Get-Date).ToUniversalTime().ToString("o")
-            releaseVersion = "${{ github.sha }}"
-            runId = "${{ github.run_id }}"
-          } | ConvertTo-Json -Depth 5
-          Set-Content -Path $adminMetadataPath -Value $adminMetadata -Encoding UTF8
-          Get-ChildItem -Path "apk-upload/admin" -File | ForEach-Object {
-            $destinationDir = if ($_.Name -like "*-debug.apk") { $remoteDebugDir } else { $remoteDir }
-            $destination = "${target}:${destinationDir}/"
-            $sent = $false
-            for ($attempt = 1; $attempt -le 3; $attempt++) {
-              $copyOutput = & scp @sshArgs $_.FullName $destination 2>&1
-              $copyExit = $LASTEXITCODE
-              if ($copyOutput) { $copyOutput | ForEach-Object { Write-Host $_ } }
-              if ($copyExit -eq 0) {
-                $sent = $true
-                break
-              }
-              Write-Host "::warning::Tentativa $attempt/3 falhou ao enviar arquivo admin: $($_.Name)"
-              Start-Sleep -Seconds (2 * $attempt)
-            }
-            if (-not $sent) { throw "Falha ao enviar arquivo admin: $($_.Name)" }
-          }
-          $fixPermsCommand = "set -e; chown -R `"`$(docker exec filebrowser id -u user 2>/dev/null):`$(docker exec filebrowser id -g user 2>/dev/null)`" '$remoteDir'; find '$remoteDir' -type d -exec chmod 775 {} \;; find '$remoteDir' -type f -exec chmod 664 {} \;;"
-          $fixOk = $false
-          for ($attempt = 1; $attempt -le 3; $attempt++) {
-            $fixOutput = & ssh @sshArgs $target $fixPermsCommand 2>&1
-            $fixExit = $LASTEXITCODE
-            if ($fixOutput) { $fixOutput | ForEach-Object { Write-Host $_ } }
-            if ($fixExit -eq 0) {
-              $fixOk = $true
-              break
-            }
-            Write-Host "::warning::Tentativa $attempt/3 falhou ao ajustar permissoes remotas (admin)."
-            Start-Sleep -Seconds (2 * $attempt)
-          }
-          if (-not $fixOk) {
-            throw "Falha ao ajustar ownership/permissoes de APKs no fileserver (admin)."
-          }
+          EOF
+
+          while IFS= read -r -d '' file; do
+            base="$(basename "$file")"
+            if [[ "$base" == *-debug.apk ]]; then
+              docker cp "$file" "filebrowser:$container_debug_dir/$base"
+            else
+              docker cp "$file" "filebrowser:$container_apk_dir/$base"
+            fi
+          done < <(find "apk-upload/admin" -maxdepth 1 -type f -print0)
+
+          docker exec filebrowser sh -lc 'set -e; uid="$(id -u user 2>/dev/null || echo 0)"; gid="$(id -g user 2>/dev/null || echo 0)"; chown -R "$uid:$gid" /srv/apks; find /srv/apks -type d -exec chmod 775 {} \;; find /srv/apks -type f -exec chmod 664 {} \;;'
 
       - name: Publish APK metadata (admin)
-        shell: pwsh
+        shell: bash
         env:
           APK_RELEASE_PUSH_TOKEN: ${{ secrets.APK_RELEASE_PUSH_TOKEN }}
         run: |
-          if ([string]::IsNullOrWhiteSpace($env:APK_RELEASE_PUSH_TOKEN)) {
-            Write-Host "::warning::Secret APK_RELEASE_PUSH_TOKEN nao configurada. Metadados de APK nao publicados."
+          if [[ -z "${APK_RELEASE_PUSH_TOKEN:-}" ]]; then
+            echo "::notice::Secret APK_RELEASE_PUSH_TOKEN nao configurada. Metadados de APK nao publicados."
             exit 0
-          }
-          $vpsHostRaw = "${{ secrets.VPS_PUBLIC_HOST }}".Trim().TrimEnd("/")
-          $apiBase = if ($vpsHostRaw.StartsWith("http://") -or $vpsHostRaw.StartsWith("https://")) {
-            $vpsHostRaw
-          } else {
-            "http://$vpsHostRaw"
-          }
-          try {
-            $apiBuilder = [System.UriBuilder]$apiBase
-          } catch {
-            Write-Host "::warning::VPS_PUBLIC_HOST invalido para publicar metadado de APK (admin)."
+          fi
+
+          api_base_raw="${{ secrets.PUBLIC_API_URL }}"
+          api_base_raw="${api_base_raw%/}"
+          if [[ -z "$api_base_raw" ]]; then
+            vps_host_raw="${{ secrets.VPS_PUBLIC_HOST }}"
+            vps_host_raw="${vps_host_raw%/}"
+            if [[ "$vps_host_raw" =~ ^https?:// ]]; then
+              api_base_raw="$vps_host_raw"
+            else
+              api_base_raw="http://$vps_host_raw"
+            fi
+          fi
+
+          if [[ "$api_base_raw" =~ ^https?:// ]]; then
+            api_scheme="${api_base_raw%%://*}"
+            api_rest="${api_base_raw#*://}"
+          else
+            api_scheme="http"
+            api_rest="$api_base_raw"
+          fi
+          api_rest="${api_rest%%/*}"
+          if [[ -z "$api_rest" ]]; then
+            echo "::notice::PUBLIC_API_URL/VPS_PUBLIC_HOST invalido para publicar metadado de APK (admin)."
             exit 0
-          }
-          $apiBuilder.Port = [int]"${{ env.API_PORT }}"
-          $apiBuilder.Path = "/api/internal/deploy/apk-publication"
-          $apiBuilder.Query = ""
-          $apiBuilder.Fragment = ""
-          $metadataUrl = $apiBuilder.Uri.ToString()
+          fi
 
-          $payload = @{
-            appKind = "admin"
-            fileName = "ConsertaPraMim-Admin-compat.apk"
-            publishedAtUtc = (Get-Date).ToUniversalTime().ToString("o")
-            releaseVersion = "${{ github.sha }}"
-            runId = "${{ github.run_id }}"
-          } | ConvertTo-Json -Depth 5
+          if [[ "$api_rest" == *:* ]]; then
+            api_authority="$api_rest"
+          else
+            api_authority="$api_rest:${{ env.API_PORT }}"
+          fi
 
-          try {
-            $response = Invoke-RestMethod `
-              -Method Post `
-              -Uri $metadataUrl `
-              -Headers @{ "X-Deploy-Token" = $env:APK_RELEASE_PUSH_TOKEN } `
-              -ContentType "application/json" `
-              -Body $payload `
-              -TimeoutSec 30
-            Write-Host "Metadado de APK admin publicado: $($response.publishedAtUtc)"
-          } catch {
-            Write-Host "::warning::Falha ao publicar metadado de APK admin: $($_.Exception.Message)"
+          metadata_url="${api_scheme}://${api_authority}/api/internal/deploy/apk-publication"
+          payload="$(cat <<EOF
+          {
+            "appKind":"admin",
+            "fileName":"ConsertaPraMim-Admin-compat.apk",
+            "publishedAtUtc":"$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "releaseVersion":"${{ github.sha }}",
+            "runId":"${{ github.run_id }}"
           }
+          EOF
+          )"
+
+          response_file="$(mktemp)"
+          http_code="$(curl -sS -o "$response_file" -w "%{http_code}" \
+            -X POST "$metadata_url" \
+            -H "X-Deploy-Token: $APK_RELEASE_PUSH_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data "$payload" || true)"
+
+          if [[ "$http_code" =~ ^2[0-9][0-9]$ ]]; then
+            echo "Metadado de APK admin publicado com sucesso (HTTP $http_code)."
+          else
+            echo "::notice::Falha ao publicar metadado de APK admin (HTTP ${http_code:-000})."
+          fi
 
   skip:
     name: Skip Deploy
     needs: targets
     if: needs.targets.outputs.any_work != 'true'
     runs-on: [self-hosted, Linux, X64]
+    environment: ${{ github.ref_name == 'dev-local' && 'development' || 'production' }}
     timeout-minutes: 5
     steps:
       - name: Skip deploy (no relevant changes)
@@ -1915,6 +2201,8 @@ jobs:
       - targets
       - deploy-api
       - health-api
+      - deploy-web-landing
+      - health-web-landing
       - deploy-web-admin
       - health-web-admin
       - deploy-web-client
@@ -1936,6 +2224,7 @@ jobs:
       - skip
     if: always()
     runs-on: [self-hosted, Linux, X64]
+    environment: ${{ github.ref_name == 'dev-local' && 'development' || 'production' }}
     timeout-minutes: 5
     steps:
       - name: Publish workflow summary
@@ -1953,6 +2242,8 @@ jobs:
 
           api_deploy_result="${{ needs.deploy-api.result }}"
           api_health_result="${{ needs.health-api.result }}"
+          landing_deploy_result="${{ needs.deploy-web-landing.result }}"
+          landing_health_result="${{ needs.health-web-landing.result }}"
           admin_deploy_result="${{ needs.deploy-web-admin.result }}"
           admin_health_result="${{ needs.health-web-admin.result }}"
           client_deploy_result="${{ needs.deploy-web-client.result }}"
@@ -1978,6 +2269,7 @@ jobs:
             echo "| Servico | Planejado | Deploy | Healthcheck | Endpoint | HTTP |"
             echo "|---|---|---|---|---|---|"
             echo "| API | ${{ needs.targets.outputs.deploy_api }} | $(result_icon "$api_deploy_result") $api_deploy_result | $(result_icon "$api_health_result") $api_health_result | ${{ needs.health-api.outputs.endpoint }} | ${{ needs.health-api.outputs.http_code }} |"
+            echo "| Web Landing | ${{ needs.targets.outputs.deploy_web_landing }} | $(result_icon "$landing_deploy_result") $landing_deploy_result | $(result_icon "$landing_health_result") $landing_health_result | ${{ needs.health-web-landing.outputs.endpoint }} | ${{ needs.health-web-landing.outputs.http_code }} |"
             echo "| Web Admin | ${{ needs.targets.outputs.deploy_web_admin }} | $(result_icon "$admin_deploy_result") $admin_deploy_result | $(result_icon "$admin_health_result") $admin_health_result | ${{ needs.health-web-admin.outputs.endpoint }} | ${{ needs.health-web-admin.outputs.http_code }} |"
             echo "| Web Client | ${{ needs.targets.outputs.deploy_web_client }} | $(result_icon "$client_deploy_result") $client_deploy_result | $(result_icon "$client_health_result") $client_health_result | ${{ needs.health-web-client.outputs.endpoint }} | ${{ needs.health-web-client.outputs.http_code }} |"
             echo "| Web Provider | ${{ needs.targets.outputs.deploy_web_provider }} | $(result_icon "$provider_deploy_result") $provider_deploy_result | $(result_icon "$provider_health_result") $provider_health_result | ${{ needs.health-web-provider.outputs.endpoint }} | ${{ needs.health-web-provider.outputs.http_code }} |"
@@ -2020,18 +2312,13 @@ jobs:
             exit 0
           fi
 
-          host_raw="${{ secrets.VPS_PUBLIC_HOST }}"
-          host_raw="${host_raw%/}"
-          if [[ "$host_raw" =~ ^https?:// ]]; then
-            api_base="$host_raw"
-          else
-            api_base="http://$host_raw"
-          fi
-          endpoint="${api_base}:${{ env.API_PORT }}/api/internal/deploy/admin-summary"
+          endpoint="http://127.0.0.1:${{ env.API_PORT }}/api/internal/deploy/admin-summary"
           run_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
           api_deploy_result="${{ needs.deploy-api.result }}"
           api_health_result="${{ needs.health-api.result }}"
+          landing_deploy_result="${{ needs.deploy-web-landing.result }}"
+          landing_health_result="${{ needs.health-web-landing.result }}"
           admin_deploy_result="${{ needs.deploy-web-admin.result }}"
           admin_health_result="${{ needs.health-web-admin.result }}"
           client_deploy_result="${{ needs.deploy-web-client.result }}"
@@ -2054,6 +2341,7 @@ jobs:
           overall_status="success"
           for result in \
             "$api_deploy_result" "$api_health_result" \
+            "$landing_deploy_result" "$landing_health_result" \
             "$admin_deploy_result" "$admin_health_result" \
             "$client_deploy_result" "$client_health_result" \
             "$provider_deploy_result" "$provider_health_result" \
@@ -2074,7 +2362,7 @@ jobs:
           done
 
           title="Deploy VPS finalizado (${overall_status})"
-          summary="Run #${{ github.run_number }} - status: ${overall_status}. API deploy/health: ${api_deploy_result}/${api_health_result}. Web Admin: ${admin_deploy_result}/${admin_health_result}. Web Client: ${client_deploy_result}/${client_health_result}. Web Provider: ${provider_deploy_result}/${provider_health_result}. Mobile WebView Client: ${mobile_webview_client_deploy_result}/${mobile_webview_client_health_result}. Mobile WebView Provider: ${mobile_webview_provider_deploy_result}/${mobile_webview_provider_health_result}. Mobile WebView Admin: ${mobile_webview_admin_deploy_result}/${mobile_webview_admin_health_result}. APK Client build/upload: ${apk_client_build_result}/${apk_client_upload_result}. APK Provider build/upload: ${apk_provider_build_result}/${apk_provider_upload_result}. APK Admin build/upload: ${apk_admin_build_result}/${apk_admin_upload_result}. Commit: ${{ github.sha }}."
+          summary="Run #${{ github.run_number }} - status: ${overall_status}. API deploy/health: ${api_deploy_result}/${api_health_result}. Web Landing: ${landing_deploy_result}/${landing_health_result}. Web Admin: ${admin_deploy_result}/${admin_health_result}. Web Client: ${client_deploy_result}/${client_health_result}. Web Provider: ${provider_deploy_result}/${provider_health_result}. Mobile WebView Client: ${mobile_webview_client_deploy_result}/${mobile_webview_client_health_result}. Mobile WebView Provider: ${mobile_webview_provider_deploy_result}/${mobile_webview_provider_health_result}. Mobile WebView Admin: ${mobile_webview_admin_deploy_result}/${mobile_webview_admin_health_result}. APK Client build/upload: ${apk_client_build_result}/${apk_client_upload_result}. APK Provider build/upload: ${apk_provider_build_result}/${apk_provider_upload_result}. APK Admin build/upload: ${apk_admin_build_result}/${apk_admin_upload_result}. Commit: ${{ github.sha }}."
 
           title_escaped="${title//\"/\\\"}"
           summary_escaped="${summary//\"/\\\"}"
@@ -2086,7 +2374,11 @@ jobs:
             -X POST "$endpoint" \
             -H "X-Deploy-Token: $APK_RELEASE_PUSH_TOKEN" \
             -H "Content-Type: application/json" \
-            --data "$payload")"
+            --data "$payload" || true)"
+
+          if [[ -z "$http_code" ]]; then
+            http_code="000"
+          fi
 
           if [[ "$http_code" =~ ^2[0-9][0-9]$ ]]; then
             echo "Push de resumo de deploy enviado com sucesso (HTTP ${http_code})."
@@ -2095,6 +2387,10 @@ jobs:
           elif [[ "$http_code" == "404" ]]; then
             echo "::notice::Push de resumo ignorado: endpoint /api/internal/deploy/admin-summary nao encontrado na API em execucao."
           else
-            echo "::warning::Falha ao enviar push de resumo do deploy (HTTP ${http_code})."
+            echo "::notice::Falha ao enviar push de resumo do deploy (HTTP ${http_code})."
             cat "$response_file"
           fi
+
+
+
+

@@ -1,0 +1,310 @@
+@using ConsertaPraMim.Web.Landing.Models
+@model LandingPageViewModel
+@{
+    Layout = "_Layout";
+    var clientTestimonials = new[]
+    {
+        new { Name = "Mariana S.", Locality = "Santos/SP", Quote = "Abri meu interesse em poucos minutos e já recebi contato com tudo organizado. Não precisei explicar o problema do zero a cada pessoa." },
+        new { Name = "Carlos R.", Locality = "Praia Grande/SP", Quote = "Usei a plataforma para um reparo urgente de elétrica e a triagem foi objetiva. A sensação foi de processo profissional, não de improviso." },
+        new { Name = "Juliana M.", Locality = "São Vicente/SP", Quote = "Gostei porque consegui informar bairro, cidade e contexto do serviço sem enrolação. O retorno veio com muito mais assertividade." },
+        new { Name = "Fernanda L.", Locality = "Guarujá/SP", Quote = "Para reforma pequena costuma ser difícil encontrar alguém confiável. Aqui o fluxo foi claro e eu senti mais segurança para seguir." },
+        new { Name = "Rafael P.", Locality = "Santo André/SP", Quote = "A jornada do cliente é simples e direta. Preenchi o formulário, expliquei o problema e a equipe já entendeu o que eu realmente precisava." },
+    };
+    var providerTestimonials = new[]
+    {
+        new { Name = "Anderson V.", Locality = "Eletricista • São Paulo/SP", Quote = "Como prestador, o que mais me chamou atenção foi receber contatos com contexto. Isso evita conversa perdida e melhora a taxa de fechamento." },
+        new { Name = "Márcia N.", Locality = "Refrigeração • Santos/SP", Quote = "A plataforma ajuda a separar demanda real de curiosidade. Para onboarding comercial, isso faz muita diferença no dia a dia." },
+        new { Name = "Diego H.", Locality = "Hidráulica • Praia Grande/SP", Quote = "Quando o lead chega com bairro, cidade e descrição melhor preenchida, eu consigo avaliar deslocamento e agenda com muito mais precisão." },
+        new { Name = "Tatiane B.", Locality = "Pintura • Santo André/SP", Quote = "Gostei da proposta porque a operação não joga volume sem critério. Existe uma preocupação em organizar a entrada antes do contato." },
+        new { Name = "Felipe K.", Locality = "Marcenaria • São Bernardo/SP", Quote = "Para quem quer crescer com mais previsibilidade, a plataforma já começa certa na captação. O processo parece pensado para escala." },
+    };
+}
+
+<main id="top" class="landing-main">
+    <section class="hero-section">
+        <div class="container hero-shell">
+            <div class="hero-copy" data-reveal>
+                <span class="hero-kicker">Plataforma de reparos e atendimento qualificado</span>
+                <h1>Bem-vindo ao ConsertaPraMim</h1>
+                <p class="hero-lead">
+                    A solução inteligente para reparos domésticos e profissionais qualificados.
+                </p>
+            </div>
+
+            <div class="portal-grid" id="acessos">
+                <article class="portal-card" data-reveal>
+                    <div class="portal-media portal-media-client">
+                        <span class="portal-media-badge portal-media-badge-left" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                                <path d="M8 7V6a4 4 0 0 1 8 0v1h2.5A1.5 1.5 0 0 1 20 8.5v8A1.5 1.5 0 0 1 18.5 18h-13A1.5 1.5 0 0 1 4 16.5v-8A1.5 1.5 0 0 1 5.5 7H8Zm2 0h4V6a2 2 0 1 0-4 0v1Zm-4 4h12v5H6v-5Z" />
+                            </svg>
+                        </span>
+                        <img src="~/images/landing-client-card.png" alt="Cliente avaliando um projeto de reforma no notebook enquanto acompanha o atendimento." />
+                    </div>
+                    <div class="portal-body">
+                        <h2>Para Clientes</h2>
+                        <p>
+                            Precisa de um conserto rápido ou uma reforma planejada? Conte o que você precisa e
+                            nossa equipe usa essa captação para conectar sua demanda a profissionais da sua região.
+                        </p>
+                        <button class="btn btn-primary btn-block" type="button" data-lead-trigger="client">
+                            Encontrar profissional
+                            <span class="button-icon" aria-hidden="true">→</span>
+                        </button>
+                        <div class="portal-proof">
+                            <div class="avatar-stack" aria-hidden="true">
+                                <span class="avatar-chip">L</span>
+                                <span class="avatar-chip">M</span>
+                                <span class="avatar-chip">A</span>
+                            </div>
+                            <span>+500 pessoas contrataram hoje</span>
+                        </div>
+                    </div>
+                </article>
+
+                <article class="portal-card" data-reveal>
+                    <div class="portal-media portal-media-provider">
+                        <span class="portal-media-badge portal-media-badge-right" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" focusable="false" aria-hidden="true">
+                                <path d="M12 2.5 20 5.8v5.9c0 5.1-3.4 9.8-8 11.8-4.6-2-8-6.7-8-11.8V5.8L12 2.5Zm0 3.2L7 7.8v3.7c0 3.6 2.2 6.9 5 8.5 2.8-1.6 5-4.9 5-8.5V7.8l-5-2.1Zm-1 8.5 4.7-4.7 1.4 1.4L11 17.1l-3.2-3.2 1.4-1.4L11 14.2Z" />
+                            </svg>
+                        </span>
+                        <img src="~/images/landing-provider-card.png" alt="Equipe de profissionais parceiros pronta para atender novas demandas." />
+                    </div>
+                    <div class="portal-body">
+                        <div class="portal-heading-row">
+                            <h2>Para Profissionais</h2>
+                            <span class="partner-badge">Parceiro fundador</span>
+                        </div>
+                        <p>
+                            Deseja ampliar sua base de clientes e profissionalizar seu negócio? Deixe seus dados
+                            para avaliarmos sua atuação, localidade e especialidade antes da entrada no portal.
+                        </p>
+                        <button class="btn btn-dark btn-block" type="button" data-lead-trigger="provider">
+                            Cadastrar-se como parceiro
+                            <span class="button-icon" aria-hidden="true">→</span>
+                        </button>
+                        <ul class="benefit-list" role="list">
+                            <li>Novos clientes diários</li>
+                        </ul>
+                    </div>
+                </article>
+            </div>
+        </div>
+    </section>
+
+    <section class="info-section" id="sobre">
+        <div class="container">
+            <div class="section-heading" data-reveal>
+                <span class="section-kicker">Sobre a plataforma</span>
+                <h2>Uma operação digital clara para cliente, parceiro e equipe interna.</h2>
+                <p>
+                    O ConsertaPraMim organiza o contato inicial, a agenda, a comunicação e o acompanhamento
+                    pós-serviço sem depender de fluxo improvisado.
+                </p>
+            </div>
+
+            <div class="info-grid">
+                <article class="info-card" data-reveal>
+                    <h3>Cliente com jornada simples</h3>
+                    <p>Abra o interesse, compartilhe sua localidade e deixe a equipe tratar a entrada comercial com mais contexto.</p>
+                </article>
+                <article class="info-card" data-reveal>
+                    <h3>Prestador com operação previsível</h3>
+                    <p>Receba contato com sua área de atuação já mapeada para acelerar qualificação e onboarding comercial.</p>
+                </article>
+            </div>
+        </div>
+    </section>
+
+    <section class="testimonials-section" aria-labelledby="testimonials-title">
+        <div class="container testimonials-shell">
+            <div class="section-heading testimonials-heading" data-reveal>
+                <span class="section-kicker">Testemunhos</span>
+                <h2 id="testimonials-title">Quem entra na plataforma percebe a diferença logo no primeiro contato.</h2>
+                <p>
+                    Clientes relatam mais clareza na jornada. Prestadores destacam previsibilidade comercial e leads com melhor contexto.
+                </p>
+            </div>
+
+            <div class="testimonials-grid">
+                <section class="testimonials-column testimonials-column-client" aria-labelledby="client-testimonials-title" data-reveal>
+                    <div class="testimonials-column-header">
+                        <span class="testimonials-badge">5 clientes</span>
+                        <h3 id="client-testimonials-title">Clientes falando da experiência</h3>
+                    </div>
+                    <div class="testimonials-list" role="list">
+                        @foreach (var testimonial in clientTestimonials)
+                        {
+                            <article class="testimonial-card" role="listitem" data-testimonial-origin="client">
+                                <div class="testimonial-rating" aria-label="Avaliação máxima">
+                                    <span>★★★★★</span>
+                                </div>
+                                <p class="testimonial-quote">“@testimonial.Quote”</p>
+                                <footer class="testimonial-meta">
+                                    <strong>@testimonial.Name</strong>
+                                    <span>@testimonial.Locality</span>
+                                </footer>
+                            </article>
+                        }
+                    </div>
+                </section>
+
+                <section class="testimonials-column testimonials-column-provider" aria-labelledby="provider-testimonials-title" data-reveal>
+                    <div class="testimonials-column-header">
+                        <span class="testimonials-badge testimonials-badge-dark">5 prestadores</span>
+                        <h3 id="provider-testimonials-title">Prestadores falando da operação</h3>
+                    </div>
+                    <div class="testimonials-list" role="list">
+                        @foreach (var testimonial in providerTestimonials)
+                        {
+                            <article class="testimonial-card testimonial-card-provider" role="listitem" data-testimonial-origin="provider">
+                                <div class="testimonial-rating" aria-label="Avaliação máxima">
+                                    <span>★★★★★</span>
+                                </div>
+                                <p class="testimonial-quote">“@testimonial.Quote”</p>
+                                <footer class="testimonial-meta">
+                                    <strong>@testimonial.Name</strong>
+                                    <span>@testimonial.Locality</span>
+                                </footer>
+                            </article>
+                        }
+                    </div>
+                </section>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<div class="modal fade lead-modal" id="leadCaptureModal" tabindex="-1" aria-labelledby="leadCaptureModalTitle" aria-hidden="true" data-lead-shell data-client-title="Conte-nos rapidamente um pouco sobre você e o que você precisa." data-provider-title="Conte rapidamente um pouco sobre você e como deseja atuar.">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header lead-modal-header">
+                <div class="section-heading lead-heading mb-0">
+                    <span class="section-kicker">Contato</span>
+                    <h2 id="leadCaptureModalTitle" data-lead-title>Conte-nos rapidamente um pouco sobre você e o que você precisa.</h2>
+                </div>
+                <button type="button" class="btn-close lead-modal-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+
+            <div class="modal-body lead-modal-body">
+                <div class="lead-panel-grid">
+                    <article class="lead-panel" data-lead-panel="client" hidden>
+                        <div class="lead-panel-copy">
+                            <h3>Encontrar profissional</h3>
+                            <p>Informe sua localidade e o tipo de reparo ou reforma. O time consegue medir a demanda e entrar em contato com mais contexto.</p>
+                        </div>
+                        <form class="lead-form" data-lead-form="client" novalidate>
+                            <div class="lead-form-grid">
+                                <label class="field">
+                                    <span>Nome completo</span>
+                                    <input type="text" name="fullName" maxlength="160" required />
+                                </label>
+                                <label class="field">
+                                    <span>WhatsApp</span>
+                                    <input type="tel" name="phone" maxlength="40" required />
+                                </label>
+                                <label class="field">
+                                    <span>E-mail</span>
+                                    <input type="email" name="email" maxlength="200" required />
+                                </label>
+                                <label class="field">
+                                    <span>Categoria ou serviço</span>
+                                    <input type="text" name="serviceCategory" maxlength="120" placeholder="Ex.: elétrica, hidráulica, ar-condicionado" />
+                                </label>
+                                <label class="field">
+                                    <span>Cidade</span>
+                                    <input type="text" name="city" maxlength="120" required />
+                                </label>
+                                <label class="field field-uf">
+                                    <span>UF</span>
+                                    <input type="text" name="state" maxlength="2" required />
+                                </label>
+                                <label class="field">
+                                    <span>Bairro</span>
+                                    <input type="text" name="neighborhood" maxlength="120" required />
+                                </label>
+                                <label class="field">
+                                    <span>Serviço desejado</span>
+                                    <input type="text" name="requestedService" maxlength="220" placeholder="Ex.: troca de chuveiro, vazamento, pintura" />
+                                </label>
+                                <label class="field field-full">
+                                    <span>Descreva rapidamente o que você precisa</span>
+                                    <textarea name="message" rows="4" maxlength="1600" placeholder="Contexto do problema, urgência, melhor horário para contato..."></textarea>
+                                </label>
+                            </div>
+                            <div class="lead-form-actions">
+                                <button class="btn btn-primary" type="submit">Enviar interesse</button>
+                                <p class="lead-disclaimer">Ao enviar, você permite que a equipe ConsertaPraMim entre em contato para qualificação do atendimento.</p>
+                            </div>
+                            <div class="lead-feedback" data-lead-feedback aria-live="polite"></div>
+                        </form>
+                    </article>
+
+                    <article class="lead-panel" data-lead-panel="provider" hidden>
+                        <div class="lead-panel-copy">
+                            <h3>Cadastrar-se como parceiro</h3>
+                            <p>Compartilhe sua especialidade, cidade base e área de atuação. Isso ajuda a operação a medir cobertura e priorizar o onboarding.</p>
+                        </div>
+                        <form class="lead-form" data-lead-form="provider" novalidate>
+                            <div class="lead-form-grid">
+                                <label class="field">
+                                    <span>Nome do responsável</span>
+                                    <input type="text" name="fullName" maxlength="160" required />
+                                </label>
+                                <label class="field">
+                                    <span>WhatsApp</span>
+                                    <input type="tel" name="phone" maxlength="40" required />
+                                </label>
+                                <label class="field">
+                                    <span>E-mail</span>
+                                    <input type="email" name="email" maxlength="200" required />
+                                </label>
+                                <label class="field">
+                                    <span>Especialidade principal</span>
+                                    <input type="text" name="serviceCategory" maxlength="120" placeholder="Ex.: elétrica, refrigeração, pintura" required />
+                                </label>
+                                <label class="field">
+                                    <span>Cidade base</span>
+                                    <input type="text" name="city" maxlength="120" required />
+                                </label>
+                                <label class="field field-uf">
+                                    <span>UF</span>
+                                    <input type="text" name="state" maxlength="2" required />
+                                </label>
+                                <label class="field">
+                                    <span>Bairro / região principal</span>
+                                    <input type="text" name="neighborhood" maxlength="120" required />
+                                </label>
+                                <label class="field">
+                                    <span>Empresa ou nome fantasia</span>
+                                    <input type="text" name="companyName" maxlength="180" />
+                                </label>
+                                <label class="field">
+                                    <span>CPF ou CNPJ</span>
+                                    <input type="text" name="companyDocument" maxlength="32" />
+                                </label>
+                                <label class="field">
+                                    <span>Anos de experiência</span>
+                                    <input type="number" name="yearsOfExperience" min="0" max="60" />
+                                </label>
+                                <label class="field field-full">
+                                    <span>Observações</span>
+                                    <textarea name="message" rows="4" maxlength="1600" placeholder="Serviços atendidos, raio de atuação, equipe, diferenciais..."></textarea>
+                                </label>
+                            </div>
+                            <div class="lead-form-actions">
+                                <button class="btn btn-dark" type="submit">Enviar cadastro de interesse</button>
+                                <p class="lead-disclaimer">Ao enviar, você permite que a equipe ConsertaPraMim avalie seu perfil e entre em contato para parceria.</p>
+                            </div>
+                            <div class="lead-feedback" data-lead-feedback aria-live="polite"></div>
+                        </form>
+                    </article>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="lead-toast" data-lead-toast hidden aria-live="polite" aria-atomic="true"></div>

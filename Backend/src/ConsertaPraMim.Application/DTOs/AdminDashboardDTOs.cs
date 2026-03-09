@@ -105,7 +105,14 @@ public record AdminDashboardDto(
     decimal OperationalNpsScore = 0m,
     int OperationalNpsRespondents = 0,
     decimal OperationalQualityScore = 0m,
-    int ReviewedServicesInPeriod = 0);
+    int ReviewedServicesInPeriod = 0,
+    int LandingVisitsInPeriod = 0,
+    int LandingUniqueVisitorsInPeriod = 0,
+    int LandingRecurringVisitorsInPeriod = 0,
+    int LandingClientSignupsInPeriod = 0,
+    int LandingProviderSignupsInPeriod = 0,
+    int LandingConvertedVisitorsInPeriod = 0,
+    decimal LandingConversionRatePercent = 0m);
 
 public record AdminCoverageMapProviderDto(
     Guid ProviderId,

@@ -19,6 +19,7 @@ using System.Globalization;
 using Microsoft.AspNetCore.Localization;
 using System.Threading.RateLimiting;
 using ConsertaPraMim.API.Swagger;
+using Microsoft.AspNetCore.HttpOverrides;
 //teste de deploy automatico
 var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddSystemSettingsOverridesFromDatabase();
@@ -110,8 +111,17 @@ builder.Services.AddHostedService<ApiMonitoringAggregationWorker>();
 builder.Services.AddHostedService<AdminMailboxSyncWorker>();
 builder.Services.AddHostedService<AdminGrowthAiHourlyDigestWorker>();
 builder.Services.AddHostedService<MobilePushDevicesCleanupWorker>();
-builder.Services.AddHostedService<GoogleCalendarSyncRetryWorker>();
+builder.Services.AddHostedService<FireTvDashboardPulseWorker>();
 builder.Services.AddSingleton<IAdminMonitoringRealtimeNotifier, AdminMonitoringRealtimeNotifier>();
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders =
+        ForwardedHeaders.XForwardedFor |
+        ForwardedHeaders.XForwardedProto |
+        ForwardedHeaders.XForwardedHost;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
 
 ICorsRuntimeSettings? corsRuntimeSettings = null;
 builder.Services.AddCors(options =>
@@ -223,7 +233,8 @@ builder.Services.AddAuthentication(x =>
             if (!string.IsNullOrWhiteSpace(accessToken) &&
                 (path.StartsWithSegments("/notificationHub") ||
                  path.StartsWithSegments("/chatHub") ||
-                 path.StartsWithSegments("/adminMonitoringHub")))
+                 path.StartsWithSegments("/adminMonitoringHub") ||
+                 path.StartsWithSegments("/fireTvDashboardHub")))
             {
                 context.Token = accessToken;
             }
@@ -259,6 +270,7 @@ builder.Services.AddRateLimiter(options =>
 });
 
 var app = builder.Build();
+app.UseForwardedHeaders();
 corsRuntimeSettings = app.Services.GetRequiredService<ICorsRuntimeSettings>();
 var swaggerEnabledInProduction = builder.Configuration.GetValue<bool>("Swagger:EnabledInProduction");
 var enforceHttpsRedirection = builder.Configuration.GetValue<bool>("Security:EnforceHttpsRedirection");
@@ -336,6 +348,7 @@ app.MapHealthChecks("/health");
 app.MapHub<NotificationHub>("/notificationHub");
 app.MapHub<ChatHub>("/chatHub");
 app.MapHub<AdminMonitoringHub>("/adminMonitoringHub");
+app.MapHub<FireTvDashboardHub>("/fireTvDashboardHub");
 
 app.Run();
 

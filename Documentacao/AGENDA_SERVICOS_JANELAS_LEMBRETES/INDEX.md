@@ -31,6 +31,7 @@
 
 - `EPICS/EPIC-002-cancelamento-pedido-cascata-multi-prestador.md` - objetivo, guardrails e entregaveis do cancelamento de pedido.
 - `STORIES/DONE/ST-009-cancelamento-pedido-cascata-48h.md` - story concluida do cancelamento E2E.
+- `../DIAGRAMAS/AGENDA_SERVICOS_JANELAS_LEMBRETES/ST-008-observabilidade-qa-runbook-agenda/sequencia-consulta-publica-slots-15-dias.mmd` - sequencia tecnica da consulta anonima de disponibilidade agregada dos prestadores.
 
 ## Artefatos de apoio
 

@@ -1,0 +1,15 @@
+﻿flowchart LR
+    A[Landing publica] --> B[API analytics/admin]
+    B --> C[GET /api/admin/fire-tv/landing-dashboard]
+    D[SystemSettings<br/>FireTvDashboard] --> C
+    E[Conta Admin] --> F[App ConsertaPraMim TV]
+    F -->|login| G[/api/auth/login/]
+    F -->|snapshot| C
+    C --> H[8 KPIs]
+    C --> I[Heatmap fase 1]
+    C --> J[Top origens/localidades]
+    C --> K[Sessoes recentes]
+    H --> L[Tela 10-foot UI no Fire TV]
+    I --> L
+    J --> L
+    K --> L

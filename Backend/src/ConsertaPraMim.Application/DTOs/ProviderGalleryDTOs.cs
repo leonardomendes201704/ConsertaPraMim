@@ -54,6 +54,27 @@ public record ProviderGalleryOverviewDto(
     IReadOnlyList<ProviderGalleryAlbumDto> Albums,
     IReadOnlyList<ProviderGalleryItemDto> Items);
 
+public record PublicProviderGalleryPhotoBase64Dto(
+    Guid ItemId,
+    string FileName,
+    string ContentType,
+    string Base64Content,
+    string? Caption,
+    DateTime CreatedAt);
+
+public record PublicProviderGalleryAlbumPhotosBase64Dto(
+    Guid AlbumId,
+    string AlbumName,
+    string? Category,
+    IReadOnlyList<PublicProviderGalleryPhotoBase64Dto> Photos);
+
+public record PublicProviderGalleryPhotosBase64ResponseDto(
+    Guid ProviderId,
+    IReadOnlyList<PublicProviderGalleryAlbumPhotosBase64Dto> Albums,
+    int TotalPhotos,
+    int UnavailablePhotosCount,
+    DateTime GeneratedAtUtc);
+
 public record ProviderGalleryEvidenceCleanupResultDto(
     int ScannedCount,
     int DeletedCount,

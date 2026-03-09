@@ -25,6 +25,8 @@ public class AdminDashboardService : IAdminDashboardService
     private readonly IAppointmentReminderDispatchRepository? _appointmentReminderDispatchRepository;
     private readonly IProviderCreditRepository? _providerCreditRepository;
     private readonly IAdminAuditLogRepository? _adminAuditLogRepository;
+    private readonly ILandingLeadRepository? _landingLeadRepository;
+    private readonly ILandingAccessEventRepository? _landingAccessEventRepository;
     private readonly IMemoryCache? _memoryCache;
 
     public AdminDashboardService(
@@ -38,6 +40,8 @@ public class AdminDashboardService : IAdminDashboardService
         IAppointmentReminderDispatchRepository? appointmentReminderDispatchRepository = null,
         IProviderCreditRepository? providerCreditRepository = null,
         IAdminAuditLogRepository? adminAuditLogRepository = null,
+        ILandingLeadRepository? landingLeadRepository = null,
+        ILandingAccessEventRepository? landingAccessEventRepository = null,
         IMemoryCache? memoryCache = null)
     {
         _userRepository = userRepository;
@@ -50,6 +54,8 @@ public class AdminDashboardService : IAdminDashboardService
         _appointmentReminderDispatchRepository = appointmentReminderDispatchRepository;
         _providerCreditRepository = providerCreditRepository;
         _adminAuditLogRepository = adminAuditLogRepository;
+        _landingLeadRepository = landingLeadRepository;
+        _landingAccessEventRepository = landingAccessEventRepository;
         _memoryCache = memoryCache;
     }
 
@@ -119,6 +125,12 @@ public class AdminDashboardService : IAdminDashboardService
                 action: "ServiceFinancialPolicyEventGenerated",
                 take: 5000))
                 .ToList();
+        var landingLeadsInPeriod = _landingLeadRepository == null
+            ? new List<LandingLead>()
+            : (await _landingLeadRepository.GetByPeriodAsync(fromUtc, toUtc)).ToList();
+        var landingAccessEventsInPeriod = _landingAccessEventRepository == null
+            ? new List<LandingAccessEvent>()
+            : (await _landingAccessEventRepository.GetByPeriodAsync(fromUtc, toUtc)).ToList();
 
         var filteredRequests = operationalStatusFilter.HasValue
             ? requests.Where(r => HasOperationalStatus(r, operationalStatusFilter.Value)).ToList()
@@ -281,6 +293,33 @@ public class AdminDashboardService : IAdminDashboardService
         var agendaOperationalKpis = BuildAgendaOperationalKpis(filteredRequests, fromUtc, toUtc);
         var reminderDispatchKpis = await BuildReminderDispatchKpisAsync(fromUtc, toUtc);
         var reviewRetentionKpis = BuildReviewRetentionKpis(requests, reviews, fromUtc, toUtc);
+        var landingVisitsInPeriod = landingAccessEventsInPeriod.Count;
+        var landingUniqueVisitorsInPeriod = landingAccessEventsInPeriod
+            .Select(accessEvent => NormalizeVisitorId(accessEvent.VisitorId))
+            .Where(visitorId => visitorId is not null)
+            .Select(visitorId => visitorId!)
+            .Distinct(StringComparer.Ordinal)
+            .Count();
+        var landingRecurringVisitorsInPeriod = landingAccessEventsInPeriod
+            .Select(accessEvent => NormalizeVisitorId(accessEvent.VisitorId))
+            .Where(visitorId => visitorId is not null)
+            .Select(visitorId => visitorId!)
+            .GroupBy(visitorId => visitorId, StringComparer.Ordinal)
+            .Count(group => group.Count() > 1);
+        var landingClientSignupsInPeriod = landingLeadsInPeriod.Count(lead => lead.Origin == LandingLeadOrigin.Client);
+        var landingProviderSignupsInPeriod = landingLeadsInPeriod.Count(lead => lead.Origin == LandingLeadOrigin.Provider);
+        var landingConvertedVisitorsInPeriod = landingLeadsInPeriod
+            .Select(lead => NormalizeVisitorId(lead.VisitorId))
+            .Where(visitorId => visitorId is not null)
+            .Select(visitorId => visitorId!)
+            .Distinct(StringComparer.Ordinal)
+            .Count();
+        var landingConversionRatePercent = landingVisitsInPeriod <= 0
+            ? 0m
+            : decimal.Round(
+                ((landingClientSignupsInPeriod + landingProviderSignupsInPeriod) * 100m) / landingVisitsInPeriod,
+                1,
+                MidpointRounding.AwayFromZero);
 
         var acceptedProposalsInPeriod = proposals
             .Where(p => p.Accepted && ResolveProposalAcceptedTimestamp(p).HasValue)
@@ -398,7 +437,14 @@ public class AdminDashboardService : IAdminDashboardService
             OperationalNpsScore: reviewRetentionKpis.OperationalNpsScore,
             OperationalNpsRespondents: reviewRetentionKpis.OperationalNpsRespondents,
             OperationalQualityScore: reviewRetentionKpis.OperationalQualityScore,
-            ReviewedServicesInPeriod: reviewRetentionKpis.ReviewedServicesInPeriod);
+            ReviewedServicesInPeriod: reviewRetentionKpis.ReviewedServicesInPeriod,
+            LandingVisitsInPeriod: landingVisitsInPeriod,
+            LandingUniqueVisitorsInPeriod: landingUniqueVisitorsInPeriod,
+            LandingRecurringVisitorsInPeriod: landingRecurringVisitorsInPeriod,
+            LandingClientSignupsInPeriod: landingClientSignupsInPeriod,
+            LandingProviderSignupsInPeriod: landingProviderSignupsInPeriod,
+            LandingConvertedVisitorsInPeriod: landingConvertedVisitorsInPeriod,
+            LandingConversionRatePercent: landingConversionRatePercent);
     }
 
     public async Task<AdminCoverageMapDto> GetCoverageMapAsync(string? city = null)
@@ -1458,6 +1504,42 @@ public class AdminDashboardService : IAdminDashboardService
                 "Ultimas 24 horas",
                 Array.Empty<AdminKpiDetailLineDto>(),
                 generatedAtUtc),
+            "landing-visits" => new AdminKpiCardDto(
+                "landing-visits",
+                "Visitas",
+                dashboard.LandingVisitsInPeriod.ToString("N0", culture),
+                "Landing pública no período",
+                new[]
+                {
+                    new AdminKpiDetailLineDto("Visitantes únicos", dashboard.LandingUniqueVisitorsInPeriod.ToString("N0", culture)),
+                    new AdminKpiDetailLineDto("Visitantes recorrentes", dashboard.LandingRecurringVisitorsInPeriod.ToString("N0", culture))
+                },
+                generatedAtUtc),
+            "landing-provider-signups" => new AdminKpiCardDto(
+                "landing-provider-signups",
+                "Cadastros Prestador",
+                dashboard.LandingProviderSignupsInPeriod.ToString("N0", culture),
+                "Leads da landing no periodo",
+                Array.Empty<AdminKpiDetailLineDto>(),
+                generatedAtUtc),
+            "landing-client-signups" => new AdminKpiCardDto(
+                "landing-client-signups",
+                "Cadastros Cliente",
+                dashboard.LandingClientSignupsInPeriod.ToString("N0", culture),
+                "Leads da landing no periodo",
+                Array.Empty<AdminKpiDetailLineDto>(),
+                generatedAtUtc),
+            "landing-conversion" => new AdminKpiCardDto(
+                "landing-conversion",
+                "Taxa de Conversão",
+                $"{dashboard.LandingConversionRatePercent.ToString("N1", culture)}%",
+                "Cadastros / visitas da landing",
+                new[]
+                {
+                    new AdminKpiDetailLineDto("Cadastros totais", (dashboard.LandingClientSignupsInPeriod + dashboard.LandingProviderSignupsInPeriod).ToString("N0", culture)),
+                    new AdminKpiDetailLineDto("Visitantes convertidos", dashboard.LandingConvertedVisitorsInPeriod.ToString("N0", culture))
+                },
+                generatedAtUtc),
             "credits-granted" => new AdminKpiCardDto(
                 "credits-granted",
                 "Creditos Concedidos",
@@ -1700,5 +1782,10 @@ public class AdminDashboardService : IAdminDashboardService
                 GeneratedAtUtc: generatedAtUtc),
             _ => throw new KeyNotFoundException($"Widget de dashboard '{widgetKey}' nao suportado.")
         };
+    }
+
+    private static string? NormalizeVisitorId(string? visitorId)
+    {
+        return string.IsNullOrWhiteSpace(visitorId) ? null : visitorId.Trim();
     }
 }

@@ -1,0 +1,348 @@
+@using System.Text.Json
+@using ConsertaPraMim.Domain.Enums
+@model ConsertaPraMim.Web.Admin.Models.AdminLandingLeadDetailsViewModel
+@{
+    ViewData["Title"] = "Detalhes do Lead";
+    var lead = Model.Lead;
+}
+
+@functions {
+    private static readonly TimeZoneInfo BusinessTimeZone = ResolveBusinessTimeZone();
+
+    private static string ResolveOriginLabel(LandingLeadOrigin origin)
+    {
+        return origin == LandingLeadOrigin.Provider ? "Prestador" : "Cliente";
+    }
+
+    private static string ResolveOriginBadgeClass(LandingLeadOrigin origin)
+    {
+        return origin == LandingLeadOrigin.Provider
+            ? "bg-warning-subtle text-warning-emphasis"
+            : "bg-primary-subtle text-primary-emphasis";
+    }
+
+    private static string FormatBusinessDate(DateTime value, string format = "dd/MM/yyyy HH:mm:ss")
+    {
+        var utcValue = value.Kind == DateTimeKind.Utc
+            ? value
+            : DateTime.SpecifyKind(value, DateTimeKind.Utc);
+
+        return TimeZoneInfo.ConvertTimeFromUtc(utcValue, BusinessTimeZone).ToString(format);
+    }
+
+    private static string FormatBusinessDate(DateTime? value, string format = "dd/MM/yyyy HH:mm:ss")
+    {
+        return value.HasValue ? FormatBusinessDate(value.Value, format) : "-";
+    }
+
+    private static string DisplayValue(string? value, string fallback = "Nao informado")
+    {
+        return string.IsNullOrWhiteSpace(value) ? fallback : value.Trim();
+    }
+
+    private static string DisplayValue(int? value, string suffix = "")
+    {
+        return value.HasValue ? $"{value.Value}{suffix}" : "Nao informado";
+    }
+
+    private static string PrettyJson(string? rawJson)
+    {
+        if (string.IsNullOrWhiteSpace(rawJson))
+        {
+            return "Nao informado";
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(rawJson);
+            return JsonSerializer.Serialize(document, new JsonSerializerOptions { WriteIndented = true });
+        }
+        catch
+        {
+            return rawJson.Trim();
+        }
+    }
+
+    private static TimeZoneInfo ResolveBusinessTimeZone()
+    {
+        foreach (var candidate in new[] { "America/Sao_Paulo", "E. South America Standard Time" })
+        {
+            try
+            {
+                return TimeZoneInfo.FindSystemTimeZoneById(candidate);
+            }
+            catch
+            {
+            }
+        }
+
+        return TimeZoneInfo.Utc;
+    }
+}
+
+<style>
+    .admin-card {
+        border: 0;
+        border-radius: 14px;
+        box-shadow: 0 10px 22px rgba(15, 23, 42, .08);
+    }
+
+    .label-muted {
+        font-size: .75rem;
+        text-transform: uppercase;
+        letter-spacing: .05em;
+        color: #64748b;
+    }
+
+    .metadata-block {
+        border-radius: 12px;
+        background: #0f172a;
+        color: #e2e8f0;
+        padding: 16px;
+        font-size: .85rem;
+        overflow-x: auto;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+</style>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+    <div>
+        <h1 class="h4 fw-bold mb-1">Detalhes do Lead</h1>
+        <p class="text-muted mb-0">Visao comercial e tecnica do lead captado pela landing.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-action="Index" class="btn btn-outline-secondary btn-sm">
+            <i class="fas fa-arrow-left"></i> Voltar
+        </a>
+    </div>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <div class="alert alert-danger">@Model.ErrorMessage</div>
+}
+else if (lead == null)
+{
+    <div class="alert alert-secondary">Lead nao encontrado.</div>
+}
+else
+{
+    <div class="row g-3 mb-3">
+        <div class="col-12 col-lg-8">
+            <div class="admin-card card h-100">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h2 class="h6 fw-semibold mb-0">@lead.FullName</h2>
+                    <span class="badge @ResolveOriginBadgeClass(lead.Origin)">@ResolveOriginLabel(lead.Origin)</span>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-12 col-md-6">
+                            <div class="label-muted mb-1">Telefone</div>
+                            <div>@lead.Phone</div>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <div class="label-muted mb-1">Email</div>
+                            <div>@lead.Email</div>
+                        </div>
+                        <div class="col-12">
+                            <div class="label-muted mb-1">Localidade</div>
+                            <div>@lead.Locality</div>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <div class="label-muted mb-1">Cidade</div>
+                            <div>@DisplayValue(lead.City)</div>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <div class="label-muted mb-1">UF</div>
+                            <div>@DisplayValue(lead.State)</div>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <div class="label-muted mb-1">Bairro</div>
+                            <div>@DisplayValue(lead.Neighborhood)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-4">
+            <div class="admin-card card h-100">
+                <div class="card-header bg-white">
+                    <h2 class="h6 fw-semibold mb-0">Captacao</h2>
+                </div>
+                <div class="card-body">
+                    <div class="label-muted mb-1">Captado em</div>
+                    <div class="mb-3">@FormatBusinessDate(lead.CreatedAtUtc)</div>
+                    <div class="label-muted mb-1">Ultima atualizacao</div>
+                    <div class="mb-3">@FormatBusinessDate(lead.UpdatedAtUtc)</div>
+                    <div class="label-muted mb-1">Campanha UTM</div>
+                    <div class="mb-3">@DisplayValue(lead.UtmCampaign)</div>
+                    <div class="label-muted mb-1">Origem do CTA</div>
+                    <div>@ResolveOriginLabel(lead.Origin)</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-3">
+        <div class="col-12 col-lg-6">
+            <div class="admin-card card h-100">
+                <div class="card-header bg-white">
+                    <h2 class="h6 fw-semibold mb-0">Contexto comercial</h2>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-12 col-md-6">
+                            <div class="label-muted mb-1">Categoria</div>
+                            <div>@DisplayValue(lead.ServiceCategory)</div>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <div class="label-muted mb-1">Interesse principal</div>
+                            <div>@DisplayValue(lead.RequestedService)</div>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <div class="label-muted mb-1">Empresa</div>
+                            <div>@DisplayValue(lead.CompanyName)</div>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <div class="label-muted mb-1">Documento</div>
+                            <div>@DisplayValue(lead.CompanyDocument)</div>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <div class="label-muted mb-1">Experiencia</div>
+                            <div>@DisplayValue(lead.YearsOfExperience, " ano(s)")</div>
+                        </div>
+                        <div class="col-12">
+                            <div class="label-muted mb-1">Mensagem</div>
+                            <div>@DisplayValue(lead.Message)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-6">
+            <div class="admin-card card h-100">
+                <div class="card-header bg-white">
+                    <h2 class="h6 fw-semibold mb-0">Origem e navegacao</h2>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <div class="label-muted mb-1">Pagina atual</div>
+                            <div class="text-break">@DisplayValue(lead.CurrentPageUrl)</div>
+                        </div>
+                        <div class="col-12">
+                            <div class="label-muted mb-1">Referrer</div>
+                            <div class="text-break">@DisplayValue(lead.ReferrerUrl)</div>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <div class="label-muted mb-1">Host</div>
+                            <div>@DisplayValue(lead.Host)</div>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <div class="label-muted mb-1">Scheme</div>
+                            <div>@DisplayValue(lead.Scheme)</div>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <div class="label-muted mb-1">Path</div>
+                            <div>@DisplayValue(lead.Path)</div>
+                        </div>
+                        <div class="col-12">
+                            <div class="label-muted mb-1">Query string</div>
+                            <div class="text-break">@DisplayValue(lead.QueryString)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="admin-card card mb-3">
+        <div class="card-header bg-white">
+            <h2 class="h6 fw-semibold mb-0">Rastreio de campanha</h2>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-12 col-md-4 col-xl-2">
+                    <div class="label-muted mb-1">utm_source</div>
+                    <div>@DisplayValue(lead.UtmSource)</div>
+                </div>
+                <div class="col-12 col-md-4 col-xl-2">
+                    <div class="label-muted mb-1">utm_medium</div>
+                    <div>@DisplayValue(lead.UtmMedium)</div>
+                </div>
+                <div class="col-12 col-md-4 col-xl-3">
+                    <div class="label-muted mb-1">utm_campaign</div>
+                    <div>@DisplayValue(lead.UtmCampaign)</div>
+                </div>
+                <div class="col-12 col-md-6 col-xl-2">
+                    <div class="label-muted mb-1">utm_term</div>
+                    <div>@DisplayValue(lead.UtmTerm)</div>
+                </div>
+                <div class="col-12 col-md-6 col-xl-3">
+                    <div class="label-muted mb-1">utm_content</div>
+                    <div>@DisplayValue(lead.UtmContent)</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-3">
+        <div class="col-12 col-lg-6">
+            <div class="admin-card card h-100">
+                <div class="card-header bg-white">
+                    <h2 class="h6 fw-semibold mb-0">Metadados tecnicos</h2>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-12 col-md-6">
+                            <div class="label-muted mb-1">IP</div>
+                            <div>@DisplayValue(lead.IpAddress)</div>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <div class="label-muted mb-1">X-Forwarded-For</div>
+                            <div class="text-break">@DisplayValue(lead.ForwardedFor)</div>
+                        </div>
+                        <div class="col-12">
+                            <div class="label-muted mb-1">User-Agent</div>
+                            <div class="text-break">@DisplayValue(lead.UserAgent)</div>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <div class="label-muted mb-1">Accept-Language</div>
+                            <div>@DisplayValue(lead.AcceptLanguage)</div>
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <div class="label-muted mb-1">Idioma do browser</div>
+                            <div>@DisplayValue(lead.BrowserLanguage)</div>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <div class="label-muted mb-1">Resolucao</div>
+                            <div>@DisplayValue(lead.ScreenResolution)</div>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <div class="label-muted mb-1">Plataforma</div>
+                            <div>@DisplayValue(lead.DevicePlatform)</div>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <div class="label-muted mb-1">Timezone</div>
+                            <div>@DisplayValue(lead.TimeZone)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-lg-6">
+            <div class="admin-card card h-100">
+                <div class="card-header bg-white">
+                    <h2 class="h6 fw-semibold mb-0">Payload bruto complementar</h2>
+                </div>
+                <div class="card-body">
+                    <pre class="metadata-block mb-0">@PrettyJson(lead.MetadataJson)</pre>
+                </div>
+            </div>
+        </div>
+    </div>
+}

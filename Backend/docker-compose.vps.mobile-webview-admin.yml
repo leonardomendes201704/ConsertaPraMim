@@ -2,12 +2,12 @@ name: backend-mobile-webview-admin
 
 services:
   mobile-webview-admin:
-    container_name: cpm-mobile-webview-admin
+    container_name: "${CONTAINER_PREFIX:-cpm}-mobile-webview-admin"
     build:
       context: ..
       dockerfile: Backend/docker/vps/Dockerfile.mobile.webview.admin
       args:
-        VITE_API_BASE_URL: "http://${VPS_PUBLIC_HOST}:${API_PORT:-5193}"
+        VITE_API_BASE_URL: "${PUBLIC_API_URL:-http://${VPS_PUBLIC_HOST}:${API_PORT:-5193}}"
     restart: unless-stopped
     ports:
       - "${MOBILE_ADMIN_WEBVIEW_PORT:-5183}:8080"

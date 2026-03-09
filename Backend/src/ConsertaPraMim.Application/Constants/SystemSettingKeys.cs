@@ -16,4 +16,6 @@ public static class SystemSettingKeys
     public const string ConfigAdminPortals = "config.section.adminPortals";
     public const string ConfigSwagger = "config.section.swagger";
     public const string ConfigMonitoring = "config.section.monitoring";
+    public const string ConfigLandingAnalytics = "config.section.landingAnalytics";
+    public const string ConfigFireTvDashboard = "config.section.fireTvDashboard";
 }

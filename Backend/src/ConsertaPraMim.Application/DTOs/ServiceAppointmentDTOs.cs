@@ -101,6 +101,16 @@ public record ServiceAppointmentSlotDto(
     DateTime WindowStartUtc,
     DateTime WindowEndUtc);
 
+public record PublicProviderAvailabilitySlotsDto(
+    Guid ProviderId,
+    string ProviderName,
+    IReadOnlyList<ServiceAppointmentSlotDto> Slots);
+
+public record PublicProvidersAvailabilityWindowDto(
+    DateTime FromUtc,
+    DateTime ToUtc,
+    IReadOnlyList<PublicProviderAvailabilitySlotsDto> Providers);
+
 public record ServiceAppointmentHistoryDto(
     Guid Id,
     string? PreviousStatus,

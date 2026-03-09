@@ -1,0 +1,18 @@
+﻿flowchart TD
+    A[GET landing / /Cliente /Prestador] --> B[HomeController gera visitorId e sessionId]
+    B --> C[LandingAccessEvents com GeoIP estimado]
+    B --> D[Landing JS carrega config publica]
+    D --> E[Heartbeat periodico]
+    D --> F[Scroll milestones]
+    D --> G[Clicks e heatmap por grade]
+    D --> H[Modal aberto / lead enviado]
+    E --> I[POST /api/landing-analytics/public/events]
+    F --> I
+    G --> I
+    H --> I
+    I --> J[LandingTelemetryEvents]
+    C --> K[Analytics admin correlaciona sessoes]
+    J --> K
+    L[LandingLeads] --> K
+    K --> M[Portal Admin /Analytics Landing overview]
+    K --> N[Portal Admin /Analytics Landing details/{sessionId}]

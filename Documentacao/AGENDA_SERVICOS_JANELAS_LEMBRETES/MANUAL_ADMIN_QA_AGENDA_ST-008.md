@@ -42,7 +42,9 @@ Consolidar como o time administrativo e QA deve operar, validar e auditar o modu
 ## Cobertura adicional - Cancelamento de pedido (ST-009)
 
 1. Abrir um pedido com 2 ou mais agendamentos ativos.
-2. Validar que a aba `Agendamento do Servico` exibe a acao `Cancelar pedido`.
+2. Validar exibicao condicional da acao:
+   - em pedido elegivel, a aba `Agendamento do Servico` deve exibir a secao `Cancelar pedido`;
+   - em pedido nao elegivel (ex.: `Concluido`, `Cancelado`, `Disputa`, `Garantia`), a secao de cancelamento nao deve ser renderizada.
 3. Conferir o quadro `Impacto nos agendamentos`:
    - cada agendamento deve mostrar status atual;
    - cada agendamento deve indicar se sera cancelado, mantido no historico ou se bloqueia a operacao.
@@ -58,6 +60,25 @@ Consolidar como o time administrativo e QA deve operar, validar e auditar o modu
 6. Validar fan-out:
    - conferir notificacoes para prestadores que tinham proposta ou agendamento no pedido;
    - confirmar que o cliente recebe feedback de conclusao no portal.
+
+## Cobertura adicional - Endpoint publico de disponibilidade (15 dias)
+
+1. Preparar base com ao menos 2 prestadores ativos:
+   - prestador A com regra de disponibilidade ativa;
+   - prestador B sem regra ativa (ou com agenda totalmente bloqueada).
+2. Chamar endpoint publico:
+   - `GET /api/service-appointments/public/providers/slots/next-15-days`
+   - sem header `Authorization`.
+3. Validar contrato de resposta:
+   - `fromUtc` e `toUtc` em UTC;
+   - diferenca entre `toUtc - fromUtc` igual a 15 dias;
+   - lista `providers` contendo todos os prestadores ativos.
+4. Validar regra de negocio por prestador:
+   - prestador A retorna slots dentro da janela;
+   - prestador B retorna `slots: []` quando nao houver disponibilidade.
+5. Validar consistencia operacional:
+   - slots nao podem conflitar com bloqueios (`availability blocks`);
+   - slots nao podem conflitar com agendamentos em status bloqueante.
 
 ## Procedimento de QA (resumo operacional)
 

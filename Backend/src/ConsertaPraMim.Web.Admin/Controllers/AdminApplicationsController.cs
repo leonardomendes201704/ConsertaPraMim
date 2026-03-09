@@ -105,7 +105,7 @@ public class AdminApplicationsController : Controller
             return configuredBuilder.Uri.ToString().TrimEnd('/');
         }
 
-        var apiBaseUrl = (_configuration["ApiBaseUrl"] ?? string.Empty).Trim();
+        var apiBaseUrl = (_configuration["BrowserApiBaseUrl"] ?? _configuration["ApiBaseUrl"] ?? string.Empty).Trim();
         if (Uri.TryCreate(apiBaseUrl, UriKind.Absolute, out var apiBaseUri))
         {
             var fileserverUriBuilder = new UriBuilder(apiBaseUri)
