@@ -113,8 +113,8 @@ const HealthTargetsPanel: React.FC<{ targets: FireTvHealthTargetStatus[] }> = ({
   </section>
 );
 
-const CategoryPanel: React.FC<{ categories: FireTvOperationalCategory[] }> = ({ categories }) => (
-  <section className="tv-panel tv-panel--glass">
+const CategoryPanel: React.FC<{ categories: FireTvOperationalCategory[]; panelHeight?: number | null }> = ({ categories, panelHeight }) => (
+  <section className="tv-panel tv-panel--glass tv-panel--equal-height" style={panelHeight ? { height: `${panelHeight}px` } : undefined}>
     <div className="tv-panel-header">
       <h2>Servicos por categoria</h2>
     </div>
@@ -142,7 +142,8 @@ const CategoryPanel: React.FC<{ categories: FireTvOperationalCategory[] }> = ({ 
 const MapPanel: React.FC<{
   providerPoints: FireTvOperationalMapPoint[];
   requestPoints: FireTvOperationalMapPoint[];
-}> = ({ providerPoints, requestPoints }) => {
+  panelHeight?: number | null;
+}> = ({ providerPoints, requestPoints, panelHeight }) => {
   const mapElementRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markerLayerRef = useRef<L.LayerGroup | null>(null);
@@ -240,7 +241,7 @@ const MapPanel: React.FC<{
   }, [providerPoints, requestPoints]);
 
   return (
-    <section className="tv-panel tv-panel--map">
+    <section className="tv-panel tv-panel--map tv-panel--equal-height" style={panelHeight ? { height: `${panelHeight}px` } : undefined}>
       <div className="tv-panel-header">
         <h2>Mapa de atendimentos</h2>
       </div>
@@ -259,29 +260,55 @@ const MapPanel: React.FC<{
   );
 };
 
-const RecentActivityPanel: React.FC<{ items: FireTvOperationalRecentActivity[] }> = ({ items }) => (
-  <section className="tv-panel tv-panel--glass">
-    <div className="tv-panel-header">
-      <h2>Mapa de atendimentos</h2>
-    </div>
-    {items.length === 0 ? (
-      <p className="tv-empty-state">Sem atividade recente.</p>
-    ) : (
-      <div className="tv-activity-list">
-        {items.map((item, index) => (
-          <article key={`${item.categoryIcon}-${item.title}-${index}`} className={`tv-activity-item is-${item.tone}`}>
-            <span className={`material-symbols-outlined tv-activity-category-icon is-${item.tone}`} aria-hidden="true">
-              {item.categoryIcon || 'build_circle'}
-            </span>
-            <div>
-              <h3>{item.title}</h3>
-            </div>
-          </article>
-        ))}
+const RecentActivityPanel: React.FC<{
+  items: FireTvOperationalRecentActivity[];
+  onHeightChange?: (height: number) => void;
+}> = ({ items, onHeightChange }) => {
+  const panelRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!panelRef.current || !onHeightChange) {
+      return;
+    }
+
+    const emitHeight = () => {
+      if (panelRef.current) {
+        onHeightChange(panelRef.current.offsetHeight);
+      }
+    };
+
+    emitHeight();
+
+    const observer = new ResizeObserver(() => emitHeight());
+    observer.observe(panelRef.current);
+
+    return () => observer.disconnect();
+  }, [items, onHeightChange]);
+
+  return (
+    <section ref={panelRef} className="tv-panel tv-panel--glass tv-panel--activity">
+      <div className="tv-panel-header">
+        <h2>Últimos serviços</h2>
       </div>
-    )}
-  </section>
-);
+      {items.length === 0 ? (
+        <p className="tv-empty-state">Sem atividade recente.</p>
+      ) : (
+        <div className="tv-activity-list">
+          {items.map((item, index) => (
+            <article key={`${item.categoryIcon}-${item.title}-${index}`} className={`tv-activity-item is-${item.tone}`}>
+              <span className={`material-symbols-outlined tv-activity-category-icon is-${item.tone}`} aria-hidden="true">
+                {item.categoryIcon || 'build_circle'}
+              </span>
+              <div>
+                <h3>{item.title}</h3>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+};
 
 const DailySeriesPanel: React.FC<{ items: FireTvOperationalDailySeriesItem[] }> = ({ items }) => {
   const maxValue = items.reduce((max, item) => Math.max(max, item.requests, item.attendances), 0);
@@ -380,7 +407,7 @@ const KpiCard: React.FC<{ item: FireTvDashboardKpi; compact?: boolean }> = ({ it
   return (
     <article className={`tv-kpi-card tv-kpi-card--${item.tone} tv-kpi-card--hero`}>
       <div className="tv-kpi-hero-layout">
-        <span className={`tv-kpi-hero-icon tv-kpi-hero-icon--${item.tone}`} aria-hidden="true">
+        <span className={`tv-kpi-hero-icon tv-kpi-hero-icon--${item.tone} tv-kpi-hero-icon-key--${heroMeta.iconKey}`} aria-hidden="true">
           {renderHeroIcon(heroMeta.iconKey)}
         </span>
         <strong>{item.value}</strong>
@@ -407,6 +434,7 @@ const OperationsDashboardScreen: React.FC<OperationsDashboardScreenProps> = ({
   const [errorMessage, setErrorMessage] = useState('');
   const [realtimeConnected, setRealtimeConnected] = useState(false);
   const [clock, setClock] = useState(() => new Date());
+  const [activityPanelHeight, setActivityPanelHeight] = useState<number | null>(null);
 
   const loadDashboard = useCallback(async (options?: { silent?: boolean }) => {
     if (!options?.silent) {
@@ -497,7 +525,10 @@ const OperationsDashboardScreen: React.FC<OperationsDashboardScreenProps> = ({
           <div className="tv-brand-block">
             <img className="tv-brand-logo" src="/logo-wordmark.png" alt="ConsertaPraMim" />
           </div>
-          <div className="tv-topbar-actions">
+          <div className="tv-topbar-actions tv-topbar-actions--operations">
+            {dashboard ? (
+              <HealthStrip dashboard={dashboard} realtimeConnected={realtimeConnected} currentTimeLabel={currentTimeLabel} />
+            ) : null}
             <button type="button" className="tv-secondary-button" onClick={onBack}>
               Voltar
             </button>
@@ -506,10 +537,6 @@ const OperationsDashboardScreen: React.FC<OperationsDashboardScreenProps> = ({
             </button>
           </div>
         </header>
-
-        {dashboard ? (
-          <HealthStrip dashboard={dashboard} realtimeConnected={realtimeConnected} currentTimeLabel={currentTimeLabel} />
-        ) : null}
 
         {isLoading ? <div className="tv-loading-panel">Carregando visao operacional...</div> : null}
         {errorMessage ? <div className="tv-error-panel">{errorMessage}</div> : null}
@@ -523,9 +550,9 @@ const OperationsDashboardScreen: React.FC<OperationsDashboardScreenProps> = ({
             </div>
 
             <div className="tv-operations-main-grid">
-              <CategoryPanel categories={dashboard.categories} />
-              <MapPanel providerPoints={dashboard.providerPoints} requestPoints={dashboard.requestPoints} />
-              <RecentActivityPanel items={dashboard.recentActivity} />
+              <CategoryPanel categories={dashboard.categories} panelHeight={activityPanelHeight} />
+              <MapPanel providerPoints={dashboard.providerPoints} requestPoints={dashboard.requestPoints} panelHeight={activityPanelHeight} />
+              <RecentActivityPanel items={dashboard.recentActivity} onHeightChange={setActivityPanelHeight} />
             </div>
 
             <div className="tv-operations-bottom-grid">

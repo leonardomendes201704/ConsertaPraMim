@@ -342,11 +342,12 @@ public sealed class AdminFireTvDashboardService : IAdminFireTvDashboardService
         var dailySeries = BuildDailySeries(requests, historyFromUtc, nowUtc, timeZone);
 
         var recentActivity = requests
-            .OrderByDescending(item => NormalizeUtc(item.UpdatedAt ?? item.CreatedAt))
+            .Where(item => IsOpenRequestStatus(item.Status))
+            .OrderByDescending(item => NormalizeUtc(item.CreatedAt))
             .Take(config.OperationsRecentActivitySize)
             .Select(item =>
             {
-                var localTime = TimeZoneInfo.ConvertTimeFromUtc(NormalizeUtc(item.UpdatedAt ?? item.CreatedAt), timeZone);
+                var localTime = TimeZoneInfo.ConvertTimeFromUtc(NormalizeUtc(item.CreatedAt), timeZone);
                 return new AdminFireTvOperationalRecentActivityDto(
                     ResolveCategoryIcon(item),
                     localTime.ToString("HH:mm", culture),
@@ -576,6 +577,15 @@ public sealed class AdminFireTvDashboardService : IAdminFireTvDashboardService
             or ServiceAppointmentStatus.RescheduleConfirmed
             or ServiceAppointmentStatus.Arrived
             or ServiceAppointmentStatus.InProgress;
+    }
+
+    private static bool IsOpenRequestStatus(ServiceRequestStatus status)
+    {
+        return status is ServiceRequestStatus.Created
+            or ServiceRequestStatus.Matching
+            or ServiceRequestStatus.Scheduled
+            or ServiceRequestStatus.InProgress
+            or ServiceRequestStatus.PendingClientCompletionAcceptance;
     }
 
     private static string ResolveProviderPointTone(string operationalStatus, bool isActive)
