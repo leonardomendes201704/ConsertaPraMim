@@ -341,6 +341,25 @@ const DailySeriesPanel: React.FC<{ items: FireTvOperationalDailySeriesItem[] }> 
   );
 };
 
+const MergedMetricsPanel: React.FC<{
+  sla?: FireTvDashboardKpi;
+  revenue?: FireTvDashboardKpi;
+}> = ({ sla, revenue }) => (
+  <section className="tv-kpi-card tv-kpi-card--compact tv-kpi-card--merged">
+    <div className="tv-kpi-merged-block">
+      <span>{sla?.label ?? 'SLA'}</span>
+      <strong>{sla?.value ?? '--'}</strong>
+      {sla?.helperText ? <small>{sla.helperText}</small> : null}
+    </div>
+    <div className="tv-kpi-merged-divider" aria-hidden="true" />
+    <div className="tv-kpi-merged-block">
+      <span>{revenue?.label ?? 'Receita mensal'}</span>
+      <strong>{revenue?.value ?? '--'}</strong>
+      {revenue?.helperText ? <small>{revenue.helperText}</small> : null}
+    </div>
+  </section>
+);
+
 function resolveHeroKpiMeta(item: FireTvDashboardKpi): { iconKey: string; label: string; helper?: string; showRatingStars?: boolean } {
   switch (item.key) {
     case 'servicesToday':
@@ -515,7 +534,10 @@ const OperationsDashboardScreen: React.FC<OperationsDashboardScreenProps> = ({
   }, [loadDashboard, session.token]);
 
   const topKpis = dashboard?.kpis.slice(0, 4) ?? [];
-  const bottomKpis = dashboard?.kpis.slice(4, 8) ?? [];
+  const completedServicesKpi = dashboard?.kpis.find((item) => item.key === 'completedServices');
+  const slaKpi = dashboard?.kpis.find((item) => item.key === 'sla');
+  const monthlyRevenueKpi = dashboard?.kpis.find((item) => item.key === 'monthlySubscriptionRevenue');
+  const cancelledCallsKpi = dashboard?.kpis.find((item) => item.key === 'cancelledCalls');
   const currentTimeLabel = clock.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
   return (
@@ -557,13 +579,12 @@ const OperationsDashboardScreen: React.FC<OperationsDashboardScreenProps> = ({
 
             <div className="tv-operations-bottom-grid">
               <DailySeriesPanel items={dashboard.dailySeries} />
-              <div className="tv-kpi-stack">
-                {bottomKpis.map((item) => (
-                  <KpiCard key={item.key} item={item} compact />
-                ))}
-              </div>
-              <HealthTargetsPanel targets={dashboard.healthTargets} />
+              {completedServicesKpi ? <KpiCard item={completedServicesKpi} compact /> : <MergedMetricsPanel />}
+              <MergedMetricsPanel sla={slaKpi} revenue={monthlyRevenueKpi} />
+              {cancelledCallsKpi ? <KpiCard item={cancelledCallsKpi} compact /> : <MergedMetricsPanel />}
             </div>
+
+            <HealthTargetsPanel targets={dashboard.healthTargets} />
 
             <div className="tv-status-footer">
               <span>Ultima atualizacao: {formatGeneratedAt(dashboard.generatedAtUtc)}</span>
