@@ -65,12 +65,13 @@ if [[ ! -f "$ENV_FILE" ]]; then
   exit 1
 fi
 
-# Carrega parametros do stack para resolver nome efetivo do container por ambiente.
-set -a
-source "$ENV_FILE"
-set +a
-
-CONTAINER_PREFIX_VALUE="${CONTAINER_PREFIX:-cpm}"
+# Resolve prefixo do container sem executar/sourcar o .env (evita quebra por caracteres especiais em secrets).
+CONTAINER_PREFIX_VALUE="$(grep -E '^CONTAINER_PREFIX=' "$ENV_FILE" | head -n1 | cut -d'=' -f2- || true)"
+CONTAINER_PREFIX_VALUE="${CONTAINER_PREFIX_VALUE%\"}"
+CONTAINER_PREFIX_VALUE="${CONTAINER_PREFIX_VALUE#\"}"
+CONTAINER_PREFIX_VALUE="${CONTAINER_PREFIX_VALUE%\'}"
+CONTAINER_PREFIX_VALUE="${CONTAINER_PREFIX_VALUE#\'}"
+CONTAINER_PREFIX_VALUE="${CONTAINER_PREFIX_VALUE:-cpm}"
 TARGET_CONTAINER_NAME="${CONTAINER_PREFIX_VALUE}-${CONTAINER_SUFFIXES[$TARGET_SERVICE]}"
 
 echo "[${TARGET_SERVICE}] [1/5] Atualizando codigo..."

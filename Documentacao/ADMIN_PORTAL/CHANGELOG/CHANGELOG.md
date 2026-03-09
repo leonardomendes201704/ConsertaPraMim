@@ -12,6 +12,12 @@
 
 ## Released
 
+- [2026-03-09] [ST-072][OPS-VPS-DEPLOY-HOTFIX-ENVFILE] Hotfix de leitura do `.env.vps` no deploy service
+- Tipo: fix
+- Resumo: corrigido o `vps-deploy-service.sh` para nao executar (`source`) o arquivo `.env.vps` durante resolucao de `CONTAINER_PREFIX`, evitando quebra de deploy quando secrets possuem caracteres especiais; a etapa de push de resumo no workflow tambem passou a tolerar indisponibilidade da API sem falhar o job de `summary`.
+- Arquivos principais: `scripts/deploy/vps-deploy-service.sh`, `.github/workflows/deploy-vps.yml`
+- Risco/Impacto: medio
+
 - [2026-03-09] [ST-072][OPS-VPS-DEV-PROD-BRANCH-DEPLOY] Deploy branch-aware `dev-local` e `main` na mesma VPS
 - Tipo: feat
 - Resumo: o pipeline `deploy-vps` passou a suportar dois perfis automaticos por branch, com `dev-local` publicando stack DEV por `IP:porta` e `main/master` mantendo stack PROD por dominio/subdominios; o isolamento agora usa portas dedicadas, `CONTAINER_PREFIX`, `VOLUME_PREFIX`, `DB_NAME`, bind host por ambiente e escrita branch-aware do `.env.vps`.
