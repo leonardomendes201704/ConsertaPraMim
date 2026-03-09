@@ -61,6 +61,7 @@ public static class DependencyInjection
         services.AddSingleton<ConsertaPraMim.Application.Interfaces.ICorsRuntimeSettings, ConsertaPraMim.Infrastructure.Services.CorsRuntimeSettings>();
         services.AddSingleton<ConsertaPraMim.Application.Interfaces.ILandingAnalyticsRuntimeSettings, ConsertaPraMim.Infrastructure.Services.LandingAnalyticsRuntimeSettings>();
         services.AddSingleton<ConsertaPraMim.Application.Interfaces.IFireTvDashboardRuntimeSettings, ConsertaPraMim.Infrastructure.Services.FireTvDashboardRuntimeSettings>();
+        services.AddSingleton<ConsertaPraMim.Application.Interfaces.IFireTvDashboardHealthProbe, ConsertaPraMim.Infrastructure.Services.FireTvDashboardHealthProbe>();
         services.AddSingleton<ConsertaPraMim.Application.Interfaces.ILandingGeoIpService, ConsertaPraMim.Infrastructure.Services.LandingGeoIpService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminMonitoringService, ConsertaPraMim.Infrastructure.Services.AdminMonitoringService>();
         services.AddScoped<ConsertaPraMim.Application.Interfaces.IAdminLoadTestRunService, ConsertaPraMim.Infrastructure.Services.AdminLoadTestRunService>();

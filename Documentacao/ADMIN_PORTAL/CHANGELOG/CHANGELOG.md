@@ -10,6 +10,18 @@
 
 ## Released
 
+- [2026-03-09] [ST-070][ADMIN-FIRETV-REALTIME] Realtime, health check e atualizacao continua do Fire TV
+- Tipo: feat
+- Resumo: o ecossistema Fire TV passou a contar com um hub SignalR dedicado, pulse server-side configuravel e health checks configuraveis para API e portais, exibidos na nova visao operacional com resumo de latencia, conectividade e fallback de refresh por timer.
+- Arquivos principais: `Backend/src/ConsertaPraMim.API/BackgroundJobs/FireTvDashboardPulseWorker.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Hubs/FireTvDashboardHub.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Services/FireTvDashboardHealthProbe.cs`, `Backend/src/ConsertaPraMim.API/Program.cs`, `conserta-pra-mim-firetv app/components/OperationsDashboardScreen.tsx`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-070-realtime-signalr-health-check-e-atualizacao-fire-tv.md`
+- Risco/Impacto: medio
+
+- [2026-03-09] [ST-069][ADMIN-FIRETV-OPS-VIEW] Menu central e segunda visao operacional no Fire TV
+- Tipo: feat
+- Resumo: o app `ConsertaPraMim TV` passou a abrir um menu central apos o login e ganhou uma segunda view operacional, com health strip, relogio, KPIs executivos, categorias, mapa georreferenciado, barras diarias, receita mensal, SLA e chamados cancelados em layout 10-foot inspirado no cockpit de TV.
+- Arquivos principais: `Backend/src/ConsertaPraMim.API/Controllers/AdminFireTvOperationsDashboardController.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminFireTvDashboardService.cs`, `Backend/src/ConsertaPraMim.Application/DTOs/AdminFireTvDashboardDTOs.cs`, `conserta-pra-mim-firetv app/App.tsx`, `conserta-pra-mim-firetv app/components/MenuScreen.tsx`, `conserta-pra-mim-firetv app/components/OperationsDashboardScreen.tsx`, `conserta-pra-mim-firetv app/styles.css`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-069-menu-central-e-segunda-visao-operacional-fire-tv.md`
+- Risco/Impacto: medio
+
 - [2026-03-09] [ST-068][ADMIN-FIRETV-SCROLLMAP] Scrollmap e ranking de elementos no app Fire TV
 - Tipo: feat
 - Resumo: o ecossistema Fire TV da landing passou a consumir `scrollmap` por milestones e ranking dos elementos mais clicados, calculados no backend a partir da telemetria existente; o app ganhou paines 10-foot dedicados para profundidade de scroll e elementos ranqueados.

@@ -48,3 +48,5 @@ Disponibilizar um app read-only para Fire TV / Android TV que exiba continuament
 - ST-066 - Build APK e instalacao no Fire Stick
 - ST-067 - Filtros comparativos e UI 10-foot no dashboard Fire TV
 - ST-068 - Scrollmap e ranking de elementos no app Fire TV
+- ST-069 - Menu central e segunda visao operacional no Fire TV
+- ST-070 - Realtime, health check e atualizacao a cada 5s no Fire TV

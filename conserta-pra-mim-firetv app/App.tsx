@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import DashboardScreen from './components/DashboardScreen';
 import LoginScreen from './components/LoginScreen';
+import MenuScreen from './components/MenuScreen';
+import OperationsDashboardScreen from './components/OperationsDashboardScreen';
 import SplashScreen from './components/SplashScreen';
 import { clearFireTvSession, loadFireTvSession, saveFireTvSession } from './services/auth';
 import type { FireTvAppView, FireTvAuthSession } from './types';
@@ -16,7 +18,7 @@ const App: React.FC = () => {
       const stored = loadFireTvSession();
       if (stored) {
         setSession(stored);
-        setView('DASHBOARD');
+        setView('MENU');
         return;
       }
 
@@ -29,7 +31,7 @@ const App: React.FC = () => {
   const handleLoginSuccess = (nextSession: FireTvAuthSession) => {
     saveFireTvSession(nextSession);
     setSession(nextSession);
-    setView('DASHBOARD');
+    setView('MENU');
   };
 
   const handleLogout = () => {
@@ -46,7 +48,34 @@ const App: React.FC = () => {
     return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
   }
 
-  return <DashboardScreen session={session} onLogout={handleLogout} />;
+  if (view === 'MENU') {
+    return (
+      <MenuScreen
+        session={session}
+        onOpenLanding={() => setView('LANDING_DASHBOARD')}
+        onOpenOperations={() => setView('OPERATIONS_DASHBOARD')}
+        onLogout={handleLogout}
+      />
+    );
+  }
+
+  if (view === 'OPERATIONS_DASHBOARD') {
+    return (
+      <OperationsDashboardScreen
+        session={session}
+        onBack={() => setView('MENU')}
+        onLogout={handleLogout}
+      />
+    );
+  }
+
+  return (
+    <DashboardScreen
+      session={session}
+      onBack={() => setView('MENU')}
+      onLogout={handleLogout}
+    />
+  );
 };
 
 export default App;

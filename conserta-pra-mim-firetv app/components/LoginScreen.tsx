@@ -66,8 +66,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
       <div className="tv-login-card">
         <img className="tv-login-logo" src="/logo-wordmark.png" alt="ConsertaPraMim" />
         <p className="tv-eyebrow">Fire TV Dashboard</p>
-        <h1>Painel da landing</h1>
-        <p className="tv-login-copy">Entre com uma conta Admin para acompanhar os principais KPIs da landing em tela cheia.</p>
+        <h1>Paineis executivos</h1>
+        <p className="tv-login-copy">Entre com uma conta Admin para abrir o menu central e escolher entre a landing e a visao operacional.</p>
 
         <form className="tv-login-form" onSubmit={handleSubmit}>
           <label className="tv-field">

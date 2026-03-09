@@ -63,4 +63,62 @@ public class AdminFireTvDashboardControllerTests
         var ok = Assert.IsType<OkObjectResult>(result);
         Assert.Same(payload, ok.Value);
     }
+
+    [Fact(DisplayName = "Admin fire tv operations dashboard controller | Deve retornar snapshot operacional ok")]
+    public async Task GetOperations_ShouldReturnOk()
+    {
+        var serviceMock = new Mock<IAdminFireTvDashboardService>();
+        var payload = new AdminFireTvOperationsDashboardDto(
+            Enabled: true,
+            AppTitle: "ConsertaPraMim TV",
+            AppSubtitle: "Visao operacional",
+            RefreshSeconds: 5,
+            PulseSeconds: 5,
+            HistoryDays: 7,
+            GeneratedAtUtc: new DateTime(2026, 3, 9, 12, 0, 0, DateTimeKind.Utc),
+            RealtimeConnected: true,
+            OverallStatus: "online",
+            AverageLatencyMs: 42,
+            HealthyTargets: 4,
+            TotalTargets: 4,
+            HealthTargets:
+            [
+                new AdminFireTvHealthTargetStatusDto("api", "API", "https://api.consertapramim.com/health", true, 42, "OK", null)
+            ],
+            Kpis:
+            [
+                new AdminFireTvDashboardKpiDto("servicesToday", "Servicos hoje", "152", "Pedidos abertos hoje", "primary", null, null, null, null)
+            ],
+            Categories:
+            [
+                new AdminFireTvOperationalCategoryDto("Eletricista", 12, 28)
+            ],
+            ProviderPoints:
+            [
+                new AdminFireTvOperationalMapPointDto(Guid.NewGuid(), "provider", "Juliana", "Praia Grande", -24.01, -46.41, "success")
+            ],
+            RequestPoints:
+            [
+                new AdminFireTvOperationalMapPointDto(Guid.NewGuid(), "request", "Eletricista", "Ocian - Praia Grande", -24.02, -46.42, "warning")
+            ],
+            DailySeries:
+            [
+                new AdminFireTvOperationalDailySeriesItemDto("09/03", 14, 9)
+            ],
+            RecentActivity:
+            [
+                new AdminFireTvOperationalRecentActivityDto("10:21", "Eletricista - Praia Grande", "Em matching • Ocian - Praia Grande", "warning")
+            ]);
+
+        serviceMock
+            .Setup(service => service.GetOperationsDashboardAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(payload);
+
+        var controller = new AdminFireTvOperationsDashboardController(serviceMock.Object);
+
+        var result = await controller.Get(CancellationToken.None);
+
+        var ok = Assert.IsType<OkObjectResult>(result);
+        Assert.Same(payload, ok.Value);
+    }
 }

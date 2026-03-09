@@ -6,8 +6,8 @@ const SplashScreen: React.FC = () => {
       <div className="tv-splash-card">
         <img className="tv-splash-logo" src="/logo-wordmark.png" alt="ConsertaPraMim" />
         <p className="tv-eyebrow">Fire TV Dashboard</p>
-        <h1>Preparando analytics da landing</h1>
-        <p>Carregando sessao local e configurando o dashboard operacional.</p>
+        <h1>Preparando os paineis da TV</h1>
+        <p>Carregando sessao local e configurando a landing e a visao operacional.</p>
       </div>
     </div>
   );

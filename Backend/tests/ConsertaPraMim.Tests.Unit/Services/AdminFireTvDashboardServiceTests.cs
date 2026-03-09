@@ -1,7 +1,9 @@
 using ConsertaPraMim.Application.DTOs;
 using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Application.Services;
+using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
+using ConsertaPraMim.Domain.Repositories;
 using Moq;
 
 namespace ConsertaPraMim.Tests.Unit.Services;
@@ -82,9 +84,9 @@ public class AdminFireTvDashboardServiceTests
                 locality: "Aparecida - Santos/SP",
                 includeLead: false));
 
-        var service = new AdminFireTvDashboardService(
-            analyticsServiceMock.Object,
-            runtimeSettingsMock.Object);
+        var service = CreateService(
+            analyticsService: analyticsServiceMock.Object,
+            runtimeSettings: runtimeSettingsMock.Object);
 
         var result = await service.GetLandingDashboardAsync(7, "client", "previous_period", CancellationToken.None);
 
@@ -140,9 +142,9 @@ public class AdminFireTvDashboardServiceTests
                 locality: "Nao mapeado",
                 includeLead: false));
 
-        var service = new AdminFireTvDashboardService(
-            analyticsServiceMock.Object,
-            runtimeSettingsMock.Object);
+        var service = CreateService(
+            analyticsService: analyticsServiceMock.Object,
+            runtimeSettings: runtimeSettingsMock.Object);
 
         var result = await service.GetLandingDashboardAsync(1, "all", "none", CancellationToken.None);
 
@@ -153,6 +155,225 @@ public class AdminFireTvDashboardServiceTests
                 query.ToUtc.HasValue &&
                 (query.ToUtc.Value - query.FromUtc.Value).TotalDays >= 29.9),
             It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact(DisplayName = "Admin fire tv dashboard service | Deve montar visao operacional com health, mapa e serie diaria")]
+    public async Task GetOperationsDashboardAsync_ShouldBuildOperationalSnapshot()
+    {
+        var runtimeSettingsMock = new Mock<IFireTvDashboardRuntimeSettings>();
+        runtimeSettingsMock
+            .Setup(service => service.GetConfigAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new FireTvDashboardRuntimeConfigDto
+            {
+                Enabled = true,
+                OperationsHistoryDays = 7,
+                OperationsRefreshSeconds = 5,
+                SignalRPulseSeconds = 5,
+                OperationsMapMaxProviders = 8,
+                OperationsMapMaxRequests = 8,
+                OperationsRecentActivitySize = 4,
+                OperationsHealthCheckTimeoutMs = 2000,
+                HealthTargets =
+                [
+                    new FireTvDashboardHealthTargetConfigDto("api", "API", "https://api.consertapramim.com/health"),
+                    new FireTvDashboardHealthTargetConfigDto("admin", "Admin", "https://admin.consertapramim.com")
+                ]
+            });
+
+        var dashboardServiceMock = new Mock<IAdminDashboardService>();
+        dashboardServiceMock
+            .Setup(service => service.GetDashboardAsync(It.IsAny<AdminDashboardQueryDto>()))
+            .ReturnsAsync(new AdminDashboardDto(
+                TotalUsers: 20,
+                ActiveUsers: 20,
+                InactiveUsers: 0,
+                TotalProviders: 12,
+                TotalClients: 8,
+                OnlineProviders: 5,
+                OnlineClients: 1,
+                PayingProviders: 6,
+                MonthlySubscriptionRevenue: 3250m,
+                RevenueByPlan: [],
+                TotalAdmins: 2,
+                TotalRequests: 40,
+                ActiveRequests: 6,
+                RequestsInPeriod: 11,
+                RequestsByStatus: [],
+                RequestsByCategory:
+                [
+                    new AdminCategoryCountDto("Eletricista", 5),
+                    new AdminCategoryCountDto("Encanador", 3),
+                    new AdminCategoryCountDto("Chaveiro", 2)
+                ],
+                ProposalsInPeriod: 0,
+                AcceptedProposalsInPeriod: 0,
+                ActiveChatConversationsLast24h: 0,
+                FromUtc: DateTime.UtcNow.AddDays(-7),
+                ToUtc: DateTime.UtcNow,
+                Page: 1,
+                PageSize: 20,
+                TotalEvents: 0,
+                RecentEvents: [],
+                AppointmentConfirmationInSlaRatePercent: 92.5m));
+        dashboardServiceMock
+            .Setup(service => service.GetCoverageMapAsync(It.IsAny<string?>()))
+            .ReturnsAsync(new AdminCoverageMapDto(
+                Providers:
+                [
+                    new AdminCoverageMapProviderDto(Guid.NewGuid(), "Juliana", "Praia Grande", -24.015d, -46.412d, 5d, nameof(ProviderOperationalStatus.Online), true),
+                    new AdminCoverageMapProviderDto(Guid.NewGuid(), "Carlos", "Santos", -23.981d, -46.333d, 6d, nameof(ProviderOperationalStatus.EmAtendimento), true)
+                ],
+                Requests:
+                [
+                    new AdminCoverageMapRequestDto(Guid.NewGuid(), ServiceRequestStatus.Matching.ToString(), "Eletricista", "Sem energia", "Praia Grande", "Ocian", "Rua A", -24.020d, -46.420d, DateTime.UtcNow.AddMinutes(-15)),
+                    new AdminCoverageMapRequestDto(Guid.NewGuid(), ServiceRequestStatus.InProgress.ToString(), "Encanador", "Vazamento", "Santos", "Aparecida", "Rua B", -23.990d, -46.320d, DateTime.UtcNow.AddMinutes(-8))
+                ],
+                GeneratedAtUtc: DateTime.UtcNow,
+                AvailableProviderCities: ["Praia Grande", "Santos"]));
+
+        var healthProbeMock = new Mock<IFireTvDashboardHealthProbe>();
+        healthProbeMock
+            .Setup(service => service.ProbeAsync(It.IsAny<IReadOnlyList<FireTvDashboardHealthTargetConfigDto>>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(
+            [
+                new AdminFireTvHealthTargetStatusDto("api", "API", "https://api.consertapramim.com/health", true, 42, "OK", null),
+                new AdminFireTvHealthTargetStatusDto("admin", "Admin", "https://admin.consertapramim.com", true, 51, "OK", null)
+            ]);
+
+        var users = new List<User>
+        {
+            new()
+            {
+                Id = Guid.NewGuid(),
+                Role = UserRole.Provider,
+                Name = "Juliana",
+                ProviderProfile = new ProviderProfile
+                {
+                    Rating = 4.8,
+                    ReviewCount = 8,
+                    OperationalStatus = ProviderOperationalStatus.Online
+                }
+            },
+            new()
+            {
+                Id = Guid.NewGuid(),
+                Role = UserRole.Provider,
+                Name = "Carlos",
+                ProviderProfile = new ProviderProfile
+                {
+                    Rating = 4.5,
+                    ReviewCount = 4,
+                    OperationalStatus = ProviderOperationalStatus.EmAtendimento
+                }
+            }
+        };
+
+        var requests = new List<ServiceRequest>
+        {
+            new()
+            {
+                Id = Guid.NewGuid(),
+                Category = ServiceCategory.Electrical,
+                Status = ServiceRequestStatus.Created,
+                AddressCity = "Praia Grande",
+                AddressNeighborhood = "Ocian",
+                AddressStreet = "Rua A",
+                Latitude = -24.02,
+                Longitude = -46.42,
+                CreatedAt = DateTime.UtcNow.AddHours(-1),
+                UpdatedAt = DateTime.UtcNow.AddMinutes(-30),
+                Appointments =
+                [
+                    new ServiceAppointment
+                    {
+                        Id = Guid.NewGuid(),
+                        CreatedAt = DateTime.UtcNow.AddHours(-1),
+                        Status = ServiceAppointmentStatus.Confirmed
+                    }
+                ]
+            },
+            new()
+            {
+                Id = Guid.NewGuid(),
+                Category = ServiceCategory.Plumbing,
+                Status = ServiceRequestStatus.Completed,
+                AddressCity = "Santos",
+                AddressNeighborhood = "Aparecida",
+                AddressStreet = "Rua B",
+                Latitude = -23.99,
+                Longitude = -46.32,
+                CreatedAt = DateTime.UtcNow.AddDays(-1),
+                UpdatedAt = DateTime.UtcNow.AddMinutes(-10),
+                Appointments =
+                [
+                    new ServiceAppointment
+                    {
+                        Id = Guid.NewGuid(),
+                        CreatedAt = DateTime.UtcNow.AddDays(-1),
+                        Status = ServiceAppointmentStatus.Completed,
+                        CompletedAtUtc = DateTime.UtcNow.AddMinutes(-12)
+                    }
+                ]
+            },
+            new()
+            {
+                Id = Guid.NewGuid(),
+                Category = ServiceCategory.Other,
+                Status = ServiceRequestStatus.Canceled,
+                AddressCity = "Guaruja",
+                AddressNeighborhood = "Centro",
+                AddressStreet = "Rua C",
+                Latitude = -23.99,
+                Longitude = -46.25,
+                CreatedAt = DateTime.UtcNow.AddDays(-2),
+                UpdatedAt = DateTime.UtcNow.AddMinutes(-5)
+            }
+        };
+
+        var userRepositoryMock = new Mock<IUserRepository>();
+        userRepositoryMock.Setup(service => service.GetAllAsync()).ReturnsAsync(users);
+        var requestRepositoryMock = new Mock<IServiceRequestRepository>();
+        requestRepositoryMock.Setup(service => service.GetAllAsync()).ReturnsAsync(requests);
+
+        var service = CreateService(
+            runtimeSettings: runtimeSettingsMock.Object,
+            adminDashboardService: dashboardServiceMock.Object,
+            healthProbe: healthProbeMock.Object,
+            userRepository: userRepositoryMock.Object,
+            requestRepository: requestRepositoryMock.Object);
+
+        var result = await service.GetOperationsDashboardAsync(CancellationToken.None);
+
+        Assert.True(result.Enabled);
+        Assert.Equal(5, result.RefreshSeconds);
+        Assert.Equal(5, result.PulseSeconds);
+        Assert.Equal(8, result.Kpis.Count);
+        Assert.Equal("online", result.OverallStatus);
+        Assert.Equal(2, result.HealthTargets.Count);
+        Assert.NotEmpty(result.Categories);
+        Assert.NotEmpty(result.ProviderPoints);
+        Assert.NotEmpty(result.RequestPoints);
+        Assert.NotEmpty(result.DailySeries);
+        Assert.NotEmpty(result.RecentActivity);
+        Assert.Contains(result.Kpis, item => item.Key == "monthlySubscriptionRevenue" && item.Value.Contains("3.250"));
+        Assert.Contains(result.Kpis, item => item.Key == "sla" && item.Value.Contains("92,5"));
+    }
+
+    private static AdminFireTvDashboardService CreateService(
+        IAdminLandingAnalyticsService? analyticsService = null,
+        IFireTvDashboardRuntimeSettings? runtimeSettings = null,
+        IAdminDashboardService? adminDashboardService = null,
+        IFireTvDashboardHealthProbe? healthProbe = null,
+        IUserRepository? userRepository = null,
+        IServiceRequestRepository? requestRepository = null)
+    {
+        return new AdminFireTvDashboardService(
+            analyticsService ?? Mock.Of<IAdminLandingAnalyticsService>(),
+            adminDashboardService ?? Mock.Of<IAdminDashboardService>(),
+            runtimeSettings ?? Mock.Of<IFireTvDashboardRuntimeSettings>(),
+            healthProbe ?? Mock.Of<IFireTvDashboardHealthProbe>(),
+            userRepository ?? Mock.Of<IUserRepository>(),
+            requestRepository ?? Mock.Of<IServiceRequestRepository>());
     }
 
     private static AdminLandingAnalyticsInsightsDto BuildInsights(

@@ -163,6 +163,15 @@ public static class ApiEndpointDocumentationCatalog
                 ExpectedOutcome: "Resposta otimizada para TV com refresh automatico, comparativo de periodo anterior e blocos executivos de engajamento, sem depender da navegacao completa do portal admin.");
         }
 
+        if (path.Contains("/api/admin/fire-tv/operations-dashboard", StringComparison.Ordinal) &&
+            httpMethod == "GET")
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Exibir na TV uma visao operacional sintetica do marketplace com status da plataforma, operacao geografica e metricas executivas de atendimento.",
+                Scenario: "App Fire TV autentica como admin e carrega um snapshot pronto para tela grande com health checks dos portais, servicos do dia, prestadores cadastrados, atendimentos ativos, avaliacao media, categorias, mapa, serie diaria, SLA, receita mensal e chamados cancelados.",
+                ExpectedOutcome: "Payload consolidado e leve para atualizacao continua via polling ou pulse SignalR, sem depender da navegacao integral do portal admin.");
+        }
+
         if (path.Contains("/api/admin/dashboard", StringComparison.Ordinal) &&
             !path.Contains("/coverage-map", StringComparison.Ordinal) &&
             httpMethod == "GET")

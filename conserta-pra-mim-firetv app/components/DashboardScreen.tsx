@@ -13,6 +13,7 @@ import HeatmapGrid from './HeatmapGrid';
 
 interface DashboardScreenProps {
   session: FireTvAuthSession;
+  onBack: () => void;
   onLogout: () => void;
 }
 
@@ -220,7 +221,7 @@ const SessionList: React.FC<{ items: FireTvRecentSession[] }> = ({ items }) => (
   </section>
 );
 
-const DashboardScreen: React.FC<DashboardScreenProps> = ({ session, onLogout }) => {
+const DashboardScreen: React.FC<DashboardScreenProps> = ({ session, onBack, onLogout }) => {
   const [filters, setFilters] = useState<DashboardFilters>({
     rangeDays: undefined,
     origin: 'all',
@@ -320,6 +321,9 @@ const DashboardScreen: React.FC<DashboardScreenProps> = ({ session, onLogout }) 
           </div>
 
           <div className="tv-topbar-actions">
+            <button type="button" className="tv-secondary-button" onClick={onBack}>
+              Voltar
+            </button>
             <span className="tv-user-chip">{session.userName}</span>
             <button type="button" className="tv-secondary-button" onClick={() => void loadDashboard(filters)}>
               Atualizar

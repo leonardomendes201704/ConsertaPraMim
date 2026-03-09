@@ -1,4 +1,9 @@
-export type FireTvAppView = 'SPLASH' | 'AUTH' | 'DASHBOARD';
+export type FireTvAppView =
+  | 'SPLASH'
+  | 'AUTH'
+  | 'MENU'
+  | 'LANDING_DASHBOARD'
+  | 'OPERATIONS_DASHBOARD';
 
 export interface FireTvAuthSession {
   userId: string;
@@ -92,4 +97,65 @@ export interface FireTvLandingDashboardData {
   topOrigins: FireTvBreakdownItem[];
   topLocalities: FireTvBreakdownItem[];
   recentSessions: FireTvRecentSession[];
+}
+
+export interface FireTvHealthTargetStatus {
+  key: string;
+  label: string;
+  url: string;
+  healthy: boolean;
+  latencyMs?: number | null;
+  statusLabel: string;
+  detail?: string | null;
+}
+
+export interface FireTvOperationalCategory {
+  category: string;
+  count: number;
+  percent: number;
+}
+
+export interface FireTvOperationalMapPoint {
+  id: string;
+  pointType: 'provider' | 'request' | string;
+  label: string;
+  subtitle: string;
+  latitude: number;
+  longitude: number;
+  tone: string;
+}
+
+export interface FireTvOperationalDailySeriesItem {
+  label: string;
+  requests: number;
+  attendances: number;
+}
+
+export interface FireTvOperationalRecentActivity {
+  timeLabel: string;
+  title: string;
+  subtitle: string;
+  tone: string;
+}
+
+export interface FireTvOperationsDashboardData {
+  enabled: boolean;
+  appTitle: string;
+  appSubtitle: string;
+  refreshSeconds: number;
+  pulseSeconds: number;
+  historyDays: number;
+  generatedAtUtc: string;
+  realtimeConnected: boolean;
+  overallStatus: string;
+  averageLatencyMs?: number | null;
+  healthyTargets: number;
+  totalTargets: number;
+  healthTargets: FireTvHealthTargetStatus[];
+  kpis: FireTvDashboardKpi[];
+  categories: FireTvOperationalCategory[];
+  providerPoints: FireTvOperationalMapPoint[];
+  requestPoints: FireTvOperationalMapPoint[];
+  dailySeries: FireTvOperationalDailySeriesItem[];
+  recentActivity: FireTvOperationalRecentActivity[];
 }

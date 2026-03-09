@@ -1,4 +1,7 @@
-import type { FireTvLandingDashboardData } from '../types';
+import type {
+  FireTvLandingDashboardData,
+  FireTvOperationsDashboardData
+} from '../types';
 import { buildAuthHeaders, getApiBaseUrl } from './http';
 
 export class FireTvDashboardApiError extends Error {
@@ -17,6 +20,24 @@ export interface FireTvDashboardQuery {
   comparisonMode?: string;
 }
 
+async function executeGet<T>(url: URL, token: string, fallbackMessage: string): Promise<T> {
+  const response = await fetch(url.toString(), {
+    method: 'GET',
+    headers: buildAuthHeaders(token),
+    cache: 'no-store'
+  });
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      throw new FireTvDashboardApiError('Sessao expirada. Faca login novamente.', 401);
+    }
+
+    throw new FireTvDashboardApiError(fallbackMessage, response.status);
+  }
+
+  return await response.json() as T;
+}
+
 export async function fetchFireTvLandingDashboard(token: string, query?: FireTvDashboardQuery): Promise<FireTvLandingDashboardData> {
   const url = new URL(`${getApiBaseUrl()}/api/admin/fire-tv/landing-dashboard`);
 
@@ -32,19 +53,16 @@ export async function fetchFireTvLandingDashboard(token: string, query?: FireTvD
     url.searchParams.set('comparisonMode', query.comparisonMode);
   }
 
-  const response = await fetch(url.toString(), {
-    method: 'GET',
-    headers: buildAuthHeaders(token),
-    cache: 'no-store'
-  });
+  return await executeGet<FireTvLandingDashboardData>(
+    url,
+    token,
+    'Nao foi possivel carregar o dashboard da landing.');
+}
 
-  if (!response.ok) {
-    if (response.status === 401) {
-      throw new FireTvDashboardApiError('Sessao expirada. Faca login novamente.', 401);
-    }
-
-    throw new FireTvDashboardApiError('Nao foi possivel carregar o dashboard da TV.', response.status);
-  }
-
-  return await response.json() as FireTvLandingDashboardData;
+export async function fetchFireTvOperationsDashboard(token: string): Promise<FireTvOperationsDashboardData> {
+  const url = new URL(`${getApiBaseUrl()}/api/admin/fire-tv/operations-dashboard`);
+  return await executeGet<FireTvOperationsDashboardData>(
+    url,
+    token,
+    'Nao foi possivel carregar a visao operacional.');
 }

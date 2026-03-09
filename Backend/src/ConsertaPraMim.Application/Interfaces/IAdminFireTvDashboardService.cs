@@ -9,4 +9,7 @@ public interface IAdminFireTvDashboardService
         string? origin = null,
         string? comparisonMode = null,
         CancellationToken cancellationToken = default);
+
+    Task<AdminFireTvOperationsDashboardDto> GetOperationsDashboardAsync(
+        CancellationToken cancellationToken = default);
 }

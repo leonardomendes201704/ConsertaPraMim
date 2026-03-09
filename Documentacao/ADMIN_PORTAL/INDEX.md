@@ -109,6 +109,8 @@
 - [ST-066 - Build APK e instalacao no Fire Stick](STORIES/DONE/ST-066-build-apk-instalacao-fire-stick.md)
 - [ST-067 - Filtros comparativos e UI 10-foot no dashboard Fire TV](STORIES/DONE/ST-067-fire-tv-filtros-comparativos-e-ui-10-foot.md)
 - [ST-068 - Scrollmap e ranking de elementos no app Fire TV](STORIES/DONE/ST-068-fire-tv-scrollmap-ranking-elementos.md)
+- [ST-069 - Menu central e segunda visao operacional no Fire TV](STORIES/DONE/ST-069-menu-central-e-segunda-visao-operacional-fire-tv.md)
+- [ST-070 - Realtime, health check e atualizacao a cada 5s no Fire TV](STORIES/DONE/ST-070-realtime-signalr-health-check-e-atualizacao-fire-tv.md)
 
 ## Runbooks
 

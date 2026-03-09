@@ -111,6 +111,7 @@ builder.Services.AddHostedService<ApiMonitoringAggregationWorker>();
 builder.Services.AddHostedService<AdminMailboxSyncWorker>();
 builder.Services.AddHostedService<AdminGrowthAiHourlyDigestWorker>();
 builder.Services.AddHostedService<MobilePushDevicesCleanupWorker>();
+builder.Services.AddHostedService<FireTvDashboardPulseWorker>();
 builder.Services.AddSingleton<IAdminMonitoringRealtimeNotifier, AdminMonitoringRealtimeNotifier>();
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
@@ -232,7 +233,8 @@ builder.Services.AddAuthentication(x =>
             if (!string.IsNullOrWhiteSpace(accessToken) &&
                 (path.StartsWithSegments("/notificationHub") ||
                  path.StartsWithSegments("/chatHub") ||
-                 path.StartsWithSegments("/adminMonitoringHub")))
+                 path.StartsWithSegments("/adminMonitoringHub") ||
+                 path.StartsWithSegments("/fireTvDashboardHub")))
             {
                 context.Token = accessToken;
             }
@@ -346,6 +348,7 @@ app.MapHealthChecks("/health");
 app.MapHub<NotificationHub>("/notificationHub");
 app.MapHub<ChatHub>("/chatHub");
 app.MapHub<AdminMonitoringHub>("/adminMonitoringHub");
+app.MapHub<FireTvDashboardHub>("/fireTvDashboardHub");
 
 app.Run();
 

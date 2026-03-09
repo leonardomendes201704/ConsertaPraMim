@@ -48,9 +48,12 @@ adb install -r apk-output/ConsertaPraMim-FireTV-debug.apk
 - [ ] O app aparece na home do Fire TV com banner.
 - [ ] A tela splash abre sem travar.
 - [ ] O login com conta admin funciona.
+- [ ] Apos o login, o menu central exibe os botoes `Metricas da landing` e `Visao operacional`.
 - [ ] Os 8 KPIs carregam com delta comparativo quando `ComparisonMode != none`.
 - [ ] Os filtros `Janela`, `Origem` e `Comparacao` funcionam pelo controle remoto.
 - [ ] O heatmap, o scrollmap e o ranking de elementos aparecem quando habilitados.
+- [ ] A `Visao operacional` exibe status realtime, health check, mapa operacional, barras diarias e KPIs executivos.
+- [ ] O botao `Voltar` retorna ao menu central em ambas as views.
 - [ ] O refresh manual funciona.
 - [ ] O auto refresh atualiza a tela sem derrubar a sessao.
 - [ ] O logout limpa a sessao local.
@@ -68,6 +71,17 @@ Na secao `Configuracoes -> Fire TV Dashboard`, validar principalmente:
 - `ShowScrollmap`
 - `ShowElementRanking`
 - `ElementRankingSize`
+- `ShowLandingView`
+- `ShowOperationsView`
+- `DefaultView`
+- `OperationsHistoryDays`
+- `OperationsRefreshSeconds`
+- `SignalRPulseSeconds`
+- `OperationsMapMaxProviders`
+- `OperationsMapMaxRequests`
+- `OperationsRecentActivitySize`
+- `OperationsHealthCheckTimeoutMs`
+- `HealthTargets`
 
 ## Troubleshooting rapido
 
@@ -79,6 +93,21 @@ Na secao `Configuracoes -> Fire TV Dashboard`, validar principalmente:
 ### Dashboard vazio
 - Verificar se existe trafego da landing e analytics habilitado.
 - Verificar se a secao runtime `FireTvDashboard` esta `Enabled=true`.
+
+### Visao operacional sem dados ou com cards zerados
+- Confirmar se o endpoint `GET /api/admin/fire-tv/operations-dashboard` responde com `200`.
+- Confirmar se existe massa operacional em pedidos, agendamentos e prestadores cadastrados no ambiente.
+- Verificar se `OperationsHistoryDays` nao foi configurado com janela curta demais.
+
+### Status realtime aparece offline
+- Confirmar se o hub `/fireTvDashboardHub` esta mapeado e acessivel na API.
+- Confirmar se o origin do app esta permitido no CORS quando o app for testado fora do Fire Stick.
+- Confirmar se `SignalRPulseSeconds` esta entre `5` e `60`.
+
+### Health check mostra alvos offline indevidamente
+- Revisar a lista `HealthTargets` na secao `Configuracoes -> Fire TV Dashboard`.
+- Confirmar se as URLs configuradas respondem com `200` ou `302`.
+- Ajustar `OperationsHealthCheckTimeoutMs` se houver alta latencia real do ambiente.
 
 ### Scrollmap ou ranking nao aparecem
 - Confirmar `ShowScrollmap=true` e `ShowElementRanking=true` no runtime config.
