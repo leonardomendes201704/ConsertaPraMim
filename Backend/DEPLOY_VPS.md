@@ -265,6 +265,7 @@ Observacao operacional:
 - em `production`, `web-landing`, `api`, `web-admin`, `web-client` e `web-provider` ficam publicados em `127.0.0.1`, por isso o acesso externo precisa passar pelo Nginx;
 - em `development`, os mesmos servicos podem ser publicados por `IP:porta` (bind `0.0.0.0`) para validacao rapida;
 - os portais usam `INTERNAL_API_URL` para chamadas server-side na rede Docker e `PUBLIC_API_URL` para URLs injetadas no browser;
+- os compose files dos portais forcam `URLS` e `ASPNETCORE_URLS` para a porta do ambiente (`ADMIN_PORT`, `CLIENT_PORT`, `PROVIDER_PORT`), evitando bind interno acidental nas portas legadas de `appsettings.Development.json`;
 - a landing usa `PUBLIC_LANDING_URL`, `PUBLIC_CLIENT_URL`, `PUBLIC_PROVIDER_URL`, `PUBLIC_ADMIN_URL` e `PUBLIC_API_URL` para montar CTA, canonical e links publicos.
 
 ## 7) Validacao pos-deploy
@@ -479,4 +480,25 @@ docker logs --tail 200 cpm-dev-web-admin
 docker logs --tail 200 cpm-dev-web-client
 docker logs --tail 200 cpm-dev-web-provider
 docker logs --tail 200 cpm-dev-web-landing
+```
+
+5. Se a API cair com `PendingModelChangesWarning` no `cpm-dev-api`:
+
+```bash
+# Confirmar perfil de deploy
+grep -E '^(DEPLOY_PROFILE|APP_ENVIRONMENT|DB_NAME)=' Backend/.env.vps
+
+# Reaplicar deploy da API no perfil DEV
+MSSQL_CONTAINER_NAME=mssql-mssql-1 MSSQL_HOST_ALIAS=mssql scripts/deploy/vps-deploy-service.sh "$PWD" api
+```
+
+Observacao:
+- no perfil `development`, a API ignora apenas o warning `RelationalEventId.PendingModelChangesWarning` para nao interromper o boot em ambiente DEV; em `production`, o comportamento padrao (estrito) permanece.
+
+6. Se Web Admin/Cliente/Prestador estiverem `Up` mas sem responder na porta publicada:
+
+```bash
+docker inspect cpm-dev-web-admin --format '{{range .Config.Env}}{{println .}}{{end}}' | grep -E '^(ASPNETCORE_URLS|URLS|ADMIN_PORT)='
+docker inspect cpm-dev-web-client --format '{{range .Config.Env}}{{println .}}{{end}}' | grep -E '^(ASPNETCORE_URLS|URLS|CLIENT_PORT)='
+docker inspect cpm-dev-web-provider --format '{{range .Config.Env}}{{println .}}{{end}}' | grep -E '^(ASPNETCORE_URLS|URLS|PROVIDER_PORT)='
 ```

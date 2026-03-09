@@ -12,6 +12,12 @@
 
 ## Released
 
+- [2026-03-09] [ST-072][OPS-VPS-DEV-TIMEOUT-BOOT-BIND] Correcao de timeout no dev-local por bind interno e boot da API
+- Tipo: fix
+- Resumo: os compose files web do deploy VPS passaram a publicar explicitamente `URLS` junto de `ASPNETCORE_URLS`, garantindo bind interno na porta do ambiente (`6151/6069/6140`) e eliminando timeout em `IP:porta` quando `appsettings.Development` continha portas legadas; adicionalmente, a API passou a ignorar `PendingModelChangesWarning` somente no perfil `DEPLOY_PROFILE=development`, evitando queda de startup no stack DEV sem relaxar o comportamento estrito em `production`.
+- Arquivos principais: `Backend/docker-compose.vps.web-admin.yml`, `Backend/docker-compose.vps.web-client.yml`, `Backend/docker-compose.vps.web-provider.yml`, `Backend/docker-compose.vps.web-landing.yml`, `Backend/docker-compose.vps.yml`, `Backend/src/ConsertaPraMim.Infrastructure/DependencyInjection.cs`, `Backend/DEPLOY_VPS.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-072-deploy-branch-aware-dev-local-main-na-mesma-vps.md`
+- Risco/Impacto: medio
+
 - [2026-03-09] [ST-072][OPS-VPS-DEV-HEALTHCHECK-PROJECT-ISOLATION] Isolamento compose DEV/PROD e healthcheck robusto no dev-local
 - Tipo: fix
 - Resumo: o deploy service passou a executar `docker compose` com `-p <CONTAINER_PREFIX>-<servico>` para isolar projeto compose por ambiente e por servico, evitando colisao/remocao cruzada entre stacks `dev-local` e `main` na mesma VPS; o workflow tambem passou a fazer healthcheck por `VPS_PUBLIC_HOST` no perfil `development` e agora publica diagnostico automatico (`docker ps` + `docker logs`) quando houver falha, reduzindo tempo de analise de timeout/reset em portas DEV.

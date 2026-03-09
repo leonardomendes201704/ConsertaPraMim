@@ -33,3 +33,5 @@ validar funcionalidades em ambiente paralelo sem interromper producao e sem risc
 - [x] ajustar healthchecks do workflow para usar `VPS_PUBLIC_HOST` no perfil `development`;
 - [x] adicionar diagnostico automatico (`docker ps` + `docker logs`) quando healthcheck falhar;
 - [x] atualizar runbook com comandos de troubleshooting rapido para timeout em portas DEV.
+- [x] forcar `URLS` + `ASPNETCORE_URLS` nos compose files web para evitar bind interno em portas legadas de `appsettings.Development` no perfil `dev-local`;
+- [x] evitar crash da API em `dev-local` por `PendingModelChangesWarning`, mantendo o comportamento estrito em `production`.

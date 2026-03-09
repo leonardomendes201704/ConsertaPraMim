@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using ConsertaPraMim.Infrastructure.Data;
@@ -11,6 +12,12 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
+        var deployProfile = configuration["DEPLOY_PROFILE"] ?? string.Empty;
+        var shouldIgnorePendingModelChangesWarning = string.Equals(
+            deployProfile,
+            "development",
+            StringComparison.OrdinalIgnoreCase);
+
         services.AddOptions<GoogleCalendarSyncOptions>()
             .Bind(configuration.GetSection(GoogleCalendarSyncOptions.SectionName))
             .ValidateOnStart();
@@ -25,6 +32,15 @@ public static class DependencyInjection
                         maxRetryCount: 5,
                         maxRetryDelay: TimeSpan.FromSeconds(10),
                         errorNumbersToAdd: null);
+                })
+                .ConfigureWarnings(warnings =>
+                {
+                    // In dev-local, allow startup while pending model changes are being finalized.
+                    // Production keeps the default behavior to protect release integrity.
+                    if (shouldIgnorePendingModelChangesWarning)
+                    {
+                        warnings.Ignore(RelationalEventId.PendingModelChangesWarning);
+                    }
                 }));
         services.AddMemoryCache();
 

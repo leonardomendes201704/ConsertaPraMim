@@ -12,6 +12,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: "${APP_ENVIRONMENT:-Development}"
       ASPNETCORE_URLS: "http://+:${CLIENT_PORT:-5069}"
+      URLS: "http://+:${CLIENT_PORT:-5069}"
       DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: "false"
       LANG: "pt_BR.UTF-8"
       LC_ALL: "pt_BR.UTF-8"
