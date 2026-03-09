@@ -9,6 +9,9 @@ Disponibilizar um app read-only para Fire TV / Android TV que exiba continuament
 - app proprio para Fire TV com login admin e foco em leitura 10-foot UI;
 - oito KPIs principais da landing exibidos em tempo real com refresh automatico;
 - heatmap basico, top origens, top localidades e sessoes recentes;
+- filtros executivos de `Janela`, `Origem` e `Comparacao`;
+- comparacao automatica com periodo anterior nos KPIs principais;
+- scrollmap e ranking dos elementos mais clicados da landing no app TV;
 - configuracao runtime persistida em banco e editavel via `Configuracoes` no Portal Admin;
 - processo padrao para build do APK e instalacao no Fire Stick via ADB.
 
@@ -43,3 +46,5 @@ Disponibilizar um app read-only para Fire TV / Android TV que exiba continuament
 - ST-064 - API e runtime config do dashboard Fire TV
 - ST-065 - App Fire TV para KPIs da landing
 - ST-066 - Build APK e instalacao no Fire Stick
+- ST-067 - Filtros comparativos e UI 10-foot no dashboard Fire TV
+- ST-068 - Scrollmap e ranking de elementos no app Fire TV

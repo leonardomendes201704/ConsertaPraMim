@@ -29,6 +29,14 @@ public sealed class AdminLandingAnalyticsService : IAdminLandingAnalyticsService
         AdminLandingAnalyticsQueryDto query,
         CancellationToken cancellationToken = default)
     {
+        var insights = await GetInsightsAsync(query, cancellationToken);
+        return insights.Overview;
+    }
+
+    public async Task<AdminLandingAnalyticsInsightsDto> GetInsightsAsync(
+        AdminLandingAnalyticsQueryDto query,
+        CancellationToken cancellationToken = default)
+    {
         var normalizedFromUtc = query.FromUtc ?? DateTime.UtcNow.AddDays(-30);
         var normalizedToUtc = query.ToUtc ?? DateTime.UtcNow;
         if (normalizedFromUtc > normalizedToUtc)
@@ -98,7 +106,7 @@ public sealed class AdminLandingAnalyticsService : IAdminLandingAnalyticsService
                 item.Lead?.Id))
             .ToList();
 
-        return new AdminLandingAnalyticsOverviewDto(
+        var overview = new AdminLandingAnalyticsOverviewDto(
             normalizedFromUtc,
             normalizedToUtc,
             totalSessions,
@@ -126,6 +134,11 @@ public sealed class AdminLandingAnalyticsService : IAdminLandingAnalyticsService
             BuildEventBreakdown(filteredTelemetryEvents, totalSessions),
             BuildHeatmap(filteredTelemetryEvents),
             pagedSessions);
+
+        return new AdminLandingAnalyticsInsightsDto(
+            overview,
+            BuildScrollmap(filteredSessions, runtimeConfig),
+            BuildElementRanking(filteredTelemetryEvents, totalSessions));
     }
 
     public async Task<AdminLandingAnalyticsSessionDetailsDto?> GetSessionDetailsAsync(
@@ -374,6 +387,77 @@ public sealed class AdminLandingAnalyticsService : IAdminLandingAnalyticsService
             .ToList();
     }
 
+    private static IReadOnlyList<AdminLandingAnalyticsScrollmapBucketDto> BuildScrollmap(
+        IReadOnlyList<LandingSessionAggregate> sessions,
+        LandingAnalyticsRuntimeConfigDto runtimeConfig)
+    {
+        var milestones = (runtimeConfig.Scroll.MilestonesPercent ?? Array.Empty<int>())
+            .Where(value => value >= 0 && value <= 100)
+            .Distinct()
+            .OrderBy(value => value)
+            .ToArray();
+
+        if (milestones.Length == 0)
+        {
+            milestones = [25, 50, 75, 100];
+        }
+
+        var totalSessions = sessions.Count;
+        return milestones
+            .Select(milestone =>
+            {
+                var sessionsReached = sessions.Count(item => item.MaxScrollPercent >= milestone);
+                var sessionReachRatePercent = totalSessions == 0
+                    ? 0d
+                    : Math.Round((sessionsReached * 100d) / totalSessions, 1, MidpointRounding.AwayFromZero);
+
+                return new AdminLandingAnalyticsScrollmapBucketDto(
+                    milestone,
+                    sessionsReached,
+                    sessionReachRatePercent);
+            })
+            .ToList();
+    }
+
+    private static IReadOnlyList<AdminLandingAnalyticsElementRankingItemDto> BuildElementRanking(
+        IReadOnlyList<LandingTelemetryEvent> telemetryEvents,
+        int totalSessions)
+    {
+        return telemetryEvents
+            .Where(item => item.EventType == LandingTelemetryEventType.Click)
+            .GroupBy(item => new
+            {
+                Key = NormalizeElementKey(item.ElementKey, item.ElementHref),
+                Label = NormalizeElementLabel(item.ElementLabel, item.ElementKey, item.ElementHref),
+                Href = NormalizeFilter(item.ElementHref)
+            })
+            .Select(group =>
+            {
+                var uniqueSessions = group
+                    .Select(item => item.SessionId)
+                    .Where(item => !string.IsNullOrWhiteSpace(item))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .Count();
+
+                var sessionRatePercent = totalSessions == 0
+                    ? 0d
+                    : Math.Round((uniqueSessions * 100d) / totalSessions, 1, MidpointRounding.AwayFromZero);
+
+                return new AdminLandingAnalyticsElementRankingItemDto(
+                    group.Key.Key,
+                    group.Key.Label,
+                    group.Key.Href,
+                    group.Count(),
+                    uniqueSessions,
+                    sessionRatePercent);
+            })
+            .OrderByDescending(item => item.Clicks)
+            .ThenByDescending(item => item.UniqueSessions)
+            .ThenBy(item => item.Label)
+            .Take(12)
+            .ToList();
+    }
+
     private static IReadOnlyList<AdminLandingAnalyticsTimelineItemDto> BuildTimeline(
         LandingAccessEvent accessEvent,
         IReadOnlyList<LandingTelemetryEvent> telemetryEvents,
@@ -519,6 +603,16 @@ public sealed class AdminLandingAnalyticsService : IAdminLandingAnalyticsService
             LandingTelemetryEventType.LeadSubmitSuccess => "Lead enviado",
             _ => "Evento"
         };
+    }
+
+    private static string NormalizeElementKey(string? elementKey, string? elementHref)
+    {
+        return FirstNonEmpty(elementKey, elementHref) ?? "elemento-nao-identificado";
+    }
+
+    private static string NormalizeElementLabel(string? elementLabel, string? elementKey, string? elementHref)
+    {
+        return FirstNonEmpty(elementLabel, elementKey, elementHref) ?? "Elemento nao identificado";
     }
 
     private static string? NormalizeFilter(string? rawValue)

@@ -275,10 +275,25 @@ public static class RuntimeConfigSections
               "AppSubtitle": "Landing publica",
               "DefaultRangeDays": 7,
               "AllowedRangeDays": [1, 7, 30],
+              "DefaultOriginFilter": "all",
+              "OriginFilters": [
+                { "Value": "all", "Label": "Todas as origens" },
+                { "Value": "client", "Label": "Cliente" },
+                { "Value": "provider", "Label": "Prestador" }
+              ],
+              "DefaultComparisonMode": "previous_period",
+              "ComparisonModes": [
+                { "Value": "none", "Label": "Sem comparacao" },
+                { "Value": "previous_period", "Label": "Periodo anterior" }
+              ],
               "AutoRefreshSeconds": 30,
               "SessionPageSize": 6,
               "TopListSize": 5,
               "ShowHeatmap": true,
+              "ShowComparison": true,
+              "ShowScrollmap": true,
+              "ShowElementRanking": true,
+              "ElementRankingSize": 6,
               "KpiKeys": [
                 "totalSessions",
                 "uniqueVisitors",

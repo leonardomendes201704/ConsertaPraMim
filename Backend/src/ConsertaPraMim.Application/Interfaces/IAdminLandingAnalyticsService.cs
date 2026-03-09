@@ -8,6 +8,10 @@ public interface IAdminLandingAnalyticsService
         AdminLandingAnalyticsQueryDto query,
         CancellationToken cancellationToken = default);
 
+    Task<AdminLandingAnalyticsInsightsDto> GetInsightsAsync(
+        AdminLandingAnalyticsQueryDto query,
+        CancellationToken cancellationToken = default);
+
     Task<AdminLandingAnalyticsSessionDetailsDto?> GetSessionDetailsAsync(
         string sessionId,
         CancellationToken cancellationToken = default);

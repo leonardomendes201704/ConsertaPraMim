@@ -15,6 +15,10 @@ export interface FireTvDashboardKpi {
   value: string;
   helperText?: string | null;
   tone: string;
+  previousValue?: string | null;
+  comparisonValue?: string | null;
+  comparisonLabel?: string | null;
+  comparisonTone?: string | null;
 }
 
 export interface FireTvBreakdownItem {
@@ -22,10 +26,30 @@ export interface FireTvBreakdownItem {
   count: number;
 }
 
+export interface FireTvDashboardFilterOption {
+  value: string;
+  label: string;
+}
+
 export interface FireTvHeatmapCell {
   row: number;
   column: number;
   hits: number;
+}
+
+export interface FireTvScrollmapBucket {
+  milestonePercent: number;
+  sessionsReached: number;
+  sessionReachRatePercent: number;
+}
+
+export interface FireTvElementRankingItem {
+  elementKey: string;
+  label: string;
+  href?: string | null;
+  clicks: number;
+  uniqueSessions: number;
+  sessionRatePercent: number;
 }
 
 export interface FireTvRecentSession {
@@ -43,15 +67,28 @@ export interface FireTvLandingDashboardData {
   appTitle: string;
   appSubtitle: string;
   selectedRangeDays: number;
+  selectedOrigin: string;
+  selectedComparisonMode: string;
   allowedRangeDays: number[];
+  originOptions: FireTvDashboardFilterOption[];
+  comparisonOptions: FireTvDashboardFilterOption[];
+  showComparison: boolean;
   autoRefreshSeconds: number;
   generatedAtUtc: string;
   fromUtc: string;
   toUtc: string;
+  comparisonFromUtc?: string | null;
+  comparisonToUtc?: string | null;
+  comparisonLabel?: string | null;
   kpis: FireTvDashboardKpi[];
+  showHeatmap: boolean;
   heatmapRows: number;
   heatmapColumns: number;
   heatmap: FireTvHeatmapCell[];
+  showScrollmap: boolean;
+  scrollmap: FireTvScrollmapBucket[];
+  showElementRanking: boolean;
+  topElements: FireTvElementRankingItem[];
   topOrigins: FireTvBreakdownItem[];
   topLocalities: FireTvBreakdownItem[];
   recentSessions: FireTvRecentSession[];

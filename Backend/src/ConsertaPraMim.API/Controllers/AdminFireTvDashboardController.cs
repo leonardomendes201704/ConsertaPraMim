@@ -21,9 +21,11 @@ public sealed class AdminFireTvDashboardController : ControllerBase
     [ProducesResponseType(typeof(AdminFireTvLandingDashboardDto), StatusCodes.Status200OK)]
     public async Task<IActionResult> Get(
         [FromQuery] int? rangeDays = null,
+        [FromQuery] string? origin = null,
+        [FromQuery] string? comparisonMode = null,
         CancellationToken cancellationToken = default)
     {
-        var response = await _service.GetLandingDashboardAsync(rangeDays, cancellationToken);
+        var response = await _service.GetLandingDashboardAsync(rangeDays, origin, comparisonMode, cancellationToken);
         return Ok(response);
     }
 }

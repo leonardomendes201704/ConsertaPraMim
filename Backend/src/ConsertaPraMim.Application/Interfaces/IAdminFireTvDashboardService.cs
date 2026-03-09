@@ -6,5 +6,7 @@ public interface IAdminFireTvDashboardService
 {
     Task<AdminFireTvLandingDashboardDto> GetLandingDashboardAsync(
         int? rangeDays = null,
+        string? origin = null,
+        string? comparisonMode = null,
         CancellationToken cancellationToken = default);
 }

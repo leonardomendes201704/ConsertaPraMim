@@ -107,6 +107,8 @@
 - [ST-064 - API e runtime config do dashboard Fire TV](STORIES/DONE/ST-064-api-runtime-config-dashboard-fire-tv.md)
 - [ST-065 - App Fire TV para KPIs da landing](STORIES/DONE/ST-065-app-fire-tv-kpis-landing.md)
 - [ST-066 - Build APK e instalacao no Fire Stick](STORIES/DONE/ST-066-build-apk-instalacao-fire-stick.md)
+- [ST-067 - Filtros comparativos e UI 10-foot no dashboard Fire TV](STORIES/DONE/ST-067-fire-tv-filtros-comparativos-e-ui-10-foot.md)
+- [ST-068 - Scrollmap e ranking de elementos no app Fire TV](STORIES/DONE/ST-068-fire-tv-scrollmap-ranking-elementos.md)
 
 ## Runbooks
 

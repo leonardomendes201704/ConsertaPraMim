@@ -267,4 +267,131 @@ public class AdminLandingAnalyticsServiceTests
         Assert.Contains(details.Timeline, item => item.Type == "Acesso");
         Assert.Contains(details.Timeline, item => item.Type == "Lead captado");
     }
+
+    [Fact(DisplayName = "Admin landing analytics service | Insights | Deve calcular scrollmap e ranking de elementos")]
+    public async Task GetInsightsAsync_ShouldBuildScrollmapAndElementRanking()
+    {
+        var accessRepositoryMock = new Mock<ILandingAccessEventRepository>();
+        var telemetryRepositoryMock = new Mock<ILandingTelemetryEventRepository>();
+        var leadRepositoryMock = new Mock<ILandingLeadRepository>();
+        var runtimeSettingsMock = new Mock<ILandingAnalyticsRuntimeSettings>();
+
+        var fromUtc = new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc);
+        var toUtc = new DateTime(2026, 3, 2, 0, 0, 0, DateTimeKind.Utc);
+
+        accessRepositoryMock
+            .Setup(repository => repository.GetByPeriodAsync(fromUtc, toUtc, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(
+            [
+                new LandingAccessEvent
+                {
+                    SessionId = "session-001",
+                    VisitorId = "visitor-001",
+                    CreatedAt = fromUtc.AddHours(10),
+                    Path = "/Cliente",
+                    CurrentUrl = "https://www.consertapramim.com/Cliente",
+                    InitialLeadOrigin = LandingLeadOrigin.Client
+                },
+                new LandingAccessEvent
+                {
+                    SessionId = "session-002",
+                    VisitorId = "visitor-002",
+                    CreatedAt = fromUtc.AddHours(11),
+                    Path = "/Prestador",
+                    CurrentUrl = "https://www.consertapramim.com/Prestador",
+                    InitialLeadOrigin = LandingLeadOrigin.Provider
+                }
+            ]);
+
+        telemetryRepositoryMock
+            .Setup(repository => repository.GetByPeriodAsync(fromUtc, toUtc, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(
+            [
+                new LandingTelemetryEvent
+                {
+                    SessionId = "session-001",
+                    VisitorId = "visitor-001",
+                    OccurredAtUtc = fromUtc.AddHours(10).AddMinutes(1),
+                    EventType = LandingTelemetryEventType.ScrollMilestone,
+                    ScrollDepthPercent = 75
+                },
+                new LandingTelemetryEvent
+                {
+                    SessionId = "session-002",
+                    VisitorId = "visitor-002",
+                    OccurredAtUtc = fromUtc.AddHours(11).AddMinutes(1),
+                    EventType = LandingTelemetryEventType.ScrollMilestone,
+                    ScrollDepthPercent = 25
+                },
+                new LandingTelemetryEvent
+                {
+                    SessionId = "session-001",
+                    VisitorId = "visitor-001",
+                    OccurredAtUtc = fromUtc.AddHours(10).AddMinutes(2),
+                    EventType = LandingTelemetryEventType.Click,
+                    ElementKey = "lead-trigger:client",
+                    ElementLabel = "Encontrar profissional",
+                    ElementHref = "/Cliente"
+                },
+                new LandingTelemetryEvent
+                {
+                    SessionId = "session-001",
+                    VisitorId = "visitor-001",
+                    OccurredAtUtc = fromUtc.AddHours(10).AddMinutes(3),
+                    EventType = LandingTelemetryEventType.Click,
+                    ElementKey = "lead-trigger:client",
+                    ElementLabel = "Encontrar profissional",
+                    ElementHref = "/Cliente"
+                },
+                new LandingTelemetryEvent
+                {
+                    SessionId = "session-002",
+                    VisitorId = "visitor-002",
+                    OccurredAtUtc = fromUtc.AddHours(11).AddMinutes(2),
+                    EventType = LandingTelemetryEventType.Click,
+                    ElementKey = "lead-trigger:provider",
+                    ElementLabel = "Cadastrar-se como parceiro",
+                    ElementHref = "/Prestador"
+                }
+            ]);
+
+        leadRepositoryMock
+            .Setup(repository => repository.GetByPeriodAsync(fromUtc, toUtc, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+
+        runtimeSettingsMock
+            .Setup(service => service.GetConfigAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new LandingAnalyticsRuntimeConfigDto
+            {
+                Scroll = new LandingScrollRuntimeConfigDto
+                {
+                    MilestonesPercent = [25, 50, 75, 100]
+                }
+            });
+
+        var service = new AdminLandingAnalyticsService(
+            accessRepositoryMock.Object,
+            telemetryRepositoryMock.Object,
+            leadRepositoryMock.Object,
+            runtimeSettingsMock.Object);
+
+        var insights = await service.GetInsightsAsync(new AdminLandingAnalyticsQueryDto(
+            SearchTerm: null,
+            Origin: null,
+            Path: null,
+            CountryCode: null,
+            Region: null,
+            City: null,
+            FromUtc: fromUtc,
+            ToUtc: toUtc,
+            Page: 1,
+            PageSize: 20));
+
+        Assert.Equal(4, insights.Scrollmap.Count);
+        Assert.Contains(insights.Scrollmap, item => item.MilestonePercent == 50 && item.SessionsReached == 1);
+        Assert.Contains(insights.Scrollmap, item => item.MilestonePercent == 100 && item.SessionsReached == 0);
+        Assert.Equal("Encontrar profissional", insights.ElementRanking[0].Label);
+        Assert.Equal(2, insights.ElementRanking[0].Clicks);
+        Assert.Equal(1, insights.ElementRanking[0].UniqueSessions);
+    }
 }

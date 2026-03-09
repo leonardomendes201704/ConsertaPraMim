@@ -48,11 +48,26 @@ adb install -r apk-output/ConsertaPraMim-FireTV-debug.apk
 - [ ] O app aparece na home do Fire TV com banner.
 - [ ] A tela splash abre sem travar.
 - [ ] O login com conta admin funciona.
-- [ ] Os 8 KPIs carregam.
-- [ ] O heatmap e as listas secundarias aparecem.
+- [ ] Os 8 KPIs carregam com delta comparativo quando `ComparisonMode != none`.
+- [ ] Os filtros `Janela`, `Origem` e `Comparacao` funcionam pelo controle remoto.
+- [ ] O heatmap, o scrollmap e o ranking de elementos aparecem quando habilitados.
 - [ ] O refresh manual funciona.
 - [ ] O auto refresh atualiza a tela sem derrubar a sessao.
 - [ ] O logout limpa a sessao local.
+
+## Parametros runtime relevantes
+
+Na secao `Configuracoes -> Fire TV Dashboard`, validar principalmente:
+
+- `DefaultOriginFilter`
+- `OriginFilters`
+- `DefaultComparisonMode`
+- `ComparisonModes`
+- `ShowComparison`
+- `ShowHeatmap`
+- `ShowScrollmap`
+- `ShowElementRanking`
+- `ElementRankingSize`
 
 ## Troubleshooting rapido
 
@@ -64,6 +79,14 @@ adb install -r apk-output/ConsertaPraMim-FireTV-debug.apk
 ### Dashboard vazio
 - Verificar se existe trafego da landing e analytics habilitado.
 - Verificar se a secao runtime `FireTvDashboard` esta `Enabled=true`.
+
+### Scrollmap ou ranking nao aparecem
+- Confirmar `ShowScrollmap=true` e `ShowElementRanking=true` no runtime config.
+- Confirmar se ja existe telemetria de scroll/click na landing para o periodo filtrado.
+
+### Filtro comparativo nao muda os KPIs
+- Confirmar `ShowComparison=true` no runtime config.
+- Confirmar `comparisonMode=previous_period` no payload do endpoint `/api/admin/fire-tv/landing-dashboard`.
 
 ### APK nao gera
 - Confirmar `JAVA_HOME` e Android SDK.

@@ -23,6 +23,19 @@ public sealed record AdminLandingAnalyticsHeatmapCellDto(
     int Column,
     int Hits);
 
+public sealed record AdminLandingAnalyticsScrollmapBucketDto(
+    int MilestonePercent,
+    int SessionsReached,
+    double SessionReachRatePercent);
+
+public sealed record AdminLandingAnalyticsElementRankingItemDto(
+    string ElementKey,
+    string Label,
+    string? Href,
+    int Clicks,
+    int UniqueSessions,
+    double SessionRatePercent);
+
 public sealed record AdminLandingAnalyticsSessionListItemDto(
     string SessionId,
     string VisitorId,
@@ -66,6 +79,11 @@ public sealed record AdminLandingAnalyticsOverviewDto(
     IReadOnlyList<AdminLandingAnalyticsBreakdownItemDto> EventBreakdown,
     IReadOnlyList<AdminLandingAnalyticsHeatmapCellDto> Heatmap,
     IReadOnlyList<AdminLandingAnalyticsSessionListItemDto> Sessions);
+
+public sealed record AdminLandingAnalyticsInsightsDto(
+    AdminLandingAnalyticsOverviewDto Overview,
+    IReadOnlyList<AdminLandingAnalyticsScrollmapBucketDto> Scrollmap,
+    IReadOnlyList<AdminLandingAnalyticsElementRankingItemDto> ElementRanking);
 
 public sealed record AdminLandingAnalyticsSessionGeoDto(
     string? Country,

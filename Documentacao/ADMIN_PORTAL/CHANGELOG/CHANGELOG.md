@@ -10,6 +10,18 @@
 
 ## Released
 
+- [2026-03-09] [ST-068][ADMIN-FIRETV-SCROLLMAP] Scrollmap e ranking de elementos no app Fire TV
+- Tipo: feat
+- Resumo: o ecossistema Fire TV da landing passou a consumir `scrollmap` por milestones e ranking dos elementos mais clicados, calculados no backend a partir da telemetria existente; o app ganhou paines 10-foot dedicados para profundidade de scroll e elementos ranqueados.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/AdminLandingAnalyticsDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminLandingAnalyticsService.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminFireTvDashboardService.cs`, `conserta-pra-mim-firetv app/components/DashboardScreen.tsx`, `conserta-pra-mim-firetv app/styles.css`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-068-fire-tv-scrollmap-ranking-elementos.md`
+- Risco/Impacto: medio
+
+- [2026-03-09] [ST-067][ADMIN-FIRETV-PHASE2] Filtros comparativos e UI 10-foot no dashboard Fire TV
+- Tipo: feat
+- Resumo: o dashboard Fire TV passou a expor filtros de `Janela`, `Origem` e `Comparacao`, com snapshot comparativo contra periodo anterior, 8 KPIs com delta e uma UI mais legivel para TV, sustentada por parametros runtime persistidos em banco e editaveis na tela de `Configuracoes` do Admin.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/AdminFireTvDashboardDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminFireTvDashboardService.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Services/FireTvDashboardRuntimeSettings.cs`, `Backend/src/ConsertaPraMim.Application/Constants/RuntimeConfigSections.cs`, `Backend/src/ConsertaPraMim.API/Controllers/AdminFireTvDashboardController.cs`, `conserta-pra-mim-firetv app/components/DashboardScreen.tsx`, `conserta-pra-mim-firetv app/services/dashboard.ts`, `conserta-pra-mim-firetv app/types.ts`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-067-fire-tv-filtros-comparativos-e-ui-10-foot.md`
+- Risco/Impacto: medio
+
 - [2026-03-08] [ST-066][ADMIN-FIRETV-APK] Build padrao e instalacao do APK Fire TV
 - Tipo: feat
 - Resumo: o script oficial `scripts/build_apks.py` passou a gerar os artefatos `ConsertaPraMim-FireTV-debug.apk` e `ConsertaPraMim-FireTV-compat.apk`, usando por padrao `https://api.consertapramim.com`, com runbook de instalacao via `adb` no Fire Stick / Fire TV.

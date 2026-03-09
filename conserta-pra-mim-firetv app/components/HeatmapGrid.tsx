@@ -29,8 +29,9 @@ const HeatmapGrid: React.FC<HeatmapGridProps> = ({ rows, columns, cells }) => {
             className="tv-heatmap-cell"
             style={{ backgroundColor: `rgba(38, 99, 235, ${intensity})` }}
           >
-            <span className="tv-heatmap-label">L{row + 1} / C{column + 1}</span>
+            <span className="tv-heatmap-label">Linha {row + 1} - Coluna {column + 1}</span>
             <strong>{hits}</strong>
+            <small>{hits === 1 ? 'clique rastreado' : 'cliques rastreados'}</small>
           </div>
         );
       })}

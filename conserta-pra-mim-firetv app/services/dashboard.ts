@@ -11,10 +11,25 @@ export class FireTvDashboardApiError extends Error {
   }
 }
 
-export async function fetchFireTvLandingDashboard(token: string, rangeDays?: number): Promise<FireTvLandingDashboardData> {
+export interface FireTvDashboardQuery {
+  rangeDays?: number;
+  origin?: string;
+  comparisonMode?: string;
+}
+
+export async function fetchFireTvLandingDashboard(token: string, query?: FireTvDashboardQuery): Promise<FireTvLandingDashboardData> {
   const url = new URL(`${getApiBaseUrl()}/api/admin/fire-tv/landing-dashboard`);
-  if (rangeDays) {
-    url.searchParams.set('rangeDays', String(rangeDays));
+
+  if (query?.rangeDays) {
+    url.searchParams.set('rangeDays', String(query.rangeDays));
+  }
+
+  if (query?.origin) {
+    url.searchParams.set('origin', query.origin);
+  }
+
+  if (query?.comparisonMode) {
+    url.searchParams.set('comparisonMode', query.comparisonMode);
   }
 
   const response = await fetch(url.toString(), {

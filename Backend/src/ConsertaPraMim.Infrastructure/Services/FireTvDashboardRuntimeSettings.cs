@@ -29,6 +29,24 @@ public sealed class FireTvDashboardRuntimeSettings : IFireTvDashboardRuntimeSett
     ];
 
     private static readonly HashSet<string> AllowedKpiKeys = new(DefaultKpiKeys.Concat(["sessionsWithGeoRatePercent"]), StringComparer.OrdinalIgnoreCase);
+    private static readonly FireTvDashboardFilterOptionConfigDto[] DefaultOriginFilters =
+    [
+        new("all", "Todas as origens"),
+        new("client", "Cliente"),
+        new("provider", "Prestador")
+    ];
+
+    private static readonly FireTvDashboardFilterOptionConfigDto[] DefaultComparisonModes =
+    [
+        new("none", "Sem comparacao"),
+        new("previous_period", "Periodo anterior")
+    ];
+
+    private static readonly Dictionary<string, string> AllowedOriginFilterLabels = DefaultOriginFilters
+        .ToDictionary(item => item.Value, item => item.Label, StringComparer.OrdinalIgnoreCase);
+
+    private static readonly Dictionary<string, string> AllowedComparisonModeLabels = DefaultComparisonModes
+        .ToDictionary(item => item.Value, item => item.Label, StringComparer.OrdinalIgnoreCase);
 
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IMemoryCache _memoryCache;
@@ -99,9 +117,13 @@ public sealed class FireTvDashboardRuntimeSettings : IFireTvDashboardRuntimeSett
             allowedRangeDays = [1, 7, 30];
         }
 
+        var originFilters = SanitizeOptions(raw.OriginFilters, AllowedOriginFilterLabels, DefaultOriginFilters);
+        var comparisonModes = SanitizeOptions(raw.ComparisonModes, AllowedComparisonModeLabels, DefaultComparisonModes);
         var defaultRangeDays = allowedRangeDays.Contains(raw.DefaultRangeDays)
             ? raw.DefaultRangeDays
             : allowedRangeDays[0];
+        var defaultOriginFilter = ResolveDefaultOption(raw.DefaultOriginFilter, originFilters, DefaultOriginFilters[0].Value);
+        var defaultComparisonMode = ResolveDefaultOption(raw.DefaultComparisonMode, comparisonModes, DefaultComparisonModes[1].Value);
 
         var kpiKeys = (raw.KpiKeys ?? Array.Empty<string>())
             .Where(item => !string.IsNullOrWhiteSpace(item))
@@ -123,11 +145,59 @@ public sealed class FireTvDashboardRuntimeSettings : IFireTvDashboardRuntimeSett
             AppSubtitle = string.IsNullOrWhiteSpace(raw.AppSubtitle) ? "Landing publica" : raw.AppSubtitle.Trim(),
             DefaultRangeDays = defaultRangeDays,
             AllowedRangeDays = allowedRangeDays,
+            DefaultOriginFilter = defaultOriginFilter,
+            OriginFilters = originFilters,
+            DefaultComparisonMode = defaultComparisonMode,
+            ComparisonModes = comparisonModes,
             AutoRefreshSeconds = Math.Clamp(raw.AutoRefreshSeconds, 10, 600),
             SessionPageSize = Math.Clamp(raw.SessionPageSize, 3, 12),
             TopListSize = Math.Clamp(raw.TopListSize, 3, 10),
             ShowHeatmap = raw.ShowHeatmap,
+            ShowComparison = raw.ShowComparison,
+            ShowScrollmap = raw.ShowScrollmap,
+            ShowElementRanking = raw.ShowElementRanking,
+            ElementRankingSize = Math.Clamp(raw.ElementRankingSize, 3, 12),
             KpiKeys = kpiKeys
         };
+    }
+
+    private static IReadOnlyList<FireTvDashboardFilterOptionConfigDto> SanitizeOptions(
+        IReadOnlyList<FireTvDashboardFilterOptionConfigDto>? rawOptions,
+        IReadOnlyDictionary<string, string> allowedValues,
+        IReadOnlyList<FireTvDashboardFilterOptionConfigDto> fallbackOptions)
+    {
+        var sanitized = (rawOptions ?? Array.Empty<FireTvDashboardFilterOptionConfigDto>())
+            .Where(item => item != null && !string.IsNullOrWhiteSpace(item.Value))
+            .Select(item =>
+            {
+                var value = item.Value.Trim();
+                if (!allowedValues.ContainsKey(value))
+                {
+                    return null;
+                }
+
+                var label = string.IsNullOrWhiteSpace(item.Label)
+                    ? allowedValues[value]
+                    : item.Label.Trim();
+
+                return new FireTvDashboardFilterOptionConfigDto(value, label);
+            })
+            .Where(item => item != null)
+            .Cast<FireTvDashboardFilterOptionConfigDto>()
+            .DistinctBy(item => item.Value, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        return sanitized.Length > 0 ? sanitized : fallbackOptions.ToArray();
+    }
+
+    private static string ResolveDefaultOption(
+        string? rawValue,
+        IReadOnlyList<FireTvDashboardFilterOptionConfigDto> allowedOptions,
+        string fallback)
+    {
+        var normalized = string.IsNullOrWhiteSpace(rawValue) ? fallback : rawValue.Trim();
+        return allowedOptions.Any(item => string.Equals(item.Value, normalized, StringComparison.OrdinalIgnoreCase))
+            ? normalized
+            : fallback;
     }
 }

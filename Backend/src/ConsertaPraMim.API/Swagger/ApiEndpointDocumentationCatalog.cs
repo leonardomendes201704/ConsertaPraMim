@@ -159,8 +159,8 @@ public static class ApiEndpointDocumentationCatalog
         {
             return new OperationNarrativeContext(
                 BusinessObjective: "Entregar um snapshot enxuto dos principais KPIs da landing para exibicao continua em app Fire TV/Android TV.",
-                Scenario: "App read-only do time interno autentica como admin e consome um payload consolidado com 8 KPIs, heatmap agregado, origens, localidades e sessoes recentes.",
-                ExpectedOutcome: "Resposta otimizada para TV com refresh automatico, sem depender da navegacao completa do portal admin.");
+                Scenario: "App read-only do time interno autentica como admin e consome um payload consolidado com 8 KPIs, filtros de origem/comparacao, heatmap agregado, scrollmap, ranking de elementos, origens, localidades e sessoes recentes.",
+                ExpectedOutcome: "Resposta otimizada para TV com refresh automatico, comparativo de periodo anterior e blocos executivos de engajamento, sem depender da navegacao completa do portal admin.");
         }
 
         if (path.Contains("/api/admin/dashboard", StringComparison.Ordinal) &&
@@ -845,12 +845,13 @@ public static class ApiEndpointDocumentationCatalog
                 DomainTitle: "Dashboard TV da Landing",
                 ResourceLabel: "snapshot executivo para Fire TV",
                 BusinessContext: "Disponibiliza uma leitura executiva, continua e simplificada da landing publica em telas de operacao conectadas a Fire TV/Android TV.",
-                TechnicalContext: "Consumido por um app read-only autenticado como admin, com payload reduzido para TV contendo KPIs, heatmap, origens, localidades e sessoes recentes.",
+                TechnicalContext: "Consumido por um app read-only autenticado como admin, com payload reduzido para TV contendo KPIs, comparacao com periodo anterior, heatmap, scrollmap, ranking de elementos, origens, localidades e sessoes recentes.",
                 Audience: "App Fire TV/Admin/Growth/Operacao Comercial",
                 Rules:
                 [
                     "Todos os parametros do dashboard TV devem ser configurados por runtime config em banco e editaveis via UI admin.",
                     "O payload deve permanecer enxuto e estavel para refresh automatico frequente em dispositivos TV.",
+                    "Filtros de origem e modos de comparacao devem ser tratados no backend para manter o app TV somente leitura e sem logica analitica duplicada.",
                     "O dashboard TV e somente leitura; qualquer triagem detalhada continua no portal admin."
                 ]),
             "Files" => new CatalogEntry(
