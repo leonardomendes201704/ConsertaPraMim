@@ -12,6 +12,12 @@
 
 ## Released
 
+- [2026-03-09] [ST-072][OPS-VPS-DEV-HEALTHCHECK-PROJECT-ISOLATION] Isolamento compose DEV/PROD e healthcheck robusto no dev-local
+- Tipo: fix
+- Resumo: o deploy service passou a executar `docker compose` com `-p <CONTAINER_PREFIX>` para isolar projeto compose por ambiente e evitar colisao entre stacks `dev-local` e `main` na mesma VPS; o workflow tambem passou a fazer healthcheck por `VPS_PUBLIC_HOST` no perfil `development` e agora publica diagnostico automatico (`docker ps` + `docker logs`) quando houver falha, reduzindo tempo de analise de timeout/reset em portas DEV.
+- Arquivos principais: `scripts/deploy/vps-deploy-service.sh`, `.github/workflows/deploy-vps.yml`, `Backend/DEPLOY_VPS.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-072-deploy-branch-aware-dev-local-main-na-mesma-vps.md`
+- Risco/Impacto: medio
+
 - [2026-03-09] [ST-072][OPS-VPS-APK-UPLOAD-LOCAL-RUNNER] Upload de APK sem SSH externo no pipeline
 - Tipo: fix
 - Resumo: os jobs `Upload APK Mobile Client/Provider/Admin` foram movidos para `self-hosted Linux` e passaram a publicar os APKs no fileserver via `docker cp` local (`filebrowser`), removendo a dependencia de acesso SSH externo na porta 22 a partir de `windows-latest` e eliminando falhas por timeout de conectividade de rede entre runner hospedado e VPS.

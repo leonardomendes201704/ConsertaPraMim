@@ -501,7 +501,16 @@ jobs:
         id: health
         shell: bash
         run: |
-          endpoint="http://127.0.0.1:${{ env.API_PORT }}/health"
+          host="127.0.0.1"
+          if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+            host="${{ secrets.VPS_PUBLIC_HOST }}"
+            host="${host#http://}"
+            host="${host#https://}"
+            host="${host%%/*}"
+            host="${host%%:*}"
+          fi
+
+          endpoint="http://${host}:${{ env.API_PORT }}/health"
           echo "endpoint=$endpoint" >> "$GITHUB_OUTPUT"
 
           attempts=12
@@ -525,6 +534,18 @@ jobs:
           echo "http_code=$code" >> "$GITHUB_OUTPUT"
           echo "::error::API healthcheck failed at $endpoint (last HTTP $code)"
           exit 1
+
+      - name: Diagnostics API on failure
+        if: failure()
+        shell: bash
+        run: |
+          echo "::group::docker ps -a"
+          docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' || true
+          echo "::endgroup::"
+
+          echo "::group::docker logs ${CONTAINER_PREFIX}-api"
+          docker logs --tail 200 "${CONTAINER_PREFIX}-api" || true
+          echo "::endgroup::"
 
   deploy-web-landing:
     name: Deploy Web Landing
@@ -636,7 +657,16 @@ jobs:
         id: health
         shell: bash
         run: |
-          endpoint="http://127.0.0.1:${{ env.LANDING_PORT }}/health"
+          host="127.0.0.1"
+          if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+            host="${{ secrets.VPS_PUBLIC_HOST }}"
+            host="${host#http://}"
+            host="${host#https://}"
+            host="${host%%/*}"
+            host="${host%%:*}"
+          fi
+
+          endpoint="http://${host}:${{ env.LANDING_PORT }}/health"
           echo "endpoint=$endpoint" >> "$GITHUB_OUTPUT"
 
           attempts=12
@@ -660,6 +690,18 @@ jobs:
           echo "http_code=$code" >> "$GITHUB_OUTPUT"
           echo "::error::Web Landing healthcheck failed at $endpoint (last HTTP $code)"
           exit 1
+
+      - name: Diagnostics Web Landing on failure
+        if: failure()
+        shell: bash
+        run: |
+          echo "::group::docker ps -a"
+          docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' || true
+          echo "::endgroup::"
+
+          echo "::group::docker logs ${CONTAINER_PREFIX}-web-landing"
+          docker logs --tail 200 "${CONTAINER_PREFIX}-web-landing" || true
+          echo "::endgroup::"
 
   deploy-web-admin:
     name: Deploy Web Admin
@@ -771,7 +813,16 @@ jobs:
         id: health
         shell: bash
         run: |
-          endpoint="http://127.0.0.1:${{ env.ADMIN_PORT }}/Account/Login"
+          host="127.0.0.1"
+          if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+            host="${{ secrets.VPS_PUBLIC_HOST }}"
+            host="${host#http://}"
+            host="${host#https://}"
+            host="${host%%/*}"
+            host="${host%%:*}"
+          fi
+
+          endpoint="http://${host}:${{ env.ADMIN_PORT }}/Account/Login"
           echo "endpoint=$endpoint" >> "$GITHUB_OUTPUT"
 
           attempts=12
@@ -795,6 +846,18 @@ jobs:
           echo "http_code=$code" >> "$GITHUB_OUTPUT"
           echo "::error::Web Admin healthcheck failed at $endpoint (last HTTP $code)"
           exit 1
+
+      - name: Diagnostics Web Admin on failure
+        if: failure()
+        shell: bash
+        run: |
+          echo "::group::docker ps -a"
+          docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' || true
+          echo "::endgroup::"
+
+          echo "::group::docker logs ${CONTAINER_PREFIX}-web-admin"
+          docker logs --tail 200 "${CONTAINER_PREFIX}-web-admin" || true
+          echo "::endgroup::"
 
   deploy-web-client:
     name: Deploy Web Client
@@ -906,7 +969,16 @@ jobs:
         id: health
         shell: bash
         run: |
-          endpoint="http://127.0.0.1:${{ env.CLIENT_PORT }}/Account/Login"
+          host="127.0.0.1"
+          if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+            host="${{ secrets.VPS_PUBLIC_HOST }}"
+            host="${host#http://}"
+            host="${host#https://}"
+            host="${host%%/*}"
+            host="${host%%:*}"
+          fi
+
+          endpoint="http://${host}:${{ env.CLIENT_PORT }}/Account/Login"
           echo "endpoint=$endpoint" >> "$GITHUB_OUTPUT"
 
           attempts=12
@@ -930,6 +1002,18 @@ jobs:
           echo "http_code=$code" >> "$GITHUB_OUTPUT"
           echo "::error::Web Client healthcheck failed at $endpoint (last HTTP $code)"
           exit 1
+
+      - name: Diagnostics Web Client on failure
+        if: failure()
+        shell: bash
+        run: |
+          echo "::group::docker ps -a"
+          docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' || true
+          echo "::endgroup::"
+
+          echo "::group::docker logs ${CONTAINER_PREFIX}-web-client"
+          docker logs --tail 200 "${CONTAINER_PREFIX}-web-client" || true
+          echo "::endgroup::"
 
   deploy-web-provider:
     name: Deploy Web Provider
@@ -1041,7 +1125,16 @@ jobs:
         id: health
         shell: bash
         run: |
-          endpoint="http://127.0.0.1:${{ env.PROVIDER_PORT }}/Account/Login"
+          host="127.0.0.1"
+          if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+            host="${{ secrets.VPS_PUBLIC_HOST }}"
+            host="${host#http://}"
+            host="${host#https://}"
+            host="${host%%/*}"
+            host="${host%%:*}"
+          fi
+
+          endpoint="http://${host}:${{ env.PROVIDER_PORT }}/Account/Login"
           echo "endpoint=$endpoint" >> "$GITHUB_OUTPUT"
 
           attempts=12
@@ -1065,6 +1158,18 @@ jobs:
           echo "http_code=$code" >> "$GITHUB_OUTPUT"
           echo "::error::Web Provider healthcheck failed at $endpoint (last HTTP $code)"
           exit 1
+
+      - name: Diagnostics Web Provider on failure
+        if: failure()
+        shell: bash
+        run: |
+          echo "::group::docker ps -a"
+          docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' || true
+          echo "::endgroup::"
+
+          echo "::group::docker logs ${CONTAINER_PREFIX}-web-provider"
+          docker logs --tail 200 "${CONTAINER_PREFIX}-web-provider" || true
+          echo "::endgroup::"
 
   deploy-mobile-webview-client:
     name: Deploy Mobile WebView Client
@@ -1183,7 +1288,16 @@ jobs:
         id: health
         shell: bash
         run: |
-          endpoint="http://127.0.0.1:${{ env.MOBILE_CLIENT_WEBVIEW_PORT }}/"
+          host="127.0.0.1"
+          if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+            host="${{ secrets.VPS_PUBLIC_HOST }}"
+            host="${host#http://}"
+            host="${host#https://}"
+            host="${host%%/*}"
+            host="${host%%:*}"
+          fi
+
+          endpoint="http://${host}:${{ env.MOBILE_CLIENT_WEBVIEW_PORT }}/"
           echo "endpoint=$endpoint" >> "$GITHUB_OUTPUT"
 
           attempts=12
@@ -1207,6 +1321,18 @@ jobs:
           echo "http_code=$code" >> "$GITHUB_OUTPUT"
           echo "::error::Mobile WebView Client healthcheck failed at $endpoint (last HTTP $code)"
           exit 1
+
+      - name: Diagnostics Mobile WebView Client on failure
+        if: failure()
+        shell: bash
+        run: |
+          echo "::group::docker ps -a"
+          docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' || true
+          echo "::endgroup::"
+
+          echo "::group::docker logs ${CONTAINER_PREFIX}-mobile-webview-client"
+          docker logs --tail 200 "${CONTAINER_PREFIX}-mobile-webview-client" || true
+          echo "::endgroup::"
 
   deploy-mobile-webview-provider:
     name: Deploy Mobile WebView Provider
@@ -1325,7 +1451,16 @@ jobs:
         id: health
         shell: bash
         run: |
-          endpoint="http://127.0.0.1:${{ env.MOBILE_PROVIDER_WEBVIEW_PORT }}/"
+          host="127.0.0.1"
+          if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+            host="${{ secrets.VPS_PUBLIC_HOST }}"
+            host="${host#http://}"
+            host="${host#https://}"
+            host="${host%%/*}"
+            host="${host%%:*}"
+          fi
+
+          endpoint="http://${host}:${{ env.MOBILE_PROVIDER_WEBVIEW_PORT }}/"
           echo "endpoint=$endpoint" >> "$GITHUB_OUTPUT"
 
           attempts=12
@@ -1349,6 +1484,18 @@ jobs:
           echo "http_code=$code" >> "$GITHUB_OUTPUT"
           echo "::error::Mobile WebView Provider healthcheck failed at $endpoint (last HTTP $code)"
           exit 1
+
+      - name: Diagnostics Mobile WebView Provider on failure
+        if: failure()
+        shell: bash
+        run: |
+          echo "::group::docker ps -a"
+          docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' || true
+          echo "::endgroup::"
+
+          echo "::group::docker logs ${CONTAINER_PREFIX}-mobile-webview-provider"
+          docker logs --tail 200 "${CONTAINER_PREFIX}-mobile-webview-provider" || true
+          echo "::endgroup::"
 
   deploy-mobile-webview-admin:
     name: Deploy Mobile WebView Admin
@@ -1467,7 +1614,16 @@ jobs:
         id: health
         shell: bash
         run: |
-          endpoint="http://127.0.0.1:${{ env.MOBILE_ADMIN_WEBVIEW_PORT }}/"
+          host="127.0.0.1"
+          if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+            host="${{ secrets.VPS_PUBLIC_HOST }}"
+            host="${host#http://}"
+            host="${host#https://}"
+            host="${host%%/*}"
+            host="${host%%:*}"
+          fi
+
+          endpoint="http://${host}:${{ env.MOBILE_ADMIN_WEBVIEW_PORT }}/"
           echo "endpoint=$endpoint" >> "$GITHUB_OUTPUT"
 
           attempts=12
@@ -1491,6 +1647,18 @@ jobs:
           echo "http_code=$code" >> "$GITHUB_OUTPUT"
           echo "::error::Mobile WebView Admin healthcheck failed at $endpoint (last HTTP $code)"
           exit 1
+
+      - name: Diagnostics Mobile WebView Admin on failure
+        if: failure()
+        shell: bash
+        run: |
+          echo "::group::docker ps -a"
+          docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' || true
+          echo "::endgroup::"
+
+          echo "::group::docker logs ${CONTAINER_PREFIX}-mobile-webview-admin"
+          docker logs --tail 200 "${CONTAINER_PREFIX}-mobile-webview-admin" || true
+          echo "::endgroup::"
 
   build-apk-mobile-client:
     name: Build APK Mobile Client
@@ -2312,7 +2480,15 @@ jobs:
             exit 0
           fi
 
-          endpoint="http://127.0.0.1:${{ env.API_PORT }}/api/internal/deploy/admin-summary"
+          host="127.0.0.1"
+          if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+            host="${{ secrets.VPS_PUBLIC_HOST }}"
+            host="${host#http://}"
+            host="${host#https://}"
+            host="${host%%/*}"
+            host="${host%%:*}"
+          fi
+          endpoint="http://${host}:${{ env.API_PORT }}/api/internal/deploy/admin-summary"
           run_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
           api_deploy_result="${{ needs.deploy-api.result }}"

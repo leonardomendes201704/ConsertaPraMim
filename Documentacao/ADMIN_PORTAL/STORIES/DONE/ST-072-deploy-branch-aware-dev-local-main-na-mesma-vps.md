@@ -26,3 +26,10 @@ validar funcionalidades em ambiente paralelo sem interromper producao e sem risc
 - [x] parametrizar compose files por `CONTAINER_PREFIX`, `VOLUME_PREFIX`, `BIND_HOST` e `INTERNAL_API_URL`;
 - [x] ajustar script de deploy para nome dinamico de container;
 - [x] atualizar manual operacional de VPS com matriz DEV/PROD.
+
+## Ajustes pos-deploy (2026-03-09)
+
+- [x] isolar projeto `docker compose` por ambiente (`-p <CONTAINER_PREFIX>`) para evitar colisao entre stacks DEV e PROD;
+- [x] ajustar healthchecks do workflow para usar `VPS_PUBLIC_HOST` no perfil `development`;
+- [x] adicionar diagnostico automatico (`docker ps` + `docker logs`) quando healthcheck falhar;
+- [x] atualizar runbook com comandos de troubleshooting rapido para timeout em portas DEV.

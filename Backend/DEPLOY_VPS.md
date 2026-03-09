@@ -49,7 +49,9 @@ Observacao operacional:
 - os apps ASP.NET agora usam `ForwardedHeaders` para interpretar corretamente `X-Forwarded-Proto`, `X-Forwarded-For` e `X-Forwarded-Host` atras do Nginx;
 - a API aceita redirecionamento HTTPS controlado por `ENFORCE_API_HTTPS_REDIRECTION=true`;
 - a landing publica e independente da API, com `healthcheck` proprio em `/health`;
-- os `healthchecks` do workflow validam os servicos pela malha local (`127.0.0.1`) na propria VPS.
+- no `dev-local`, os `healthchecks` do workflow validam pelos endpoints publicados em `http://<VPS_PUBLIC_HOST>:porta`;
+- no `main/master`, os `healthchecks` continuam validando pela malha local (`127.0.0.1`) na propria VPS;
+- o deploy agora forca `docker compose -p <CONTAINER_PREFIX>` para isolar stacks `DEV` e `PROD` no mesmo host sem colidir projeto compose.
 
 ## 1) DNS na Hostinger/HostGator
 
@@ -396,21 +398,24 @@ Observacoes sobre metadados de APK e push de resumo:
 Status:
 
 ```bash
-docker compose -f Backend/docker-compose.vps.web-landing.yml --env-file Backend/.env.vps ps
-docker compose -f Backend/docker-compose.vps.api.yml --env-file Backend/.env.vps ps
-docker compose -f Backend/docker-compose.vps.web-admin.yml --env-file Backend/.env.vps ps
-docker compose -f Backend/docker-compose.vps.web-client.yml --env-file Backend/.env.vps ps
-docker compose -f Backend/docker-compose.vps.web-provider.yml --env-file Backend/.env.vps ps
-docker compose -f Backend/docker-compose.vps.mobile-webview-client.yml --env-file Backend/.env.vps ps
-docker compose -f Backend/docker-compose.vps.mobile-webview-provider.yml --env-file Backend/.env.vps ps
-docker compose -f Backend/docker-compose.vps.mobile-webview-admin.yml --env-file Backend/.env.vps ps
+docker compose -p cpm -f Backend/docker-compose.vps.web-landing.yml --env-file Backend/.env.vps ps
+docker compose -p cpm -f Backend/docker-compose.vps.api.yml --env-file Backend/.env.vps ps
+docker compose -p cpm -f Backend/docker-compose.vps.web-admin.yml --env-file Backend/.env.vps ps
+docker compose -p cpm -f Backend/docker-compose.vps.web-client.yml --env-file Backend/.env.vps ps
+docker compose -p cpm -f Backend/docker-compose.vps.web-provider.yml --env-file Backend/.env.vps ps
+docker compose -p cpm -f Backend/docker-compose.vps.mobile-webview-client.yml --env-file Backend/.env.vps ps
+docker compose -p cpm -f Backend/docker-compose.vps.mobile-webview-provider.yml --env-file Backend/.env.vps ps
+docker compose -p cpm -f Backend/docker-compose.vps.mobile-webview-admin.yml --env-file Backend/.env.vps ps
+
+# Para DEV (branch dev-local), trocar para:
+docker compose -p cpm-dev -f Backend/docker-compose.vps.api.yml --env-file Backend/.env.vps ps
 ```
 
 Parar/iniciar individual:
 
 ```bash
-docker compose -f Backend/docker-compose.vps.web-landing.yml --env-file Backend/.env.vps stop
-docker compose -f Backend/docker-compose.vps.web-landing.yml --env-file Backend/.env.vps start
+docker compose -p cpm -f Backend/docker-compose.vps.web-landing.yml --env-file Backend/.env.vps stop
+docker compose -p cpm -f Backend/docker-compose.vps.web-landing.yml --env-file Backend/.env.vps start
 ```
 
 Logs:
@@ -434,4 +439,44 @@ docker logs -f cpm-dev-web-provider
 docker logs -f cpm-dev-mobile-webview-client
 docker logs -f cpm-dev-mobile-webview-provider
 docker logs -f cpm-dev-mobile-webview-admin
+```
+
+## 10) Troubleshooting rapido (DEV por IP:porta)
+
+Quando `http://<IP>:6088|6151|6069|6140|6193` der timeout:
+
+1. Validar se a stack DEV subiu no projeto compose correto:
+
+```bash
+docker compose -p cpm-dev -f Backend/docker-compose.vps.api.yml --env-file Backend/.env.vps ps
+docker compose -p cpm-dev -f Backend/docker-compose.vps.web-admin.yml --env-file Backend/.env.vps ps
+docker compose -p cpm-dev -f Backend/docker-compose.vps.web-client.yml --env-file Backend/.env.vps ps
+docker compose -p cpm-dev -f Backend/docker-compose.vps.web-provider.yml --env-file Backend/.env.vps ps
+docker compose -p cpm-dev -f Backend/docker-compose.vps.web-landing.yml --env-file Backend/.env.vps ps
+```
+
+2. Validar bind de portas no host:
+
+```bash
+sudo ss -ltnp | egrep ':(6193|6151|6069|6140|6088)\b'
+```
+
+3. Testar localmente na propria VPS:
+
+```bash
+curl -i http://127.0.0.1:6193/health
+curl -I http://127.0.0.1:6151/Account/Login
+curl -I http://127.0.0.1:6069/Account/Login
+curl -I http://127.0.0.1:6140/Account/Login
+curl -i http://127.0.0.1:6088/health
+```
+
+4. Se os containers estiverem em `Restarting/Exited`, abrir logs:
+
+```bash
+docker logs --tail 200 cpm-dev-api
+docker logs --tail 200 cpm-dev-web-admin
+docker logs --tail 200 cpm-dev-web-client
+docker logs --tail 200 cpm-dev-web-provider
+docker logs --tail 200 cpm-dev-web-landing
 ```
