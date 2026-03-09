@@ -107,7 +107,7 @@ public class AdminFireTvDashboardControllerTests
             ],
             RecentActivity:
             [
-                new AdminFireTvOperationalRecentActivityDto("10:21", "Eletricista - Praia Grande", "Em matching • Ocian - Praia Grande", "warning")
+                new AdminFireTvOperationalRecentActivityDto("bolt", "10:21", "Eletricista - Praia Grande", "Em matching - Ocian - Praia Grande", "warning")
             ]);
 
         serviceMock
@@ -122,3 +122,5 @@ public class AdminFireTvDashboardControllerTests
         Assert.Same(payload, ok.Value);
     }
 }
+
+

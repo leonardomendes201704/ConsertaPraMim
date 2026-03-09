@@ -132,6 +132,7 @@ export interface FireTvOperationalDailySeriesItem {
 }
 
 export interface FireTvOperationalRecentActivity {
+  categoryIcon: string;
   timeLabel: string;
   title: string;
   subtitle: string;
@@ -159,3 +160,4 @@ export interface FireTvOperationsDashboardData {
   dailySeries: FireTvOperationalDailySeriesItem[];
   recentActivity: FireTvOperationalRecentActivity[];
 }
+

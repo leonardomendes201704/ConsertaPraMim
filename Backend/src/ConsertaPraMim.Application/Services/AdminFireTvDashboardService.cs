@@ -348,6 +348,7 @@ public sealed class AdminFireTvDashboardService : IAdminFireTvDashboardService
             {
                 var localTime = TimeZoneInfo.ConvertTimeFromUtc(NormalizeUtc(item.UpdatedAt ?? item.CreatedAt), timeZone);
                 return new AdminFireTvOperationalRecentActivityDto(
+                    ResolveCategoryIcon(item),
                     localTime.ToString("HH:mm", culture),
                     $"{ResolveCategoryName(item)} - {item.AddressCity}",
                     BuildRecentActivitySubtitle(item),
@@ -662,6 +663,13 @@ public sealed class AdminFireTvDashboardService : IAdminFireTvDashboardService
         return request.Category.ToPtBr();
     }
 
+    private static string ResolveCategoryIcon(ServiceRequest request)
+    {
+        return string.IsNullOrWhiteSpace(request.CategoryDefinition?.Icon)
+            ? "build_circle"
+            : request.CategoryDefinition.Icon.Trim();
+    }
+
     private static DateTime ResolveRequestCompletionReferenceUtc(ServiceRequest request)
     {
         var completedAt = request.Appointments
@@ -766,3 +774,4 @@ public sealed class AdminFireTvDashboardService : IAdminFireTvDashboardService
         DateTime FromUtc,
         DateTime ToUtc);
 }
+

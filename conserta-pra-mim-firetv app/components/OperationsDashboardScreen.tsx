@@ -1,5 +1,6 @@
 import * as signalR from '@microsoft/signalr/dist/esm/index.js';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import L from 'leaflet';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FireTvDashboardApiError, fetchFireTvOperationsDashboard } from '../services/dashboard';
 import { getApiBaseUrl } from '../services/http';
 import type {
@@ -60,30 +61,13 @@ function resolveHealthSummary(targets: FireTvHealthTargetStatus[]): string {
   return healthyTargets === targets.length ? 'APIs: OK' : `${healthyTargets}/${targets.length} OK`;
 }
 
-function buildMapBounds(points: FireTvOperationalMapPoint[]): { minLat: number; maxLat: number; minLng: number; maxLng: number } | null {
-  if (points.length === 0) {
-    return null;
-  }
-
-  const latitudes = points.map((item) => item.latitude);
-  const longitudes = points.map((item) => item.longitude);
-  return {
-    minLat: Math.min(...latitudes),
-    maxLat: Math.max(...latitudes),
-    minLng: Math.min(...longitudes),
-    maxLng: Math.max(...longitudes)
-  };
-}
-
-function normalizePoint(point: FireTvOperationalMapPoint, bounds: { minLat: number; maxLat: number; minLng: number; maxLng: number }): { left: string; top: string } {
-  const latRange = Math.max(0.01, bounds.maxLat - bounds.minLat);
-  const lngRange = Math.max(0.01, bounds.maxLng - bounds.minLng);
-  const left = ((point.longitude - bounds.minLng) / lngRange) * 100;
-  const top = 100 - ((point.latitude - bounds.minLat) / latRange) * 100;
-  return {
-    left: `${Math.min(96, Math.max(4, left))}%`,
-    top: `${Math.min(94, Math.max(6, top))}%`
-  };
+function createMapIcon(type: 'provider' | 'request', tone: string, label: string): L.DivIcon {
+  return L.divIcon({
+    className: 'tv-map-marker-shell',
+    html: `<span class="tv-map-point tv-map-point--${type} is-${tone}">${label}</span>`,
+    iconSize: [34, 34],
+    iconAnchor: [17, 17]
+  });
 }
 
 const HealthStrip: React.FC<{
@@ -159,45 +143,112 @@ const MapPanel: React.FC<{
   providerPoints: FireTvOperationalMapPoint[];
   requestPoints: FireTvOperationalMapPoint[];
 }> = ({ providerPoints, requestPoints }) => {
-  const allPoints = [...providerPoints, ...requestPoints];
-  const bounds = useMemo(() => buildMapBounds(allPoints), [allPoints]);
+  const mapElementRef = useRef<HTMLDivElement | null>(null);
+  const mapInstanceRef = useRef<L.Map | null>(null);
+  const markerLayerRef = useRef<L.LayerGroup | null>(null);
+  const allPoints = useMemo(() => [...providerPoints, ...requestPoints], [providerPoints, requestPoints]);
+
+  useEffect(() => {
+    if (!mapElementRef.current || mapInstanceRef.current) {
+      return;
+    }
+
+    const map = L.map(mapElementRef.current, {
+      zoomControl: false,
+      attributionControl: false,
+      dragging: false,
+      scrollWheelZoom: false,
+      doubleClickZoom: false,
+      boxZoom: false,
+      keyboard: false,
+      touchZoom: false
+    }).setView([-23.967, -46.334], 11);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    mapInstanceRef.current = map;
+    markerLayerRef.current = L.layerGroup().addTo(map);
+
+    return () => {
+      markerLayerRef.current?.clearLayers();
+      markerLayerRef.current = null;
+      mapInstanceRef.current?.remove();
+      mapInstanceRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    const markerLayer = markerLayerRef.current;
+    if (!map || !markerLayer) {
+      return;
+    }
+
+    markerLayer.clearLayers();
+
+    const markers: L.Marker[] = [];
+
+    for (const point of providerPoints) {
+      const marker = L.marker([point.latitude, point.longitude], {
+        icon: createMapIcon('provider', point.tone, 'P'),
+        keyboard: false
+      }).bindTooltip(`${point.label} - ${point.subtitle}`, {
+        direction: 'top',
+        offset: [0, -18],
+        opacity: 0.92
+      });
+
+      marker.addTo(markerLayer);
+      markers.push(marker);
+    }
+
+    for (const point of requestPoints) {
+      const marker = L.marker([point.latitude, point.longitude], {
+        icon: createMapIcon('request', point.tone, 'S'),
+        keyboard: false
+      }).bindTooltip(`${point.label} - ${point.subtitle}`, {
+        direction: 'top',
+        offset: [0, -18],
+        opacity: 0.92
+      });
+
+      marker.addTo(markerLayer);
+      markers.push(marker);
+    }
+
+    if (markers.length === 0) {
+      map.setView([-23.967, -46.334], 11, { animate: false });
+      return;
+    }
+
+    if (markers.length === 1) {
+      map.setView(markers[0].getLatLng(), 15, { animate: false });
+      return;
+    }
+
+    const bounds = L.featureGroup(markers).getBounds();
+    map.fitBounds(bounds.pad(0.08), {
+      animate: false,
+      padding: [18, 18],
+      maxZoom: 16
+    });
+
+    const tighterZoom = Math.min(17, map.getZoom() + 1);
+    map.setView(bounds.getCenter(), tighterZoom, { animate: false });
+  }, [providerPoints, requestPoints]);
 
   return (
     <section className="tv-panel tv-panel--map">
       <div className="tv-panel-header">
         <h2>Mapa de atendimentos</h2>
       </div>
-      {!bounds ? (
+      {allPoints.length === 0 ? (
         <p className="tv-empty-state">Sem pontos georreferenciados para exibir.</p>
       ) : (
         <div className="tv-map-surface">
-          <div className="tv-map-grid" />
-          {providerPoints.map((point) => {
-            const style = normalizePoint(point, bounds);
-            return (
-              <div
-                key={`provider-${point.id}`}
-                className={`tv-map-point tv-map-point--provider is-${point.tone}`}
-                style={style}
-                title={`${point.label} • ${point.subtitle}`}
-              >
-                P
-              </div>
-            );
-          })}
-          {requestPoints.map((point) => {
-            const style = normalizePoint(point, bounds);
-            return (
-              <div
-                key={`request-${point.id}`}
-                className={`tv-map-point tv-map-point--request is-${point.tone}`}
-                style={style}
-                title={`${point.label} • ${point.subtitle}`}
-              >
-                S
-              </div>
-            );
-          })}
+          <div ref={mapElementRef} className="tv-leaflet-map" aria-label="Mapa operacional" />
           <div className="tv-map-legend">
             <span><i className="tv-legend-bullet is-provider" /> Prestadores</span>
             <span><i className="tv-legend-bullet is-request" /> Pedidos</span>
@@ -218,11 +269,12 @@ const RecentActivityPanel: React.FC<{ items: FireTvOperationalRecentActivity[] }
     ) : (
       <div className="tv-activity-list">
         {items.map((item, index) => (
-          <article key={`${item.timeLabel}-${index}`} className={`tv-activity-item is-${item.tone}`}>
-            <strong>{item.timeLabel}</strong>
+          <article key={`${item.categoryIcon}-${item.title}-${index}`} className={`tv-activity-item is-${item.tone}`}>
+            <span className={`material-symbols-outlined tv-activity-category-icon is-${item.tone}`} aria-hidden="true">
+              {item.categoryIcon || 'build_circle'}
+            </span>
             <div>
               <h3>{item.title}</h3>
-              <p>{item.subtitle}</p>
             </div>
           </article>
         ))}
@@ -262,13 +314,88 @@ const DailySeriesPanel: React.FC<{ items: FireTvOperationalDailySeriesItem[] }> 
   );
 };
 
-const KpiCard: React.FC<{ item: FireTvDashboardKpi; compact?: boolean }> = ({ item, compact = false }) => (
-  <article className={`tv-kpi-card tv-kpi-card--${item.tone} ${compact ? 'tv-kpi-card--compact' : 'tv-kpi-card--hero'}`}>
-    <span>{item.label}</span>
-    <strong>{item.value}</strong>
-    {item.helperText ? <small>{item.helperText}</small> : null}
-  </article>
-);
+function resolveHeroKpiMeta(item: FireTvDashboardKpi): { iconKey: string; label: string; helper?: string; showRatingStars?: boolean } {
+  switch (item.key) {
+    case 'servicesToday':
+      return { iconKey: 'services', label: 'Servicos', helper: 'Hoje' };
+    case 'registeredProviders':
+      return { iconKey: 'providers', label: 'Profissionais', helper: 'Cadastrados' };
+    case 'activeAttendances':
+      return { iconKey: 'attendances', label: 'Atendimentos', helper: 'Ativos' };
+    case 'averageRating':
+      return { iconKey: 'rating', label: 'Avaliacao Media', showRatingStars: true };
+    default:
+      return { iconKey: 'default', label: item.label, helper: item.helperText ?? undefined };
+  }
+}
+
+function renderHeroIcon(iconKey: string): React.ReactNode {
+  switch (iconKey) {
+    case 'services':
+      return <i className="bi bi-tools" aria-hidden="true" />;
+    case 'providers':
+      return <i className="bi bi-person-fill" aria-hidden="true" />;
+    case 'attendances':
+      return <i className="bi bi-geo-alt-fill" aria-hidden="true" />;
+    case 'rating':
+      return <i className="bi bi-star-fill" aria-hidden="true" />;
+    default:
+      return <i className="bi bi-circle-fill" aria-hidden="true" />;
+  }
+}
+
+function renderRatingStars(rawValue: string): React.ReactNode {
+  const parsed = Number.parseFloat(rawValue.replace(',', '.'));
+  const filledStars = Number.isFinite(parsed)
+    ? Math.max(0, Math.min(5, Math.round(parsed)))
+    : 0;
+
+  return (
+    <span className="tv-kpi-hero-stars" aria-label={`Avaliacao ${rawValue}`}>
+      {Array.from({ length: 5 }, (_, index) => (
+        <span
+          key={`star-${index}`}
+          className={index < filledStars ? 'is-filled' : 'is-empty'}
+          aria-hidden="true"
+        >
+          {'\u2605'}
+        </span>
+      ))}
+    </span>
+  );
+}
+const KpiCard: React.FC<{ item: FireTvDashboardKpi; compact?: boolean }> = ({ item, compact = false }) => {
+  if (compact) {
+    return (
+      <article className={`tv-kpi-card tv-kpi-card--${item.tone} tv-kpi-card--compact`}>
+        <span>{item.label}</span>
+        <strong>{item.value}</strong>
+        {item.helperText ? <small>{item.helperText}</small> : null}
+      </article>
+    );
+  }
+
+  const heroMeta = resolveHeroKpiMeta(item);
+
+  return (
+    <article className={`tv-kpi-card tv-kpi-card--${item.tone} tv-kpi-card--hero`}>
+      <div className="tv-kpi-hero-layout">
+        <span className={`tv-kpi-hero-icon tv-kpi-hero-icon--${item.tone}`} aria-hidden="true">
+          {renderHeroIcon(heroMeta.iconKey)}
+        </span>
+        <strong>{item.value}</strong>
+        <div className="tv-kpi-hero-copy">
+          <span className="tv-kpi-hero-label">{heroMeta.label}</span>
+          {heroMeta.showRatingStars ? (
+            renderRatingStars(item.value)
+          ) : heroMeta.helper ? (
+            <small className="tv-kpi-hero-helper">{heroMeta.helper}</small>
+          ) : null}
+        </div>
+      </div>
+    </article>
+  );
+};
 
 const OperationsDashboardScreen: React.FC<OperationsDashboardScreenProps> = ({
   session,
@@ -423,3 +550,6 @@ const OperationsDashboardScreen: React.FC<OperationsDashboardScreenProps> = ({
 };
 
 export default OperationsDashboardScreen;
+
+
+

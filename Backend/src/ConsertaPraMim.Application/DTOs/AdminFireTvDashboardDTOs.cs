@@ -133,6 +133,7 @@ public sealed record AdminFireTvOperationalDailySeriesItemDto(
     int Attendances);
 
 public sealed record AdminFireTvOperationalRecentActivityDto(
+    string CategoryIcon,
     string TimeLabel,
     string Title,
     string Subtitle,
@@ -189,3 +190,4 @@ public sealed record AdminFireTvOperationsDashboardDto(
     IReadOnlyList<AdminFireTvOperationalMapPointDto> RequestPoints,
     IReadOnlyList<AdminFireTvOperationalDailySeriesItemDto> DailySeries,
     IReadOnlyList<AdminFireTvOperationalRecentActivityDto> RecentActivity);
+

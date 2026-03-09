@@ -14,10 +14,12 @@
     "android:apk:debug": "npm run build:android && npx cap sync android && cd android && gradlew.bat assembleDebug"
   },
   "dependencies": {
-    "@microsoft/signalr": "^10.0.0",
     "@capacitor/android": "^8.1.0",
     "@capacitor/cli": "^8.1.0",
     "@capacitor/core": "^8.1.0",
+    "@microsoft/signalr": "^10.0.0",
+    "bootstrap-icons": "^1.13.1",
+    "leaflet": "^1.9.4",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"
   },
