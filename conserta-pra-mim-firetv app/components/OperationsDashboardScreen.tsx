@@ -122,15 +122,13 @@ const CategoryPanel: React.FC<{ categories: FireTvOperationalCategory[]; panelHe
       <p className="tv-empty-state">Sem categorias para o periodo.</p>
     ) : (
       <div className="tv-category-panel">
-        <div className="tv-category-chart" style={{ backgroundImage: buildCategoryGradient(categories) }}>
-          <div className="tv-category-chart-core">Mix</div>
-        </div>
+        <div className="tv-category-chart" style={{ backgroundImage: buildCategoryGradient(categories) }} />
         <div className="tv-category-legend">
           {categories.map((item, index) => (
             <div key={item.category} className="tv-category-legend-row">
               <span className="tv-category-color" style={{ backgroundColor: getToneColor(index) }} />
               <span>{item.category}</span>
-              <strong>{item.percent.toFixed(1)}%</strong>
+              <strong>{Math.round(item.percent)}%</strong>
             </div>
           ))}
         </div>
@@ -179,6 +177,40 @@ const MapPanel: React.FC<{
       mapInstanceRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    const mapElement = mapElementRef.current;
+    const map = mapInstanceRef.current;
+    if (!mapElement || !map) {
+      return;
+    }
+
+    let frameId = 0;
+    const syncMapSize = () => {
+      if (frameId) {
+        window.cancelAnimationFrame(frameId);
+      }
+
+      frameId = window.requestAnimationFrame(() => {
+        map.invalidateSize({ pan: false, animate: false });
+      });
+    };
+
+    syncMapSize();
+
+    const observer = new ResizeObserver(() => {
+      syncMapSize();
+    });
+
+    observer.observe(mapElement);
+
+    return () => {
+      observer.disconnect();
+      if (frameId) {
+        window.cancelAnimationFrame(frameId);
+      }
+    };
+  }, [panelHeight]);
 
   useEffect(() => {
     const map = mapInstanceRef.current;
@@ -313,6 +345,38 @@ const RecentActivityPanel: React.FC<{
 const DailySeriesPanel: React.FC<{ items: FireTvOperationalDailySeriesItem[] }> = ({ items }) => {
   const maxValue = items.reduce((max, item) => Math.max(max, item.requests, item.attendances), 0);
 
+  const chartGeometry = useMemo(() => {
+    const width = 420;
+    const height = 190;
+    const left = 18;
+    const right = 18;
+    const top = 18;
+    const bottom = 26;
+    const innerWidth = Math.max(1, width - left - right);
+    const innerHeight = Math.max(1, height - top - bottom);
+    const denominator = Math.max(1, items.length - 1);
+
+    const buildPoints = (selector: (item: FireTvOperationalDailySeriesItem) => number) =>
+      items.map((item, index) => {
+        const value = selector(item);
+        const x = left + (innerWidth * index) / denominator;
+        const normalized = maxValue === 0 ? 0 : value / maxValue;
+        const y = top + innerHeight - normalized * innerHeight;
+        return { x, y, label: item.label, value };
+      });
+
+    return {
+      width,
+      height,
+      requestPoints: buildPoints((item) => item.requests),
+      attendancePoints: buildPoints((item) => item.attendances),
+      gridLines: Array.from({ length: 4 }, (_, index) => top + (innerHeight * index) / 3)
+    };
+  }, [items, maxValue]);
+
+  const toPolyline = (points: Array<{ x: number; y: number }>) =>
+    points.map((point) => `${point.x},${point.y}`).join(' ');
+
   return (
     <section className="tv-panel tv-panel--glass">
       <div className="tv-panel-header">
@@ -321,41 +385,100 @@ const DailySeriesPanel: React.FC<{ items: FireTvOperationalDailySeriesItem[] }> 
       {items.length === 0 ? (
         <p className="tv-empty-state">Sem serie diaria disponivel.</p>
       ) : (
-        <div className="tv-bar-chart">
-          {items.map((item) => (
-            <article key={item.label} className="tv-bar-chart-item">
-              <div className="tv-bar-chart-columns">
-                <div className="tv-bar-chart-column is-requests">
-                  <div style={{ height: `${maxValue === 0 ? 8 : Math.max(8, (item.requests / maxValue) * 100)}%` }} />
-                </div>
-                <div className="tv-bar-chart-column is-attendances">
-                  <div style={{ height: `${maxValue === 0 ? 8 : Math.max(8, (item.attendances / maxValue) * 100)}%` }} />
-                </div>
-              </div>
-              <strong>{item.label}</strong>
-            </article>
-          ))}
+        <div className="tv-line-chart">
+          <svg
+            className="tv-line-chart-svg"
+            viewBox={`0 0 ${chartGeometry.width} ${chartGeometry.height}`}
+            role="img"
+            aria-label="Serie diaria de pedidos e atendimentos"
+          >
+            {chartGeometry.gridLines.map((y, index) => (
+              <line
+                key={`grid-${index}`}
+                x1="18"
+                x2={chartGeometry.width - 18}
+                y1={y}
+                y2={y}
+                className="tv-line-chart-grid"
+              />
+            ))}
+            <polyline
+              className="tv-line-chart-path is-requests"
+              points={toPolyline(chartGeometry.requestPoints)}
+              fill="none"
+            />
+            <polyline
+              className="tv-line-chart-path is-attendances"
+              points={toPolyline(chartGeometry.attendancePoints)}
+              fill="none"
+            />
+            {chartGeometry.requestPoints.map((point, index) => (
+              <circle
+                key={`request-point-${items[index].label}`}
+                cx={point.x}
+                cy={point.y}
+                r="4.5"
+                className="tv-line-chart-dot is-requests"
+              />
+            ))}
+            {chartGeometry.attendancePoints.map((point, index) => (
+              <circle
+                key={`attendance-point-${items[index].label}`}
+                cx={point.x}
+                cy={point.y}
+                r="4.5"
+                className="tv-line-chart-dot is-attendances"
+              />
+            ))}
+          </svg>
+          <div className="tv-line-chart-axis">
+            {items.map((item) => (
+              <strong key={item.label}>{item.label}</strong>
+            ))}
+          </div>
+          <div className="tv-line-chart-legend">
+            <span><i className="tv-line-chart-legend-dot is-requests" /> Pedidos</span>
+            <span><i className="tv-line-chart-legend-dot is-attendances" /> Atendimentos</span>
+          </div>
         </div>
       )}
     </section>
   );
 };
 
-const MergedMetricsPanel: React.FC<{
-  sla?: FireTvDashboardKpi;
-  revenue?: FireTvDashboardKpi;
-}> = ({ sla, revenue }) => (
-  <section className="tv-kpi-card tv-kpi-card--compact tv-kpi-card--merged">
-    <div className="tv-kpi-merged-block">
-      <span>{sla?.label ?? 'SLA'}</span>
-      <strong>{sla?.value ?? '--'}</strong>
-      {sla?.helperText ? <small>{sla.helperText}</small> : null}
+const ProgressMetricCard: React.FC<{
+  item?: FireTvDashboardKpi;
+  progressPercent: number;
+  progressTone: 'success' | 'danger';
+}> = ({ item, progressPercent, progressTone }) => (
+  <section className={`tv-kpi-card tv-kpi-card--compact tv-kpi-card--progress tv-kpi-card--progress-${progressTone}`}>
+    <div className="tv-kpi-progress-layout">
+      <strong>{item?.value ?? '--'}</strong>
+      <div className="tv-kpi-progress-copy">
+        <span>{item?.label ?? '--'}</span>
+        {item?.helperText ? <small>{item.helperText}</small> : null}
+      </div>
     </div>
-    <div className="tv-kpi-merged-divider" aria-hidden="true" />
-    <div className="tv-kpi-merged-block">
-      <span>{revenue?.label ?? 'Receita mensal'}</span>
-      <strong>{revenue?.value ?? '--'}</strong>
-      {revenue?.helperText ? <small>{revenue.helperText}</small> : null}
+    <div className="tv-kpi-progress-track" aria-hidden="true">
+      <div style={{ width: `${Math.max(0, Math.min(100, progressPercent))}%` }} />
+    </div>
+  </section>
+);
+
+const DualMetricPanel: React.FC<{
+  left?: FireTvDashboardKpi;
+  right?: FireTvDashboardKpi;
+}> = ({ left, right }) => (
+  <section className="tv-kpi-card tv-kpi-card--compact tv-kpi-card--dual">
+    <div className="tv-kpi-dual-metric">
+      <strong>{left?.value ?? '--'}</strong>
+      <span>{left?.label ?? '--'}</span>
+      {left?.helperText ? <small>{left.helperText}</small> : null}
+    </div>
+    <div className="tv-kpi-dual-metric">
+      <strong>{right?.value ?? '--'}</strong>
+      <span>{right?.label ?? '--'}</span>
+      {right?.helperText ? <small>{right.helperText}</small> : null}
     </div>
   </section>
 );
@@ -579,9 +702,9 @@ const OperationsDashboardScreen: React.FC<OperationsDashboardScreenProps> = ({
 
             <div className="tv-operations-bottom-grid">
               <DailySeriesPanel items={dashboard.dailySeries} />
-              {completedServicesKpi ? <KpiCard item={completedServicesKpi} compact /> : <MergedMetricsPanel />}
-              <MergedMetricsPanel sla={slaKpi} revenue={monthlyRevenueKpi} />
-              {cancelledCallsKpi ? <KpiCard item={cancelledCallsKpi} compact /> : <MergedMetricsPanel />}
+              <ProgressMetricCard item={completedServicesKpi} progressPercent={72} progressTone="success" />
+              <DualMetricPanel left={slaKpi} right={monthlyRevenueKpi} />
+              <ProgressMetricCard item={cancelledCallsKpi} progressPercent={34} progressTone="danger" />
             </div>
 
             <HealthTargetsPanel targets={dashboard.healthTargets} />
