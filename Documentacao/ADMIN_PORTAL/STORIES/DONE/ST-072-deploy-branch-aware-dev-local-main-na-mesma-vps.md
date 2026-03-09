@@ -35,3 +35,4 @@ validar funcionalidades em ambiente paralelo sem interromper producao e sem risc
 - [x] atualizar runbook com comandos de troubleshooting rapido para timeout em portas DEV.
 - [x] forcar `URLS` + `ASPNETCORE_URLS` nos compose files web para evitar bind interno em portas legadas de `appsettings.Development` no perfil `dev-local`;
 - [x] evitar crash da API em `dev-local` por `PendingModelChangesWarning`, mantendo o comportamento estrito em `production`.
+- [x] injetar `DEPLOY_PROFILE` no container da API para aplicar a regra de warning somente no stack `development`.

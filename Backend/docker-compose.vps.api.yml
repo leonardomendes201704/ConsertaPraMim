@@ -12,6 +12,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: "${APP_ENVIRONMENT:-Development}"
       ASPNETCORE_URLS: "http://+:8080"
+      DEPLOY_PROFILE: "${DEPLOY_PROFILE:-production}"
       VPS_PUBLIC_HOST: "${VPS_PUBLIC_HOST}"
       Security__EnforceHttpsRedirection: "${ENFORCE_API_HTTPS_REDIRECTION:-true}"
       ADMIN_PORT: "${ADMIN_PORT:-5151}"
