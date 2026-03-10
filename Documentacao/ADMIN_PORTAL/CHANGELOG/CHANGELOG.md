@@ -1,4 +1,4 @@
-# Admin Portal Changelog
+﻿# Admin Portal Changelog
 
 ## Como usar
 
@@ -23,6 +23,7 @@
 - Resumo: os steps `Publish APK metadata` (client/provider/admin) e `Notify APK release push` (provider) passaram a usar endpoint interno da API no proprio runner da VPS (`http://127.0.0.1:<API_PORT>`), removendo dependencia de `PUBLIC_API_URL`/`VPS_PUBLIC_HOST` para chamadas internas e eliminando warning de `HTTP 000` em ambiente de producao com bind da API em `127.0.0.1`.
 - Arquivos principais: `.github/workflows/deploy-vps.yml`, `Backend/DEPLOY_VPS.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-072-deploy-branch-aware-dev-local-main-na-mesma-vps.md`
 - Risco/Impacto: medio
+
 - [2026-03-10] [ST-072][OPS-VPS-APK-UPLOAD-PERMISSION-ROOT] Publicacao de APK sem falha por permissao no filebrowser
 - Tipo: fix
 - Resumo: os steps `Publish APK fileserver` (client/provider/admin) passaram a executar `docker exec` com `--user 0` para criacao de diretorios e ajuste de ownership/permissoes em `/srv/apks`, eliminando falha por `Operation not permitted` no `chown` sem uso de fallback silencioso; a etapa permanece estrita e deve falhar apenas em erro real de filesystem/permissao.
@@ -169,13 +170,13 @@
 
 - [2026-03-08] [ST-059][ADMIN-LANDING-RECURRING-VISITORS] KPI de visitas com recorrencia da landing
 - Tipo: feat
-- Resumo: o card `Visitas` da landing na home admin passou a detalhar, alem de `Visitantes únicos`, a quantidade de `Visitantes recorrentes`, calculada por `visitorId` estavel da landing em vez de IP bruto compartilhado; com isso, a leitura do topo de funil fica mais confiavel para retorno de visitantes no periodo filtrado.
+- Resumo: o card `Visitas` da landing na home admin passou a detalhar, alem de `Visitantes Ãºnicos`, a quantidade de `Visitantes recorrentes`, calculada por `visitorId` estavel da landing em vez de IP bruto compartilhado; com isso, a leitura do topo de funil fica mais confiavel para retorno de visitantes no periodo filtrado.
 - Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/AdminDashboardDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminDashboardService.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminHome/Index.cshtml`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminDashboardServiceTests.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `Documentacao/LANDING_PAGE/MANUAL_QA_OPERACAO_LANDING.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-059-kpis-visitas-cadastros-e-conversao-landing-dashboard.md`
 - Risco/Impacto: baixo
 
 - [2026-03-08] [ST-059][ADMIN-LANDING-KPIS] KPIs da landing na home do dashboard admin
 - Tipo: feat
-- Resumo: a landing passou a persistir cada acesso relevante (`/`, `/Cliente`, `/Prestador`) em `LandingAccessEvents` com `visitorId` estavel por navegador, e a home do portal admin passou a exibir os KPIs incrementais `Visitas`, `Cadastros Prestador`, `Cadastros Cliente` e `Taxa de Conversão`; os cards respeitam o recorte global de periodo do dashboard, `Visitas` detalha visitantes unicos e `Taxa de Conversão` detalha cadastros totais e visitantes convertidos correlacionados entre acesso e lead.
+- Resumo: a landing passou a persistir cada acesso relevante (`/`, `/Cliente`, `/Prestador`) em `LandingAccessEvents` com `visitorId` estavel por navegador, e a home do portal admin passou a exibir os KPIs incrementais `Visitas`, `Cadastros Prestador`, `Cadastros Cliente` e `Taxa de ConversÃ£o`; os cards respeitam o recorte global de periodo do dashboard, `Visitas` detalha visitantes unicos e `Taxa de ConversÃ£o` detalha cadastros totais e visitantes convertidos correlacionados entre acesso e lead.
 - Arquivos principais: `Backend/src/ConsertaPraMim.Domain/Entities/LandingAccessEvent.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Migrations/20260308213916_AddLandingAccessEventsAnalytics.cs`, `Backend/src/ConsertaPraMim.Application/Services/LandingAccessEventService.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminDashboardService.cs`, `Backend/src/ConsertaPraMim.Web.Landing/Controllers/HomeController.cs`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/js/site.js`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminHome/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `Documentacao/LANDING_PAGE/MANUAL_QA_OPERACAO_LANDING.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-059-kpis-visitas-cadastros-e-conversao-landing-dashboard.md`
 - Risco/Impacto: medio
 
@@ -187,7 +188,7 @@
 
 - [2026-03-08] [LANDING-FOOTER-CLEANUP] Rodape da landing sem links operacionais
 - Tipo: fix
-- Resumo: o rodape da landing deixou de exibir os links `Cliente`, `Prestador`, `Admin` e `Swagger`, mantendo apenas o copyright institucional para reduzir ruído de navegação e concentrar a jornada principal nos CTAs da home e no header.
+- Resumo: o rodape da landing deixou de exibir os links `Cliente`, `Prestador`, `Admin` e `Swagger`, mantendo apenas o copyright institucional para reduzir ruÃ­do de navegaÃ§Ã£o e concentrar a jornada principal nos CTAs da home e no header.
 - Arquivos principais: `Backend/src/ConsertaPraMim.Web.Landing/Views/Shared/_Layout.cshtml`, `Backend/tests/ConsertaPraMim.Tests.Unit/Frontend/LandingPageRegressionTests.cs`, `Documentacao/LANDING_PAGE/MANUAL_QA_OPERACAO_LANDING.md`
 - Risco/Impacto: baixo
 
@@ -233,9 +234,9 @@
 - Arquivos principais: `Backend/src/ConsertaPraMim.Web.Landing/Views/Shared/_Layout.cshtml`, `Backend/src/ConsertaPraMim.Web.Landing/Views/Home/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/js/site.js`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/css/site.css`, `Backend/tests/ConsertaPraMim.Tests.Unit/Frontend/LandingPageRegressionTests.cs`, `Documentacao/LANDING_PAGE/MANUAL_QA_OPERACAO_LANDING.md`
 - Risco/Impacto: medio
 
-- [2026-03-08] [LANDING-TESTEMUNHOS] Seção pública de testemunhos com clientes e prestadores
+- [2026-03-08] [LANDING-TESTEMUNHOS] SeÃ§Ã£o pÃºblica de testemunhos com clientes e prestadores
 - Tipo: feat
-- Resumo: a landing pública passou a exibir, logo abaixo do bloco institucional, uma seção de prova social com 20 depoimentos estáticos em PT-BR, sendo 10 de clientes e 10 de prestadores, distribuídos em duas colunas com visual próprio para reforçar confiança e previsibilidade operacional.
+- Resumo: a landing pÃºblica passou a exibir, logo abaixo do bloco institucional, uma seÃ§Ã£o de prova social com 20 depoimentos estÃ¡ticos em PT-BR, sendo 10 de clientes e 10 de prestadores, distribuÃ­dos em duas colunas com visual prÃ³prio para reforÃ§ar confianÃ§a e previsibilidade operacional.
 - Arquivos principais: `Backend/src/ConsertaPraMim.Web.Landing/Views/Home/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/css/site.css`, `Backend/tests/ConsertaPraMim.Tests.Unit/Frontend/LandingPageRegressionTests.cs`, `Documentacao/LANDING_PAGE/MANUAL_QA_OPERACAO_LANDING.md`
 - Risco/Impacto: baixo
 
@@ -331,7 +332,7 @@
 
 - [2026-03-03] [WEB-CLIENT][PAYMENTS] Correcao de timezone na exibicao de atualizacao de pagamento
 - Tipo: fix
-- Resumo: a tela `ServiceRequests/Details` do portal cliente passou a interpretar timestamps de pagamento como UTC de forma explicita e exibir datas/horarios no fuso de negocio `America/Sao_Paulo`, eliminando desvio de `+3h/-3h` na linha `Metodo: PIX · Atualizado`.
+- Resumo: a tela `ServiceRequests/Details` do portal cliente passou a interpretar timestamps de pagamento como UTC de forma explicita e exibir datas/horarios no fuso de negocio `America/Sao_Paulo`, eliminando desvio de `+3h/-3h` na linha `Metodo: PIX Â· Atualizado`.
 - Arquivos principais: `Backend/src/ConsertaPraMim.Web.Client/wwwroot/js/views/service-requests/details.js`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
 - Risco/Impacto: baixo
 
@@ -951,7 +952,7 @@
 
 - [2026-03-04] [ST-009] Orquestrador de consulta natural com contexto, auditoria e paginacao no chatbot Telegram
 - Tipo: feat
-- Resumo: concluida a ST-009 com fluxo conversacional de consulta para pedidos/status/detalhes/agenda no `TelegramChatbotOrchestrator`, incluindo deteccao contextual por protocolo/pedido atual, respostas amigaveis para casos sem dados, paginação por continuidade ("mostrar mais"), persistencia de trilha auditavel (`query_intent_result`, `query_reference_state`, `query_*`) e cobertura automatizada unitaria/integracao das intents de consulta e autorizacao.
+- Resumo: concluida a ST-009 com fluxo conversacional de consulta para pedidos/status/detalhes/agenda no `TelegramChatbotOrchestrator`, incluindo deteccao contextual por protocolo/pedido atual, respostas amigaveis para casos sem dados, paginaÃ§Ã£o por continuidade ("mostrar mais"), persistencia de trilha auditavel (`query_intent_result`, `query_reference_state`, `query_*`) e cobertura automatizada unitaria/integracao das intents de consulta e autorizacao.
 - Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramChatbotOrchestrator.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/ITelegramChatbotApiClient.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramChatbotApiClient.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Models/TelegramServiceRequestModels.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramChatbotOrchestratorTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Integration/Controllers/TelegramChatbotControllerSqliteIntegrationTests.cs`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-009-consulta-natural-status-pedidos-agenda/fluxo-consulta-natural-status-pedidos-agenda.mmd`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-009-consulta-natural-status-pedidos-agenda/sequencia-consulta-natural-status-pedidos-agenda.mmd`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/DONE/ST-009-consulta-natural-de-status-pedidos-e-agenda.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md`
 - Risco/Impacto: medio
 
@@ -1017,7 +1018,7 @@
 
 - [2026-03-03] [ST-007] Correcao da abertura automatica de pedido com CEP valido no chatbot Telegram
 - Tipo: fix
-- Resumo: corrigida incompatibilidade de contrato no payload da triagem para `POST /api/service-requests` (categoria agora enviada como enum numerico compatível com o backend), com pre-resolucao de CEP via `GET /api/service-requests/zip-resolution` para enriquecer endereco/coordenadas e reduzir falhas falsas de "instabilidade" na abertura automatica.
+- Resumo: corrigida incompatibilidade de contrato no payload da triagem para `POST /api/service-requests` (categoria agora enviada como enum numerico compatÃ­vel com o backend), com pre-resolucao de CEP via `GET /api/service-requests/zip-resolution` para enriquecer endereco/coordenadas e reduzir falhas falsas de "instabilidade" na abertura automatica.
 - Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/Models/TelegramServiceRequestModels.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramServiceRequestTriageEngine.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramChatbotApiClient.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramServiceRequestTriageEngineTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramChatbotOrchestratorTests.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/DONE/ST-007-triagem-natural-e-abertura-automatica-de-pedido.md`
 - Risco/Impacto: medio
 
@@ -1105,9 +1106,9 @@
 - Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/Controllers/AccountController.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Views/Home/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/wwwroot/css/site.css`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-005-login-cliente-telegram-bridge-e-vinculo-conversa.md`
 - Risco/Impacto: baixo
 
-- [2026-03-03] [ST-005] Vínculo do `ClientId` da sessão da bridge com a API do chatbot
+- [2026-03-03] [ST-005] VÃ­nculo do `ClientId` da sessÃ£o da bridge com a API do chatbot
 - Tipo: feat
-- Resumo: `ChatApiController` passou a sincronizar abertura de sessão e mensagens de saída com `/api/telegram-chatbot/session` e `/api/telegram-chatbot/messages` usando `Bearer` token da sessão autenticada, garantindo derivação de `ClientId` no backend.
+- Resumo: `ChatApiController` passou a sincronizar abertura de sessÃ£o e mensagens de saÃ­da com `/api/telegram-chatbot/session` e `/api/telegram-chatbot/messages` usando `Bearer` token da sessÃ£o autenticada, garantindo derivaÃ§Ã£o de `ClientId` no backend.
 - Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/Controllers/ChatApiController.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/ITelegramChatbotApiClient.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramChatbotApiClient.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Program.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-005-login-cliente-telegram-bridge-e-vinculo-conversa.md`
 - Risco/Impacto: medio
 

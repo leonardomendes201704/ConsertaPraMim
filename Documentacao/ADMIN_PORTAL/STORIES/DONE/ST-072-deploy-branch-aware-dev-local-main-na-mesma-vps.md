@@ -1,4 +1,4 @@
-# ST-072 - Deploy branch-aware `dev-local` e `main` na mesma VPS
+﻿# ST-072 - Deploy branch-aware `dev-local` e `main` na mesma VPS
 
 ## Como
 DevOps / engenharia de plataforma
@@ -26,7 +26,6 @@ validar funcionalidades em ambiente paralelo sem interromper producao e sem risc
 - [x] parametrizar compose files por `CONTAINER_PREFIX`, `VOLUME_PREFIX`, `BIND_HOST` e `INTERNAL_API_URL`;
 - [x] ajustar script de deploy para nome dinamico de container;
 - [x] atualizar manual operacional de VPS com matriz DEV/PROD.
-
 ## Ajustes pos-deploy (2026-03-09)
 
 - [x] isolar projeto `docker compose` por ambiente e servico (`-p <CONTAINER_PREFIX>-<servico>`) para evitar colisao e remocao cruzada entre jobs paralelos;
@@ -38,3 +37,4 @@ validar funcionalidades em ambiente paralelo sem interromper producao e sem risc
 - [x] injetar `DEPLOY_PROFILE` no container da API para aplicar a regra de warning somente no stack `development`.
 - [x] padronizar nomes de projetos/containers por ambiente para `cpm-prd-*` (producao) e `cpm-hml-*` (homologacao), incluindo apps mobile em `app-*`.
 - [x] corrigir permissao de upload de APK no fileserver executando etapa de ownership/permissoes com `docker exec --user 0`, sem fallback silencioso.
+- [x] corrigir publicacao de metadados de APK/push de release para usar endpoint interno da API (`http://127.0.0.1:<API_PORT>`) no runner self-hosted, eliminando `HTTP 000` por tentativa de acesso externo em porta local.

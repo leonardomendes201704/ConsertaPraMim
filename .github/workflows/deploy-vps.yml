@@ -1814,38 +1814,8 @@ jobs:
             exit 0
           fi
 
-          api_base_raw="${{ secrets.PUBLIC_API_URL }}"
-          api_base_raw="${api_base_raw%/}"
-          if [[ -z "$api_base_raw" ]]; then
-            vps_host_raw="${{ secrets.VPS_PUBLIC_HOST }}"
-            vps_host_raw="${vps_host_raw%/}"
-            if [[ "$vps_host_raw" =~ ^https?:// ]]; then
-              api_base_raw="$vps_host_raw"
-            else
-              api_base_raw="http://$vps_host_raw"
-            fi
-          fi
-
-          if [[ "$api_base_raw" =~ ^https?:// ]]; then
-            api_scheme="${api_base_raw%%://*}"
-            api_rest="${api_base_raw#*://}"
-          else
-            api_scheme="http"
-            api_rest="$api_base_raw"
-          fi
-          api_rest="${api_rest%%/*}"
-          if [[ -z "$api_rest" ]]; then
-            echo "::notice::PUBLIC_API_URL/VPS_PUBLIC_HOST invalido para publicar metadado de APK (client)."
-            exit 0
-          fi
-
-          if [[ "$api_rest" == *:* ]]; then
-            api_authority="$api_rest"
-          else
-            api_authority="$api_rest:${{ env.API_PORT }}"
-          fi
-
-          metadata_url="${api_scheme}://${api_authority}/api/internal/deploy/apk-publication"
+          internal_api_base="http://127.0.0.1:${{ env.API_PORT }}"
+          metadata_url="${internal_api_base}/api/internal/deploy/apk-publication"
           payload="$(cat <<EOF
           {
             "appKind":"client",
@@ -2022,38 +1992,8 @@ jobs:
             exit 0
           fi
 
-          api_base_raw="${{ secrets.PUBLIC_API_URL }}"
-          api_base_raw="${api_base_raw%/}"
-          if [[ -z "$api_base_raw" ]]; then
-            vps_host_raw="${{ secrets.VPS_PUBLIC_HOST }}"
-            vps_host_raw="${vps_host_raw%/}"
-            if [[ "$vps_host_raw" =~ ^https?:// ]]; then
-              api_base_raw="$vps_host_raw"
-            else
-              api_base_raw="http://$vps_host_raw"
-            fi
-          fi
-
-          if [[ "$api_base_raw" =~ ^https?:// ]]; then
-            api_scheme="${api_base_raw%%://*}"
-            api_rest="${api_base_raw#*://}"
-          else
-            api_scheme="http"
-            api_rest="$api_base_raw"
-          fi
-          api_rest="${api_rest%%/*}"
-          if [[ -z "$api_rest" ]]; then
-            echo "::notice::PUBLIC_API_URL/VPS_PUBLIC_HOST invalido para publicar metadado de APK (provider)."
-            exit 0
-          fi
-
-          if [[ "$api_rest" == *:* ]]; then
-            api_authority="$api_rest"
-          else
-            api_authority="$api_rest:${{ env.API_PORT }}"
-          fi
-
-          metadata_url="${api_scheme}://${api_authority}/api/internal/deploy/apk-publication"
+          internal_api_base="http://127.0.0.1:${{ env.API_PORT }}"
+          metadata_url="${internal_api_base}/api/internal/deploy/apk-publication"
           payload="$(cat <<EOF
           {
             "appKind":"provider",
@@ -2088,40 +2028,8 @@ jobs:
             exit 0
           fi
 
-          api_base_raw="${{ secrets.PUBLIC_API_URL }}"
-          api_base_raw="${api_base_raw%/}"
-          if [[ -z "$api_base_raw" ]]; then
-            vps_host_raw="${{ secrets.VPS_PUBLIC_HOST }}"
-            vps_host_raw="${vps_host_raw%/}"
-            if [[ "$vps_host_raw" =~ ^https?:// ]]; then
-              api_base_raw="$vps_host_raw"
-            else
-              api_base_raw="http://$vps_host_raw"
-            fi
-          fi
-
-          if [[ "$api_base_raw" =~ ^https?:// ]]; then
-            api_scheme="${api_base_raw%%://*}"
-            api_rest="${api_base_raw#*://}"
-          else
-            api_scheme="http"
-            api_rest="$api_base_raw"
-          fi
-          api_rest="${api_rest%%/*}"
-          if [[ -z "$api_rest" ]]; then
-            echo "::notice::PUBLIC_API_URL/VPS_PUBLIC_HOST invalido para push de release dos APKs."
-            exit 0
-          fi
-
-          if [[ "$api_rest" == *:* ]]; then
-            api_authority="$api_rest"
-            api_host="${api_rest%%:*}"
-          else
-            api_authority="$api_rest:${{ env.API_PORT }}"
-            api_host="$api_rest"
-          fi
-
-          notify_url="${api_scheme}://${api_authority}/api/internal/deploy/apk-release"
+          internal_api_base="http://127.0.0.1:${{ env.API_PORT }}"
+          notify_url="${internal_api_base}/api/internal/deploy/apk-release"
 
           fileserver_host_raw="${{ secrets.VPS_PUBLIC_HOST }}"
           fileserver_host_raw="${fileserver_host_raw#http://}"
@@ -2129,7 +2037,8 @@ jobs:
           fileserver_host_raw="${fileserver_host_raw%%/*}"
           fileserver_host_raw="${fileserver_host_raw%%:*}"
           if [[ -z "$fileserver_host_raw" ]]; then
-            fileserver_host_raw="$api_host"
+            echo "::notice::VPS_PUBLIC_HOST invalido para montar URL do fileserver no push de release."
+            exit 0
           fi
           fileserver_url="http://${fileserver_host_raw}:8080/files/${{ env.APK_FILESERVER_DIR }}/"
 
@@ -2309,38 +2218,8 @@ jobs:
             exit 0
           fi
 
-          api_base_raw="${{ secrets.PUBLIC_API_URL }}"
-          api_base_raw="${api_base_raw%/}"
-          if [[ -z "$api_base_raw" ]]; then
-            vps_host_raw="${{ secrets.VPS_PUBLIC_HOST }}"
-            vps_host_raw="${vps_host_raw%/}"
-            if [[ "$vps_host_raw" =~ ^https?:// ]]; then
-              api_base_raw="$vps_host_raw"
-            else
-              api_base_raw="http://$vps_host_raw"
-            fi
-          fi
-
-          if [[ "$api_base_raw" =~ ^https?:// ]]; then
-            api_scheme="${api_base_raw%%://*}"
-            api_rest="${api_base_raw#*://}"
-          else
-            api_scheme="http"
-            api_rest="$api_base_raw"
-          fi
-          api_rest="${api_rest%%/*}"
-          if [[ -z "$api_rest" ]]; then
-            echo "::notice::PUBLIC_API_URL/VPS_PUBLIC_HOST invalido para publicar metadado de APK (admin)."
-            exit 0
-          fi
-
-          if [[ "$api_rest" == *:* ]]; then
-            api_authority="$api_rest"
-          else
-            api_authority="$api_rest:${{ env.API_PORT }}"
-          fi
-
-          metadata_url="${api_scheme}://${api_authority}/api/internal/deploy/apk-publication"
+          internal_api_base="http://127.0.0.1:${{ env.API_PORT }}"
+          metadata_url="${internal_api_base}/api/internal/deploy/apk-publication"
           payload="$(cat <<EOF
           {
             "appKind":"admin",
