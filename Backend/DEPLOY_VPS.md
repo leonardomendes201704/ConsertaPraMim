@@ -501,6 +501,17 @@ MSSQL_CONTAINER_NAME=mssql-mssql-1 MSSQL_HOST_ALIAS=mssql scripts/deploy/vps-dep
 Observacao:
 - no perfil `development`, a API ignora apenas o warning `RelationalEventId.PendingModelChangesWarning` para nao interromper o boot em ambiente DEV; em `production`, o comportamento padrao (estrito) permanece.
 
+Preflight obrigatorio antes de promover para `main/master`:
+
+```bash
+dotnet ef migrations has-pending-model-changes \
+  --project Backend/src/ConsertaPraMim.Infrastructure \
+  --startup-project Backend/src/ConsertaPraMim.API \
+  --context ConsertaPraMimDbContext
+```
+
+Se houver pendencia de modelo, nao promover para `main/master` sem resolver migration/snapshot no mesmo ciclo (incluindo changelog e manual operacional atualizados).
+
 6. Se Web Admin/Cliente/Prestador estiverem `Up` mas sem responder na porta publicada:
 
 ```bash
