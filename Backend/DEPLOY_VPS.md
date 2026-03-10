@@ -385,8 +385,8 @@ Em `dev-local`, o workflow sobrescreve `PUBLIC_*_URL` para `http://<VPS_PUBLIC_H
 Em `main/master`, os `PUBLIC_*_URL` devem apontar para os dominios/subdominios HTTPS de producao.
 
 Observacoes sobre metadados de APK e push de resumo:
-- a publicacao de metadados dos APKs (`/api/internal/deploy/apk-publication`) usa `PUBLIC_API_URL` como base principal; se nao existir, usa fallback para `VPS_PUBLIC_HOST`;
-- o push de release dos APKs (`/api/internal/deploy/apk-release`) segue a mesma regra para evitar erro de URI;
+- a publicacao de metadados dos APKs (`/api/internal/deploy/apk-publication`) e enviada pelo runner self-hosted para `http://127.0.0.1:<API_PORT>` na propria VPS;
+- o push de release dos APKs (`/api/internal/deploy/apk-release`) tambem usa endpoint interno `http://127.0.0.1:<API_PORT>` para evitar falha de conectividade externa em ambiente PROD com bind local;
 - o push de resumo do workflow (`/api/internal/deploy/admin-summary`) e enviado pelo runner self-hosted para `http://127.0.0.1:<API_PORT>` na propria VPS;
 - quando API/webhook/token nao estiverem disponiveis, o workflow registra `notice` (nao `warning`) por ser etapa opcional de notificacao.
 - o upload dos APKs para o fileserver passou a ocorrer localmente no runner self-hosted (na propria VPS), via `docker cp` para o container `filebrowser`; nao depende mais de SSH externo (`porta 22`) a partir de runner hospedado.

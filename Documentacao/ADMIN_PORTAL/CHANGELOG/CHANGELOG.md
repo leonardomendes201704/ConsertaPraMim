@@ -12,6 +12,12 @@
 
 ## Released
 
+- [2026-03-10] [ST-072][OPS-VPS-APK-METADATA-LOCAL-ENDPOINT] Publicacao de metadados de APK via endpoint interno da API
+- Tipo: fix
+- Resumo: os steps `Publish APK metadata` (client/provider/admin) e `Notify APK release push` (provider) passaram a usar endpoint interno da API no proprio runner da VPS (`http://127.0.0.1:<API_PORT>`), removendo dependencia de `PUBLIC_API_URL`/`VPS_PUBLIC_HOST` para chamadas internas e eliminando warning de `HTTP 000` em ambiente de producao com bind da API em `127.0.0.1`.
+- Arquivos principais: `.github/workflows/deploy-vps.yml`, `Backend/DEPLOY_VPS.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-072-deploy-branch-aware-dev-local-main-na-mesma-vps.md`
+- Risco/Impacto: medio
+
 - [2026-03-10] [ST-072][OPS-VPS-APK-UPLOAD-PERMISSION-ROOT] Publicacao de APK sem falha por permissao no filebrowser
 - Tipo: fix
 - Resumo: os steps `Publish APK fileserver` (client/provider/admin) passaram a executar `docker exec` com `--user 0` para criacao de diretorios e ajuste de ownership/permissoes em `/srv/apks`, eliminando falha por `Operation not permitted` no `chown` sem uso de fallback silencioso; a etapa permanece estrita e deve falhar apenas em erro real de filesystem/permissao.
