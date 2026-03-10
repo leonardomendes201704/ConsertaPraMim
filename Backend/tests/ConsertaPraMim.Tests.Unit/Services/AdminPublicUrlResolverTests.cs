@@ -28,6 +28,18 @@ public class AdminPublicUrlResolverTests
         Assert.Equal("https://cliente.consertapramim.com/", resolved);
     }
 
+    [Fact(DisplayName = "Admin public url resolver | Portal url | Deve inferir subdominio HML quando host da requisicao for hml.admin")]
+    public void ResolvePortalUrl_ShouldInferHmlSiblingDomain_WhenRequestHostIsHmlAdmin()
+    {
+        var resolved = AdminPublicUrlResolver.ResolvePortalUrl(
+            "http://187.77.48.150:5069",
+            "hml.admin.consertapramim.com",
+            "cliente",
+            "http://localhost:5069/");
+
+        Assert.Equal("https://hml.cliente.consertapramim.com/", resolved);
+    }
+
     [Fact(DisplayName = "Admin public url resolver | Swagger url | Deve inferir host publico da API quando base usa IP legado")]
     public void ResolveSwaggerUrl_ShouldInferApiSiblingDomain_WhenCandidateUsesLegacyIp()
     {

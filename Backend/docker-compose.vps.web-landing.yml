@@ -11,6 +11,7 @@ services:
       - "${BIND_HOST:-127.0.0.1}:${LANDING_PORT:-5088}:${LANDING_PORT:-5088}"
     environment:
       ASPNETCORE_ENVIRONMENT: "${APP_ENVIRONMENT:-Development}"
+      DEPLOY_PROFILE: "${DEPLOY_PROFILE:-production}"
       ASPNETCORE_URLS: "http://+:${LANDING_PORT:-5088}"
       URLS: "http://+:${LANDING_PORT:-5088}"
       DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: "false"

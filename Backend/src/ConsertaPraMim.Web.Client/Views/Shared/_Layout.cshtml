@@ -12,6 +12,18 @@
     var currentController = (ViewContext.RouteData.Values["Controller"]?.ToString() ?? string.Empty).Trim();
     var currentAction = (ViewContext.RouteData.Values["Action"]?.ToString() ?? string.Empty).Trim();
     var hasAuthenticatedShell = User.Identity?.IsAuthenticated == true;
+    var isHmlEnvironment = string.Equals(
+        (Configuration["DEPLOY_PROFILE"] ?? string.Empty).Trim(),
+        "development",
+        StringComparison.OrdinalIgnoreCase);
+    var bodyCssClass = hasAuthenticatedShell ? "client-auth" : string.Empty;
+
+    if (isHmlEnvironment)
+    {
+        bodyCssClass = string.IsNullOrWhiteSpace(bodyCssClass)
+            ? "hml-footer-visible"
+            : $"{bodyCssClass} hml-footer-visible";
+    }
 }
 <!DOCTYPE html>
 <html lang="pt-br">
@@ -460,6 +472,35 @@
             display: block;
         }
 
+        .hml-environment-footer {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 3000;
+            background: #7f1d1d;
+            color: #fff;
+            text-align: center;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            padding: 8px 16px;
+            box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.25);
+        }
+
+        body.hml-footer-visible {
+            padding-bottom: 40px;
+        }
+
+        body.hml-footer-visible .client-shell {
+            height: calc(100vh - 40px);
+        }
+
+        body.hml-footer-visible .client-main {
+            height: 100%;
+        }
+
         @@media (max-width: 768px) {
             .global-chat-dock {
                 left: 10px;
@@ -539,7 +580,7 @@
     </style>
     @await RenderSectionAsync("Styles", required: false)
 </head>
-<body class="@(hasAuthenticatedShell ? "client-auth" : string.Empty)">
+<body class="@bodyCssClass">
     @if (hasAuthenticatedShell)
     {
         <div class="client-shell" id="clientShell">
@@ -635,6 +676,13 @@
     @if (hasAuthenticatedShell)
     {
         <div id="global-chat-dock" class="global-chat-dock"></div>
+    }
+
+    @if (isHmlEnvironment)
+    {
+        <div class="hml-environment-footer" role="status" aria-live="polite">
+            Ambiente de Homologacao (HML) - uso exclusivo para testes
+        </div>
     }
 
     <script src="~/lib/jquery/dist/jquery.min.js"></script>

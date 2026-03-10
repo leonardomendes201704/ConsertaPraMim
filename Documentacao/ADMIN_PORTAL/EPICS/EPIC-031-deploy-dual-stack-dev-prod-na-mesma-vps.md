@@ -31,3 +31,6 @@ Permitir que a branch `dev-local` publique um ambiente DEV isolado por `IP:porta
 
 - ST-072 - Pipeline branch-aware para deploy DEV/PROD na mesma VPS
 - ST-073 - Otimizacao do pipeline de APK com segregacao HML/PRD no fileserver
+- ST-074 - Rodape fixo de indicador HML nos portais web
+- ST-075 - AdminApplications com links de APK por ambiente (HML/PRD)
+- ST-076 - Correcao de links HML do menu de portais no Admin

@@ -12,6 +12,29 @@
 
 ## Released
 
+- [2026-03-10] [ST-076][ADMIN-HML-PORTAL-LINKS] Correcao dos links de Portal Cliente/Prestador no menu admin em homologacao
+- Tipo: fix
+- Resumo: o resolvedor de URLs publicas do Admin passou a reconhecer hosts com prefixo de ambiente (`hml`, `dev`, `qa`, `stg`) e montar subdominios irmaos corretamente, eliminando geracao incorreta de links como `cliente.admin.consertapramim.com` e `prestador.admin.consertapramim.com` quando o acesso ocorre por `hml.admin.consertapramim.com`.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Services/AdminPublicUrlResolver.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminPublicUrlResolverTests.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: baixo
+
+- [2026-03-10] [ST-075][ADMIN-APPLICATIONS-APK-CHANNEL] Links de APK da tela Aplicativos agora respeitam canal HML/PRD
+- Tipo: fix
+- Resumo: a tela `AdminApplications` passou a normalizar automaticamente a base de download para o diretorio do ambiente ativo (`/files/apks/hml` em `DEPLOY_PROFILE=development` e `/files/apks/prd` em `DEPLOY_PROFILE=production`), corrigindo o apontamento legado para `/files/apks` sem sufixo; tambem foram adicionados testes de regressao para os dois perfis.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminApplicationsController.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Controllers/AdminApplicationsControllerTests.cs`, `Backend/DEPLOY_VPS.md`, `Documentacao/ADMIN_PORTAL/EPICS/EPIC-031-deploy-dual-stack-dev-prod-na-mesma-vps.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-075-admin-applications-apk-por-ambiente-hml-prd.md`
+- Risco/Impacto: baixo
+
+- [2026-03-10] [ST-074][WEB-HML-FOOTER-BANNER] Rodape fixo de ambiente em homologacao nos portais web
+- Tipo: feat
+- Resumo: os projetos `Web.Admin`, `Web.Client`, `Web.Provider` e `Web.Landing` passaram a renderizar um rodape fixo de aviso de homologacao somente quando `DEPLOY_PROFILE=development`; o deploy VPS tambem passou a injetar `DEPLOY_PROFILE` nos servicos web para garantir comportamento consistente entre HML e PRD.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Views/Shared/_Layout.cshtml`, `Backend/src/ConsertaPraMim.Web.Client/Views/Shared/_Layout.cshtml`, `Backend/src/ConsertaPraMim.Web.Provider/Views/Shared/_Layout.cshtml`, `Backend/src/ConsertaPraMim.Web.Landing/Views/Shared/_Layout.cshtml`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/css/site.css`, `Backend/docker-compose.vps.yml`, `Backend/docker-compose.vps.web-admin.yml`, `Backend/docker-compose.vps.web-client.yml`, `Backend/docker-compose.vps.web-provider.yml`, `Backend/docker-compose.vps.web-landing.yml`, `Backend/DEPLOY_VPS.md`, `Documentacao/ADMIN_PORTAL/EPICS/EPIC-031-deploy-dual-stack-dev-prod-na-mesma-vps.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-074-rodape-fixo-indicador-hml-portais-web.md`
+- Risco/Impacto: baixo
+- [2026-03-10] [ST-072][OPS-VPS-DEV-RESPECT-PUBLIC-URL-SECRETS] Workflow dev-local passa a respeitar URLs publicas HTTPS dos environments
+- Tipo: fix
+- Resumo: os blocos de escrita do `.env.vps` no workflow `deploy-vps` deixaram de sobrescrever `PUBLIC_*_URL` em `development`; agora o pipeline respeita os valores configurados em `development`/`production` para `PUBLIC_*_URL` e `PUBLIC_MOBILE_*_WEBVIEW_URL`, aplicando fallback para `http://<VPS_PUBLIC_HOST>:<porta>` somente quando algum secret estiver vazio.
+- Arquivos principais: `.github/workflows/deploy-vps.yml`, `Backend/DEPLOY_VPS.md`
+- Risco/Impacto: medio
+
 - [2026-03-10] [ST-072][ADMIN-APPS-WEBVIEW-LINKS-PUBLIC-URL] Correcao dos links de WebView na tela Aplicativos do Admin
 - Tipo: fix
 - Resumo: a tela `AdminApplications` deixou de montar os links de WebView com `Context.Request.Scheme` (que em producao gerava `https://...:5181/5182/5183` e quebrava acesso) e passou a resolver URLs publicas por configuracao (`MobileWebViews:*`) com fallback explicito para HTTP por porta; o deploy VPS tambem passou a expor as variaveis `PUBLIC_MOBILE_*_WEBVIEW_URL` para override por ambiente.
@@ -59,7 +82,6 @@
 - Resumo: o deploy service passou a executar `docker compose` com `-p <CONTAINER_PREFIX>-<servico>` para isolar projeto compose por ambiente e por servico, evitando colisao/remocao cruzada entre stacks `dev-local` e `main` na mesma VPS; o workflow tambem passou a fazer healthcheck por `VPS_PUBLIC_HOST` no perfil `development` e agora publica diagnostico automatico (`docker ps` + `docker logs`) quando houver falha, reduzindo tempo de analise de timeout/reset em portas DEV.
 - Arquivos principais: `scripts/deploy/vps-deploy-service.sh`, `.github/workflows/deploy-vps.yml`, `Backend/DEPLOY_VPS.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-072-deploy-branch-aware-dev-local-main-na-mesma-vps.md`
 - Risco/Impacto: medio
-
 - [2026-03-09] [ST-072][OPS-VPS-APK-UPLOAD-LOCAL-RUNNER] Upload de APK sem SSH externo no pipeline
 - Tipo: fix
 - Resumo: os jobs `Upload APK Mobile Client/Provider/Admin` foram movidos para `self-hosted Linux` e passaram a publicar os APKs no fileserver via `docker cp` local (`filebrowser`), removendo a dependencia de acesso SSH externo na porta 22 a partir de `windows-latest` e eliminando falhas por timeout de conectividade de rede entre runner hospedado e VPS.

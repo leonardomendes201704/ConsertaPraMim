@@ -1,6 +1,7 @@
 @using ConsertaPraMim.Web.Landing.Models
 @using ConsertaPraMim.Web.Landing.Services
 @inject Microsoft.Extensions.Options.IOptions<LandingSiteOptions> SiteOptions
+@inject IConfiguration Configuration
 @{
     var siteOptions = SiteOptions.Value;
     var landingModel = ViewData.Model as LandingPageViewModel;
@@ -30,6 +31,11 @@
     var homeAboutUrl = $"{homeUrl}/#sobre";
     var homeAccessUrl = $"{homeUrl}/#acessos";
     var homeLeadUrl = $"{homeUrl}/Cliente";
+    var isHmlEnvironment = string.Equals(
+        (Configuration["DEPLOY_PROFILE"] ?? string.Empty).Trim(),
+        "development",
+        StringComparison.OrdinalIgnoreCase);
+    var bodyCssClass = isHmlEnvironment ? "hml-footer-visible" : string.Empty;
 }
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -54,7 +60,7 @@
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 </head>
-<body data-lead-capture-url="@leadCaptureUrl" data-initial-lead-origin="@initialLeadOrigin" data-visitor-id="@landingVisitorId" data-session-id="@landingSessionId" data-analytics-config-url="@analyticsConfigUrl" data-telemetry-url="@telemetryUrl">
+<body class="@bodyCssClass" data-lead-capture-url="@leadCaptureUrl" data-initial-lead-origin="@initialLeadOrigin" data-visitor-id="@landingVisitorId" data-session-id="@landingSessionId" data-analytics-config-url="@analyticsConfigUrl" data-telemetry-url="@telemetryUrl">
     <div class="site-shell">
         <header class="site-header">
             <div class="container nav-shell">
@@ -83,6 +89,12 @@
             </div>
         </footer>
     </div>
+    @if (isHmlEnvironment)
+    {
+        <div class="hml-environment-footer" role="status" aria-live="polite">
+            Ambiente de Homologacao (HML) - uso exclusivo para testes
+        </div>
+    }
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js" asp-append-version="true"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
 </body>

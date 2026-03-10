@@ -28,7 +28,7 @@ Arquivos de apoio para HTTPS:
 
 Em `main/master` (PROD), os portais web, a landing e a API devem ficar atras de Nginx em `80/443`, com os containers publicados em `127.0.0.1`.
 
-Em `dev-local` (DEV), a mesma stack sobe na VPS por `IP:porta`, com bind `0.0.0.0` e portas dedicadas para nao conflitar com producao.
+Em `dev-local` (DEV), a mesma stack sobe na VPS com bind `0.0.0.0` e portas dedicadas para nao conflitar com producao, podendo ser exposta por subdominios HTTPS (recomendado) ou por `IP:porta` (fallback).
 
 URLs publicas recomendadas:
 - `https://www.consertapramim.com`
@@ -49,6 +49,7 @@ Observacao operacional:
 - os apps ASP.NET agora usam `ForwardedHeaders` para interpretar corretamente `X-Forwarded-Proto`, `X-Forwarded-For` e `X-Forwarded-Host` atras do Nginx;
 - a API aceita redirecionamento HTTPS controlado por `ENFORCE_API_HTTPS_REDIRECTION=true`;
 - a landing publica e independente da API, com `healthcheck` proprio em `/health`;
+- os portais web (`admin`, `cliente`, `prestador`) e a landing exibem rodape fixo de ambiente de homologacao somente quando `DEPLOY_PROFILE=development`;
 - os Mobile WebViews (`:5181/:5182/:5183` em prod e `:6181/:6182/:6183` em dev) sao HTTP por padrao quando publicados por porta direta; use `PUBLIC_MOBILE_*_WEBVIEW_URL` com URL HTTPS apenas se houver proxy TLS dedicado para esses endpoints;
 - no `dev-local`, os `healthchecks` do workflow validam pelos endpoints publicados em `http://<VPS_PUBLIC_HOST>:porta`;
 - no `main/master`, os `healthchecks` continuam validando pela malha local (`127.0.0.1`) na propria VPS;
@@ -177,6 +178,15 @@ DB_HOST=mssql
 JWT_SECRET_KEY=ALTERAR_PARA_UMA_CHAVE_BEM_FORTE_COM_32+_CARACTERES
 SEED_DEFAULT_PASSWORD=ALTERAR_AQUI
 ```
+
+## 2.1) Validacao do rodape de Homologacao (HML)
+
+Com `DEPLOY_PROFILE=development`:
+- `http://<host>:6151` (admin), `:6069` (cliente), `:6140` (prestador) e `:6088` (landing) devem exibir o rodape fixo:
+  `Ambiente de Homologacao (HML) - uso exclusivo para testes`.
+
+Com `DEPLOY_PROFILE=production`:
+- os mesmos projetos web nao devem renderizar esse rodape.
 
 ## 3) Instalar Nginx e Certbot na VPS
 
@@ -339,7 +349,7 @@ Validacao funcional no navegador:
 Workflow: `.github/workflows/deploy-vps.yml`
 
 Comportamento:
-- `push` para `dev-local`: deploya stack `DEV` na mesma VPS, publicada por `IP:porta`
+- `push` para `dev-local`: deploya stack `DEV` na mesma VPS (HML), preferencialmente por subdominios HTTPS
 - `push` para `main/master`: deploya stack `PROD` na mesma VPS, publicada por dominio/subdominios
 - `workflow_dispatch`: deploya todos os projetos
 - se alterar arquivos globais de infra/deploy, deploya todos
@@ -373,8 +383,8 @@ Configuracao recomendada no GitHub:
 - criar environments `development` e `production`;
 - cadastrar os mesmos nomes de secrets em ambos os environments;
 - em `development`, manter `VPS_PUBLIC_HOST` com IP da VPS;
-- em `production`, manter `PUBLIC_*_URL` com dominios/subdominios HTTPS;
-- em `development`, o workflow sobrescreve automaticamente `PUBLIC_*_URL` para `http://<IP>:<PORTA>`.
+- em `development`, configurar `PUBLIC_*_URL` e `PUBLIC_MOBILE_*_WEBVIEW_URL` com subdominios HML HTTPS;
+- em `production`, manter `PUBLIC_*_URL` e `PUBLIC_MOBILE_*_WEBVIEW_URL` com dominios/subdominios HTTPS de producao.
 
 Secrets obrigatorios:
 - `VPS_PUBLIC_HOST`
@@ -399,10 +409,15 @@ Secrets opcionais:
 - `PUBLIC_ADMIN_URL`
 - `PUBLIC_CLIENT_URL`
 - `PUBLIC_PROVIDER_URL`
+- `PUBLIC_MOBILE_CLIENT_WEBVIEW_URL`
+- `PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL`
+- `PUBLIC_MOBILE_ADMIN_WEBVIEW_URL`
 - `ENFORCE_API_HTTPS_REDIRECTION`
 
-Em `dev-local`, o workflow sobrescreve `PUBLIC_*_URL` para `http://<VPS_PUBLIC_HOST>:<porta-dev>` automaticamente.
-Em `main/master`, os `PUBLIC_*_URL` devem apontar para os dominios/subdominios HTTPS de producao.
+Comportamento do workflow:
+- o pipeline respeita os valores de `PUBLIC_*_URL` e `PUBLIC_MOBILE_*_WEBVIEW_URL` definidos no environment (`development`/`production`);
+- se algum valor publico estiver ausente, aplica fallback para `http://<VPS_PUBLIC_HOST>:<porta-do-ambiente>`;
+- em `main/master`, os `PUBLIC_*_URL` e `PUBLIC_MOBILE_*_WEBVIEW_URL` devem apontar para os dominios/subdominios HTTPS de producao.
 
 Observacoes sobre metadados de APK e push de resumo:
 - a publicacao de metadados dos APKs (`/api/internal/deploy/apk-publication`) e enviada pelo runner self-hosted para `http://127.0.0.1:<API_PORT>` na propria VPS;
@@ -414,6 +429,7 @@ Observacoes sobre metadados de APK e push de resumo:
 - os APKs agora sao segregados por ambiente no fileserver:
   - `dev-local` publica em `/srv/apks/hml` (`/files/apks/hml/...`);
   - `main/master` publica em `/srv/apks/prd` (`/files/apks/prd/...`).
+- a view `AdminApplications` do portal admin resolve automaticamente os links para o canal do ambiente ativo (`hml` ou `prd`) usando `DEPLOY_PROFILE`, mesmo quando `Fileserver:ApkBaseUrl` estiver legado sem sufixo de ambiente.
 - os builds de APK (`client`, `provider`, `admin`) executam em paralelo apos os healthchecks de deploy e usam cache Gradle no GitHub Actions para reduzir tempo total de pipeline.
 
 ## 9) Operacao por projeto

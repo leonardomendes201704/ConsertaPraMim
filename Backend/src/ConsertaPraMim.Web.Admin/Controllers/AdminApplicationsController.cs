@@ -92,10 +92,12 @@ public class AdminApplicationsController : Controller
     private string ResolveFileserverApkBaseUrl()
     {
         var requestHost = (HttpContext.Request.Host.Host ?? string.Empty).Trim();
+        var apkEnvironmentChannel = ResolveApkEnvironmentChannel();
         var configuredBaseUrl = (_configuration["Fileserver:ApkBaseUrl"] ?? string.Empty).Trim();
         if (Uri.TryCreate(configuredBaseUrl, UriKind.Absolute, out var configuredBaseUri))
         {
             var configuredBuilder = new UriBuilder(configuredBaseUri);
+            configuredBuilder.Path = NormalizeApkBasePath(configuredBuilder.Path, apkEnvironmentChannel);
             if (!string.IsNullOrWhiteSpace(requestHost) &&
                 !IsLocalhost(requestHost) &&
                 IsLocalhost(configuredBuilder.Host))
@@ -112,7 +114,7 @@ public class AdminApplicationsController : Controller
             var fileserverUriBuilder = new UriBuilder(apiBaseUri)
             {
                 Port = 8080,
-                Path = "/files/apks",
+                Path = NormalizeApkBasePath("/files/apks", apkEnvironmentChannel),
                 Query = string.Empty,
                 Fragment = string.Empty
             };
@@ -128,12 +130,85 @@ public class AdminApplicationsController : Controller
         }
 
         var fallbackHost = (HttpContext.Request.Host.Host ?? string.Empty).Trim();
+        var fallbackPath = NormalizeApkBasePath("/files/apks", apkEnvironmentChannel);
         if (!string.IsNullOrWhiteSpace(fallbackHost))
         {
-            return $"{HttpContext.Request.Scheme}://{fallbackHost}:8080/files/apks";
+            return $"{HttpContext.Request.Scheme}://{fallbackHost}:8080{fallbackPath}";
         }
 
-        return "http://localhost:8080/files/apks";
+        return $"http://localhost:8080{fallbackPath}";
+    }
+
+    private string? ResolveApkEnvironmentChannel()
+    {
+        var configuredChannel = (_configuration["Fileserver:ApkChannel"] ?? string.Empty).Trim();
+        if (!string.IsNullOrWhiteSpace(configuredChannel))
+        {
+            return NormalizeApkChannel(configuredChannel);
+        }
+
+        var deployProfile = (_configuration["DEPLOY_PROFILE"] ?? string.Empty).Trim();
+        if (!string.IsNullOrWhiteSpace(deployProfile))
+        {
+            return NormalizeApkChannel(deployProfile);
+        }
+
+        return null;
+    }
+
+    private static string NormalizeApkBasePath(string? originalPath, string? apkChannel)
+    {
+        var rawPath = string.IsNullOrWhiteSpace(originalPath) ? "/files/apks" : originalPath.Trim();
+        var segments = rawPath
+            .Split('/', StringSplitOptions.RemoveEmptyEntries)
+            .ToList();
+
+        if (segments.Count == 0)
+        {
+            segments.Add("files");
+            segments.Add("apks");
+        }
+
+        var isFilesApksPath =
+            segments.Count >= 2 &&
+            segments[0].Equals("files", StringComparison.OrdinalIgnoreCase) &&
+            segments[1].Equals("apks", StringComparison.OrdinalIgnoreCase);
+
+        if (!isFilesApksPath || string.IsNullOrWhiteSpace(apkChannel))
+        {
+            return $"/{string.Join('/', segments)}";
+        }
+
+        if (segments.Count == 2)
+        {
+            segments.Add(apkChannel);
+            return $"/{string.Join('/', segments)}";
+        }
+
+        if (segments[2].Equals("hml", StringComparison.OrdinalIgnoreCase) ||
+            segments[2].Equals("prd", StringComparison.OrdinalIgnoreCase))
+        {
+            segments[2] = apkChannel;
+            return $"/{string.Join('/', segments)}";
+        }
+
+        return $"/{string.Join('/', segments)}";
+    }
+
+    private static string? NormalizeApkChannel(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var normalized = value.Trim().ToLowerInvariant();
+        return normalized switch
+        {
+            "development" or "hml" or "homolog" or "homologacao" => "hml",
+            "production" or "prd" or "producao" => "prd",
+            _ => null
+        };
     }
 
     private Dictionary<string, string> ResolveWebAccessUrlsByAppKind()

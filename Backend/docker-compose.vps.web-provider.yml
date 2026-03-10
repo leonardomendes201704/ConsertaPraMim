@@ -11,6 +11,7 @@ services:
       - "${BIND_HOST:-127.0.0.1}:${PROVIDER_PORT:-5140}:${PROVIDER_PORT:-5140}"
     environment:
       ASPNETCORE_ENVIRONMENT: "${APP_ENVIRONMENT:-Development}"
+      DEPLOY_PROFILE: "${DEPLOY_PROFILE:-production}"
       ASPNETCORE_URLS: "http://+:${PROVIDER_PORT:-5140}"
       URLS: "http://+:${PROVIDER_PORT:-5140}"
       ApiBaseUrl: "${INTERNAL_API_URL:-http://${CONTAINER_PREFIX:-cpm-prd}-api:8080}"

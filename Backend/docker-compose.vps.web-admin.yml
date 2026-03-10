@@ -11,6 +11,7 @@ services:
       - "${BIND_HOST:-127.0.0.1}:${ADMIN_PORT:-5151}:${ADMIN_PORT:-5151}"
     environment:
       ASPNETCORE_ENVIRONMENT: "${APP_ENVIRONMENT:-Development}"
+      DEPLOY_PROFILE: "${DEPLOY_PROFILE:-production}"
       ASPNETCORE_URLS: "http://+:${ADMIN_PORT:-5151}"
       URLS: "http://+:${ADMIN_PORT:-5151}"
       DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: "false"

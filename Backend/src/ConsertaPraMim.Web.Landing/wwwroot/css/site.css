@@ -981,8 +981,29 @@ code {
         transition: none !important;
     }
 
-    [data-reveal] {
+[data-reveal] {
         opacity: 1;
         transform: none;
     }
+}
+
+body.hml-footer-visible {
+    padding-bottom: 40px;
+}
+
+.hml-environment-footer {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 3000;
+    background: #7f1d1d;
+    color: #fff;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 8px 16px;
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.25);
 }
