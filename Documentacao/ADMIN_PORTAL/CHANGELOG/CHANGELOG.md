@@ -12,6 +12,17 @@
 
 ## Released
 
+- [2026-03-10] [ST-073][OPS-VPS-APK-PARALLEL-BUILD-HML-PRD-SEGREGATION] Otimizacao de build APK e segregacao por ambiente no fileserver
+- Tipo: feat
+- Resumo: o workflow `deploy-vps` passou a executar os 3 builds de APK em paralelo (`client`, `provider`, `admin`) com cache Gradle habilitado, removendo encadeamento sequencial entre apps; a publicacao no fileserver tambem foi segmentada por ambiente para eliminar sobrescrita cruzada (`dev-local` em `/files/apks/hml` e `main/master` em `/files/apks/prd`), com atualizacao dos links no resumo de deploy e no push de release.
+- Arquivos principais: `.github/workflows/deploy-vps.yml`, `Backend/DEPLOY_VPS.md`, `Documentacao/ADMIN_PORTAL/EPICS/EPIC-031-deploy-dual-stack-dev-prod-na-mesma-vps.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-073-otimizacao-pipeline-apk-segregacao-hml-prd.md`
+- Risco/Impacto: medio
+
+- [2026-03-10] [ST-072][OPS-VPS-APK-METADATA-LOCAL-ENDPOINT] Publicacao de metadados de APK via endpoint interno da API
+- Tipo: fix
+- Resumo: os steps `Publish APK metadata` (client/provider/admin) e `Notify APK release push` (provider) passaram a usar endpoint interno da API no proprio runner da VPS (`http://127.0.0.1:<API_PORT>`), removendo dependencia de `PUBLIC_API_URL`/`VPS_PUBLIC_HOST` para chamadas internas e eliminando warning de `HTTP 000` em ambiente de producao com bind da API em `127.0.0.1`.
+- Arquivos principais: `.github/workflows/deploy-vps.yml`, `Backend/DEPLOY_VPS.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-072-deploy-branch-aware-dev-local-main-na-mesma-vps.md`
+- Risco/Impacto: medio
 - [2026-03-10] [ST-072][OPS-VPS-APK-UPLOAD-PERMISSION-ROOT] Publicacao de APK sem falha por permissao no filebrowser
 - Tipo: fix
 - Resumo: os steps `Publish APK fileserver` (client/provider/admin) passaram a executar `docker exec` com `--user 0` para criacao de diretorios e ajuste de ownership/permissoes em `/srv/apks`, eliminando falha por `Operation not permitted` no `chown` sem uso de fallback silencioso; a etapa permanece estrita e deve falhar apenas em erro real de filesystem/permissao.

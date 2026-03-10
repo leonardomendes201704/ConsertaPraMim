@@ -395,6 +395,10 @@ Observacoes sobre metadados de APK e push de resumo:
 - quando API/webhook/token nao estiverem disponiveis, o workflow registra `notice` (nao `warning`) por ser etapa opcional de notificacao.
 - o upload dos APKs para o fileserver passou a ocorrer localmente no runner self-hosted (na propria VPS), via `docker cp` para o container `filebrowser`; nao depende mais de SSH externo (`porta 22`) a partir de runner hospedado.
 - o ajuste de ownership/permissao dos APKs em `/srv/apks` e executado com `docker exec --user 0` (modo estrito, sem `|| true`), evitando falso positivo e falhando apenas quando houver erro real de permissao/filesystem.
+- os APKs agora sao segregados por ambiente no fileserver:
+  - `dev-local` publica em `/srv/apks/hml` (`/files/apks/hml/...`);
+  - `main/master` publica em `/srv/apks/prd` (`/files/apks/prd/...`).
+- os builds de APK (`client`, `provider`, `admin`) executam em paralelo apos os healthchecks de deploy e usam cache Gradle no GitHub Actions para reduzir tempo total de pipeline.
 
 ## 9) Operacao por projeto
 

@@ -23,8 +23,10 @@ env:
   CONTAINER_PREFIX: ${{ github.ref_name == 'dev-local' && 'cpm-hml' || 'cpm-prd' }}
   VOLUME_PREFIX: ${{ github.ref_name == 'dev-local' && 'cpm_hml' || 'cpm_prd' }}
   DB_NAME: ${{ github.ref_name == 'dev-local' && 'ConsertaPraMimDbDev' || 'ConsertaPraMimDb' }}
+  APK_CHANNEL: ${{ github.ref_name == 'dev-local' && 'hml' || 'prd' }}
+  APK_FILESERVER_DIR: ${{ github.ref_name == 'dev-local' && 'apks/hml' || 'apks/prd' }}
   APK_SFTP_USER: "root"
-  APK_SFTP_DIR: "/opt/filebrowser/srv/apks"
+  APK_SFTP_DIR: ${{ github.ref_name == 'dev-local' && '/opt/filebrowser/srv/apks/hml' || '/opt/filebrowser/srv/apks/prd' }}
 
 jobs:
   targets:
@@ -1705,6 +1707,7 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
+          cache: gradle
 
       - name: Force Java 21 for Gradle/Keytool
         shell: pwsh
@@ -1774,8 +1777,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          container_apk_dir="/srv/apks"
-          container_debug_dir="/srv/apks/debug"
+          container_apk_dir="/srv/${{ env.APK_FILESERVER_DIR }}"
+          container_debug_dir="/srv/${{ env.APK_FILESERVER_DIR }}/debug"
 
           docker exec --user 0 filebrowser sh -lc "mkdir -p '$container_apk_dir' '$container_debug_dir'"
 
@@ -1871,11 +1874,19 @@ jobs:
     name: Build APK Mobile Provider
     needs:
       - targets
-      - upload-apk-mobile-client
+      - deploy-api
+      - health-api
+      - deploy-web-landing
+      - health-web-landing
+      - deploy-web-admin
+      - health-web-admin
+      - deploy-web-client
+      - health-web-client
+      - deploy-web-provider
+      - health-web-provider
     if: |
       always() &&
       needs.targets.outputs.build_apk_provider == 'true' &&
-      (needs.targets.outputs.build_apk_client != 'true' || needs.upload-apk-mobile-client.result == 'success') &&
       !contains(needs.*.result, 'failure') &&
       !contains(needs.*.result, 'cancelled')
     runs-on: windows-latest
@@ -1904,6 +1915,7 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
+          cache: gradle
 
       - name: Force Java 21 for Gradle/Keytool
         shell: pwsh
@@ -1953,11 +1965,10 @@ jobs:
 
   upload-apk-mobile-provider:
     name: Upload APK Mobile Provider
-    needs: [targets, upload-apk-mobile-client, build-apk-mobile-provider]
+    needs: [targets, build-apk-mobile-provider]
     if: |
       always() &&
       needs.targets.outputs.build_apk_provider == 'true' &&
-      (needs.targets.outputs.build_apk_client != 'true' || needs.upload-apk-mobile-client.result == 'success') &&
       needs.build-apk-mobile-provider.result == 'success' &&
       !contains(needs.*.result, 'failure') &&
       !contains(needs.*.result, 'cancelled')
@@ -1974,8 +1985,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          container_apk_dir="/srv/apks"
-          container_debug_dir="/srv/apks/debug"
+          container_apk_dir="/srv/${{ env.APK_FILESERVER_DIR }}"
+          container_debug_dir="/srv/${{ env.APK_FILESERVER_DIR }}/debug"
 
           docker exec --user 0 filebrowser sh -lc "mkdir -p '$container_apk_dir' '$container_debug_dir'"
 
@@ -2120,7 +2131,7 @@ jobs:
           if [[ -z "$fileserver_host_raw" ]]; then
             fileserver_host_raw="$api_host"
           fi
-          fileserver_url="http://${fileserver_host_raw}:8080/files/apks/"
+          fileserver_url="http://${fileserver_host_raw}:8080/files/${{ env.APK_FILESERVER_DIR }}/"
 
           payload="$(cat <<EOF
           {
@@ -2150,11 +2161,19 @@ jobs:
     name: Build APK Mobile Admin
     needs:
       - targets
-      - upload-apk-mobile-provider
+      - deploy-api
+      - health-api
+      - deploy-web-landing
+      - health-web-landing
+      - deploy-web-admin
+      - health-web-admin
+      - deploy-web-client
+      - health-web-client
+      - deploy-web-provider
+      - health-web-provider
     if: |
       always() &&
       needs.targets.outputs.build_apk_admin == 'true' &&
-      (needs.targets.outputs.build_apk_provider != 'true' || needs.upload-apk-mobile-provider.result == 'success') &&
       !contains(needs.*.result, 'failure') &&
       !contains(needs.*.result, 'cancelled')
     runs-on: windows-latest
@@ -2183,6 +2202,7 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
+          cache: gradle
 
       - name: Force Java 21 for Gradle/Keytool
         shell: pwsh
@@ -2232,11 +2252,10 @@ jobs:
 
   upload-apk-mobile-admin:
     name: Upload APK Mobile Admin
-    needs: [targets, upload-apk-mobile-provider, build-apk-mobile-admin]
+    needs: [targets, build-apk-mobile-admin]
     if: |
       always() &&
       needs.targets.outputs.build_apk_admin == 'true' &&
-      (needs.targets.outputs.build_apk_provider != 'true' || needs.upload-apk-mobile-provider.result == 'success') &&
       needs.build-apk-mobile-admin.result == 'success' &&
       !contains(needs.*.result, 'failure') &&
       !contains(needs.*.result, 'cancelled')
@@ -2253,8 +2272,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          container_apk_dir="/srv/apks"
-          container_debug_dir="/srv/apks/debug"
+          container_apk_dir="/srv/${{ env.APK_FILESERVER_DIR }}"
+          container_debug_dir="/srv/${{ env.APK_FILESERVER_DIR }}/debug"
 
           docker exec --user 0 filebrowser sh -lc "mkdir -p '$container_apk_dir' '$container_debug_dir'"
 
@@ -2452,13 +2471,13 @@ jobs:
             echo "| Provider | $(result_icon "$apk_provider_build_result") $apk_provider_build_result | $(result_icon "$apk_provider_upload_result") $apk_provider_upload_result |"
             echo "| Admin | $(result_icon "$apk_admin_build_result") $apk_admin_build_result | $(result_icon "$apk_admin_upload_result") $apk_admin_upload_result |"
             echo ""
-            echo "APK fileserver: http://${{ secrets.VPS_PUBLIC_HOST }}:8080/files/apks/"
-            echo "- Cliente (debug): http://${{ secrets.VPS_PUBLIC_HOST }}:8080/files/apks/debug/ConsertaPraMim-Cliente-debug.apk"
-            echo "- Cliente (compat): http://${{ secrets.VPS_PUBLIC_HOST }}:8080/files/apks/ConsertaPraMim-Cliente-compat.apk"
-            echo "- Prestador (debug): http://${{ secrets.VPS_PUBLIC_HOST }}:8080/files/apks/debug/ConsertaPraMim-Prestador-debug.apk"
-            echo "- Prestador (compat): http://${{ secrets.VPS_PUBLIC_HOST }}:8080/files/apks/ConsertaPraMim-Prestador-compat.apk"
-            echo "- Admin (debug): http://${{ secrets.VPS_PUBLIC_HOST }}:8080/files/apks/debug/ConsertaPraMim-Admin-debug.apk"
-            echo "- Admin (compat): http://${{ secrets.VPS_PUBLIC_HOST }}:8080/files/apks/ConsertaPraMim-Admin-compat.apk"
+            echo "APK fileserver (${{ env.APK_CHANNEL }}): http://${{ secrets.VPS_PUBLIC_HOST }}:8080/files/${{ env.APK_FILESERVER_DIR }}/"
+            echo "- Cliente (debug): http://${{ secrets.VPS_PUBLIC_HOST }}:8080/files/${{ env.APK_FILESERVER_DIR }}/debug/ConsertaPraMim-Cliente-debug.apk"
+            echo "- Cliente (compat): http://${{ secrets.VPS_PUBLIC_HOST }}:8080/files/${{ env.APK_FILESERVER_DIR }}/ConsertaPraMim-Cliente-compat.apk"
+            echo "- Prestador (debug): http://${{ secrets.VPS_PUBLIC_HOST }}:8080/files/${{ env.APK_FILESERVER_DIR }}/debug/ConsertaPraMim-Prestador-debug.apk"
+            echo "- Prestador (compat): http://${{ secrets.VPS_PUBLIC_HOST }}:8080/files/${{ env.APK_FILESERVER_DIR }}/ConsertaPraMim-Prestador-compat.apk"
+            echo "- Admin (debug): http://${{ secrets.VPS_PUBLIC_HOST }}:8080/files/${{ env.APK_FILESERVER_DIR }}/debug/ConsertaPraMim-Admin-debug.apk"
+            echo "- Admin (compat): http://${{ secrets.VPS_PUBLIC_HOST }}:8080/files/${{ env.APK_FILESERVER_DIR }}/ConsertaPraMim-Admin-compat.apk"
             echo ""
             echo "Mobile WebViews:"
             echo "- Cliente: http://${{ secrets.VPS_PUBLIC_HOST }}:${{ env.MOBILE_CLIENT_WEBVIEW_PORT }}/"
