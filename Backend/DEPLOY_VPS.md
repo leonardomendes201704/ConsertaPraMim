@@ -28,7 +28,7 @@ Arquivos de apoio para HTTPS:
 
 Em `main/master` (PROD), os portais web, a landing e a API devem ficar atras de Nginx em `80/443`, com os containers publicados em `127.0.0.1`.
 
-Em `dev-local` (DEV), a mesma stack sobe na VPS por `IP:porta`, com bind `0.0.0.0` e portas dedicadas para nao conflitar com producao.
+Em `dev-local` (DEV), a mesma stack sobe na VPS com bind `0.0.0.0` e portas dedicadas para nao conflitar com producao, podendo ser exposta por subdominios HTTPS (recomendado) ou por `IP:porta` (fallback).
 
 URLs publicas recomendadas:
 - `https://www.consertapramim.com`
@@ -339,7 +339,7 @@ Validacao funcional no navegador:
 Workflow: `.github/workflows/deploy-vps.yml`
 
 Comportamento:
-- `push` para `dev-local`: deploya stack `DEV` na mesma VPS, publicada por `IP:porta`
+- `push` para `dev-local`: deploya stack `DEV` na mesma VPS (HML), preferencialmente por subdominios HTTPS
 - `push` para `main/master`: deploya stack `PROD` na mesma VPS, publicada por dominio/subdominios
 - `workflow_dispatch`: deploya todos os projetos
 - se alterar arquivos globais de infra/deploy, deploya todos
@@ -373,8 +373,8 @@ Configuracao recomendada no GitHub:
 - criar environments `development` e `production`;
 - cadastrar os mesmos nomes de secrets em ambos os environments;
 - em `development`, manter `VPS_PUBLIC_HOST` com IP da VPS;
-- em `production`, manter `PUBLIC_*_URL` com dominios/subdominios HTTPS;
-- em `development`, o workflow sobrescreve automaticamente `PUBLIC_*_URL` para `http://<IP>:<PORTA>`.
+- em `development`, configurar `PUBLIC_*_URL` e `PUBLIC_MOBILE_*_WEBVIEW_URL` com subdominios HML HTTPS;
+- em `production`, manter `PUBLIC_*_URL` e `PUBLIC_MOBILE_*_WEBVIEW_URL` com dominios/subdominios HTTPS de producao.
 
 Secrets obrigatorios:
 - `VPS_PUBLIC_HOST`
@@ -399,10 +399,15 @@ Secrets opcionais:
 - `PUBLIC_ADMIN_URL`
 - `PUBLIC_CLIENT_URL`
 - `PUBLIC_PROVIDER_URL`
+- `PUBLIC_MOBILE_CLIENT_WEBVIEW_URL`
+- `PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL`
+- `PUBLIC_MOBILE_ADMIN_WEBVIEW_URL`
 - `ENFORCE_API_HTTPS_REDIRECTION`
 
-Em `dev-local`, o workflow sobrescreve `PUBLIC_*_URL` para `http://<VPS_PUBLIC_HOST>:<porta-dev>` automaticamente.
-Em `main/master`, os `PUBLIC_*_URL` devem apontar para os dominios/subdominios HTTPS de producao.
+Comportamento do workflow:
+- o pipeline respeita os valores de `PUBLIC_*_URL` e `PUBLIC_MOBILE_*_WEBVIEW_URL` definidos no environment (`development`/`production`);
+- se algum valor publico estiver ausente, aplica fallback para `http://<VPS_PUBLIC_HOST>:<porta-do-ambiente>`;
+- em `main/master`, os `PUBLIC_*_URL` e `PUBLIC_MOBILE_*_WEBVIEW_URL` devem apontar para os dominios/subdominios HTTPS de producao.
 
 Observacoes sobre metadados de APK e push de resumo:
 - a publicacao de metadados dos APKs (`/api/internal/deploy/apk-publication`) e enviada pelo runner self-hosted para `http://127.0.0.1:<API_PORT>` na propria VPS;
