@@ -38,3 +38,4 @@ validar funcionalidades em ambiente paralelo sem interromper producao e sem risc
 - [x] padronizar nomes de projetos/containers por ambiente para `cpm-prd-*` (producao) e `cpm-hml-*` (homologacao), incluindo apps mobile em `app-*`.
 - [x] corrigir permissao de upload de APK no fileserver executando etapa de ownership/permissoes com `docker exec --user 0`, sem fallback silencioso.
 - [x] corrigir publicacao de metadados de APK/push de release para usar endpoint interno da API (`http://127.0.0.1:<API_PORT>`) no runner self-hosted, eliminando `HTTP 000` por tentativa de acesso externo em porta local.
+- [x] aplicar hotfix de producao para `PendingModelChangesWarning` em `main` via migration `no-op` de sincronizacao de snapshot, mantendo ambiente `production` em modo estrito sem alterar schema existente.

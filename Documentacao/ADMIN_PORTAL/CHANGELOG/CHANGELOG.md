@@ -12,6 +12,12 @@
 
 ## Released
 
+- [2026-03-10] [ST-072][OPS-VPS-PRD-PENDING-MODEL-HOTFIX] Hotfix de boot da API em producao por sincronizacao de snapshot EF
+- Tipo: fix
+- Resumo: o deploy da `main` voltou a falhar no healthcheck da API por `PendingModelChangesWarning` em modo estrito de `production`; para estabilizar sem risco de alteracao estrutural indevida no banco, foi adicionada a migration `SyncPendingModelChangesAfterDeployVpsRefactor` como `no-op` (apenas sincronizacao de `ModelSnapshot`) e documentado o preflight de validacao com `dotnet ef migrations has-pending-model-changes` antes de promover para `main`.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Infrastructure/Migrations/20260310153442_SyncPendingModelChangesAfterDeployVpsRefactor.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Migrations/20260310153442_SyncPendingModelChangesAfterDeployVpsRefactor.Designer.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Migrations/ConsertaPraMimDbContextModelSnapshot.cs`, `Backend/DEPLOY_VPS.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-072-deploy-branch-aware-dev-local-main-na-mesma-vps.md`
+- Risco/Impacto: medio
+
 - [2026-03-10] [ST-073][OPS-VPS-APK-PARALLEL-BUILD-HML-PRD-SEGREGATION] Otimizacao de build APK e segregacao por ambiente no fileserver
 - Tipo: feat
 - Resumo: o workflow `deploy-vps` passou a executar os 3 builds de APK em paralelo (`client`, `provider`, `admin`) com cache Gradle habilitado, removendo encadeamento sequencial entre apps; a publicacao no fileserver tambem foi segmentada por ambiente para eliminar sobrescrita cruzada (`dev-local` em `/files/apks/hml` e `main/master` em `/files/apks/prd`), com atualizacao dos links no resumo de deploy e no push de release.
