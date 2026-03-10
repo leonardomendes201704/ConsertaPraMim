@@ -30,7 +30,8 @@ public class AdminApplicationsController : Controller
     {
         var displayTimeZone = ResolveDisplayTimeZone();
         var fileserverBaseUrl = ResolveFileserverApkBaseUrl();
-        var applications = BuildCards(fileserverBaseUrl).ToArray();
+        var webAccessUrlsByKind = ResolveWebAccessUrlsByAppKind();
+        var applications = BuildCards(fileserverBaseUrl, webAccessUrlsByKind).ToArray();
         await PopulatePublicationMetadataFromApiAsync(applications, HttpContext.RequestAborted);
         await PopulatePublicationMetadataFromFileserverJsonAsync(applications, fileserverBaseUrl, HttpContext.RequestAborted);
         await PopulatePublicationMetadataAsync(applications, HttpContext.RequestAborted);
@@ -135,7 +136,70 @@ public class AdminApplicationsController : Controller
         return "http://localhost:8080/files/apks";
     }
 
-    private static IReadOnlyList<AdminApplicationCardViewModel> BuildCards(string fileserverBaseUrl)
+    private Dictionary<string, string> ResolveWebAccessUrlsByAppKind()
+    {
+        var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["client"] = ResolveWebAccessUrl("MobileWebViews:ClientUrl", "MOBILE_CLIENT_WEBVIEW_PORT", 5181),
+            ["provider"] = ResolveWebAccessUrl("MobileWebViews:ProviderUrl", "MOBILE_PROVIDER_WEBVIEW_PORT", 5182),
+            ["admin"] = ResolveWebAccessUrl("MobileWebViews:AdminUrl", "MOBILE_ADMIN_WEBVIEW_PORT", 5183)
+        };
+
+        return map;
+    }
+
+    private string ResolveWebAccessUrl(string configUrlKey, string configPortKey, int fallbackPort)
+    {
+        var requestHost = (HttpContext.Request.Host.Host ?? string.Empty).Trim();
+        var configuredUrl = (_configuration[configUrlKey] ?? string.Empty).Trim();
+        if (Uri.TryCreate(configuredUrl, UriKind.Absolute, out var configuredUri))
+        {
+            var configuredBuilder = new UriBuilder(configuredUri);
+            if (!string.IsNullOrWhiteSpace(requestHost) &&
+                !IsLocalhost(requestHost) &&
+                IsLocalhost(configuredBuilder.Host))
+            {
+                configuredBuilder.Host = requestHost;
+            }
+
+            return configuredBuilder.Uri.ToString().TrimEnd('/');
+        }
+
+        var configuredPortValue = (_configuration[configPortKey] ?? string.Empty).Trim();
+        var resolvedPort = int.TryParse(configuredPortValue, out var parsedPort) ? parsedPort : fallbackPort;
+
+        var host = ResolveExternalHostOrFallback();
+        return $"http://{host}:{resolvedPort}";
+    }
+
+    private string ResolveExternalHostOrFallback()
+    {
+        var requestHost = (HttpContext.Request.Host.Host ?? string.Empty).Trim();
+        if (!string.IsNullOrWhiteSpace(requestHost) && !IsLocalhost(requestHost))
+        {
+            return requestHost;
+        }
+
+        var configuredHost = (_configuration["VPS_PUBLIC_HOST"] ?? string.Empty).Trim();
+        if (Uri.TryCreate(configuredHost, UriKind.Absolute, out var configuredHostUri))
+        {
+            configuredHost = configuredHostUri.Host;
+        }
+
+        if (!string.IsNullOrWhiteSpace(configuredHost))
+        {
+            configuredHost = configuredHost.Replace("http://", string.Empty, StringComparison.OrdinalIgnoreCase)
+                                           .Replace("https://", string.Empty, StringComparison.OrdinalIgnoreCase);
+            configuredHost = configuredHost.Split('/', StringSplitOptions.RemoveEmptyEntries)[0];
+            configuredHost = configuredHost.Split(':')[0];
+        }
+
+        return string.IsNullOrWhiteSpace(configuredHost) ? "localhost" : configuredHost;
+    }
+
+    private static IReadOnlyList<AdminApplicationCardViewModel> BuildCards(
+        string fileserverBaseUrl,
+        IReadOnlyDictionary<string, string> webAccessUrlsByKind)
     {
         var files = new (string AppKind, string AppName, string Variant, string RelativePath)[]
         {
@@ -153,6 +217,9 @@ public class AdminApplicationsController : Controller
                 RelativePath = item.RelativePath,
                 FileName = Path.GetFileName(item.RelativePath),
                 DownloadUrl = BuildDownloadUrl(fileserverBaseUrl, item.RelativePath),
+                WebAccessUrl = webAccessUrlsByKind.TryGetValue(item.AppKind, out var webAccessUrl)
+                    ? webAccessUrl
+                    : null,
                 IsDebug = item.Variant.Equals("Debug", StringComparison.OrdinalIgnoreCase)
             })
             .ToArray();

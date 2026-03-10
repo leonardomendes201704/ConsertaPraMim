@@ -88,13 +88,6 @@
     @foreach (var application in Model.Applications)
     {
         var lastPublishedText = FormatPublishedAt(application.LastPublishedAtUtc);
-        var webAccessUrl = application.AppKind?.Trim().ToLowerInvariant() switch
-        {
-            "client" => $"{Context.Request.Scheme}://{Context.Request.Host.Host}:5181",
-            "provider" => $"{Context.Request.Scheme}://{Context.Request.Host.Host}:5182",
-            "admin" => $"{Context.Request.Scheme}://{Context.Request.Host.Host}:5183",
-            _ => null
-        };
 
         <div class="col-12 col-md-6 col-xl-4">
             <div class="card apk-card h-100 @(application.IsDebug ? "debug" : string.Empty)">
@@ -125,10 +118,10 @@
                            rel="noopener noreferrer">
                             <i class="fas fa-download me-1"></i>Baixar APK
                         </a>
-                        @if (!string.IsNullOrWhiteSpace(webAccessUrl))
+                        @if (!string.IsNullOrWhiteSpace(application.WebAccessUrl))
                         {
                             <a class="btn btn-outline-dark"
-                               href="@webAccessUrl"
+                               href="@application.WebAccessUrl"
                                target="_blank"
                                rel="noopener noreferrer">
                                 <i class="fas fa-globe me-1"></i>Acessar na Web

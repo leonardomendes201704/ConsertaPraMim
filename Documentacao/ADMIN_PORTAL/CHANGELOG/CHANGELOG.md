@@ -12,6 +12,12 @@
 
 ## Released
 
+- [2026-03-10] [ST-072][ADMIN-APPS-WEBVIEW-LINKS-PUBLIC-URL] Correcao dos links de WebView na tela Aplicativos do Admin
+- Tipo: fix
+- Resumo: a tela `AdminApplications` deixou de montar os links de WebView com `Context.Request.Scheme` (que em producao gerava `https://...:5181/5182/5183` e quebrava acesso) e passou a resolver URLs publicas por configuracao (`MobileWebViews:*`) com fallback explicito para HTTP por porta; o deploy VPS tambem passou a expor as variaveis `PUBLIC_MOBILE_*_WEBVIEW_URL` para override por ambiente.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminApplicationsController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminApplications/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Models/AdminApplicationsViewModels.cs`, `Backend/docker-compose.vps.web-admin.yml`, `Backend/docker-compose.vps.yml`, `Backend/.env.vps.example`, `Backend/DEPLOY_VPS.md`
+- Risco/Impacto: medio
+
 - [2026-03-10] [ST-072][OPS-VPS-PRD-PENDING-MODEL-HOTFIX] Hotfix de boot da API em producao por sincronizacao de snapshot EF
 - Tipo: fix
 - Resumo: o deploy da `main` voltou a falhar no healthcheck da API por `PendingModelChangesWarning` em modo estrito de `production`; para estabilizar sem risco de alteracao estrutural indevida no banco, foi adicionada a migration `SyncPendingModelChangesAfterDeployVpsRefactor` como `no-op` (apenas sincronizacao de `ModelSnapshot`) e documentado o preflight de validacao com `dotnet ef migrations has-pending-model-changes` antes de promover para `main`.
