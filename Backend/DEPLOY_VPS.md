@@ -49,6 +49,7 @@ Observacao operacional:
 - os apps ASP.NET agora usam `ForwardedHeaders` para interpretar corretamente `X-Forwarded-Proto`, `X-Forwarded-For` e `X-Forwarded-Host` atras do Nginx;
 - a API aceita redirecionamento HTTPS controlado por `ENFORCE_API_HTTPS_REDIRECTION=true`;
 - a landing publica e independente da API, com `healthcheck` proprio em `/health`;
+- os Mobile WebViews (`:5181/:5182/:5183` em prod e `:6181/:6182/:6183` em dev) sao HTTP por padrao quando publicados por porta direta; use `PUBLIC_MOBILE_*_WEBVIEW_URL` com URL HTTPS apenas se houver proxy TLS dedicado para esses endpoints;
 - no `dev-local`, os `healthchecks` do workflow validam pelos endpoints publicados em `http://<VPS_PUBLIC_HOST>:porta`;
 - no `main/master`, os `healthchecks` continuam validando pela malha local (`127.0.0.1`) na propria VPS;
 - o deploy agora forca `docker compose -p <CONTAINER_PREFIX>-<servico>` para isolar `DEV/PROD` e evitar remocao indevida com `--remove-orphans` entre jobs paralelos.
@@ -91,6 +92,9 @@ Preencha no `Backend/.env.vps` pelo menos:
 - `PUBLIC_ADMIN_URL`
 - `PUBLIC_CLIENT_URL`
 - `PUBLIC_PROVIDER_URL`
+- `PUBLIC_MOBILE_CLIENT_WEBVIEW_URL` (ex.: `http://<host>:5181` em prod, ou URL HTTPS dedicada se houver proxy)
+- `PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL` (ex.: `http://<host>:5182` em prod, ou URL HTTPS dedicada se houver proxy)
+- `PUBLIC_MOBILE_ADMIN_WEBVIEW_URL` (ex.: `http://<host>:5183` em prod, ou URL HTTPS dedicada se houver proxy)
 - `DB_PASSWORD`
 - `DB_HOST` (normalmente `mssql`)
 - `JWT_SECRET_KEY`
@@ -112,6 +116,9 @@ PUBLIC_API_URL=https://api.consertapramim.com
 PUBLIC_ADMIN_URL=https://admin.consertapramim.com
 PUBLIC_CLIENT_URL=https://cliente.consertapramim.com
 PUBLIC_PROVIDER_URL=https://prestador.consertapramim.com
+PUBLIC_MOBILE_CLIENT_WEBVIEW_URL=http://SEU_IP_OU_HOST_DA_VPS:5181
+PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL=http://SEU_IP_OU_HOST_DA_VPS:5182
+PUBLIC_MOBILE_ADMIN_WEBVIEW_URL=http://SEU_IP_OU_HOST_DA_VPS:5183
 ENFORCE_API_HTTPS_REDIRECTION=true
 
 API_PORT=5193
@@ -119,6 +126,9 @@ LANDING_PORT=5088
 ADMIN_PORT=5151
 CLIENT_PORT=5069
 PROVIDER_PORT=5140
+MOBILE_CLIENT_WEBVIEW_PORT=5181
+MOBILE_PROVIDER_WEBVIEW_PORT=5182
+MOBILE_ADMIN_WEBVIEW_PORT=5183
 
 DB_NAME=ConsertaPraMimDb
 DB_USER=sa
@@ -145,6 +155,9 @@ PUBLIC_API_URL=http://187.77.48.150:6193
 PUBLIC_ADMIN_URL=http://187.77.48.150:6151
 PUBLIC_CLIENT_URL=http://187.77.48.150:6069
 PUBLIC_PROVIDER_URL=http://187.77.48.150:6140
+PUBLIC_MOBILE_CLIENT_WEBVIEW_URL=http://187.77.48.150:6181
+PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL=http://187.77.48.150:6182
+PUBLIC_MOBILE_ADMIN_WEBVIEW_URL=http://187.77.48.150:6183
 ENFORCE_API_HTTPS_REDIRECTION=false
 
 API_PORT=6193
@@ -152,6 +165,9 @@ LANDING_PORT=6088
 ADMIN_PORT=6151
 CLIENT_PORT=6069
 PROVIDER_PORT=6140
+MOBILE_CLIENT_WEBVIEW_PORT=6181
+MOBILE_PROVIDER_WEBVIEW_PORT=6182
+MOBILE_ADMIN_WEBVIEW_PORT=6183
 
 DB_NAME=ConsertaPraMimDbDev
 DB_USER=sa

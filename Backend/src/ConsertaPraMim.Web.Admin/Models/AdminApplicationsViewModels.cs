@@ -16,6 +16,7 @@ public sealed class AdminApplicationCardViewModel
     public string RelativePath { get; init; } = string.Empty;
     public string FileName { get; init; } = string.Empty;
     public string DownloadUrl { get; init; } = string.Empty;
+    public string? WebAccessUrl { get; init; }
     public bool IsDebug { get; init; }
     public DateTimeOffset? LastPublishedAtUtc { get; set; }
 }
