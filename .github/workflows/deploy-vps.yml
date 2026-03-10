@@ -20,8 +20,8 @@ env:
   MOBILE_PROVIDER_WEBVIEW_PORT: ${{ github.ref_name == 'dev-local' && '6182' || '5182' }}
   MOBILE_ADMIN_WEBVIEW_PORT: ${{ github.ref_name == 'dev-local' && '6183' || '5183' }}
   BIND_HOST: ${{ github.ref_name == 'dev-local' && '0.0.0.0' || '127.0.0.1' }}
-  CONTAINER_PREFIX: ${{ github.ref_name == 'dev-local' && 'cpm-dev' || 'cpm' }}
-  VOLUME_PREFIX: ${{ github.ref_name == 'dev-local' && 'cpm_dev' || 'cpm' }}
+  CONTAINER_PREFIX: ${{ github.ref_name == 'dev-local' && 'cpm-hml' || 'cpm-prd' }}
+  VOLUME_PREFIX: ${{ github.ref_name == 'dev-local' && 'cpm_hml' || 'cpm_prd' }}
   DB_NAME: ${{ github.ref_name == 'dev-local' && 'ConsertaPraMimDbDev' || 'ConsertaPraMimDb' }}
   APK_SFTP_USER: "root"
   APK_SFTP_DIR: "/opt/filebrowser/srv/apks"
@@ -699,8 +699,8 @@ jobs:
           docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' || true
           echo "::endgroup::"
 
-          echo "::group::docker logs ${CONTAINER_PREFIX}-web-landing"
-          docker logs --tail 200 "${CONTAINER_PREFIX}-web-landing" || true
+          echo "::group::docker logs ${CONTAINER_PREFIX}-landing"
+          docker logs --tail 200 "${CONTAINER_PREFIX}-landing" || true
           echo "::endgroup::"
 
   deploy-web-admin:
@@ -855,8 +855,8 @@ jobs:
           docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' || true
           echo "::endgroup::"
 
-          echo "::group::docker logs ${CONTAINER_PREFIX}-web-admin"
-          docker logs --tail 200 "${CONTAINER_PREFIX}-web-admin" || true
+          echo "::group::docker logs ${CONTAINER_PREFIX}-admin"
+          docker logs --tail 200 "${CONTAINER_PREFIX}-admin" || true
           echo "::endgroup::"
 
   deploy-web-client:
@@ -1011,8 +1011,8 @@ jobs:
           docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' || true
           echo "::endgroup::"
 
-          echo "::group::docker logs ${CONTAINER_PREFIX}-web-client"
-          docker logs --tail 200 "${CONTAINER_PREFIX}-web-client" || true
+          echo "::group::docker logs ${CONTAINER_PREFIX}-cliente"
+          docker logs --tail 200 "${CONTAINER_PREFIX}-cliente" || true
           echo "::endgroup::"
 
   deploy-web-provider:
@@ -1167,8 +1167,8 @@ jobs:
           docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' || true
           echo "::endgroup::"
 
-          echo "::group::docker logs ${CONTAINER_PREFIX}-web-provider"
-          docker logs --tail 200 "${CONTAINER_PREFIX}-web-provider" || true
+          echo "::group::docker logs ${CONTAINER_PREFIX}-prestador"
+          docker logs --tail 200 "${CONTAINER_PREFIX}-prestador" || true
           echo "::endgroup::"
 
   deploy-mobile-webview-client:
@@ -1330,8 +1330,8 @@ jobs:
           docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' || true
           echo "::endgroup::"
 
-          echo "::group::docker logs ${CONTAINER_PREFIX}-mobile-webview-client"
-          docker logs --tail 200 "${CONTAINER_PREFIX}-mobile-webview-client" || true
+          echo "::group::docker logs ${CONTAINER_PREFIX}-app-cliente"
+          docker logs --tail 200 "${CONTAINER_PREFIX}-app-cliente" || true
           echo "::endgroup::"
 
   deploy-mobile-webview-provider:
@@ -1493,8 +1493,8 @@ jobs:
           docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' || true
           echo "::endgroup::"
 
-          echo "::group::docker logs ${CONTAINER_PREFIX}-mobile-webview-provider"
-          docker logs --tail 200 "${CONTAINER_PREFIX}-mobile-webview-provider" || true
+          echo "::group::docker logs ${CONTAINER_PREFIX}-app-prestador"
+          docker logs --tail 200 "${CONTAINER_PREFIX}-app-prestador" || true
           echo "::endgroup::"
 
   deploy-mobile-webview-admin:
@@ -1656,8 +1656,8 @@ jobs:
           docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' || true
           echo "::endgroup::"
 
-          echo "::group::docker logs ${CONTAINER_PREFIX}-mobile-webview-admin"
-          docker logs --tail 200 "${CONTAINER_PREFIX}-mobile-webview-admin" || true
+          echo "::group::docker logs ${CONTAINER_PREFIX}-app-admin"
+          docker logs --tail 200 "${CONTAINER_PREFIX}-app-admin" || true
           echo "::endgroup::"
 
   build-apk-mobile-client:

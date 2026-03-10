@@ -1,14 +1,14 @@
 # Deploy na VPS com HTTPS
 
 Este guia publica 8 projetos Docker independentes:
-- Landing publica (`backend-web-landing`)
-- API (`backend-api`)
-- Portal Admin (`backend-web-admin`)
-- Portal Cliente (`backend-web-client`)
-- Portal Prestador (`backend-web-provider`)
-- Mobile WebView Cliente (`backend-mobile-webview-client`)
-- Mobile WebView Prestador (`backend-mobile-webview-provider`)
-- Mobile WebView Admin (`backend-mobile-webview-admin`)
+- Landing publica (`cpm-prd-landing`)
+- API (`cpm-prd-api`)
+- Portal Admin (`cpm-prd-admin`)
+- Portal Cliente (`cpm-prd-cliente`)
+- Portal Prestador (`cpm-prd-prestador`)
+- Mobile WebView Cliente (`cpm-prd-app-cliente`)
+- Mobile WebView Prestador (`cpm-prd-app-prestador`)
+- Mobile WebView Admin (`cpm-prd-app-admin`)
 
 Arquivos compose:
 - `Backend/docker-compose.vps.web-landing.yml`
@@ -82,8 +82,8 @@ Preencha no `Backend/.env.vps` pelo menos:
 - `DEPLOY_PROFILE` (`production` ou `development`)
 - `APP_ENVIRONMENT` (`Production` ou `Development`)
 - `BIND_HOST` (`127.0.0.1` em prod / `0.0.0.0` em dev)
-- `CONTAINER_PREFIX` (`cpm` em prod / `cpm-dev` em dev)
-- `VOLUME_PREFIX` (`cpm` em prod / `cpm_dev` em dev)
+- `CONTAINER_PREFIX` (`cpm-prd` em prod / `cpm-hml` em dev)
+- `VOLUME_PREFIX` (`cpm_prd` em prod / `cpm_hml` em dev)
 - `VPS_PUBLIC_HOST` (host ou IP cru, sem `http://` ou `https://`)
 - `INTERNAL_API_URL`
 - `PUBLIC_LANDING_URL`
@@ -102,11 +102,11 @@ Exemplo minimo (PROD):
 DEPLOY_PROFILE=production
 APP_ENVIRONMENT=Production
 BIND_HOST=127.0.0.1
-CONTAINER_PREFIX=cpm
-VOLUME_PREFIX=cpm
+CONTAINER_PREFIX=cpm-prd
+VOLUME_PREFIX=cpm_prd
 VPS_PUBLIC_HOST=SEU_IP_OU_HOST_DA_VPS
 
-INTERNAL_API_URL=http://cpm-api:8080
+INTERNAL_API_URL=http://cpm-prd-api:8080
 PUBLIC_LANDING_URL=https://www.consertapramim.com
 PUBLIC_API_URL=https://api.consertapramim.com
 PUBLIC_ADMIN_URL=https://admin.consertapramim.com
@@ -135,11 +135,11 @@ Exemplo minimo (DEV na mesma VPS):
 DEPLOY_PROFILE=development
 APP_ENVIRONMENT=Development
 BIND_HOST=0.0.0.0
-CONTAINER_PREFIX=cpm-dev
-VOLUME_PREFIX=cpm_dev
+CONTAINER_PREFIX=cpm-hml
+VOLUME_PREFIX=cpm_hml
 VPS_PUBLIC_HOST=187.77.48.150
 
-INTERNAL_API_URL=http://cpm-dev-api:8080
+INTERNAL_API_URL=http://cpm-hml-api:8080
 PUBLIC_LANDING_URL=http://187.77.48.150:6088
 PUBLIC_API_URL=http://187.77.48.150:6193
 PUBLIC_ADMIN_URL=http://187.77.48.150:6151
@@ -261,7 +261,8 @@ MSSQL_CONTAINER_NAME=mssql-mssql-1 MSSQL_HOST_ALIAS=mssql scripts/deploy/vps-dep
 ```
 
 Observacao operacional:
-- o script `scripts/deploy/vps-deploy-service.sh` faz `build` antes do `up` e remove o container alvo do ambiente corrente (`<CONTAINER_PREFIX>-api`, `<CONTAINER_PREFIX>-web-landing`, etc.) para evitar conflito de `container_name`;
+- o script `scripts/deploy/vps-deploy-service.sh` faz `build` antes do `up` e remove o container alvo do ambiente corrente (`<CONTAINER_PREFIX>-api`, `<CONTAINER_PREFIX>-landing`, `<CONTAINER_PREFIX>-admin`, `<CONTAINER_PREFIX>-cliente`, `<CONTAINER_PREFIX>-prestador`, `<CONTAINER_PREFIX>-app-*`) para evitar conflito de `container_name`;
+- durante a migracao de nomenclatura, o script tambem remove automaticamente nomes legados (`cpm-*` / `cpm-dev-*` e sufixos antigos `web-*` / `mobile-webview-*`) para evitar conflito de porta no primeiro deploy com o novo padrao;
 - em `production`, `web-landing`, `api`, `web-admin`, `web-client` e `web-provider` ficam publicados em `127.0.0.1`, por isso o acesso externo precisa passar pelo Nginx;
 - em `development`, os mesmos servicos podem ser publicados por `IP:porta` (bind `0.0.0.0`) para validacao rapida;
 - os portais usam `INTERNAL_API_URL` para chamadas server-side na rede Docker e `PUBLIC_API_URL` para URLs injetadas no browser;
@@ -295,17 +296,17 @@ curl -I https://prestador.consertapramim.com/Account/Login
 Validacao da malha Docker:
 
 ```bash
-docker inspect cpm-web-admin --format '{{range .Config.Env}}{{println .}}{{end}}' | grep -E '^(ApiBaseUrl|BrowserApiBaseUrl)='
-docker inspect cpm-web-client --format '{{range .Config.Env}}{{println .}}{{end}}' | grep -E '^(ApiBaseUrl|BrowserApiBaseUrl)='
-docker inspect cpm-web-provider --format '{{range .Config.Env}}{{println .}}{{end}}' | grep -E '^(ApiBaseUrl|BrowserApiBaseUrl)='
-docker run --rm --network conserta_net curlimages/curl:8.12.1 -I http://cpm-api:8080/health
-# em DEV (CONTAINER_PREFIX=cpm-dev):
-# docker run --rm --network conserta_net curlimages/curl:8.12.1 -I http://cpm-dev-api:8080/health
+docker inspect cpm-prd-admin --format '{{range .Config.Env}}{{println .}}{{end}}' | grep -E '^(ApiBaseUrl|BrowserApiBaseUrl)='
+docker inspect cpm-prd-cliente --format '{{range .Config.Env}}{{println .}}{{end}}' | grep -E '^(ApiBaseUrl|BrowserApiBaseUrl)='
+docker inspect cpm-prd-prestador --format '{{range .Config.Env}}{{println .}}{{end}}' | grep -E '^(ApiBaseUrl|BrowserApiBaseUrl)='
+docker run --rm --network conserta_net curlimages/curl:8.12.1 -I http://cpm-prd-api:8080/health
+# em DEV (CONTAINER_PREFIX=cpm-hml):
+# docker run --rm --network conserta_net curlimages/curl:8.12.1 -I http://cpm-hml-api:8080/health
 docker run --rm --network conserta_net curlimages/curl:8.12.1 -I https://api.consertapramim.com/health
 ```
 
 Esperado:
-- `ApiBaseUrl=http://<CONTAINER_PREFIX>-api:8080` (ex.: `cpm-api` em prod, `cpm-dev-api` em dev)
+- `ApiBaseUrl=http://<CONTAINER_PREFIX>-api:8080` (ex.: `cpm-prd-api` em prod, `cpm-hml-api` em dev)
 - `BrowserApiBaseUrl=https://api.consertapramim.com` (prod) ou `http://<IP>:6193` (dev-local)
 
 Validacao funcional no navegador:
@@ -332,14 +333,14 @@ Isolamento automatico por branch (workflow):
 - `dev-local`:
   `DEPLOY_PROFILE=development`,
   `BIND_HOST=0.0.0.0`,
-  `CONTAINER_PREFIX=cpm-dev`,
-  `VOLUME_PREFIX=cpm_dev`,
+  `CONTAINER_PREFIX=cpm-hml`,
+  `VOLUME_PREFIX=cpm_hml`,
   `DB_NAME=ConsertaPraMimDbDev`
 - `main/master`:
   `DEPLOY_PROFILE=production`,
   `BIND_HOST=127.0.0.1`,
-  `CONTAINER_PREFIX=cpm`,
-  `VOLUME_PREFIX=cpm`,
+  `CONTAINER_PREFIX=cpm-prd`,
+  `VOLUME_PREFIX=cpm_prd`,
   `DB_NAME=ConsertaPraMimDb`
 
 Portas por ambiente:
@@ -399,47 +400,47 @@ Observacoes sobre metadados de APK e push de resumo:
 Status:
 
 ```bash
-docker compose -p cpm-web-landing -f Backend/docker-compose.vps.web-landing.yml --env-file Backend/.env.vps ps
-docker compose -p cpm-api -f Backend/docker-compose.vps.api.yml --env-file Backend/.env.vps ps
-docker compose -p cpm-web-admin -f Backend/docker-compose.vps.web-admin.yml --env-file Backend/.env.vps ps
-docker compose -p cpm-web-client -f Backend/docker-compose.vps.web-client.yml --env-file Backend/.env.vps ps
-docker compose -p cpm-web-provider -f Backend/docker-compose.vps.web-provider.yml --env-file Backend/.env.vps ps
-docker compose -p cpm-mobile-webview-client -f Backend/docker-compose.vps.mobile-webview-client.yml --env-file Backend/.env.vps ps
-docker compose -p cpm-mobile-webview-provider -f Backend/docker-compose.vps.mobile-webview-provider.yml --env-file Backend/.env.vps ps
-docker compose -p cpm-mobile-webview-admin -f Backend/docker-compose.vps.mobile-webview-admin.yml --env-file Backend/.env.vps ps
+docker compose -p cpm-prd-landing -f Backend/docker-compose.vps.web-landing.yml --env-file Backend/.env.vps ps
+docker compose -p cpm-prd-api -f Backend/docker-compose.vps.api.yml --env-file Backend/.env.vps ps
+docker compose -p cpm-prd-admin -f Backend/docker-compose.vps.web-admin.yml --env-file Backend/.env.vps ps
+docker compose -p cpm-prd-cliente -f Backend/docker-compose.vps.web-client.yml --env-file Backend/.env.vps ps
+docker compose -p cpm-prd-prestador -f Backend/docker-compose.vps.web-provider.yml --env-file Backend/.env.vps ps
+docker compose -p cpm-prd-app-cliente -f Backend/docker-compose.vps.mobile-webview-client.yml --env-file Backend/.env.vps ps
+docker compose -p cpm-prd-app-prestador -f Backend/docker-compose.vps.mobile-webview-provider.yml --env-file Backend/.env.vps ps
+docker compose -p cpm-prd-app-admin -f Backend/docker-compose.vps.mobile-webview-admin.yml --env-file Backend/.env.vps ps
 
 # Para DEV (branch dev-local), trocar para:
-docker compose -p cpm-dev-api -f Backend/docker-compose.vps.api.yml --env-file Backend/.env.vps ps
+docker compose -p cpm-hml-api -f Backend/docker-compose.vps.api.yml --env-file Backend/.env.vps ps
 ```
 
 Parar/iniciar individual:
 
 ```bash
-docker compose -p cpm-web-landing -f Backend/docker-compose.vps.web-landing.yml --env-file Backend/.env.vps stop
-docker compose -p cpm-web-landing -f Backend/docker-compose.vps.web-landing.yml --env-file Backend/.env.vps start
+docker compose -p cpm-prd-landing -f Backend/docker-compose.vps.web-landing.yml --env-file Backend/.env.vps stop
+docker compose -p cpm-prd-landing -f Backend/docker-compose.vps.web-landing.yml --env-file Backend/.env.vps start
 ```
 
 Logs:
 
 ```bash
-docker logs -f cpm-web-landing
-docker logs -f cpm-api
-docker logs -f cpm-web-admin
-docker logs -f cpm-web-client
-docker logs -f cpm-web-provider
-docker logs -f cpm-mobile-webview-client
-docker logs -f cpm-mobile-webview-provider
-docker logs -f cpm-mobile-webview-admin
+docker logs -f cpm-prd-landing
+docker logs -f cpm-prd-api
+docker logs -f cpm-prd-admin
+docker logs -f cpm-prd-cliente
+docker logs -f cpm-prd-prestador
+docker logs -f cpm-prd-app-cliente
+docker logs -f cpm-prd-app-prestador
+docker logs -f cpm-prd-app-admin
 
 # Stack DEV (branch dev-local)
-docker logs -f cpm-dev-web-landing
-docker logs -f cpm-dev-api
-docker logs -f cpm-dev-web-admin
-docker logs -f cpm-dev-web-client
-docker logs -f cpm-dev-web-provider
-docker logs -f cpm-dev-mobile-webview-client
-docker logs -f cpm-dev-mobile-webview-provider
-docker logs -f cpm-dev-mobile-webview-admin
+docker logs -f cpm-hml-landing
+docker logs -f cpm-hml-api
+docker logs -f cpm-hml-admin
+docker logs -f cpm-hml-cliente
+docker logs -f cpm-hml-prestador
+docker logs -f cpm-hml-app-cliente
+docker logs -f cpm-hml-app-prestador
+docker logs -f cpm-hml-app-admin
 ```
 
 ## 10) Troubleshooting rapido (DEV por IP:porta)
@@ -449,11 +450,11 @@ Quando `http://<IP>:6088|6151|6069|6140|6193` der timeout:
 1. Validar se a stack DEV subiu no projeto compose correto:
 
 ```bash
-docker compose -p cpm-dev-api -f Backend/docker-compose.vps.api.yml --env-file Backend/.env.vps ps
-docker compose -p cpm-dev-web-admin -f Backend/docker-compose.vps.web-admin.yml --env-file Backend/.env.vps ps
-docker compose -p cpm-dev-web-client -f Backend/docker-compose.vps.web-client.yml --env-file Backend/.env.vps ps
-docker compose -p cpm-dev-web-provider -f Backend/docker-compose.vps.web-provider.yml --env-file Backend/.env.vps ps
-docker compose -p cpm-dev-web-landing -f Backend/docker-compose.vps.web-landing.yml --env-file Backend/.env.vps ps
+docker compose -p cpm-hml-api -f Backend/docker-compose.vps.api.yml --env-file Backend/.env.vps ps
+docker compose -p cpm-hml-admin -f Backend/docker-compose.vps.web-admin.yml --env-file Backend/.env.vps ps
+docker compose -p cpm-hml-cliente -f Backend/docker-compose.vps.web-client.yml --env-file Backend/.env.vps ps
+docker compose -p cpm-hml-prestador -f Backend/docker-compose.vps.web-provider.yml --env-file Backend/.env.vps ps
+docker compose -p cpm-hml-landing -f Backend/docker-compose.vps.web-landing.yml --env-file Backend/.env.vps ps
 ```
 
 2. Validar bind de portas no host:
@@ -475,14 +476,14 @@ curl -i http://127.0.0.1:6088/health
 4. Se os containers estiverem em `Restarting/Exited`, abrir logs:
 
 ```bash
-docker logs --tail 200 cpm-dev-api
-docker logs --tail 200 cpm-dev-web-admin
-docker logs --tail 200 cpm-dev-web-client
-docker logs --tail 200 cpm-dev-web-provider
-docker logs --tail 200 cpm-dev-web-landing
+docker logs --tail 200 cpm-hml-api
+docker logs --tail 200 cpm-hml-admin
+docker logs --tail 200 cpm-hml-cliente
+docker logs --tail 200 cpm-hml-prestador
+docker logs --tail 200 cpm-hml-landing
 ```
 
-5. Se a API cair com `PendingModelChangesWarning` no `cpm-dev-api`:
+5. Se a API cair com `PendingModelChangesWarning` no `cpm-hml-api`:
 
 ```bash
 # Confirmar perfil de deploy
@@ -498,7 +499,7 @@ Observacao:
 6. Se Web Admin/Cliente/Prestador estiverem `Up` mas sem responder na porta publicada:
 
 ```bash
-docker inspect cpm-dev-web-admin --format '{{range .Config.Env}}{{println .}}{{end}}' | grep -E '^(ASPNETCORE_URLS|URLS|ADMIN_PORT)='
-docker inspect cpm-dev-web-client --format '{{range .Config.Env}}{{println .}}{{end}}' | grep -E '^(ASPNETCORE_URLS|URLS|CLIENT_PORT)='
-docker inspect cpm-dev-web-provider --format '{{range .Config.Env}}{{println .}}{{end}}' | grep -E '^(ASPNETCORE_URLS|URLS|PROVIDER_PORT)='
+docker inspect cpm-hml-admin --format '{{range .Config.Env}}{{println .}}{{end}}' | grep -E '^(ASPNETCORE_URLS|URLS|ADMIN_PORT)='
+docker inspect cpm-hml-cliente --format '{{range .Config.Env}}{{println .}}{{end}}' | grep -E '^(ASPNETCORE_URLS|URLS|CLIENT_PORT)='
+docker inspect cpm-hml-prestador --format '{{range .Config.Env}}{{println .}}{{end}}' | grep -E '^(ASPNETCORE_URLS|URLS|PROVIDER_PORT)='
 ```

@@ -1,8 +1,8 @@
-name: backend-mobile-webview-provider
+name: "${CONTAINER_PREFIX:-cpm-prd}-app-prestador"
 
 services:
   mobile-webview-provider:
-    container_name: "${CONTAINER_PREFIX:-cpm}-mobile-webview-provider"
+    container_name: "${CONTAINER_PREFIX:-cpm-prd}-app-prestador"
     build:
       context: ..
       dockerfile: Backend/docker/vps/Dockerfile.mobile.webview.provider

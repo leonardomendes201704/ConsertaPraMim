@@ -1,8 +1,8 @@
-name: backend-web-client
+name: "${CONTAINER_PREFIX:-cpm-prd}-cliente"
 
 services:
   web-client:
-    container_name: "${CONTAINER_PREFIX:-cpm}-web-client"
+    container_name: "${CONTAINER_PREFIX:-cpm-prd}-cliente"
     build:
       context: .
       dockerfile: docker/vps/Dockerfile.web.client
@@ -16,7 +16,7 @@ services:
       DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: "false"
       LANG: "pt_BR.UTF-8"
       LC_ALL: "pt_BR.UTF-8"
-      ApiBaseUrl: "${INTERNAL_API_URL:-http://${CONTAINER_PREFIX:-cpm}-api:8080}"
+      ApiBaseUrl: "${INTERNAL_API_URL:-http://${CONTAINER_PREFIX:-cpm-prd}-api:8080}"
       BrowserApiBaseUrl: "${PUBLIC_API_URL:-http://${VPS_PUBLIC_HOST}:${API_PORT:-5193}}"
       JwtSettings__SecretKey: "${JWT_SECRET_KEY}"
       JwtSettings__Issuer: "ConsertaPraMim"
@@ -29,7 +29,7 @@ services:
 
 volumes:
   web_client_dataprotection:
-    name: "${VOLUME_PREFIX:-cpm}_web_client_dataprotection"
+    name: "${VOLUME_PREFIX:-cpm_prd}_web_client_dataprotection"
 
 networks:
   conserta_net:
