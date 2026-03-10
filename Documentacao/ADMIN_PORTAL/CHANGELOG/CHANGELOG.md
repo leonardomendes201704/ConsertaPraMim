@@ -12,6 +12,11 @@
 
 ## Released
 
+- [2026-03-10] [ST-074][WEB-HML-FOOTER-BANNER] Rodape fixo de ambiente em homologacao nos portais web
+- Tipo: feat
+- Resumo: os projetos `Web.Admin`, `Web.Client`, `Web.Provider` e `Web.Landing` passaram a renderizar um rodape fixo de aviso de homologacao somente quando `DEPLOY_PROFILE=development`; o deploy VPS tambem passou a injetar `DEPLOY_PROFILE` nos servicos web para garantir comportamento consistente entre HML e PRD.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Views/Shared/_Layout.cshtml`, `Backend/src/ConsertaPraMim.Web.Client/Views/Shared/_Layout.cshtml`, `Backend/src/ConsertaPraMim.Web.Provider/Views/Shared/_Layout.cshtml`, `Backend/src/ConsertaPraMim.Web.Landing/Views/Shared/_Layout.cshtml`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/css/site.css`, `Backend/docker-compose.vps.yml`, `Backend/docker-compose.vps.web-admin.yml`, `Backend/docker-compose.vps.web-client.yml`, `Backend/docker-compose.vps.web-provider.yml`, `Backend/docker-compose.vps.web-landing.yml`, `Backend/DEPLOY_VPS.md`, `Documentacao/ADMIN_PORTAL/EPICS/EPIC-031-deploy-dual-stack-dev-prod-na-mesma-vps.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-074-rodape-fixo-indicador-hml-portais-web.md`
+- Risco/Impacto: baixo
 - [2026-03-10] [ST-072][OPS-VPS-DEV-RESPECT-PUBLIC-URL-SECRETS] Workflow dev-local passa a respeitar URLs publicas HTTPS dos environments
 - Tipo: fix
 - Resumo: os blocos de escrita do `.env.vps` no workflow `deploy-vps` deixaram de sobrescrever `PUBLIC_*_URL` em `development`; agora o pipeline respeita os valores configurados em `development`/`production` para `PUBLIC_*_URL` e `PUBLIC_MOBILE_*_WEBVIEW_URL`, aplicando fallback para `http://<VPS_PUBLIC_HOST>:<porta>` somente quando algum secret estiver vazio.
@@ -65,7 +70,6 @@
 - Resumo: o deploy service passou a executar `docker compose` com `-p <CONTAINER_PREFIX>-<servico>` para isolar projeto compose por ambiente e por servico, evitando colisao/remocao cruzada entre stacks `dev-local` e `main` na mesma VPS; o workflow tambem passou a fazer healthcheck por `VPS_PUBLIC_HOST` no perfil `development` e agora publica diagnostico automatico (`docker ps` + `docker logs`) quando houver falha, reduzindo tempo de analise de timeout/reset em portas DEV.
 - Arquivos principais: `scripts/deploy/vps-deploy-service.sh`, `.github/workflows/deploy-vps.yml`, `Backend/DEPLOY_VPS.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-072-deploy-branch-aware-dev-local-main-na-mesma-vps.md`
 - Risco/Impacto: medio
-
 - [2026-03-09] [ST-072][OPS-VPS-APK-UPLOAD-LOCAL-RUNNER] Upload de APK sem SSH externo no pipeline
 - Tipo: fix
 - Resumo: os jobs `Upload APK Mobile Client/Provider/Admin` foram movidos para `self-hosted Linux` e passaram a publicar os APKs no fileserver via `docker cp` local (`filebrowser`), removendo a dependencia de acesso SSH externo na porta 22 a partir de `windows-latest` e eliminando falhas por timeout de conectividade de rede entre runner hospedado e VPS.

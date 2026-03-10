@@ -30,6 +30,18 @@
     var currentAction = ViewContext.RouteData.Values["Action"]?.ToString() ?? string.Empty;
     var isAccountController = currentController.Equals("Account", StringComparison.OrdinalIgnoreCase);
     var shouldRenderAdminShell = User.Identity?.IsAuthenticated == true && !isAccountController;
+    var isHmlEnvironment = string.Equals(
+        (Configuration["DEPLOY_PROFILE"] ?? string.Empty).Trim(),
+        "development",
+        StringComparison.OrdinalIgnoreCase);
+    var bodyCssClass = shouldRenderAdminShell ? "admin-auth" : string.Empty;
+
+    if (isHmlEnvironment)
+    {
+        bodyCssClass = string.IsNullOrWhiteSpace(bodyCssClass)
+            ? "hml-footer-visible"
+            : $"{bodyCssClass} hml-footer-visible";
+    }
 
     if (shouldRenderAdminShell)
     {
@@ -243,6 +255,35 @@
             transform: translateY(-50%) translateX(0);
         }
 
+        .hml-environment-footer {
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 3000;
+            background: #7f1d1d;
+            color: #fff;
+            text-align: center;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            padding: 8px 16px;
+            box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.25);
+        }
+
+        body.hml-footer-visible {
+            padding-bottom: 40px;
+        }
+
+        body.hml-footer-visible .admin-shell {
+            height: calc(100vh - 40px);
+        }
+
+        body.hml-footer-visible .admin-main {
+            height: 100%;
+        }
+
         @@media (max-width: 992px) {
             body.admin-auth {
                 overflow: auto;
@@ -298,7 +339,7 @@
         }
     </style>
 </head>
-<body class="@(shouldRenderAdminShell ? "admin-auth" : string.Empty)">
+<body class="@bodyCssClass">
 @if (shouldRenderAdminShell)
 {
     <div class="admin-shell" id="adminShell">
@@ -482,6 +523,13 @@ else
     <main class="container py-5">
         @RenderBody()
     </main>
+}
+
+@if (isHmlEnvironment)
+{
+    <div class="hml-environment-footer" role="status" aria-live="polite">
+        Ambiente de Homologacao (HML) - uso exclusivo para testes
+    </div>
 }
 
 <script src="~/lib/jquery/dist/jquery.min.js"></script>
