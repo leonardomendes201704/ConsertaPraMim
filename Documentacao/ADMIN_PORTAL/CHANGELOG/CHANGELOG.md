@@ -12,6 +12,29 @@
 
 ## Released
 
+- [2026-03-10] [ST-072][OPS-VPS-APK-UPLOAD-PERMISSION-ROOT] Publicacao de APK sem falha por permissao no filebrowser
+- Tipo: fix
+- Resumo: os steps `Publish APK fileserver` (client/provider/admin) passaram a executar `docker exec` com `--user 0` para criacao de diretorios e ajuste de ownership/permissoes em `/srv/apks`, eliminando falha por `Operation not permitted` no `chown` sem uso de fallback silencioso; a etapa permanece estrita e deve falhar apenas em erro real de filesystem/permissao.
+- Arquivos principais: `.github/workflows/deploy-vps.yml`, `Backend/DEPLOY_VPS.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-072-deploy-branch-aware-dev-local-main-na-mesma-vps.md`
+- Risco/Impacto: medio
+
+- [2026-03-10] [ST-072][OPS-VPS-CONTAINER-NAMING-PRD-HML] Padronizacao dos nomes Docker para producao e homologacao
+- Tipo: fix
+- Resumo: o deploy VPS passou a adotar nomes operacionais padronizados por ambiente para projetos e containers Docker, com `cpm-prd-*` em `main/master` e `cpm-hml-*` em `dev-local`; os sufixos agora refletem o dominio de negocio (`admin`, `cliente`, `prestador`, `landing`, `app-*`) e o script de deploy passou a mapear explicitamente o nome de projeto compose por servico para manter isolamento sem nomes tecnicos legados.
+- Arquivos principais: `.github/workflows/deploy-vps.yml`, `scripts/deploy/vps-deploy-service.sh`, `Backend/docker-compose.vps.api.yml`, `Backend/docker-compose.vps.web-landing.yml`, `Backend/docker-compose.vps.web-admin.yml`, `Backend/docker-compose.vps.web-client.yml`, `Backend/docker-compose.vps.web-provider.yml`, `Backend/docker-compose.vps.mobile-webview-client.yml`, `Backend/docker-compose.vps.mobile-webview-provider.yml`, `Backend/docker-compose.vps.mobile-webview-admin.yml`, `Backend/docker-compose.vps.yml`, `Backend/.env.vps.example`, `Backend/DEPLOY_VPS.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-072-deploy-branch-aware-dev-local-main-na-mesma-vps.md`
+- Risco/Impacto: medio
+
+- [2026-03-09] [ST-072][OPS-VPS-DEV-TIMEOUT-BOOT-BIND] Correcao de timeout no dev-local por bind interno e boot da API
+- Tipo: fix
+- Resumo: os compose files web do deploy VPS passaram a publicar explicitamente `URLS` junto de `ASPNETCORE_URLS`, garantindo bind interno na porta do ambiente (`6151/6069/6140`) e eliminando timeout em `IP:porta` quando `appsettings.Development` continha portas legadas; adicionalmente, a API passou a ignorar `PendingModelChangesWarning` somente no perfil `DEPLOY_PROFILE=development`, e o compose da API agora injeta `DEPLOY_PROFILE` no container para que esse comportamento seja aplicado no `dev-local` sem relaxar o modo estrito em `production`.
+- Arquivos principais: `Backend/docker-compose.vps.api.yml`, `Backend/docker-compose.vps.web-admin.yml`, `Backend/docker-compose.vps.web-client.yml`, `Backend/docker-compose.vps.web-provider.yml`, `Backend/docker-compose.vps.web-landing.yml`, `Backend/docker-compose.vps.yml`, `Backend/src/ConsertaPraMim.Infrastructure/DependencyInjection.cs`, `Backend/DEPLOY_VPS.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-072-deploy-branch-aware-dev-local-main-na-mesma-vps.md`
+- Risco/Impacto: medio
+
+- [2026-03-09] [ST-072][OPS-VPS-DEV-HEALTHCHECK-PROJECT-ISOLATION] Isolamento compose DEV/PROD e healthcheck robusto no dev-local
+- Tipo: fix
+- Resumo: o deploy service passou a executar `docker compose` com `-p <CONTAINER_PREFIX>-<servico>` para isolar projeto compose por ambiente e por servico, evitando colisao/remocao cruzada entre stacks `dev-local` e `main` na mesma VPS; o workflow tambem passou a fazer healthcheck por `VPS_PUBLIC_HOST` no perfil `development` e agora publica diagnostico automatico (`docker ps` + `docker logs`) quando houver falha, reduzindo tempo de analise de timeout/reset em portas DEV.
+- Arquivos principais: `scripts/deploy/vps-deploy-service.sh`, `.github/workflows/deploy-vps.yml`, `Backend/DEPLOY_VPS.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-072-deploy-branch-aware-dev-local-main-na-mesma-vps.md`
+- Risco/Impacto: medio
 - [2026-03-09] [ST-072][OPS-VPS-APK-UPLOAD-LOCAL-RUNNER] Upload de APK sem SSH externo no pipeline
 - Tipo: fix
 - Resumo: os jobs `Upload APK Mobile Client/Provider/Admin` foram movidos para `self-hosted Linux` e passaram a publicar os APKs no fileserver via `docker cp` local (`filebrowser`), removendo a dependencia de acesso SSH externo na porta 22 a partir de `windows-latest` e eliminando falhas por timeout de conectividade de rede entre runner hospedado e VPS.
