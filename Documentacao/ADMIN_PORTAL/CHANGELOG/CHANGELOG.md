@@ -12,6 +12,12 @@
 
 ## Released
 
+- [2026-03-10] [ST-072][OPS-VPS-DEV-RESPECT-PUBLIC-URL-SECRETS] Workflow dev-local passa a respeitar URLs publicas HTTPS dos environments
+- Tipo: fix
+- Resumo: os blocos de escrita do `.env.vps` no workflow `deploy-vps` deixaram de sobrescrever `PUBLIC_*_URL` em `development`; agora o pipeline respeita os valores configurados em `development`/`production` para `PUBLIC_*_URL` e `PUBLIC_MOBILE_*_WEBVIEW_URL`, aplicando fallback para `http://<VPS_PUBLIC_HOST>:<porta>` somente quando algum secret estiver vazio.
+- Arquivos principais: `.github/workflows/deploy-vps.yml`, `Backend/DEPLOY_VPS.md`
+- Risco/Impacto: medio
+
 - [2026-03-10] [ST-072][ADMIN-APPS-WEBVIEW-LINKS-PUBLIC-URL] Correcao dos links de WebView na tela Aplicativos do Admin
 - Tipo: fix
 - Resumo: a tela `AdminApplications` deixou de montar os links de WebView com `Context.Request.Scheme` (que em producao gerava `https://...:5181/5182/5183` e quebrava acesso) e passou a resolver URLs publicas por configuracao (`MobileWebViews:*`) com fallback explicito para HTTP por porta; o deploy VPS tambem passou a expor as variaveis `PUBLIC_MOBILE_*_WEBVIEW_URL` para override por ambiente.

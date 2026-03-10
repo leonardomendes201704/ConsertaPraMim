@@ -428,21 +428,42 @@ jobs:
           PUBLIC_CLIENT_URL_VALUE="${{ secrets.PUBLIC_CLIENT_URL }}"
           PUBLIC_PROVIDER_URL_VALUE="${{ secrets.PUBLIC_PROVIDER_URL }}"
           PUBLIC_LANDING_URL_VALUE="${{ secrets.PUBLIC_LANDING_URL }}"
+          PUBLIC_MOBILE_CLIENT_WEBVIEW_URL_VALUE="${{ secrets.PUBLIC_MOBILE_CLIENT_WEBVIEW_URL }}"
+          PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL_VALUE="${{ secrets.PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL }}"
+          PUBLIC_MOBILE_ADMIN_WEBVIEW_URL_VALUE="${{ secrets.PUBLIC_MOBILE_ADMIN_WEBVIEW_URL }}"
           ENFORCE_API_HTTPS_REDIRECTION_VALUE="${{ secrets.ENFORCE_API_HTTPS_REDIRECTION }}"
 
-          if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+          if [[ -z "$PUBLIC_API_URL_VALUE" ]]; then
             PUBLIC_API_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.API_PORT }}"
+          fi
+          if [[ -z "$PUBLIC_ADMIN_URL_VALUE" ]]; then
             PUBLIC_ADMIN_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.ADMIN_PORT }}"
+          fi
+          if [[ -z "$PUBLIC_CLIENT_URL_VALUE" ]]; then
             PUBLIC_CLIENT_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.CLIENT_PORT }}"
+          fi
+          if [[ -z "$PUBLIC_PROVIDER_URL_VALUE" ]]; then
             PUBLIC_PROVIDER_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.PROVIDER_PORT }}"
+          fi
+          if [[ -z "$PUBLIC_LANDING_URL_VALUE" ]]; then
             PUBLIC_LANDING_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.LANDING_PORT }}"
-            if [[ -z "$ENFORCE_API_HTTPS_REDIRECTION_VALUE" ]]; then
-              ENFORCE_API_HTTPS_REDIRECTION_VALUE="false"
-            fi
+          fi
+          if [[ -z "$PUBLIC_MOBILE_CLIENT_WEBVIEW_URL_VALUE" ]]; then
+            PUBLIC_MOBILE_CLIENT_WEBVIEW_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.MOBILE_CLIENT_WEBVIEW_PORT }}"
+          fi
+          if [[ -z "$PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL_VALUE" ]]; then
+            PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.MOBILE_PROVIDER_WEBVIEW_PORT }}"
+          fi
+          if [[ -z "$PUBLIC_MOBILE_ADMIN_WEBVIEW_URL_VALUE" ]]; then
+            PUBLIC_MOBILE_ADMIN_WEBVIEW_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.MOBILE_ADMIN_WEBVIEW_PORT }}"
           fi
 
           if [[ -z "$ENFORCE_API_HTTPS_REDIRECTION_VALUE" ]]; then
-            ENFORCE_API_HTTPS_REDIRECTION_VALUE="true"
+            if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+              ENFORCE_API_HTTPS_REDIRECTION_VALUE="false"
+            else
+              ENFORCE_API_HTTPS_REDIRECTION_VALUE="true"
+            fi
           fi
 
           cat > Backend/.env.vps <<EOF
@@ -458,6 +479,9 @@ jobs:
           PUBLIC_CLIENT_URL=$PUBLIC_CLIENT_URL_VALUE
           PUBLIC_PROVIDER_URL=$PUBLIC_PROVIDER_URL_VALUE
           PUBLIC_LANDING_URL=$PUBLIC_LANDING_URL_VALUE
+          PUBLIC_MOBILE_CLIENT_WEBVIEW_URL=$PUBLIC_MOBILE_CLIENT_WEBVIEW_URL_VALUE
+          PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL=$PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL_VALUE
+          PUBLIC_MOBILE_ADMIN_WEBVIEW_URL=$PUBLIC_MOBILE_ADMIN_WEBVIEW_URL_VALUE
           ENFORCE_API_HTTPS_REDIRECTION=$ENFORCE_API_HTTPS_REDIRECTION_VALUE
           API_PORT=${{ env.API_PORT }}
           LANDING_PORT=${{ env.LANDING_PORT }}
@@ -584,21 +608,42 @@ jobs:
           PUBLIC_CLIENT_URL_VALUE="${{ secrets.PUBLIC_CLIENT_URL }}"
           PUBLIC_PROVIDER_URL_VALUE="${{ secrets.PUBLIC_PROVIDER_URL }}"
           PUBLIC_LANDING_URL_VALUE="${{ secrets.PUBLIC_LANDING_URL }}"
+          PUBLIC_MOBILE_CLIENT_WEBVIEW_URL_VALUE="${{ secrets.PUBLIC_MOBILE_CLIENT_WEBVIEW_URL }}"
+          PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL_VALUE="${{ secrets.PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL }}"
+          PUBLIC_MOBILE_ADMIN_WEBVIEW_URL_VALUE="${{ secrets.PUBLIC_MOBILE_ADMIN_WEBVIEW_URL }}"
           ENFORCE_API_HTTPS_REDIRECTION_VALUE="${{ secrets.ENFORCE_API_HTTPS_REDIRECTION }}"
 
-          if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+          if [[ -z "$PUBLIC_API_URL_VALUE" ]]; then
             PUBLIC_API_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.API_PORT }}"
+          fi
+          if [[ -z "$PUBLIC_ADMIN_URL_VALUE" ]]; then
             PUBLIC_ADMIN_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.ADMIN_PORT }}"
+          fi
+          if [[ -z "$PUBLIC_CLIENT_URL_VALUE" ]]; then
             PUBLIC_CLIENT_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.CLIENT_PORT }}"
+          fi
+          if [[ -z "$PUBLIC_PROVIDER_URL_VALUE" ]]; then
             PUBLIC_PROVIDER_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.PROVIDER_PORT }}"
+          fi
+          if [[ -z "$PUBLIC_LANDING_URL_VALUE" ]]; then
             PUBLIC_LANDING_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.LANDING_PORT }}"
-            if [[ -z "$ENFORCE_API_HTTPS_REDIRECTION_VALUE" ]]; then
-              ENFORCE_API_HTTPS_REDIRECTION_VALUE="false"
-            fi
+          fi
+          if [[ -z "$PUBLIC_MOBILE_CLIENT_WEBVIEW_URL_VALUE" ]]; then
+            PUBLIC_MOBILE_CLIENT_WEBVIEW_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.MOBILE_CLIENT_WEBVIEW_PORT }}"
+          fi
+          if [[ -z "$PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL_VALUE" ]]; then
+            PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.MOBILE_PROVIDER_WEBVIEW_PORT }}"
+          fi
+          if [[ -z "$PUBLIC_MOBILE_ADMIN_WEBVIEW_URL_VALUE" ]]; then
+            PUBLIC_MOBILE_ADMIN_WEBVIEW_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.MOBILE_ADMIN_WEBVIEW_PORT }}"
           fi
 
           if [[ -z "$ENFORCE_API_HTTPS_REDIRECTION_VALUE" ]]; then
-            ENFORCE_API_HTTPS_REDIRECTION_VALUE="true"
+            if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+              ENFORCE_API_HTTPS_REDIRECTION_VALUE="false"
+            else
+              ENFORCE_API_HTTPS_REDIRECTION_VALUE="true"
+            fi
           fi
 
           cat > Backend/.env.vps <<EOF
@@ -614,6 +659,9 @@ jobs:
           PUBLIC_CLIENT_URL=$PUBLIC_CLIENT_URL_VALUE
           PUBLIC_PROVIDER_URL=$PUBLIC_PROVIDER_URL_VALUE
           PUBLIC_LANDING_URL=$PUBLIC_LANDING_URL_VALUE
+          PUBLIC_MOBILE_CLIENT_WEBVIEW_URL=$PUBLIC_MOBILE_CLIENT_WEBVIEW_URL_VALUE
+          PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL=$PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL_VALUE
+          PUBLIC_MOBILE_ADMIN_WEBVIEW_URL=$PUBLIC_MOBILE_ADMIN_WEBVIEW_URL_VALUE
           ENFORCE_API_HTTPS_REDIRECTION=$ENFORCE_API_HTTPS_REDIRECTION_VALUE
           API_PORT=${{ env.API_PORT }}
           LANDING_PORT=${{ env.LANDING_PORT }}
@@ -740,21 +788,42 @@ jobs:
           PUBLIC_CLIENT_URL_VALUE="${{ secrets.PUBLIC_CLIENT_URL }}"
           PUBLIC_PROVIDER_URL_VALUE="${{ secrets.PUBLIC_PROVIDER_URL }}"
           PUBLIC_LANDING_URL_VALUE="${{ secrets.PUBLIC_LANDING_URL }}"
+          PUBLIC_MOBILE_CLIENT_WEBVIEW_URL_VALUE="${{ secrets.PUBLIC_MOBILE_CLIENT_WEBVIEW_URL }}"
+          PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL_VALUE="${{ secrets.PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL }}"
+          PUBLIC_MOBILE_ADMIN_WEBVIEW_URL_VALUE="${{ secrets.PUBLIC_MOBILE_ADMIN_WEBVIEW_URL }}"
           ENFORCE_API_HTTPS_REDIRECTION_VALUE="${{ secrets.ENFORCE_API_HTTPS_REDIRECTION }}"
 
-          if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+          if [[ -z "$PUBLIC_API_URL_VALUE" ]]; then
             PUBLIC_API_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.API_PORT }}"
+          fi
+          if [[ -z "$PUBLIC_ADMIN_URL_VALUE" ]]; then
             PUBLIC_ADMIN_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.ADMIN_PORT }}"
+          fi
+          if [[ -z "$PUBLIC_CLIENT_URL_VALUE" ]]; then
             PUBLIC_CLIENT_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.CLIENT_PORT }}"
+          fi
+          if [[ -z "$PUBLIC_PROVIDER_URL_VALUE" ]]; then
             PUBLIC_PROVIDER_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.PROVIDER_PORT }}"
+          fi
+          if [[ -z "$PUBLIC_LANDING_URL_VALUE" ]]; then
             PUBLIC_LANDING_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.LANDING_PORT }}"
-            if [[ -z "$ENFORCE_API_HTTPS_REDIRECTION_VALUE" ]]; then
-              ENFORCE_API_HTTPS_REDIRECTION_VALUE="false"
-            fi
+          fi
+          if [[ -z "$PUBLIC_MOBILE_CLIENT_WEBVIEW_URL_VALUE" ]]; then
+            PUBLIC_MOBILE_CLIENT_WEBVIEW_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.MOBILE_CLIENT_WEBVIEW_PORT }}"
+          fi
+          if [[ -z "$PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL_VALUE" ]]; then
+            PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.MOBILE_PROVIDER_WEBVIEW_PORT }}"
+          fi
+          if [[ -z "$PUBLIC_MOBILE_ADMIN_WEBVIEW_URL_VALUE" ]]; then
+            PUBLIC_MOBILE_ADMIN_WEBVIEW_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.MOBILE_ADMIN_WEBVIEW_PORT }}"
           fi
 
           if [[ -z "$ENFORCE_API_HTTPS_REDIRECTION_VALUE" ]]; then
-            ENFORCE_API_HTTPS_REDIRECTION_VALUE="true"
+            if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+              ENFORCE_API_HTTPS_REDIRECTION_VALUE="false"
+            else
+              ENFORCE_API_HTTPS_REDIRECTION_VALUE="true"
+            fi
           fi
 
           cat > Backend/.env.vps <<EOF
@@ -770,6 +839,9 @@ jobs:
           PUBLIC_CLIENT_URL=$PUBLIC_CLIENT_URL_VALUE
           PUBLIC_PROVIDER_URL=$PUBLIC_PROVIDER_URL_VALUE
           PUBLIC_LANDING_URL=$PUBLIC_LANDING_URL_VALUE
+          PUBLIC_MOBILE_CLIENT_WEBVIEW_URL=$PUBLIC_MOBILE_CLIENT_WEBVIEW_URL_VALUE
+          PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL=$PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL_VALUE
+          PUBLIC_MOBILE_ADMIN_WEBVIEW_URL=$PUBLIC_MOBILE_ADMIN_WEBVIEW_URL_VALUE
           ENFORCE_API_HTTPS_REDIRECTION=$ENFORCE_API_HTTPS_REDIRECTION_VALUE
           API_PORT=${{ env.API_PORT }}
           LANDING_PORT=${{ env.LANDING_PORT }}
@@ -896,21 +968,42 @@ jobs:
           PUBLIC_CLIENT_URL_VALUE="${{ secrets.PUBLIC_CLIENT_URL }}"
           PUBLIC_PROVIDER_URL_VALUE="${{ secrets.PUBLIC_PROVIDER_URL }}"
           PUBLIC_LANDING_URL_VALUE="${{ secrets.PUBLIC_LANDING_URL }}"
+          PUBLIC_MOBILE_CLIENT_WEBVIEW_URL_VALUE="${{ secrets.PUBLIC_MOBILE_CLIENT_WEBVIEW_URL }}"
+          PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL_VALUE="${{ secrets.PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL }}"
+          PUBLIC_MOBILE_ADMIN_WEBVIEW_URL_VALUE="${{ secrets.PUBLIC_MOBILE_ADMIN_WEBVIEW_URL }}"
           ENFORCE_API_HTTPS_REDIRECTION_VALUE="${{ secrets.ENFORCE_API_HTTPS_REDIRECTION }}"
 
-          if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+          if [[ -z "$PUBLIC_API_URL_VALUE" ]]; then
             PUBLIC_API_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.API_PORT }}"
+          fi
+          if [[ -z "$PUBLIC_ADMIN_URL_VALUE" ]]; then
             PUBLIC_ADMIN_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.ADMIN_PORT }}"
+          fi
+          if [[ -z "$PUBLIC_CLIENT_URL_VALUE" ]]; then
             PUBLIC_CLIENT_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.CLIENT_PORT }}"
+          fi
+          if [[ -z "$PUBLIC_PROVIDER_URL_VALUE" ]]; then
             PUBLIC_PROVIDER_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.PROVIDER_PORT }}"
+          fi
+          if [[ -z "$PUBLIC_LANDING_URL_VALUE" ]]; then
             PUBLIC_LANDING_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.LANDING_PORT }}"
-            if [[ -z "$ENFORCE_API_HTTPS_REDIRECTION_VALUE" ]]; then
-              ENFORCE_API_HTTPS_REDIRECTION_VALUE="false"
-            fi
+          fi
+          if [[ -z "$PUBLIC_MOBILE_CLIENT_WEBVIEW_URL_VALUE" ]]; then
+            PUBLIC_MOBILE_CLIENT_WEBVIEW_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.MOBILE_CLIENT_WEBVIEW_PORT }}"
+          fi
+          if [[ -z "$PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL_VALUE" ]]; then
+            PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.MOBILE_PROVIDER_WEBVIEW_PORT }}"
+          fi
+          if [[ -z "$PUBLIC_MOBILE_ADMIN_WEBVIEW_URL_VALUE" ]]; then
+            PUBLIC_MOBILE_ADMIN_WEBVIEW_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.MOBILE_ADMIN_WEBVIEW_PORT }}"
           fi
 
           if [[ -z "$ENFORCE_API_HTTPS_REDIRECTION_VALUE" ]]; then
-            ENFORCE_API_HTTPS_REDIRECTION_VALUE="true"
+            if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+              ENFORCE_API_HTTPS_REDIRECTION_VALUE="false"
+            else
+              ENFORCE_API_HTTPS_REDIRECTION_VALUE="true"
+            fi
           fi
 
           cat > Backend/.env.vps <<EOF
@@ -926,6 +1019,9 @@ jobs:
           PUBLIC_CLIENT_URL=$PUBLIC_CLIENT_URL_VALUE
           PUBLIC_PROVIDER_URL=$PUBLIC_PROVIDER_URL_VALUE
           PUBLIC_LANDING_URL=$PUBLIC_LANDING_URL_VALUE
+          PUBLIC_MOBILE_CLIENT_WEBVIEW_URL=$PUBLIC_MOBILE_CLIENT_WEBVIEW_URL_VALUE
+          PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL=$PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL_VALUE
+          PUBLIC_MOBILE_ADMIN_WEBVIEW_URL=$PUBLIC_MOBILE_ADMIN_WEBVIEW_URL_VALUE
           ENFORCE_API_HTTPS_REDIRECTION=$ENFORCE_API_HTTPS_REDIRECTION_VALUE
           API_PORT=${{ env.API_PORT }}
           LANDING_PORT=${{ env.LANDING_PORT }}
@@ -1052,21 +1148,42 @@ jobs:
           PUBLIC_CLIENT_URL_VALUE="${{ secrets.PUBLIC_CLIENT_URL }}"
           PUBLIC_PROVIDER_URL_VALUE="${{ secrets.PUBLIC_PROVIDER_URL }}"
           PUBLIC_LANDING_URL_VALUE="${{ secrets.PUBLIC_LANDING_URL }}"
+          PUBLIC_MOBILE_CLIENT_WEBVIEW_URL_VALUE="${{ secrets.PUBLIC_MOBILE_CLIENT_WEBVIEW_URL }}"
+          PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL_VALUE="${{ secrets.PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL }}"
+          PUBLIC_MOBILE_ADMIN_WEBVIEW_URL_VALUE="${{ secrets.PUBLIC_MOBILE_ADMIN_WEBVIEW_URL }}"
           ENFORCE_API_HTTPS_REDIRECTION_VALUE="${{ secrets.ENFORCE_API_HTTPS_REDIRECTION }}"
 
-          if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+          if [[ -z "$PUBLIC_API_URL_VALUE" ]]; then
             PUBLIC_API_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.API_PORT }}"
+          fi
+          if [[ -z "$PUBLIC_ADMIN_URL_VALUE" ]]; then
             PUBLIC_ADMIN_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.ADMIN_PORT }}"
+          fi
+          if [[ -z "$PUBLIC_CLIENT_URL_VALUE" ]]; then
             PUBLIC_CLIENT_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.CLIENT_PORT }}"
+          fi
+          if [[ -z "$PUBLIC_PROVIDER_URL_VALUE" ]]; then
             PUBLIC_PROVIDER_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.PROVIDER_PORT }}"
+          fi
+          if [[ -z "$PUBLIC_LANDING_URL_VALUE" ]]; then
             PUBLIC_LANDING_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.LANDING_PORT }}"
-            if [[ -z "$ENFORCE_API_HTTPS_REDIRECTION_VALUE" ]]; then
-              ENFORCE_API_HTTPS_REDIRECTION_VALUE="false"
-            fi
+          fi
+          if [[ -z "$PUBLIC_MOBILE_CLIENT_WEBVIEW_URL_VALUE" ]]; then
+            PUBLIC_MOBILE_CLIENT_WEBVIEW_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.MOBILE_CLIENT_WEBVIEW_PORT }}"
+          fi
+          if [[ -z "$PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL_VALUE" ]]; then
+            PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.MOBILE_PROVIDER_WEBVIEW_PORT }}"
+          fi
+          if [[ -z "$PUBLIC_MOBILE_ADMIN_WEBVIEW_URL_VALUE" ]]; then
+            PUBLIC_MOBILE_ADMIN_WEBVIEW_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.MOBILE_ADMIN_WEBVIEW_PORT }}"
           fi
 
           if [[ -z "$ENFORCE_API_HTTPS_REDIRECTION_VALUE" ]]; then
-            ENFORCE_API_HTTPS_REDIRECTION_VALUE="true"
+            if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+              ENFORCE_API_HTTPS_REDIRECTION_VALUE="false"
+            else
+              ENFORCE_API_HTTPS_REDIRECTION_VALUE="true"
+            fi
           fi
 
           cat > Backend/.env.vps <<EOF
@@ -1082,6 +1199,9 @@ jobs:
           PUBLIC_CLIENT_URL=$PUBLIC_CLIENT_URL_VALUE
           PUBLIC_PROVIDER_URL=$PUBLIC_PROVIDER_URL_VALUE
           PUBLIC_LANDING_URL=$PUBLIC_LANDING_URL_VALUE
+          PUBLIC_MOBILE_CLIENT_WEBVIEW_URL=$PUBLIC_MOBILE_CLIENT_WEBVIEW_URL_VALUE
+          PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL=$PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL_VALUE
+          PUBLIC_MOBILE_ADMIN_WEBVIEW_URL=$PUBLIC_MOBILE_ADMIN_WEBVIEW_URL_VALUE
           ENFORCE_API_HTTPS_REDIRECTION=$ENFORCE_API_HTTPS_REDIRECTION_VALUE
           API_PORT=${{ env.API_PORT }}
           LANDING_PORT=${{ env.LANDING_PORT }}
@@ -1215,21 +1335,42 @@ jobs:
           PUBLIC_CLIENT_URL_VALUE="${{ secrets.PUBLIC_CLIENT_URL }}"
           PUBLIC_PROVIDER_URL_VALUE="${{ secrets.PUBLIC_PROVIDER_URL }}"
           PUBLIC_LANDING_URL_VALUE="${{ secrets.PUBLIC_LANDING_URL }}"
+          PUBLIC_MOBILE_CLIENT_WEBVIEW_URL_VALUE="${{ secrets.PUBLIC_MOBILE_CLIENT_WEBVIEW_URL }}"
+          PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL_VALUE="${{ secrets.PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL }}"
+          PUBLIC_MOBILE_ADMIN_WEBVIEW_URL_VALUE="${{ secrets.PUBLIC_MOBILE_ADMIN_WEBVIEW_URL }}"
           ENFORCE_API_HTTPS_REDIRECTION_VALUE="${{ secrets.ENFORCE_API_HTTPS_REDIRECTION }}"
 
-          if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+          if [[ -z "$PUBLIC_API_URL_VALUE" ]]; then
             PUBLIC_API_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.API_PORT }}"
+          fi
+          if [[ -z "$PUBLIC_ADMIN_URL_VALUE" ]]; then
             PUBLIC_ADMIN_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.ADMIN_PORT }}"
+          fi
+          if [[ -z "$PUBLIC_CLIENT_URL_VALUE" ]]; then
             PUBLIC_CLIENT_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.CLIENT_PORT }}"
+          fi
+          if [[ -z "$PUBLIC_PROVIDER_URL_VALUE" ]]; then
             PUBLIC_PROVIDER_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.PROVIDER_PORT }}"
+          fi
+          if [[ -z "$PUBLIC_LANDING_URL_VALUE" ]]; then
             PUBLIC_LANDING_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.LANDING_PORT }}"
-            if [[ -z "$ENFORCE_API_HTTPS_REDIRECTION_VALUE" ]]; then
-              ENFORCE_API_HTTPS_REDIRECTION_VALUE="false"
-            fi
+          fi
+          if [[ -z "$PUBLIC_MOBILE_CLIENT_WEBVIEW_URL_VALUE" ]]; then
+            PUBLIC_MOBILE_CLIENT_WEBVIEW_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.MOBILE_CLIENT_WEBVIEW_PORT }}"
+          fi
+          if [[ -z "$PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL_VALUE" ]]; then
+            PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.MOBILE_PROVIDER_WEBVIEW_PORT }}"
+          fi
+          if [[ -z "$PUBLIC_MOBILE_ADMIN_WEBVIEW_URL_VALUE" ]]; then
+            PUBLIC_MOBILE_ADMIN_WEBVIEW_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.MOBILE_ADMIN_WEBVIEW_PORT }}"
           fi
 
           if [[ -z "$ENFORCE_API_HTTPS_REDIRECTION_VALUE" ]]; then
-            ENFORCE_API_HTTPS_REDIRECTION_VALUE="true"
+            if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+              ENFORCE_API_HTTPS_REDIRECTION_VALUE="false"
+            else
+              ENFORCE_API_HTTPS_REDIRECTION_VALUE="true"
+            fi
           fi
 
           cat > Backend/.env.vps <<EOF
@@ -1245,6 +1386,9 @@ jobs:
           PUBLIC_CLIENT_URL=$PUBLIC_CLIENT_URL_VALUE
           PUBLIC_PROVIDER_URL=$PUBLIC_PROVIDER_URL_VALUE
           PUBLIC_LANDING_URL=$PUBLIC_LANDING_URL_VALUE
+          PUBLIC_MOBILE_CLIENT_WEBVIEW_URL=$PUBLIC_MOBILE_CLIENT_WEBVIEW_URL_VALUE
+          PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL=$PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL_VALUE
+          PUBLIC_MOBILE_ADMIN_WEBVIEW_URL=$PUBLIC_MOBILE_ADMIN_WEBVIEW_URL_VALUE
           ENFORCE_API_HTTPS_REDIRECTION=$ENFORCE_API_HTTPS_REDIRECTION_VALUE
           API_PORT=${{ env.API_PORT }}
           LANDING_PORT=${{ env.LANDING_PORT }}
@@ -1378,21 +1522,42 @@ jobs:
           PUBLIC_CLIENT_URL_VALUE="${{ secrets.PUBLIC_CLIENT_URL }}"
           PUBLIC_PROVIDER_URL_VALUE="${{ secrets.PUBLIC_PROVIDER_URL }}"
           PUBLIC_LANDING_URL_VALUE="${{ secrets.PUBLIC_LANDING_URL }}"
+          PUBLIC_MOBILE_CLIENT_WEBVIEW_URL_VALUE="${{ secrets.PUBLIC_MOBILE_CLIENT_WEBVIEW_URL }}"
+          PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL_VALUE="${{ secrets.PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL }}"
+          PUBLIC_MOBILE_ADMIN_WEBVIEW_URL_VALUE="${{ secrets.PUBLIC_MOBILE_ADMIN_WEBVIEW_URL }}"
           ENFORCE_API_HTTPS_REDIRECTION_VALUE="${{ secrets.ENFORCE_API_HTTPS_REDIRECTION }}"
 
-          if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+          if [[ -z "$PUBLIC_API_URL_VALUE" ]]; then
             PUBLIC_API_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.API_PORT }}"
+          fi
+          if [[ -z "$PUBLIC_ADMIN_URL_VALUE" ]]; then
             PUBLIC_ADMIN_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.ADMIN_PORT }}"
+          fi
+          if [[ -z "$PUBLIC_CLIENT_URL_VALUE" ]]; then
             PUBLIC_CLIENT_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.CLIENT_PORT }}"
+          fi
+          if [[ -z "$PUBLIC_PROVIDER_URL_VALUE" ]]; then
             PUBLIC_PROVIDER_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.PROVIDER_PORT }}"
+          fi
+          if [[ -z "$PUBLIC_LANDING_URL_VALUE" ]]; then
             PUBLIC_LANDING_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.LANDING_PORT }}"
-            if [[ -z "$ENFORCE_API_HTTPS_REDIRECTION_VALUE" ]]; then
-              ENFORCE_API_HTTPS_REDIRECTION_VALUE="false"
-            fi
+          fi
+          if [[ -z "$PUBLIC_MOBILE_CLIENT_WEBVIEW_URL_VALUE" ]]; then
+            PUBLIC_MOBILE_CLIENT_WEBVIEW_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.MOBILE_CLIENT_WEBVIEW_PORT }}"
+          fi
+          if [[ -z "$PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL_VALUE" ]]; then
+            PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.MOBILE_PROVIDER_WEBVIEW_PORT }}"
+          fi
+          if [[ -z "$PUBLIC_MOBILE_ADMIN_WEBVIEW_URL_VALUE" ]]; then
+            PUBLIC_MOBILE_ADMIN_WEBVIEW_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.MOBILE_ADMIN_WEBVIEW_PORT }}"
           fi
 
           if [[ -z "$ENFORCE_API_HTTPS_REDIRECTION_VALUE" ]]; then
-            ENFORCE_API_HTTPS_REDIRECTION_VALUE="true"
+            if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+              ENFORCE_API_HTTPS_REDIRECTION_VALUE="false"
+            else
+              ENFORCE_API_HTTPS_REDIRECTION_VALUE="true"
+            fi
           fi
 
           cat > Backend/.env.vps <<EOF
@@ -1408,6 +1573,9 @@ jobs:
           PUBLIC_CLIENT_URL=$PUBLIC_CLIENT_URL_VALUE
           PUBLIC_PROVIDER_URL=$PUBLIC_PROVIDER_URL_VALUE
           PUBLIC_LANDING_URL=$PUBLIC_LANDING_URL_VALUE
+          PUBLIC_MOBILE_CLIENT_WEBVIEW_URL=$PUBLIC_MOBILE_CLIENT_WEBVIEW_URL_VALUE
+          PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL=$PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL_VALUE
+          PUBLIC_MOBILE_ADMIN_WEBVIEW_URL=$PUBLIC_MOBILE_ADMIN_WEBVIEW_URL_VALUE
           ENFORCE_API_HTTPS_REDIRECTION=$ENFORCE_API_HTTPS_REDIRECTION_VALUE
           API_PORT=${{ env.API_PORT }}
           LANDING_PORT=${{ env.LANDING_PORT }}
@@ -1541,21 +1709,42 @@ jobs:
           PUBLIC_CLIENT_URL_VALUE="${{ secrets.PUBLIC_CLIENT_URL }}"
           PUBLIC_PROVIDER_URL_VALUE="${{ secrets.PUBLIC_PROVIDER_URL }}"
           PUBLIC_LANDING_URL_VALUE="${{ secrets.PUBLIC_LANDING_URL }}"
+          PUBLIC_MOBILE_CLIENT_WEBVIEW_URL_VALUE="${{ secrets.PUBLIC_MOBILE_CLIENT_WEBVIEW_URL }}"
+          PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL_VALUE="${{ secrets.PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL }}"
+          PUBLIC_MOBILE_ADMIN_WEBVIEW_URL_VALUE="${{ secrets.PUBLIC_MOBILE_ADMIN_WEBVIEW_URL }}"
           ENFORCE_API_HTTPS_REDIRECTION_VALUE="${{ secrets.ENFORCE_API_HTTPS_REDIRECTION }}"
 
-          if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+          if [[ -z "$PUBLIC_API_URL_VALUE" ]]; then
             PUBLIC_API_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.API_PORT }}"
+          fi
+          if [[ -z "$PUBLIC_ADMIN_URL_VALUE" ]]; then
             PUBLIC_ADMIN_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.ADMIN_PORT }}"
+          fi
+          if [[ -z "$PUBLIC_CLIENT_URL_VALUE" ]]; then
             PUBLIC_CLIENT_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.CLIENT_PORT }}"
+          fi
+          if [[ -z "$PUBLIC_PROVIDER_URL_VALUE" ]]; then
             PUBLIC_PROVIDER_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.PROVIDER_PORT }}"
+          fi
+          if [[ -z "$PUBLIC_LANDING_URL_VALUE" ]]; then
             PUBLIC_LANDING_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.LANDING_PORT }}"
-            if [[ -z "$ENFORCE_API_HTTPS_REDIRECTION_VALUE" ]]; then
-              ENFORCE_API_HTTPS_REDIRECTION_VALUE="false"
-            fi
+          fi
+          if [[ -z "$PUBLIC_MOBILE_CLIENT_WEBVIEW_URL_VALUE" ]]; then
+            PUBLIC_MOBILE_CLIENT_WEBVIEW_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.MOBILE_CLIENT_WEBVIEW_PORT }}"
+          fi
+          if [[ -z "$PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL_VALUE" ]]; then
+            PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.MOBILE_PROVIDER_WEBVIEW_PORT }}"
+          fi
+          if [[ -z "$PUBLIC_MOBILE_ADMIN_WEBVIEW_URL_VALUE" ]]; then
+            PUBLIC_MOBILE_ADMIN_WEBVIEW_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.MOBILE_ADMIN_WEBVIEW_PORT }}"
           fi
 
           if [[ -z "$ENFORCE_API_HTTPS_REDIRECTION_VALUE" ]]; then
-            ENFORCE_API_HTTPS_REDIRECTION_VALUE="true"
+            if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+              ENFORCE_API_HTTPS_REDIRECTION_VALUE="false"
+            else
+              ENFORCE_API_HTTPS_REDIRECTION_VALUE="true"
+            fi
           fi
 
           cat > Backend/.env.vps <<EOF
@@ -1571,6 +1760,9 @@ jobs:
           PUBLIC_CLIENT_URL=$PUBLIC_CLIENT_URL_VALUE
           PUBLIC_PROVIDER_URL=$PUBLIC_PROVIDER_URL_VALUE
           PUBLIC_LANDING_URL=$PUBLIC_LANDING_URL_VALUE
+          PUBLIC_MOBILE_CLIENT_WEBVIEW_URL=$PUBLIC_MOBILE_CLIENT_WEBVIEW_URL_VALUE
+          PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL=$PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL_VALUE
+          PUBLIC_MOBILE_ADMIN_WEBVIEW_URL=$PUBLIC_MOBILE_ADMIN_WEBVIEW_URL_VALUE
           ENFORCE_API_HTTPS_REDIRECTION=$ENFORCE_API_HTTPS_REDIRECTION_VALUE
           API_PORT=${{ env.API_PORT }}
           LANDING_PORT=${{ env.LANDING_PORT }}
