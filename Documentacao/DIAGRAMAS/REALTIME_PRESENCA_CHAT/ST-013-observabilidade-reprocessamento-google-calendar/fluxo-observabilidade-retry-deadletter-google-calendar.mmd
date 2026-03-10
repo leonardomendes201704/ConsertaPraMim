@@ -1,0 +1,22 @@
+flowchart TD
+    A[Evento de sync create update ou delete] --> B[Executar chamada Google Calendar]
+    B --> C{Sucesso?}
+    C -->|Sim| D[Marcar Synced ou Deleted]
+    D --> E[Limpar erro e fila de retry]
+    E --> F[Registrar metricas created updated deleted e latency]
+
+    C -->|Nao| G[Registrar failed e latency]
+    G --> H{Erro retryable e retry habilitado?}
+    H -->|Nao| I[Marcar DeadLetter]
+    I --> J[Persistir LastErrorCode e DeadLetterAtUtc]
+
+    H -->|Sim| K[Incrementar RetryCount]
+    K --> L{RetryCount menor que MaxRetryAttempts?}
+    L -->|Nao| I
+    L -->|Sim| M[Calcular NextRetryAtUtc com backoff exponencial e jitter]
+    M --> N[Manter status Failed com fila de retry]
+    N --> O[Worker busca itens due e reprocessa]
+    O --> B
+
+    P[Admin aciona reprocessamento manual por appointmentId ou intervalo] --> Q[Executar sync item a item]
+    Q --> C

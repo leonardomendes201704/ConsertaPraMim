@@ -1,7 +1,10 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using ConsertaPraMim.Infrastructure.Data;
+using ConsertaPraMim.Infrastructure.Configuration;
+using Microsoft.Extensions.Options;
 
 namespace ConsertaPraMim.Infrastructure;
 
@@ -9,6 +12,17 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
     {
+        var deployProfile = configuration["DEPLOY_PROFILE"] ?? string.Empty;
+        var shouldIgnorePendingModelChangesWarning = string.Equals(
+            deployProfile,
+            "development",
+            StringComparison.OrdinalIgnoreCase);
+
+        services.AddOptions<GoogleCalendarSyncOptions>()
+            .Bind(configuration.GetSection(GoogleCalendarSyncOptions.SectionName))
+            .ValidateOnStart();
+        services.AddSingleton<IValidateOptions<GoogleCalendarSyncOptions>, GoogleCalendarSyncOptionsValidator>();
+
         services.AddDbContext<ConsertaPraMimDbContext>(options =>
             options.UseSqlServer(configuration.GetConnectionString("DefaultConnection"),
                 b =>
@@ -18,6 +32,15 @@ public static class DependencyInjection
                         maxRetryCount: 5,
                         maxRetryDelay: TimeSpan.FromSeconds(10),
                         errorNumbersToAdd: null);
+                })
+                .ConfigureWarnings(warnings =>
+                {
+                    // In dev-local, allow startup while pending model changes are being finalized.
+                    // Production keeps the default behavior to protect release integrity.
+                    if (shouldIgnorePendingModelChangesWarning)
+                    {
+                        warnings.Ignore(RelationalEventId.PendingModelChangesWarning);
+                    }
                 }));
         services.AddMemoryCache();
 
@@ -30,6 +53,7 @@ public static class DependencyInjection
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IServiceRequestRepository, ConsertaPraMim.Infrastructure.Repositories.ServiceRequestRepository>();
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IServicePaymentTransactionRepository, ConsertaPraMim.Infrastructure.Repositories.ServicePaymentTransactionRepository>();
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IServiceAppointmentRepository, ConsertaPraMim.Infrastructure.Repositories.ServiceAppointmentRepository>();
+        services.AddScoped<ConsertaPraMim.Domain.Repositories.IServiceAppointmentCalendarSyncRepository, ConsertaPraMim.Infrastructure.Repositories.ServiceAppointmentCalendarSyncRepository>();
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IServiceDisputeCaseRepository, ConsertaPraMim.Infrastructure.Repositories.ServiceDisputeCaseRepository>();
         services.AddScoped<ConsertaPraMim.Domain.Repositories.ISupportTicketRepository, ConsertaPraMim.Infrastructure.Repositories.SupportTicketRepository>();
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IServiceScopeChangeRequestRepository, ConsertaPraMim.Infrastructure.Repositories.ServiceScopeChangeRequestRepository>();
@@ -48,6 +72,7 @@ public static class DependencyInjection
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IProviderTrustReviewRepository, ConsertaPraMim.Infrastructure.Repositories.ProviderTrustReviewRepository>();
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IProviderGalleryRepository, ConsertaPraMim.Infrastructure.Repositories.ProviderGalleryRepository>();
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IChatMessageRepository, ConsertaPraMim.Infrastructure.Repositories.ChatMessageRepository>();
+        services.AddScoped<ConsertaPraMim.Domain.Repositories.IChatbotConversationRepository, ConsertaPraMim.Infrastructure.Repositories.ChatbotConversationRepository>();
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IReviewRepository, ConsertaPraMim.Infrastructure.Repositories.ReviewRepository>();
         services.AddScoped<ConsertaPraMim.Domain.Repositories.IMobilePushDeviceRepository, ConsertaPraMim.Infrastructure.Repositories.MobilePushDeviceRepository>();
         services.AddScoped<ConsertaPraMim.Domain.Repositories.ILegalTermsRepository, ConsertaPraMim.Infrastructure.Repositories.LegalTermsRepository>();
@@ -79,6 +104,7 @@ public static class DependencyInjection
         services.AddHttpClient<ConsertaPraMim.Application.Interfaces.IAdminGrowthAiGateway, ConsertaPraMim.Infrastructure.Services.OpenAiGrowthAiGateway>();
         services.AddSingleton<ConsertaPraMim.Application.Interfaces.IDrivingRouteService, ConsertaPraMim.Infrastructure.Services.DrivingRouteService>();
         services.AddSingleton<ConsertaPraMim.Application.Interfaces.IUserPresenceTracker, ConsertaPraMim.Infrastructure.Services.UserPresenceTracker>();
+        services.AddSingleton<ConsertaPraMim.Application.Interfaces.IGoogleCalendarService, ConsertaPraMim.Infrastructure.Services.GoogleCalendarService>();
         services.AddHttpClient();
 
         services.AddSignalR();

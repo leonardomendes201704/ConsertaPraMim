@@ -1,6 +1,6 @@
 services:
   web-landing:
-    container_name: "${CONTAINER_PREFIX:-cpm}-web-landing"
+    container_name: "${CONTAINER_PREFIX:-cpm-prd}-landing"
     build:
       context: .
       dockerfile: docker/vps/Dockerfile.web.landing
@@ -10,6 +10,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: "${APP_ENVIRONMENT:-Development}"
       ASPNETCORE_URLS: "http://+:${LANDING_PORT:-5088}"
+      URLS: "http://+:${LANDING_PORT:-5088}"
       DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: "false"
       LANG: "pt_BR.UTF-8"
       LC_ALL: "pt_BR.UTF-8"
@@ -19,13 +20,13 @@ services:
       LandingSite__AdminPortalUrl: "${PUBLIC_ADMIN_URL:-http://${VPS_PUBLIC_HOST}:${ADMIN_PORT:-5151}}"
       LandingSite__ApiBaseUrl: "${PUBLIC_API_URL:-http://${VPS_PUBLIC_HOST}:${API_PORT:-5193}}"
       LandingSite__ApiSwaggerUrl: "${PUBLIC_API_URL:-http://${VPS_PUBLIC_HOST}:${API_PORT:-5193}}/swagger"
-      LandingSite__InternalApiBaseUrl: "${INTERNAL_API_URL:-http://${CONTAINER_PREFIX:-cpm}-api:8080}"
+      LandingSite__InternalApiBaseUrl: "${INTERNAL_API_URL:-http://${CONTAINER_PREFIX:-cpm-prd}-api:8080}"
       LandingSite__InternalWebhookToken: "${APK_RELEASE_PUSH_TOKEN:-}"
     networks:
       - conserta_net
 
   api:
-    container_name: "${CONTAINER_PREFIX:-cpm}-api"
+    container_name: "${CONTAINER_PREFIX:-cpm-prd}-api"
     build:
       context: .
       dockerfile: docker/vps/Dockerfile.api
@@ -35,6 +36,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: "${APP_ENVIRONMENT:-Development}"
       ASPNETCORE_URLS: "http://+:8080"
+      DEPLOY_PROFILE: "${DEPLOY_PROFILE:-production}"
       VPS_PUBLIC_HOST: "${VPS_PUBLIC_HOST}"
       ADMIN_PORT: "${ADMIN_PORT:-5151}"
       CLIENT_PORT: "${CLIENT_PORT:-5069}"
@@ -83,7 +85,7 @@ services:
       - conserta_net
 
   web-admin:
-    container_name: "${CONTAINER_PREFIX:-cpm}-web-admin"
+    container_name: "${CONTAINER_PREFIX:-cpm-prd}-admin"
     build:
       context: .
       dockerfile: docker/vps/Dockerfile.web.admin
@@ -95,10 +97,11 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: "${APP_ENVIRONMENT:-Development}"
       ASPNETCORE_URLS: "http://+:${ADMIN_PORT:-5151}"
+      URLS: "http://+:${ADMIN_PORT:-5151}"
       DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: "false"
       LANG: "pt_BR.UTF-8"
       LC_ALL: "pt_BR.UTF-8"
-      ApiBaseUrl: "${INTERNAL_API_URL:-http://${CONTAINER_PREFIX:-cpm}-api:8080}"
+      ApiBaseUrl: "${INTERNAL_API_URL:-http://${CONTAINER_PREFIX:-cpm-prd}-api:8080}"
       BrowserApiBaseUrl: "${PUBLIC_API_URL:-http://${VPS_PUBLIC_HOST}:${API_PORT:-5193}}"
       Portals__ClientUrl: "${PUBLIC_CLIENT_URL:-http://${VPS_PUBLIC_HOST}:${CLIENT_PORT:-5069}}"
       Portals__ProviderUrl: "${PUBLIC_PROVIDER_URL:-http://${VPS_PUBLIC_HOST}:${PROVIDER_PORT:-5140}}"
@@ -112,7 +115,7 @@ services:
       - conserta_net
 
   web-client:
-    container_name: "${CONTAINER_PREFIX:-cpm}-web-client"
+    container_name: "${CONTAINER_PREFIX:-cpm-prd}-cliente"
     build:
       context: .
       dockerfile: docker/vps/Dockerfile.web.client
@@ -124,10 +127,11 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: "${APP_ENVIRONMENT:-Development}"
       ASPNETCORE_URLS: "http://+:${CLIENT_PORT:-5069}"
+      URLS: "http://+:${CLIENT_PORT:-5069}"
       DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: "false"
       LANG: "pt_BR.UTF-8"
       LC_ALL: "pt_BR.UTF-8"
-      ApiBaseUrl: "${INTERNAL_API_URL:-http://${CONTAINER_PREFIX:-cpm}-api:8080}"
+      ApiBaseUrl: "${INTERNAL_API_URL:-http://${CONTAINER_PREFIX:-cpm-prd}-api:8080}"
       BrowserApiBaseUrl: "${PUBLIC_API_URL:-http://${VPS_PUBLIC_HOST}:${API_PORT:-5193}}"
       JwtSettings__SecretKey: "${JWT_SECRET_KEY}"
       JwtSettings__Issuer: "ConsertaPraMim"
@@ -139,7 +143,7 @@ services:
       - conserta_net
 
   web-provider:
-    container_name: "${CONTAINER_PREFIX:-cpm}-web-provider"
+    container_name: "${CONTAINER_PREFIX:-cpm-prd}-prestador"
     build:
       context: .
       dockerfile: docker/vps/Dockerfile.web.provider
@@ -151,7 +155,8 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: "${APP_ENVIRONMENT:-Development}"
       ASPNETCORE_URLS: "http://+:${PROVIDER_PORT:-5140}"
-      ApiBaseUrl: "${INTERNAL_API_URL:-http://${CONTAINER_PREFIX:-cpm}-api:8080}"
+      URLS: "http://+:${PROVIDER_PORT:-5140}"
+      ApiBaseUrl: "${INTERNAL_API_URL:-http://${CONTAINER_PREFIX:-cpm-prd}-api:8080}"
       BrowserApiBaseUrl: "${PUBLIC_API_URL:-http://${VPS_PUBLIC_HOST}:${API_PORT:-5193}}"
       JwtSettings__SecretKey: "${JWT_SECRET_KEY}"
       JwtSettings__Issuer: "ConsertaPraMim"
@@ -166,7 +171,7 @@ services:
       - conserta_net
 
   mobile-webview-client:
-    container_name: "${CONTAINER_PREFIX:-cpm}-mobile-webview-client"
+    container_name: "${CONTAINER_PREFIX:-cpm-prd}-app-cliente"
     build:
       context: ..
       dockerfile: Backend/docker/vps/Dockerfile.mobile.webview.client
@@ -181,7 +186,7 @@ services:
       - conserta_net
 
   mobile-webview-provider:
-    container_name: "${CONTAINER_PREFIX:-cpm}-mobile-webview-provider"
+    container_name: "${CONTAINER_PREFIX:-cpm-prd}-app-prestador"
     build:
       context: ..
       dockerfile: Backend/docker/vps/Dockerfile.mobile.webview.provider
@@ -196,7 +201,7 @@ services:
       - conserta_net
 
   mobile-webview-admin:
-    container_name: "${CONTAINER_PREFIX:-cpm}-mobile-webview-admin"
+    container_name: "${CONTAINER_PREFIX:-cpm-prd}-app-admin"
     build:
       context: ..
       dockerfile: Backend/docker/vps/Dockerfile.mobile.webview.admin
@@ -212,11 +217,11 @@ services:
 
 volumes:
   api_uploads:
-    name: "${VOLUME_PREFIX:-cpm}_api_uploads"
+    name: "${VOLUME_PREFIX:-cpm_prd}_api_uploads"
   web_client_dataprotection:
-    name: "${VOLUME_PREFIX:-cpm}_web_client_dataprotection"
+    name: "${VOLUME_PREFIX:-cpm_prd}_web_client_dataprotection"
   web_provider_dataprotection:
-    name: "${VOLUME_PREFIX:-cpm}_web_provider_dataprotection"
+    name: "${VOLUME_PREFIX:-cpm_prd}_web_provider_dataprotection"
 
 networks:
   conserta_net:

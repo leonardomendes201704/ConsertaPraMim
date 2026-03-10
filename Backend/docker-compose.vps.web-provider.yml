@@ -1,8 +1,8 @@
-name: backend-web-provider
+name: "${CONTAINER_PREFIX:-cpm-prd}-prestador"
 
 services:
   web-provider:
-    container_name: "${CONTAINER_PREFIX:-cpm}-web-provider"
+    container_name: "${CONTAINER_PREFIX:-cpm-prd}-prestador"
     build:
       context: .
       dockerfile: docker/vps/Dockerfile.web.provider
@@ -12,7 +12,8 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: "${APP_ENVIRONMENT:-Development}"
       ASPNETCORE_URLS: "http://+:${PROVIDER_PORT:-5140}"
-      ApiBaseUrl: "${INTERNAL_API_URL:-http://${CONTAINER_PREFIX:-cpm}-api:8080}"
+      URLS: "http://+:${PROVIDER_PORT:-5140}"
+      ApiBaseUrl: "${INTERNAL_API_URL:-http://${CONTAINER_PREFIX:-cpm-prd}-api:8080}"
       BrowserApiBaseUrl: "${PUBLIC_API_URL:-http://${VPS_PUBLIC_HOST}:${API_PORT:-5193}}"
       JwtSettings__SecretKey: "${JWT_SECRET_KEY}"
       JwtSettings__Issuer: "ConsertaPraMim"
@@ -28,7 +29,7 @@ services:
 
 volumes:
   web_provider_dataprotection:
-    name: "${VOLUME_PREFIX:-cpm}_web_provider_dataprotection"
+    name: "${VOLUME_PREFIX:-cpm_prd}_web_provider_dataprotection"
 
 networks:
   conserta_net:

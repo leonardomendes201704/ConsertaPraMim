@@ -1,0 +1,45 @@
+sequenceDiagram
+    participant Cliente as Cliente Web
+    participant Bridge as Telegram Bridge MVC
+    participant AuthApi as ConsertaPraMim.API /api/auth/login
+    participant ChatApi as ChatApiController
+    participant ChatbotApi as ConsertaPraMim.API /api/telegram-chatbot/*
+    participant Hub as TelegramChatHub
+
+    Cliente->>Bridge: GET /Home/Index sem sessao
+    Bridge-->>Cliente: 302 /Account/Login
+    Cliente->>Bridge: POST /Account/Login (email, senha)
+    Bridge->>AuthApi: POST /api/auth/login
+    alt credencial invalida ou role != Client
+        AuthApi-->>Bridge: erro autenticacao
+        Bridge-->>Cliente: 200 Login com mensagem de erro
+    else credencial valida
+        AuthApi-->>Bridge: token + userId + role Client
+        Bridge-->>Cliente: Set-Cookie auth + 302 /Home/Index
+    end
+
+    Cliente->>ChatApi: GET /api/chats (cookie auth)
+    ChatApi->>ChatApi: resolve ClientId da sessao e deriva chatId unico
+    ChatApi->>ChatbotApi: POST /api/telegram-chatbot/session
+    ChatbotApi-->>ChatApi: conversationId
+    ChatApi-->>Cliente: 200 [conversa unica do cliente]
+
+    Cliente->>Hub: JoinConversation(chatId)
+    Hub->>Hub: valida chatId derivado da sessao
+    alt chatId diferente do cliente
+        Hub-->>Cliente: HubException chat_id_nao_autorizado
+    else chatId valido
+        Hub-->>Cliente: inscricao no grupo da conversa
+    end
+
+    Cliente->>ChatApi: POST /api/chats/{chatId}/messages
+    ChatApi->>ChatApi: valida ownership do chatId
+    alt chatId nao pertence ao cliente
+        ChatApi-->>Cliente: 403 Forbidden (sem redirect)
+    else chatId valido
+        ChatApi->>ChatbotApi: POST /api/telegram-chatbot/messages (direction incoming)
+        ChatbotApi-->>ChatApi: 200 mensagem registrada
+        ChatApi-->>Cliente: 200 mensagem + broadcast realtime
+    end
+
+    Note over ChatApi,Hub: Em /api e /hubs, sessao invalida retorna 401/403 sem loop de redirecionamento para login.

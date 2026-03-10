@@ -86,6 +86,9 @@ public class ServiceAppointmentService : IServiceAppointmentService
     private readonly IAdminAuditLogRepository _adminAuditLogRepository;
     private readonly IAppointmentReminderService _appointmentReminderService;
     private readonly IAdminOperationalEventNotifier _adminOperationalEventNotifier;
+    private readonly IServiceAppointmentCalendarSyncRepository? _serviceAppointmentCalendarSyncRepository;
+    private readonly IGoogleCalendarService? _googleCalendarService;
+    private readonly IGoogleCalendarSyncOperationsService? _googleCalendarSyncOperationsService;
     private readonly TimeZoneInfo _availabilityTimeZone;
     private readonly int _providerConfirmationExpiryHours;
     private readonly int _cancelMinimumHoursBeforeWindow;
@@ -116,7 +119,10 @@ public class ServiceAppointmentService : IServiceAppointmentService
         IAdminAuditLogRepository? adminAuditLogRepository = null,
         IServiceWarrantyClaimRepository? serviceWarrantyClaimRepository = null,
         IServiceDisputeCaseRepository? serviceDisputeCaseRepository = null,
-        IAdminOperationalEventNotifier? adminOperationalEventNotifier = null)
+        IAdminOperationalEventNotifier? adminOperationalEventNotifier = null,
+        IServiceAppointmentCalendarSyncRepository? serviceAppointmentCalendarSyncRepository = null,
+        IGoogleCalendarService? googleCalendarService = null,
+        IGoogleCalendarSyncOperationsService? googleCalendarSyncOperationsService = null)
     {
         _serviceAppointmentRepository = serviceAppointmentRepository;
         _serviceRequestRepository = serviceRequestRepository;
@@ -133,6 +139,9 @@ public class ServiceAppointmentService : IServiceAppointmentService
         _providerCreditService = providerCreditService;
         _adminAuditLogRepository = adminAuditLogRepository ?? NullAdminAuditLogRepository.Instance;
         _adminOperationalEventNotifier = adminOperationalEventNotifier ?? NullAdminOperationalEventNotifier.Instance;
+        _serviceAppointmentCalendarSyncRepository = serviceAppointmentCalendarSyncRepository;
+        _googleCalendarService = googleCalendarService;
+        _googleCalendarSyncOperationsService = googleCalendarSyncOperationsService;
         _scopeChangePolicies = BuildScopeChangePolicies(configuration);
         _availabilityTimeZone = ResolveAvailabilityTimeZone(configuration["ServiceAppointments:AvailabilityTimeZoneId"]);
 
@@ -1192,6 +1201,8 @@ public class ServiceAppointmentService : IServiceAppointmentService
             await _appointmentReminderService.ScheduleForAppointmentAsync(
                 appointment.Id,
                 "reagendamento_confirmado");
+
+            await SyncCalendarOnRescheduleAcceptanceAsync(appointment);
         }
         else
         {
@@ -1342,6 +1353,8 @@ public class ServiceAppointmentService : IServiceAppointmentService
         await _appointmentReminderService.CancelPendingForAppointmentAsync(
             appointment.Id,
             $"cancelamento_{actorRole}");
+
+        await SyncCalendarOnCancellationAsync(appointment);
 
         var loaded = await _serviceAppointmentRepository.GetByIdAsync(appointment.Id) ?? appointment;
         return new ServiceAppointmentOperationResultDto(true, MapToDto(loaded));
@@ -5673,6 +5686,403 @@ public class ServiceAppointmentService : IServiceAppointmentService
         appointment.RescheduleRequestedAtUtc = null;
         appointment.RescheduleRequestedByRole = null;
         appointment.RescheduleRequestReason = null;
+    }
+
+    private async Task SyncCalendarOnCancellationAsync(ServiceAppointment appointment)
+    {
+        if (appointment.Id == Guid.Empty)
+        {
+            return;
+        }
+
+        if (_googleCalendarSyncOperationsService is not null)
+        {
+            try
+            {
+                await _googleCalendarSyncOperationsService.SyncAppointmentAsync(appointment.Id, forceResetRetry: true);
+            }
+            catch
+            {
+                // best effort: nao interrompe cancelamento por falha de sync.
+            }
+
+            return;
+        }
+
+        if (_serviceAppointmentCalendarSyncRepository is null || _googleCalendarService is null)
+        {
+            return;
+        }
+
+        ServiceAppointmentCalendarSync? sync = null;
+        try
+        {
+            var syncRepository = _serviceAppointmentCalendarSyncRepository;
+            var calendarService = _googleCalendarService;
+
+            sync = await syncRepository.GetByAppointmentIdAsync(appointment.Id);
+            if (sync == null)
+            {
+                sync = new ServiceAppointmentCalendarSync
+                {
+                    AppointmentId = appointment.Id,
+                    SyncStatus = ServiceAppointmentCalendarSyncStatus.Deleted,
+                    LastSyncAtUtc = DateTime.UtcNow,
+                    Error = null
+                };
+                await syncRepository.AddAsync(sync);
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(sync.GoogleEventId))
+            {
+                sync.SyncStatus = ServiceAppointmentCalendarSyncStatus.Deleted;
+                sync.LastSyncAtUtc = DateTime.UtcNow;
+                sync.Error = null;
+                await syncRepository.UpdateAsync(sync);
+                return;
+            }
+
+            var deleteResult = await calendarService.DeleteEventAsync(sync.GoogleEventId.Trim());
+            if (deleteResult.Success)
+            {
+                sync.SyncStatus = ServiceAppointmentCalendarSyncStatus.Deleted;
+                sync.LastSyncAtUtc = DateTime.UtcNow;
+                sync.Error = null;
+            }
+            else
+            {
+                sync.SyncStatus = ServiceAppointmentCalendarSyncStatus.Failed;
+                sync.LastSyncAtUtc = DateTime.UtcNow;
+                sync.Error = TruncateCalendarSyncError(
+                    ComposeCalendarSyncError(
+                        deleteResult.ErrorCode,
+                        deleteResult.ErrorMessage));
+            }
+
+            await syncRepository.UpdateAsync(sync);
+        }
+        catch (Exception ex)
+        {
+            if (sync == null)
+            {
+                return;
+            }
+
+            try
+            {
+                sync.SyncStatus = ServiceAppointmentCalendarSyncStatus.Failed;
+                sync.LastSyncAtUtc = DateTime.UtcNow;
+                sync.Error = TruncateCalendarSyncError(
+                    ComposeCalendarSyncError(
+                        "google_calendar_delete_unexpected_error",
+                        ex.Message));
+                await _serviceAppointmentCalendarSyncRepository.UpdateAsync(sync);
+            }
+            catch
+            {
+                // best effort: nao interrompe cancelamento por falha de sync.
+            }
+        }
+    }
+
+    private async Task SyncCalendarOnRescheduleAcceptanceAsync(ServiceAppointment appointment)
+    {
+        if (appointment.Id == Guid.Empty)
+        {
+            return;
+        }
+
+        if (_googleCalendarSyncOperationsService is not null)
+        {
+            try
+            {
+                await _googleCalendarSyncOperationsService.SyncAppointmentAsync(appointment.Id, forceResetRetry: true);
+            }
+            catch
+            {
+                // best effort: nao interrompe o fluxo principal de reagendamento por falha de sync.
+            }
+
+            return;
+        }
+
+        if (_serviceAppointmentCalendarSyncRepository is null || _googleCalendarService is null)
+        {
+            return;
+        }
+
+        ServiceAppointmentCalendarSync? sync = null;
+        var clearGoogleEventIdOnFailure = false;
+        try
+        {
+            var syncRepository = _serviceAppointmentCalendarSyncRepository;
+            var calendarService = _googleCalendarService;
+
+            sync = await syncRepository.GetByAppointmentIdAsync(appointment.Id);
+            if (sync == null)
+            {
+                sync = new ServiceAppointmentCalendarSync
+                {
+                    AppointmentId = appointment.Id,
+                    SyncStatus = ServiceAppointmentCalendarSyncStatus.Pending,
+                    Error = null
+                };
+                await syncRepository.AddAsync(sync);
+            }
+            else
+            {
+                sync.SyncStatus = ServiceAppointmentCalendarSyncStatus.Pending;
+                sync.Error = null;
+                await syncRepository.UpdateAsync(sync);
+            }
+
+            var payload = await BuildGoogleCalendarUpsertRequestAsync(appointment);
+            GoogleCalendarUpsertResult upsertResult;
+
+            if (!string.IsNullOrWhiteSpace(sync.GoogleEventId))
+            {
+                upsertResult = await calendarService.UpdateEventAsync(sync.GoogleEventId.Trim(), payload);
+                if (!upsertResult.Success &&
+                    string.Equals(
+                        upsertResult.ErrorCode,
+                        "google_calendar_event_not_found",
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    clearGoogleEventIdOnFailure = true;
+                    upsertResult = await calendarService.CreateEventAsync(payload);
+                }
+            }
+            else
+            {
+                clearGoogleEventIdOnFailure = true;
+                upsertResult = await calendarService.CreateEventAsync(payload);
+            }
+
+            await ApplyCalendarSyncUpsertResultAsync(sync, upsertResult, clearGoogleEventIdOnFailure);
+        }
+        catch (Exception ex)
+        {
+            if (sync == null)
+            {
+                return;
+            }
+
+            try
+            {
+                sync.SyncStatus = ServiceAppointmentCalendarSyncStatus.Failed;
+                sync.LastSyncAtUtc = DateTime.UtcNow;
+                if (clearGoogleEventIdOnFailure)
+                {
+                    // Quando o fluxo de create/fallback falha, nao manter eventId obsoleto.
+                    sync.GoogleEventId = null;
+                }
+
+                sync.Error = TruncateCalendarSyncError(
+                    ComposeCalendarSyncError(
+                        "google_calendar_unexpected_error",
+                        ex.Message));
+                await _serviceAppointmentCalendarSyncRepository.UpdateAsync(sync);
+            }
+            catch
+            {
+                // best effort: nao interrompe o fluxo principal de reagendamento por falha de sync.
+            }
+        }
+    }
+
+    private async Task ApplyCalendarSyncUpsertResultAsync(
+        ServiceAppointmentCalendarSync sync,
+        GoogleCalendarUpsertResult upsertResult,
+        bool clearGoogleEventIdOnFailure = false)
+    {
+        if (_serviceAppointmentCalendarSyncRepository is null)
+        {
+            return;
+        }
+
+        if (upsertResult.Success)
+        {
+            sync.SyncStatus = ServiceAppointmentCalendarSyncStatus.Synced;
+            if (!string.IsNullOrWhiteSpace(upsertResult.EventId))
+            {
+                sync.GoogleEventId = upsertResult.EventId.Trim();
+            }
+
+            sync.LastSyncAtUtc = DateTime.UtcNow;
+            sync.Error = null;
+            await _serviceAppointmentCalendarSyncRepository.UpdateAsync(sync);
+            return;
+        }
+
+        sync.SyncStatus = ServiceAppointmentCalendarSyncStatus.Failed;
+        sync.LastSyncAtUtc = DateTime.UtcNow;
+        if (clearGoogleEventIdOnFailure)
+        {
+            sync.GoogleEventId = null;
+        }
+
+        sync.Error = TruncateCalendarSyncError(
+            ComposeCalendarSyncError(
+                upsertResult.ErrorCode,
+                upsertResult.ErrorMessage));
+        await _serviceAppointmentCalendarSyncRepository.UpdateAsync(sync);
+    }
+
+    private async Task<GoogleCalendarUpsertRequest> BuildGoogleCalendarUpsertRequestAsync(ServiceAppointment appointment)
+    {
+        var serviceRequest = appointment.ServiceRequest ??
+                             await _serviceRequestRepository.GetByIdAsync(appointment.ServiceRequestId);
+        var protocol = BuildCalendarProtocol(appointment.ServiceRequestId);
+        var client = serviceRequest?.Client ?? await _userRepository.GetByIdAsync(appointment.ClientId);
+        var provider = serviceRequest?.Appointments
+            ?.Where(item => item.ProviderId == appointment.ProviderId)
+            .Select(item => item.Provider)
+            .FirstOrDefault(item => item != null) ??
+            await _userRepository.GetByIdAsync(appointment.ProviderId);
+
+        return new GoogleCalendarUpsertRequest(
+            Title: $"ConsertaPraMim - Visita #{protocol}",
+            StartsAtUtc: NormalizeToUtc(appointment.WindowStartUtc),
+            EndsAtUtc: NormalizeToUtc(appointment.WindowEndUtc),
+            Description: BuildCalendarDescription(protocol, appointment, serviceRequest, client, provider),
+            Location: BuildCalendarLocation(serviceRequest),
+            Metadata: BuildCalendarMetadata(protocol, appointment),
+            IdempotencyKey: BuildCalendarEventIdempotencyKey(appointment.Id));
+    }
+
+    private static IReadOnlyDictionary<string, string> BuildCalendarMetadata(
+        string protocol,
+        ServiceAppointment appointment)
+    {
+        return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["appointment_id"] = appointment.Id.ToString("N"),
+            ["service_request_id"] = appointment.ServiceRequestId.ToString("N"),
+            ["client_id"] = appointment.ClientId.ToString("N"),
+            ["provider_id"] = appointment.ProviderId.ToString("N"),
+            ["protocol"] = protocol,
+            ["appointment_status"] = appointment.Status.ToString()
+        };
+    }
+
+    private static string BuildCalendarDescription(
+        string protocol,
+        ServiceAppointment appointment,
+        ServiceRequest? serviceRequest,
+        User? client,
+        User? provider)
+    {
+        var reason = string.IsNullOrWhiteSpace(appointment.Reason)
+            ? "Agendamento atualizado automaticamente pelo sistema."
+            : appointment.Reason.Trim();
+
+        var clientDisplay = BuildCalendarPartyDisplay(client, appointment.ClientId);
+        var providerDisplay = BuildCalendarPartyDisplay(provider, appointment.ProviderId);
+        var categoryDisplay = BuildCalendarCategoryDisplay(serviceRequest);
+        var addressDisplay = BuildCalendarLocation(serviceRequest) ?? "Nao informado";
+
+        return string.Join(
+            Environment.NewLine,
+            [
+                $"Protocolo: #{protocol}",
+                $"Pedido: {appointment.ServiceRequestId:N}",
+                $"Agendamento: {appointment.Id:N}",
+                $"Cliente: {clientDisplay}",
+                $"Prestador: {providerDisplay}",
+                $"Categoria: {categoryDisplay}",
+                $"Endereco: {addressDisplay}",
+                $"Motivo: {reason}"
+            ]);
+    }
+
+    private static string BuildCalendarPartyDisplay(User? user, Guid userId)
+    {
+        if (!string.IsNullOrWhiteSpace(user?.Name))
+        {
+            return $"{user!.Name.Trim()} ({userId:N})";
+        }
+
+        return userId.ToString("N");
+    }
+
+    private static string BuildCalendarCategoryDisplay(ServiceRequest? serviceRequest)
+    {
+        if (serviceRequest == null)
+        {
+            return "Nao informado";
+        }
+
+        if (!string.IsNullOrWhiteSpace(serviceRequest.CategoryDefinition?.Name))
+        {
+            return serviceRequest.CategoryDefinition!.Name.Trim();
+        }
+
+        return serviceRequest.Category.ToString();
+    }
+
+    private static string? BuildCalendarLocation(ServiceRequest? serviceRequest)
+    {
+        if (serviceRequest == null)
+        {
+            return null;
+        }
+
+        var parts = new[]
+        {
+            serviceRequest.AddressStreet?.Trim(),
+            serviceRequest.AddressNeighborhood?.Trim(),
+            serviceRequest.AddressCity?.Trim(),
+            serviceRequest.AddressZip?.Trim()
+        }.Where(value => !string.IsNullOrWhiteSpace(value)).ToList();
+
+        return parts.Count == 0 ? null : string.Join(" - ", parts);
+    }
+
+    private static string BuildCalendarEventIdempotencyKey(Guid appointmentId)
+    {
+        return $"cpm-apt-{appointmentId:N}";
+    }
+
+    private static string BuildCalendarProtocol(Guid serviceRequestId)
+    {
+        if (serviceRequestId == Guid.Empty)
+        {
+            return "00000000";
+        }
+
+        return serviceRequestId.ToString("N")[..8];
+    }
+
+    private static string ComposeCalendarSyncError(string? errorCode, string? errorMessage)
+    {
+        if (string.IsNullOrWhiteSpace(errorCode) && string.IsNullOrWhiteSpace(errorMessage))
+        {
+            return "Erro nao identificado durante sincronizacao com Google Calendar.";
+        }
+
+        if (string.IsNullOrWhiteSpace(errorCode))
+        {
+            return errorMessage!.Trim();
+        }
+
+        if (string.IsNullOrWhiteSpace(errorMessage))
+        {
+            return errorCode.Trim();
+        }
+
+        return $"{errorCode.Trim()}: {errorMessage.Trim()}";
+    }
+
+    private static string TruncateCalendarSyncError(string value)
+    {
+        const int maxLength = 1200;
+        if (value.Length <= maxLength)
+        {
+            return value;
+        }
+
+        return value[..maxLength];
     }
 
     private static DateTime NormalizeToUtc(DateTime value)

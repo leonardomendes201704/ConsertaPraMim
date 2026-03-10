@@ -8,6 +8,7 @@ using ConsertaPraMim.Infrastructure.Repositories;
 using ConsertaPraMim.Tests.Unit.Integration.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ConsertaPraMim.Tests.Unit.Integration.Services;
 
@@ -148,6 +149,165 @@ public class ServiceAppointmentServiceSqliteIntegrationTests
             Assert.Null(loaded.ProposedWindowStartUtc);
             Assert.Null(loaded.ProposedWindowEndUtc);
             Assert.Null(loaded.RescheduleRequestedByRole);
+        }
+    }
+
+    /// <summary>
+    /// Cenario: aceite de reagendamento com cliente fake do Google Calendar.
+    /// Passos: prepara sync existente, aceita reagendamento e observa chamada de update no fake.
+    /// Resultado esperado: update chamado uma vez e sync persistido como Synced.
+    /// </summary>
+    [Fact(DisplayName = "Servico appointment sqlite integracao | Google sync update | Deve chamar fake update e manter sync como synced")]
+    public async Task RespondRescheduleAsync_ShouldCallFakeGoogleUpdateAndKeepSyncSynced()
+    {
+        var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();
+        using (connection)
+        await using (context)
+        {
+            var client = CreateUser(UserRole.Client, "cliente.gcal.update.int@teste.com");
+            var provider = CreateUser(UserRole.Provider, "prestador.gcal.update.int@teste.com");
+            var request = CreateRequest(client.Id, ServiceCategory.Plumbing, "Conserto de vazamento");
+            request.Status = ServiceRequestStatus.Scheduled;
+
+            var currentWindowStartUtc = NextUtcAtHour(10);
+            var currentWindowEndUtc = currentWindowStartUtc.AddHours(1);
+            var proposedWindowStartUtc = currentWindowStartUtc.AddHours(3);
+            var proposedWindowEndUtc = proposedWindowStartUtc.AddHours(1);
+
+            context.Users.AddRange(client, provider);
+            context.ServiceRequests.Add(request);
+            context.ProviderAvailabilityRules.Add(new ProviderAvailabilityRule
+            {
+                ProviderId = provider.Id,
+                DayOfWeek = proposedWindowStartUtc.DayOfWeek,
+                StartTime = TimeSpan.FromHours(8),
+                EndTime = TimeSpan.FromHours(22),
+                SlotDurationMinutes = 30,
+                IsActive = true
+            });
+
+            var appointment = new ServiceAppointment
+            {
+                ServiceRequestId = request.Id,
+                ClientId = client.Id,
+                ProviderId = provider.Id,
+                WindowStartUtc = currentWindowStartUtc,
+                WindowEndUtc = currentWindowEndUtc,
+                Status = ServiceAppointmentStatus.RescheduleRequestedByClient,
+                ProposedWindowStartUtc = proposedWindowStartUtc,
+                ProposedWindowEndUtc = proposedWindowEndUtc,
+                RescheduleRequestedAtUtc = DateTime.UtcNow,
+                RescheduleRequestedByRole = ServiceAppointmentActorRole.Client,
+                RescheduleRequestReason = "Troca de horario",
+                ServiceRequest = request
+            };
+
+            context.ServiceAppointments.Add(appointment);
+            await context.SaveChangesAsync();
+
+            context.ServiceAppointmentCalendarSyncs.Add(new ServiceAppointmentCalendarSync
+            {
+                AppointmentId = appointment.Id,
+                GoogleEventId = "evt-int-update-001",
+                SyncStatus = ServiceAppointmentCalendarSyncStatus.Synced
+            });
+            await context.SaveChangesAsync();
+
+            var fakeGoogle = new FakeGoogleCalendarService
+            {
+                UpdateResultFactory = (_, _) => new GoogleCalendarUpsertResult(
+                    Success: true,
+                    EventId: "evt-int-update-001")
+            };
+
+            var service = BuildService(context, fakeGoogle);
+            var result = await service.RespondRescheduleAsync(
+                provider.Id,
+                UserRole.Provider.ToString(),
+                appointment.Id,
+                new RespondServiceAppointmentRescheduleRequestDto(true));
+
+            Assert.True(result.Success, $"{result.ErrorCode} - {result.ErrorMessage}");
+            Assert.Single(fakeGoogle.UpdateCalls);
+            Assert.Contains("Protocolo:", fakeGoogle.UpdateCalls[0].Request.Description ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("Cliente:", fakeGoogle.UpdateCalls[0].Request.Description ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("Prestador:", fakeGoogle.UpdateCalls[0].Request.Description ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("Endereco:", fakeGoogle.UpdateCalls[0].Request.Description ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+
+            var persistedSync = await context.ServiceAppointmentCalendarSyncs
+                .AsNoTracking()
+                .FirstAsync(x => x.AppointmentId == appointment.Id);
+            Assert.Equal(ServiceAppointmentCalendarSyncStatus.Synced, persistedSync.SyncStatus);
+            Assert.Equal("evt-int-update-001", persistedSync.GoogleEventId);
+            Assert.NotNull(persistedSync.LastSyncAtUtc);
+            Assert.Null(persistedSync.Error);
+        }
+    }
+
+    /// <summary>
+    /// Cenario: cancelamento de agendamento com cliente fake do Google Calendar.
+    /// Passos: prepara appointment confirmado com sync existente e executa cancelamento.
+    /// Resultado esperado: delete chamado no fake e sync persistido como Deleted.
+    /// </summary>
+    [Fact(DisplayName = "Servico appointment sqlite integracao | Google sync delete | Deve chamar fake delete e marcar sync deleted")]
+    public async Task CancelAsync_ShouldCallFakeGoogleDeleteAndMarkSyncAsDeleted()
+    {
+        var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();
+        using (connection)
+        await using (context)
+        {
+            var client = CreateUser(UserRole.Client, "cliente.gcal.delete.int@teste.com");
+            var provider = CreateUser(UserRole.Provider, "prestador.gcal.delete.int@teste.com");
+            var request = CreateRequest(client.Id, ServiceCategory.Electrical, "Troca de disjuntor");
+            request.Status = ServiceRequestStatus.Scheduled;
+
+            context.Users.AddRange(client, provider);
+            context.ServiceRequests.Add(request);
+
+            var appointment = new ServiceAppointment
+            {
+                ServiceRequestId = request.Id,
+                ClientId = client.Id,
+                ProviderId = provider.Id,
+                WindowStartUtc = DateTime.UtcNow.AddHours(72),
+                WindowEndUtc = DateTime.UtcNow.AddHours(73),
+                Status = ServiceAppointmentStatus.Confirmed,
+                ServiceRequest = request
+            };
+
+            context.ServiceAppointments.Add(appointment);
+            await context.SaveChangesAsync();
+
+            context.ServiceAppointmentCalendarSyncs.Add(new ServiceAppointmentCalendarSync
+            {
+                AppointmentId = appointment.Id,
+                GoogleEventId = "evt-int-delete-001",
+                SyncStatus = ServiceAppointmentCalendarSyncStatus.Synced
+            });
+            await context.SaveChangesAsync();
+
+            var fakeGoogle = new FakeGoogleCalendarService
+            {
+                DeleteResultFactory = _ => new GoogleCalendarDeleteResult(Success: true)
+            };
+
+            var service = BuildService(context, fakeGoogle);
+            var result = await service.CancelAsync(
+                client.Id,
+                UserRole.Client.ToString(),
+                appointment.Id,
+                new CancelServiceAppointmentRequestDto("Cancelamento de teste"));
+
+            Assert.True(result.Success, $"{result.ErrorCode} - {result.ErrorMessage}");
+            Assert.Single(fakeGoogle.DeleteCalls);
+            Assert.Equal("evt-int-delete-001", fakeGoogle.DeleteCalls[0]);
+
+            var persistedSync = await context.ServiceAppointmentCalendarSyncs
+                .AsNoTracking()
+                .FirstAsync(x => x.AppointmentId == appointment.Id);
+            Assert.Equal(ServiceAppointmentCalendarSyncStatus.Deleted, persistedSync.SyncStatus);
+            Assert.NotNull(persistedSync.LastSyncAtUtc);
+            Assert.Null(persistedSync.Error);
         }
     }
 
@@ -340,7 +500,9 @@ public class ServiceAppointmentServiceSqliteIntegrationTests
         }
     }
 
-    private static ServiceAppointmentService BuildService(ConsertaPraMimDbContext context)
+    private static ServiceAppointmentService BuildService(
+        ConsertaPraMimDbContext context,
+        IGoogleCalendarService? googleCalendarService = null)
     {
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
@@ -358,7 +520,11 @@ public class ServiceAppointmentServiceSqliteIntegrationTests
             new ServiceRequestRepository(context),
             new UserRepository(context),
             new NoOpNotificationService(),
-            configuration);
+            configuration,
+            serviceAppointmentCalendarSyncRepository: googleCalendarService is null
+                ? null
+                : new ServiceAppointmentCalendarSyncRepository(context),
+            googleCalendarService: googleCalendarService);
     }
 
     private static User CreateUser(UserRole role, string email)
@@ -422,5 +588,51 @@ public class ServiceAppointmentServiceSqliteIntegrationTests
         var context = new ConsertaPraMimDbContext(options);
         context.Database.EnsureCreated();
         return context;
+    }
+
+    private sealed class FakeGoogleCalendarService : IGoogleCalendarService
+    {
+        public List<GoogleCalendarUpsertRequest> CreateCalls { get; } = [];
+        public List<(string EventId, GoogleCalendarUpsertRequest Request)> UpdateCalls { get; } = [];
+        public List<string> DeleteCalls { get; } = [];
+
+        public Func<GoogleCalendarUpsertRequest, GoogleCalendarUpsertResult>? CreateResultFactory { get; init; }
+        public Func<string, GoogleCalendarUpsertRequest, GoogleCalendarUpsertResult>? UpdateResultFactory { get; init; }
+        public Func<string, GoogleCalendarDeleteResult>? DeleteResultFactory { get; init; }
+
+        public Task<GoogleCalendarUpsertResult> CreateEventAsync(
+            GoogleCalendarUpsertRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            CreateCalls.Add(request);
+            return Task.FromResult(
+                CreateResultFactory?.Invoke(request) ??
+                new GoogleCalendarUpsertResult(
+                    Success: true,
+                    EventId: $"evt-fake-create-{Guid.NewGuid():N}"));
+        }
+
+        public Task<GoogleCalendarUpsertResult> UpdateEventAsync(
+            string eventId,
+            GoogleCalendarUpsertRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            UpdateCalls.Add((eventId, request));
+            return Task.FromResult(
+                UpdateResultFactory?.Invoke(eventId, request) ??
+                new GoogleCalendarUpsertResult(
+                    Success: true,
+                    EventId: eventId));
+        }
+
+        public Task<GoogleCalendarDeleteResult> DeleteEventAsync(
+            string eventId,
+            CancellationToken cancellationToken = default)
+        {
+            DeleteCalls.Add(eventId);
+            return Task.FromResult(
+                DeleteResultFactory?.Invoke(eventId) ??
+                new GoogleCalendarDeleteResult(Success: true));
+        }
     }
 }

@@ -1,8 +1,8 @@
-name: backend-api
+name: "${CONTAINER_PREFIX:-cpm-prd}-api"
 
 services:
   api:
-    container_name: "${CONTAINER_PREFIX:-cpm}-api"
+    container_name: "${CONTAINER_PREFIX:-cpm-prd}-api"
     build:
       context: .
       dockerfile: docker/vps/Dockerfile.api
@@ -12,6 +12,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: "${APP_ENVIRONMENT:-Development}"
       ASPNETCORE_URLS: "http://+:8080"
+      DEPLOY_PROFILE: "${DEPLOY_PROFILE:-production}"
       VPS_PUBLIC_HOST: "${VPS_PUBLIC_HOST}"
       Security__EnforceHttpsRedirection: "${ENFORCE_API_HTTPS_REDIRECTION:-true}"
       ADMIN_PORT: "${ADMIN_PORT:-5151}"
@@ -61,7 +62,7 @@ services:
 
 volumes:
   api_uploads:
-    name: "${VOLUME_PREFIX:-cpm}_api_uploads"
+    name: "${VOLUME_PREFIX:-cpm_prd}_api_uploads"
 
 networks:
   conserta_net:

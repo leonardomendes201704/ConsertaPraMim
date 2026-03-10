@@ -2694,6 +2694,79 @@ namespace ConsertaPraMim.Infrastructure.Migrations
                         });
                 });
 
+            modelBuilder.Entity("ConsertaPraMim.Domain.Entities.ServiceAppointmentCalendarSync", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("AppointmentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DeadLetterAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Error")
+                        .HasMaxLength(1200)
+                        .HasColumnType("nvarchar(1200)");
+
+                    b.Property<string>("GoogleEventId")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("LastErrorCode")
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<double?>("LastLatencyMs")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("float(10)");
+
+                    b.Property<int>("LastOperation")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("LastSyncAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("MaxRetryAttempts")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("NextRetryAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("RetryCount")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SyncStatus")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AppointmentId")
+                        .IsUnique();
+
+                    b.HasIndex("GoogleEventId")
+                        .IsUnique()
+                        .HasFilter("[GoogleEventId] IS NOT NULL");
+
+                    b.HasIndex("SyncStatus", "LastSyncAtUtc");
+
+                    b.HasIndex("SyncStatus", "NextRetryAtUtc");
+
+                    b.ToTable("ServiceAppointmentCalendarSyncs", t =>
+                        {
+                            t.HasCheckConstraint("CK_ServiceAppointmentCalendarSyncs_Retry_NonNegative", "[RetryCount] >= 0 AND [MaxRetryAttempts] > 0");
+
+                            t.HasCheckConstraint("CK_ServiceAppointmentCalendarSyncs_SyncStatus_Valid", "[SyncStatus] IN (1,2,3,4,5)");
+                        });
+                });
+
             modelBuilder.Entity("ConsertaPraMim.Domain.Entities.ServiceAppointmentChecklistHistory", b =>
                 {
                     b.Property<Guid>("Id")
@@ -4365,6 +4438,74 @@ namespace ConsertaPraMim.Infrastructure.Migrations
                     b.Navigation("Sender");
                 });
 
+            modelBuilder.Entity("ConsertaPraMim.Domain.Entities.ChatbotActionLog", b =>
+                {
+                    b.HasOne("ConsertaPraMim.Domain.Entities.User", "Client")
+                        .WithMany()
+                        .HasForeignKey("ClientId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ConsertaPraMim.Domain.Entities.ChatbotConversation", "Conversation")
+                        .WithMany("ActionLogs")
+                        .HasForeignKey("ConversationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Client");
+
+                    b.Navigation("Conversation");
+                });
+
+            modelBuilder.Entity("ConsertaPraMim.Domain.Entities.ChatbotContextSnapshot", b =>
+                {
+                    b.HasOne("ConsertaPraMim.Domain.Entities.User", "Client")
+                        .WithMany()
+                        .HasForeignKey("ClientId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ConsertaPraMim.Domain.Entities.ChatbotConversation", "Conversation")
+                        .WithMany("ContextSnapshots")
+                        .HasForeignKey("ConversationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Client");
+
+                    b.Navigation("Conversation");
+                });
+
+            modelBuilder.Entity("ConsertaPraMim.Domain.Entities.ChatbotConversation", b =>
+                {
+                    b.HasOne("ConsertaPraMim.Domain.Entities.User", "Client")
+                        .WithMany()
+                        .HasForeignKey("ClientId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Client");
+                });
+
+            modelBuilder.Entity("ConsertaPraMim.Domain.Entities.ChatbotMessage", b =>
+                {
+                    b.HasOne("ConsertaPraMim.Domain.Entities.User", "Client")
+                        .WithMany()
+                        .HasForeignKey("ClientId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ConsertaPraMim.Domain.Entities.ChatbotConversation", "Conversation")
+                        .WithMany("Messages")
+                        .HasForeignKey("ConversationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Client");
+
+                    b.Navigation("Conversation");
+                });
+
             modelBuilder.Entity("ConsertaPraMim.Domain.Entities.MobilePushDevice", b =>
                 {
                     b.HasOne("ConsertaPraMim.Domain.Entities.User", "User")
@@ -4589,6 +4730,17 @@ namespace ConsertaPraMim.Infrastructure.Migrations
                     b.Navigation("Provider");
 
                     b.Navigation("ServiceRequest");
+                });
+
+            modelBuilder.Entity("ConsertaPraMim.Domain.Entities.ServiceAppointmentCalendarSync", b =>
+                {
+                    b.HasOne("ConsertaPraMim.Domain.Entities.ServiceAppointment", "Appointment")
+                        .WithOne("CalendarSync")
+                        .HasForeignKey("ConsertaPraMim.Domain.Entities.ServiceAppointmentCalendarSync", "AppointmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Appointment");
                 });
 
             modelBuilder.Entity("ConsertaPraMim.Domain.Entities.ServiceAppointmentChecklistHistory", b =>
@@ -5052,6 +5204,15 @@ namespace ConsertaPraMim.Infrastructure.Migrations
                     b.Navigation("Attachments");
                 });
 
+            modelBuilder.Entity("ConsertaPraMim.Domain.Entities.ChatbotConversation", b =>
+                {
+                    b.Navigation("ActionLogs");
+
+                    b.Navigation("ContextSnapshots");
+
+                    b.Navigation("Messages");
+                });
+
             modelBuilder.Entity("ConsertaPraMim.Domain.Entities.LegalTermsDocument", b =>
                 {
                     b.Navigation("Acceptances");
@@ -5081,6 +5242,8 @@ namespace ConsertaPraMim.Infrastructure.Migrations
 
             modelBuilder.Entity("ConsertaPraMim.Domain.Entities.ServiceAppointment", b =>
                 {
+                    b.Navigation("CalendarSync");
+
                     b.Navigation("ChecklistHistory");
 
                     b.Navigation("ChecklistResponses");

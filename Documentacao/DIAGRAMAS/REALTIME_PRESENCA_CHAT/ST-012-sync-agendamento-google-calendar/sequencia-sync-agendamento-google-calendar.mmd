@@ -1,0 +1,97 @@
+sequenceDiagram
+    participant App as TelegramChatbotSchedulingService
+    participant Appointment as IServiceAppointmentService
+    participant Repo as IServiceAppointmentCalendarSyncRepository
+    participant GCal as IGoogleCalendarService
+    participant Db as ServiceAppointmentCalendarSyncs
+
+    App->>Appointment: CreateAsync(...)
+    alt agendamento criado com sucesso
+        Appointment-->>App: Success + AppointmentId
+        App->>Repo: GetByAppointmentIdAsync(appointmentId)
+        Repo->>Db: Select por AppointmentId
+        Db-->>Repo: registro ou null
+        Repo-->>App: resultado
+
+        alt nao existe sync
+            App->>Repo: AddAsync(sync: Pending)
+            Repo->>Db: Insert
+            Db-->>Repo: ok
+            Repo-->>App: ok
+        else sync ja existe
+            App->>Repo: UpdateAsync(sync: Pending, Error=null)
+            Repo->>Db: Update
+            Db-->>Repo: ok
+            Repo-->>App: ok
+        end
+
+        App->>GCal: CreateEventAsync(Title,Window,Description negocio,Metadata,IdempotencyKey=appointmentId)
+        alt create ok
+            GCal-->>App: Success + GoogleEventId
+            App->>Repo: UpdateAsync(sync: Synced, GoogleEventId, LastSyncAtUtc)
+            Repo->>Db: Update
+            Db-->>Repo: ok
+            Repo-->>App: ok
+        else create falha
+            GCal-->>App: ErrorCode/ErrorMessage
+            App->>Repo: UpdateAsync(sync: Failed, Error, LastSyncAtUtc, GoogleEventId=null)
+            Repo->>Db: Update
+            Db-->>Repo: ok
+            Repo-->>App: ok
+        end
+    else agendamento falha
+        Appointment-->>App: ErrorCode/ErrorMessage
+        App-->>App: Nao cria/atualiza sync
+    end
+
+    Note over Appointment,GCal: Task 4 - Reagendamento aceito (update) com descricao de negocio padronizada
+    participant Scheduling as ServiceAppointmentService
+    Scheduling->>Appointment: RespondRescheduleAsync(Accept=true)
+    Appointment-->>Scheduling: Appointment com nova janela
+    Scheduling->>Repo: GetByAppointmentIdAsync(appointmentId)
+    Repo->>Db: Select por AppointmentId
+    Db-->>Repo: sync
+    Repo-->>Scheduling: sync atual
+
+    alt sync possui GoogleEventId
+        Scheduling->>GCal: UpdateEventAsync(eventId, nova janela)
+        alt google_calendar_event_not_found
+            GCal-->>Scheduling: not_found
+            Scheduling->>GCal: CreateEventAsync(idempotencyKey=appointmentId)
+            GCal-->>Scheduling: resultado create
+        else update ok/erro
+            GCal-->>Scheduling: resultado update
+        end
+    else sync sem evento
+        Scheduling->>GCal: CreateEventAsync(idempotencyKey=appointmentId)
+        GCal-->>Scheduling: resultado create
+    end
+
+    alt update/create ok
+        Scheduling->>Repo: UpdateAsync(sync: Synced, GoogleEventId, LastSyncAtUtc)
+    else erro update/create
+        Scheduling->>Repo: UpdateAsync(sync: Failed, Error, LastSyncAtUtc, limpar GoogleEventId quando create/fallback falhar)
+    end
+
+    Note over Scheduling,GCal: Task 5 - Cancelamento (delete)
+    Scheduling->>Appointment: CancelAsync(...)
+    Appointment-->>Scheduling: Cancelamento local persistido
+    Scheduling->>Repo: GetByAppointmentIdAsync(appointmentId)
+    Repo->>Db: Select por AppointmentId
+    Db-->>Repo: sync ou null
+    Repo-->>Scheduling: resultado
+
+    alt sync inexistente
+        Scheduling->>Repo: AddAsync(sync: Deleted, LastSyncAtUtc)
+    else sync sem GoogleEventId
+        Scheduling->>Repo: UpdateAsync(sync: Deleted, LastSyncAtUtc)
+    else sync com GoogleEventId
+        Scheduling->>GCal: DeleteEventAsync(googleEventId)
+        alt delete ok
+            GCal-->>Scheduling: Success
+            Scheduling->>Repo: UpdateAsync(sync: Deleted, Error=null, LastSyncAtUtc)
+        else delete falha
+            GCal-->>Scheduling: ErrorCode/ErrorMessage
+            Scheduling->>Repo: UpdateAsync(sync: Failed, Error, LastSyncAtUtc)
+        end
+    end

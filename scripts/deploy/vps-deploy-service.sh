@@ -34,6 +34,28 @@ declare -A COMPOSE_FILES=(
 
 declare -A CONTAINER_SUFFIXES=(
   [api]="api"
+  [web-landing]="landing"
+  [web-admin]="admin"
+  [web-client]="cliente"
+  [web-provider]="prestador"
+  [mobile-webview-client]="app-cliente"
+  [mobile-webview-provider]="app-prestador"
+  [mobile-webview-admin]="app-admin"
+)
+
+declare -A PROJECT_SUFFIXES=(
+  [api]="api"
+  [web-landing]="landing"
+  [web-admin]="admin"
+  [web-client]="cliente"
+  [web-provider]="prestador"
+  [mobile-webview-client]="app-cliente"
+  [mobile-webview-provider]="app-prestador"
+  [mobile-webview-admin]="app-admin"
+)
+
+declare -A LEGACY_CONTAINER_SUFFIXES=(
+  [api]="api"
   [web-landing]="web-landing"
   [web-admin]="web-admin"
   [web-client]="web-client"
@@ -71,8 +93,17 @@ CONTAINER_PREFIX_VALUE="${CONTAINER_PREFIX_VALUE%\"}"
 CONTAINER_PREFIX_VALUE="${CONTAINER_PREFIX_VALUE#\"}"
 CONTAINER_PREFIX_VALUE="${CONTAINER_PREFIX_VALUE%\'}"
 CONTAINER_PREFIX_VALUE="${CONTAINER_PREFIX_VALUE#\'}"
-CONTAINER_PREFIX_VALUE="${CONTAINER_PREFIX_VALUE:-cpm}"
+CONTAINER_PREFIX_VALUE="${CONTAINER_PREFIX_VALUE:-cpm-prd}"
 TARGET_CONTAINER_NAME="${CONTAINER_PREFIX_VALUE}-${CONTAINER_SUFFIXES[$TARGET_SERVICE]}"
+LEGACY_CONTAINER_NAME="${CONTAINER_PREFIX_VALUE}-${LEGACY_CONTAINER_SUFFIXES[$TARGET_SERVICE]}"
+LEGACY_PREFIX_VALUE=""
+if [[ "$CONTAINER_PREFIX_VALUE" == "cpm-prd" ]]; then
+  LEGACY_PREFIX_VALUE="cpm"
+elif [[ "$CONTAINER_PREFIX_VALUE" == "cpm-hml" ]]; then
+  LEGACY_PREFIX_VALUE="cpm-dev"
+fi
+COMPOSE_PROJECT_NAME_VALUE="${CONTAINER_PREFIX_VALUE}-${PROJECT_SUFFIXES[$TARGET_SERVICE]}"
+COMPOSE_CMD=(docker compose -p "$COMPOSE_PROJECT_NAME_VALUE" -f "$COMPOSE_FILE" --env-file "$ENV_FILE")
 
 echo "[${TARGET_SERVICE}] [1/5] Atualizando codigo..."
 if [[ "${SKIP_GIT_PULL:-0}" == "1" || "${GITHUB_ACTIONS:-false}" == "true" ]]; then
@@ -93,20 +124,31 @@ else
 fi
 
 echo "[${TARGET_SERVICE}] [4/5] Build + deploy..."
-if ! docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" build; then
+if ! "${COMPOSE_CMD[@]}" build; then
   echo "[${TARGET_SERVICE}] Build padrao falhou. Executando fallback com limpeza de cache e --no-cache..."
   docker builder prune -f >/dev/null 2>&1 || true
-  docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" build --no-cache
+  "${COMPOSE_CMD[@]}" build --no-cache
 fi
 
-if docker ps -a --format '{{.Names}}' | grep -Fxq "$TARGET_CONTAINER_NAME"; then
-  echo "[${TARGET_SERVICE}] Removendo container existente '$TARGET_CONTAINER_NAME' para evitar conflito de nome..."
-  docker rm -f "$TARGET_CONTAINER_NAME" >/dev/null 2>&1 || true
+declare -a CLEANUP_CONTAINERS=("$TARGET_CONTAINER_NAME")
+if [[ "$LEGACY_CONTAINER_NAME" != "$TARGET_CONTAINER_NAME" ]]; then
+  CLEANUP_CONTAINERS+=("$LEGACY_CONTAINER_NAME")
+fi
+if [[ -n "$LEGACY_PREFIX_VALUE" ]]; then
+  CLEANUP_CONTAINERS+=("${LEGACY_PREFIX_VALUE}-${CONTAINER_SUFFIXES[$TARGET_SERVICE]}")
+  CLEANUP_CONTAINERS+=("${LEGACY_PREFIX_VALUE}-${LEGACY_CONTAINER_SUFFIXES[$TARGET_SERVICE]}")
 fi
 
-docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" up -d --no-build --remove-orphans
+for container_name in "${CLEANUP_CONTAINERS[@]}"; do
+  if docker ps -a --format '{{.Names}}' | grep -Fxq "$container_name"; then
+    echo "[${TARGET_SERVICE}] Removendo container existente '$container_name' para evitar conflito de nome/porta..."
+    docker rm -f "$container_name" >/dev/null 2>&1 || true
+  fi
+done
+
+"${COMPOSE_CMD[@]}" up -d --no-build --remove-orphans
 
 echo "[${TARGET_SERVICE}] [5/5] Status final:"
-docker compose -f "$COMPOSE_FILE" --env-file "$ENV_FILE" ps
+"${COMPOSE_CMD[@]}" ps
 
 echo "[${TARGET_SERVICE}] Deploy finalizado."

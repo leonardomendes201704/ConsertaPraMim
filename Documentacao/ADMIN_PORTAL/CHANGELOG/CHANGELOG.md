@@ -1,4 +1,4 @@
-# Admin Portal Changelog
+﻿# Admin Portal Changelog
 
 ## Como usar
 
@@ -11,6 +11,12 @@
 - (sem itens)
 
 ## Released
+
+- [2026-03-10] [ST-073][OPS-VPS-APK-PARALLEL-BUILD-HML-PRD-SEGREGATION] Otimizacao de build APK e segregacao por ambiente no fileserver
+- Tipo: feat
+- Resumo: o workflow `deploy-vps` passou a executar os 3 builds de APK em paralelo (`client`, `provider`, `admin`) com cache Gradle habilitado, removendo encadeamento sequencial entre apps; a publicacao no fileserver tambem foi segmentada por ambiente para eliminar sobrescrita cruzada (`dev-local` em `/files/apks/hml` e `main/master` em `/files/apks/prd`), com atualizacao dos links no resumo de deploy e no push de release.
+- Arquivos principais: `.github/workflows/deploy-vps.yml`, `Backend/DEPLOY_VPS.md`, `Documentacao/ADMIN_PORTAL/EPICS/EPIC-031-deploy-dual-stack-dev-prod-na-mesma-vps.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-073-otimizacao-pipeline-apk-segregacao-hml-prd.md`
+- Risco/Impacto: medio
 
 - [2026-03-10] [ST-072][OPS-VPS-APK-METADATA-LOCAL-ENDPOINT] Publicacao de metadados de APK via endpoint interno da API
 - Tipo: fix
@@ -41,6 +47,7 @@
 - Resumo: o deploy service passou a executar `docker compose` com `-p <CONTAINER_PREFIX>-<servico>` para isolar projeto compose por ambiente e por servico, evitando colisao/remocao cruzada entre stacks `dev-local` e `main` na mesma VPS; o workflow tambem passou a fazer healthcheck por `VPS_PUBLIC_HOST` no perfil `development` e agora publica diagnostico automatico (`docker ps` + `docker logs`) quando houver falha, reduzindo tempo de analise de timeout/reset em portas DEV.
 - Arquivos principais: `scripts/deploy/vps-deploy-service.sh`, `.github/workflows/deploy-vps.yml`, `Backend/DEPLOY_VPS.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-072-deploy-branch-aware-dev-local-main-na-mesma-vps.md`
 - Risco/Impacto: medio
+
 - [2026-03-09] [ST-072][OPS-VPS-APK-UPLOAD-LOCAL-RUNNER] Upload de APK sem SSH externo no pipeline
 - Tipo: fix
 - Resumo: os jobs `Upload APK Mobile Client/Provider/Admin` foram movidos para `self-hosted Linux` e passaram a publicar os APKs no fileserver via `docker cp` local (`filebrowser`), removendo a dependencia de acesso SSH externo na porta 22 a partir de `windows-latest` e eliminando falhas por timeout de conectividade de rede entre runner hospedado e VPS.
@@ -163,13 +170,13 @@
 
 - [2026-03-08] [ST-059][ADMIN-LANDING-RECURRING-VISITORS] KPI de visitas com recorrencia da landing
 - Tipo: feat
-- Resumo: o card `Visitas` da landing na home admin passou a detalhar, alem de `Visitantes únicos`, a quantidade de `Visitantes recorrentes`, calculada por `visitorId` estavel da landing em vez de IP bruto compartilhado; com isso, a leitura do topo de funil fica mais confiavel para retorno de visitantes no periodo filtrado.
+- Resumo: o card `Visitas` da landing na home admin passou a detalhar, alem de `Visitantes Ãºnicos`, a quantidade de `Visitantes recorrentes`, calculada por `visitorId` estavel da landing em vez de IP bruto compartilhado; com isso, a leitura do topo de funil fica mais confiavel para retorno de visitantes no periodo filtrado.
 - Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/AdminDashboardDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminDashboardService.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminHome/Index.cshtml`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminDashboardServiceTests.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `Documentacao/LANDING_PAGE/MANUAL_QA_OPERACAO_LANDING.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-059-kpis-visitas-cadastros-e-conversao-landing-dashboard.md`
 - Risco/Impacto: baixo
 
 - [2026-03-08] [ST-059][ADMIN-LANDING-KPIS] KPIs da landing na home do dashboard admin
 - Tipo: feat
-- Resumo: a landing passou a persistir cada acesso relevante (`/`, `/Cliente`, `/Prestador`) em `LandingAccessEvents` com `visitorId` estavel por navegador, e a home do portal admin passou a exibir os KPIs incrementais `Visitas`, `Cadastros Prestador`, `Cadastros Cliente` e `Taxa de Conversão`; os cards respeitam o recorte global de periodo do dashboard, `Visitas` detalha visitantes unicos e `Taxa de Conversão` detalha cadastros totais e visitantes convertidos correlacionados entre acesso e lead.
+- Resumo: a landing passou a persistir cada acesso relevante (`/`, `/Cliente`, `/Prestador`) em `LandingAccessEvents` com `visitorId` estavel por navegador, e a home do portal admin passou a exibir os KPIs incrementais `Visitas`, `Cadastros Prestador`, `Cadastros Cliente` e `Taxa de ConversÃ£o`; os cards respeitam o recorte global de periodo do dashboard, `Visitas` detalha visitantes unicos e `Taxa de ConversÃ£o` detalha cadastros totais e visitantes convertidos correlacionados entre acesso e lead.
 - Arquivos principais: `Backend/src/ConsertaPraMim.Domain/Entities/LandingAccessEvent.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Migrations/20260308213916_AddLandingAccessEventsAnalytics.cs`, `Backend/src/ConsertaPraMim.Application/Services/LandingAccessEventService.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminDashboardService.cs`, `Backend/src/ConsertaPraMim.Web.Landing/Controllers/HomeController.cs`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/js/site.js`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminHome/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `Documentacao/LANDING_PAGE/MANUAL_QA_OPERACAO_LANDING.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-059-kpis-visitas-cadastros-e-conversao-landing-dashboard.md`
 - Risco/Impacto: medio
 
@@ -181,7 +188,7 @@
 
 - [2026-03-08] [LANDING-FOOTER-CLEANUP] Rodape da landing sem links operacionais
 - Tipo: fix
-- Resumo: o rodape da landing deixou de exibir os links `Cliente`, `Prestador`, `Admin` e `Swagger`, mantendo apenas o copyright institucional para reduzir ruído de navegação e concentrar a jornada principal nos CTAs da home e no header.
+- Resumo: o rodape da landing deixou de exibir os links `Cliente`, `Prestador`, `Admin` e `Swagger`, mantendo apenas o copyright institucional para reduzir ruÃ­do de navegaÃ§Ã£o e concentrar a jornada principal nos CTAs da home e no header.
 - Arquivos principais: `Backend/src/ConsertaPraMim.Web.Landing/Views/Shared/_Layout.cshtml`, `Backend/tests/ConsertaPraMim.Tests.Unit/Frontend/LandingPageRegressionTests.cs`, `Documentacao/LANDING_PAGE/MANUAL_QA_OPERACAO_LANDING.md`
 - Risco/Impacto: baixo
 
@@ -227,9 +234,9 @@
 - Arquivos principais: `Backend/src/ConsertaPraMim.Web.Landing/Views/Shared/_Layout.cshtml`, `Backend/src/ConsertaPraMim.Web.Landing/Views/Home/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/js/site.js`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/css/site.css`, `Backend/tests/ConsertaPraMim.Tests.Unit/Frontend/LandingPageRegressionTests.cs`, `Documentacao/LANDING_PAGE/MANUAL_QA_OPERACAO_LANDING.md`
 - Risco/Impacto: medio
 
-- [2026-03-08] [LANDING-TESTEMUNHOS] Seção pública de testemunhos com clientes e prestadores
+- [2026-03-08] [LANDING-TESTEMUNHOS] SeÃ§Ã£o pÃºblica de testemunhos com clientes e prestadores
 - Tipo: feat
-- Resumo: a landing pública passou a exibir, logo abaixo do bloco institucional, uma seção de prova social com 20 depoimentos estáticos em PT-BR, sendo 10 de clientes e 10 de prestadores, distribuídos em duas colunas com visual próprio para reforçar confiança e previsibilidade operacional.
+- Resumo: a landing pÃºblica passou a exibir, logo abaixo do bloco institucional, uma seÃ§Ã£o de prova social com 20 depoimentos estÃ¡ticos em PT-BR, sendo 10 de clientes e 10 de prestadores, distribuÃ­dos em duas colunas com visual prÃ³prio para reforÃ§ar confianÃ§a e previsibilidade operacional.
 - Arquivos principais: `Backend/src/ConsertaPraMim.Web.Landing/Views/Home/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/css/site.css`, `Backend/tests/ConsertaPraMim.Tests.Unit/Frontend/LandingPageRegressionTests.cs`, `Documentacao/LANDING_PAGE/MANUAL_QA_OPERACAO_LANDING.md`
 - Risco/Impacto: baixo
 
@@ -325,7 +332,7 @@
 
 - [2026-03-03] [WEB-CLIENT][PAYMENTS] Correcao de timezone na exibicao de atualizacao de pagamento
 - Tipo: fix
-- Resumo: a tela `ServiceRequests/Details` do portal cliente passou a interpretar timestamps de pagamento como UTC de forma explicita e exibir datas/horarios no fuso de negocio `America/Sao_Paulo`, eliminando desvio de `+3h/-3h` na linha `Metodo: PIX · Atualizado`.
+- Resumo: a tela `ServiceRequests/Details` do portal cliente passou a interpretar timestamps de pagamento como UTC de forma explicita e exibir datas/horarios no fuso de negocio `America/Sao_Paulo`, eliminando desvio de `+3h/-3h` na linha `Metodo: PIX Â· Atualizado`.
 - Arquivos principais: `Backend/src/ConsertaPraMim.Web.Client/wwwroot/js/views/service-requests/details.js`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
 - Risco/Impacto: baixo
 
@@ -870,6 +877,330 @@
 - Resumo: a secao `Configuracao OpenAI` saiu do corpo principal da view `AdminGrowthAi` e passou para modal Bootstrap acionado por botao de configuracao no canto superior direito, liberando mais espaco para analise/historico e mantendo o mesmo fluxo de persistencia.
 - Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminGrowthAi/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
 - Risco/Impacto: baixo
+
+- [2026-03-04] [ST-012] Delete de evento Google Calendar no cancelamento de agendamento
+- Tipo: feat
+- Resumo: `ServiceAppointmentService.CancelAsync` passou a sincronizar delete no Google Calendar apos cancelamento local bem-sucedido; quando ha `GoogleEventId`, executa `DeleteEventAsync` e marca sync como `Deleted` em sucesso ou `Failed` com trilha de erro em falha; quando nao ha sync previo, cria registro `ServiceAppointmentCalendarSync` com status `Deleted` para manter rastreabilidade.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/Services/ServiceAppointmentService.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/ServiceAppointmentServiceTests.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-012-sync-automatica-agendamento-google-calendar.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_GOOGLE_CALENDAR_SYNC_ST-011.md`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-012-sync-agendamento-google-calendar/README.md`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-012-sync-agendamento-google-calendar/fluxo-sync-agendamento-google-calendar.mmd`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-012-sync-agendamento-google-calendar/sequencia-sync-agendamento-google-calendar.mmd`
+- Risco/Impacto: medio
+
+- [2026-03-04] [ST-012] Update de evento Google Calendar ao aceitar reagendamento
+- Tipo: feat
+- Resumo: `ServiceAppointmentService.RespondRescheduleAsync` passou a sincronizar atualizacao do evento no Google Calendar quando o reagendamento e aceito, atualizando janela/metadata via `UpdateEventAsync`; quando o evento nao e encontrado (`google_calendar_event_not_found`), o fluxo faz fallback com `CreateEventAsync` idempotente por `appointmentId`, mantendo `ServiceAppointmentCalendarSync` em `Synced` ou `Failed` com trilha de erro.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/Services/ServiceAppointmentService.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/ServiceAppointmentServiceTests.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-012-sync-automatica-agendamento-google-calendar.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_GOOGLE_CALENDAR_SYNC_ST-011.md`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-012-sync-agendamento-google-calendar/fluxo-sync-agendamento-google-calendar.mmd`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-012-sync-agendamento-google-calendar/sequencia-sync-agendamento-google-calendar.mmd`
+- Risco/Impacto: medio
+
+- [2026-03-04] [ST-012] Create de evento Google Calendar com idempotencia por appointmentId
+- Tipo: feat
+- Resumo: o fluxo de agendamento do chatbot passou a executar `CreateEventAsync` no Google Calendar apos persistencia local, usando chave idempotente `cpm-apt-{appointmentId}`; em sucesso o sync e marcado como `Synced` com `GoogleEventId`, e em falha e marcado como `Failed` com trilha de erro para reprocessamento sem bloquear o agendamento local.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/Services/TelegramChatbotSchedulingService.cs`, `Backend/src/ConsertaPraMim.Application/Interfaces/IGoogleCalendarService.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Services/GoogleCalendarService.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramChatbotSchedulingServiceTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/GoogleCalendarServiceTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Integration/Controllers/TelegramChatbotControllerSqliteIntegrationTests.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-012-sync-automatica-agendamento-google-calendar.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_GOOGLE_CALENDAR_SYNC_ST-011.md`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-012-sync-agendamento-google-calendar/sequencia-sync-agendamento-google-calendar.mmd`
+- Risco/Impacto: medio
+
+- [2026-03-04] [ST-012] Orquestracao de agendamento marcada para sync pendente no Google Calendar
+- Tipo: feat
+- Resumo: `TelegramChatbotSchedulingService` passou a persistir trilha de sincronizacao apos `CreateAsync` bem-sucedido: cria registro `ServiceAppointmentCalendarSync` com `Pending` quando inexistente ou atualiza registro existente para `Pending` limpando `Error`, garantindo fila consistente para os proximos passos de sync com Google.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/Services/TelegramChatbotSchedulingService.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramChatbotSchedulingServiceTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Integration/Controllers/TelegramChatbotControllerSqliteIntegrationTests.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-012-sync-automatica-agendamento-google-calendar.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_GOOGLE_CALENDAR_SYNC_ST-011.md`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-012-sync-agendamento-google-calendar/fluxo-sync-agendamento-google-calendar.mmd`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-012-sync-agendamento-google-calendar/sequencia-sync-agendamento-google-calendar.mmd`
+- Risco/Impacto: medio
+
+- [2026-03-04] [ST-012] Fundacao de persistencia para sincronizacao de agendamentos Google Calendar
+- Tipo: feat
+- Resumo: criada a entidade de mapeamento `ServiceAppointmentCalendarSync` com repositorio dedicado, relacao 1:1 com `ServiceAppointment`, indices de idempotencia (`AppointmentId` unico e `GoogleEventId` unico quando preenchido), status de sincronizacao e migration `AddServiceAppointmentCalendarSync` para persistencia da trilha.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Domain/Entities/ServiceAppointmentCalendarSync.cs`, `Backend/src/ConsertaPraMim.Domain/Entities/ServiceAppointment.cs`, `Backend/src/ConsertaPraMim.Domain/Repositories/IServiceAppointmentCalendarSyncRepository.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Repositories/ServiceAppointmentCalendarSyncRepository.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Data/ConsertaPraMimDbContext.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Migrations/20260304152621_AddServiceAppointmentCalendarSync.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Migrations/ConsertaPraMimDbContextModelSnapshot.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-012-sync-automatica-agendamento-google-calendar.md`
+- Risco/Impacto: medio
+
+- [2026-03-04] [ST-011] Fundacao tecnica da integracao Google Calendar via Service Account
+- Tipo: feat
+- Resumo: adicionada base de integracao na API com `IGoogleCalendarService`, options `GoogleCalendarSync` e validacao de startup (`ValidateOnStart`) para bloquear configuracao invalida quando habilitada; servico implementa `create/update/delete` de eventos com autenticacao por Service Account, payload padrao (titulo/descricao/local/metadados) e conversao de janelas UTC para timezone de negocio (`America/Sao_Paulo`).
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/Interfaces/IGoogleCalendarService.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Configuration/GoogleCalendarSyncOptions.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Configuration/GoogleCalendarSyncOptionsValidator.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Services/GoogleCalendarService.cs`, `Backend/src/ConsertaPraMim.Infrastructure/DependencyInjection.cs`, `Backend/src/ConsertaPraMim.Infrastructure/ConsertaPraMim.Infrastructure.csproj`, `Backend/src/ConsertaPraMim.API/appsettings.json`, `Backend/src/ConsertaPraMim.API/appsettings.Development.json`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/GoogleCalendarSyncOptionsValidatorTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/GoogleCalendarServiceTests.cs`
+- Risco/Impacto: medio
+
+- [2026-03-04] [ST-011] Manual operacional e diagramas da fundacao Google Calendar
+- Tipo: docs
+- Resumo: story ST-011 movida para `DONE` com tasks concluidas, publicacao de manual QA/operacao da integracao e diagramas Mermaid de fluxo/sequencia para bootstrap, validacao e operacao basica do cliente Google Calendar.
+- Arquivos principais: `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/DONE/ST-011-fundacao-google-calendar-service-account-calendario-unico.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_GOOGLE_CALENDAR_SYNC_ST-011.md`, `Documentacao/REALTIME_PRESENCA_CHAT/INDEX.md`, `Documentacao/REALTIME_PRESENCA_CHAT/README.md`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-011-fundacao-google-calendar-sync/README.md`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-011-fundacao-google-calendar-sync/fluxo-fundacao-google-calendar-sync.mmd`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-011-fundacao-google-calendar-sync/sequencia-fundacao-google-calendar-sync.mmd`
+- Risco/Impacto: baixo
+
+- [2026-03-04] [ST-005] UX do composer no Telegram Bridge com envio por Enter
+- Tipo: fix
+- Resumo: ajustado o composer do chat web para enviar mensagem ao pressionar `Enter`, preservando quebra de linha com `Shift+Enter`, com atualizacao da story ST-005 e manual QA/operacao da bridge.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/wwwroot/js/chat.js`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/DONE/ST-005-login-cliente-telegram-bridge-e-vinculo-conversa.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_TELEGRAM_BRIDGE_ST-003.md`
+- Risco/Impacto: baixo
+
+- [2026-03-04] [EPIC-003] Planejamento da integracao Google Calendar para agendamentos
+- Tipo: docs
+- Resumo: criada a trilha documental inicial para sincronizacao de agendamentos com Google Calendar (epic, stories e tasks), incluindo orientacao operacional de Service Account e calendario unico.
+- Arquivos principais: `Documentacao/REALTIME_PRESENCA_CHAT/EPICS/EPIC-003-sincronizacao-agendamento-google-calendar.md`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/BACKLOG/ST-011-fundacao-google-calendar-service-account-calendario-unico.md`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/BACKLOG/ST-012-sync-automatica-agendamento-google-calendar.md`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/BACKLOG/ST-013-observabilidade-reprocessamento-qa-rollout-google-calendar.md`, `Documentacao/REALTIME_PRESENCA_CHAT/INDEX.md`
+- Risco/Impacto: baixo
+
+- [2026-03-04] [OPS-CHATBOT] Sanitizacao de credenciais de teste no Telegram Bridge
+- Tipo: fix
+- Resumo: removidos valores sensiveis em texto puro dos `appsettings` do Telegram Bridge e substituidos por placeholder para carregamento via user-secrets/variaveis de ambiente.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/appsettings.json`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/appsettings.Development.json`
+- Risco/Impacto: baixo
+
+- [2026-03-04] [ST-010] Guardrails, rollout gradual e observabilidade operacional do chatbot Telegram
+- Tipo: feat
+- Resumo: implementados guardrails conversacionais com handoff humano (`emergencia`, `fora de escopo`, `dados sensiveis`), catalogo padronizado de erros/fallback por `errorCode`, feature flag de rollout gradual por ambiente/chat (`allow/block list` + percentual deterministico), instrumentacao de observabilidade (trafego, IA, negocio, dependencias, incidentes) e endpoint de dashboard operacional `GET /api/chatbot-observability/dashboard` com controle de token fora de desenvolvimento.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramChatbotOrchestrator.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramChatbotErrorCatalog.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramChatbotGuardrailPolicy.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramChatbotFeatureFlagService.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramChatbotObservabilityService.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Controllers/ChatbotObservabilityController.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Options/TelegramChatbotRolloutOptions.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Options/TelegramChatbotObservabilityOptions.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramChatbotGuardrailPolicyTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramChatbotFeatureFlagServiceTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramChatbotObservabilityServiceTests.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/DONE/ST-010-guardrails-observabilidade-qa-e-rollout-chatbot.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md`
+- Risco/Impacto: medio
+
+- [2026-03-04] [ST-010] Plano QA, runbook e diagramas de rollout/rollback do chatbot Telegram
+- Tipo: docs
+- Resumo: concluido o fechamento operacional da ST-010 com plano QA completo (smoke, regressao, carga basica e falha), runbook de incidentes/rollback, atualizacao de status da story para `DONE` e publicacao dos diagramas Mermaid de fluxo e sequencia para guardrails/observabilidade/rollout.
+- Arquivos principais: `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md`, `Documentacao/REALTIME_PRESENCA_CHAT/RUNBOOKS/RUNBOOK_INCIDENTES_ROLLBACK_CHATBOT_TELEGRAM_ST-010.md`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/DONE/ST-010-guardrails-observabilidade-qa-e-rollout-chatbot.md`, `Documentacao/REALTIME_PRESENCA_CHAT/INDEX.md`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-010-guardrails-observabilidade-rollout-chatbot/README.md`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-010-guardrails-observabilidade-rollout-chatbot/fluxo-guardrails-observabilidade-rollout-chatbot.mmd`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-010-guardrails-observabilidade-rollout-chatbot/sequencia-guardrails-observabilidade-rollout-chatbot.mmd`
+- Risco/Impacto: baixo
+
+- [2026-03-04] [ST-009] Orquestrador de consulta natural com contexto, auditoria e paginacao no chatbot Telegram
+- Tipo: feat
+- Resumo: concluida a ST-009 com fluxo conversacional de consulta para pedidos/status/detalhes/agenda no `TelegramChatbotOrchestrator`, incluindo deteccao contextual por protocolo/pedido atual, respostas amigaveis para casos sem dados, paginaÃ§Ã£o por continuidade ("mostrar mais"), persistencia de trilha auditavel (`query_intent_result`, `query_reference_state`, `query_*`) e cobertura automatizada unitaria/integracao das intents de consulta e autorizacao.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramChatbotOrchestrator.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/ITelegramChatbotApiClient.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramChatbotApiClient.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Models/TelegramServiceRequestModels.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramChatbotOrchestratorTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Integration/Controllers/TelegramChatbotControllerSqliteIntegrationTests.cs`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-009-consulta-natural-status-pedidos-agenda/fluxo-consulta-natural-status-pedidos-agenda.mmd`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-009-consulta-natural-status-pedidos-agenda/sequencia-consulta-natural-status-pedidos-agenda.mmd`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/DONE/ST-009-consulta-natural-de-status-pedidos-e-agenda.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md`
+- Risco/Impacto: medio
+
+- [2026-03-04] [ST-009] API de consulta natural de pedidos, status e agenda para chatbot Telegram
+- Tipo: feat
+- Resumo: adicionados contratos e endpoints de consulta no dominio `TelegramChatbot` para listar pedidos do cliente, consultar status/detalhes de pedido especifico e listar agendamentos com paginacao e escopo por `ClientId`, preparando a base da ST-009 para respostas conversacionais no orquestrador.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/TelegramChatbotSchedulingDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Interfaces/ITelegramChatbotSchedulingService.cs`, `Backend/src/ConsertaPraMim.Application/Services/TelegramChatbotSchedulingService.cs`, `Backend/src/ConsertaPraMim.API/Controllers/TelegramChatbotController.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ApiEndpointDocumentationCatalog.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramChatbotSchedulingServiceTests.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-009-consulta-natural-de-status-pedidos-e-agenda.md`, `Documentacao/REALTIME_PRESENCA_CHAT/INDEX.md`
+- Risco/Impacto: medio
+
+- [2026-03-04] [ST-008] Guardrail de confirmacao de agenda sem persistencia no chatbot Telegram
+- Tipo: fix
+- Resumo: adicionado guardrail no orquestrador da bridge para bloquear respostas de "agendamento confirmado" quando nao existe lote persistido com sucesso no historico da conversa; nesses casos o bot responde com `awaiting_provider_confirmation`, informando que ainda depende de acao do prestador e que retornara com detalhes apos confirmacao.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramChatbotOrchestrator.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramChatbotOrchestratorTests.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/DONE/ST-008-matching-prestadores-e-agendamento-multi-visitas.md`
+- Risco/Impacto: medio
+
+- [2026-03-04] [ST-008] Hotfix de disponibilidade real antes de sugerir prestadores no chatbot Telegram
+- Tipo: fix
+- Resumo: fluxo de agendamento foi ajustado para pedir primeiro os dias/periodos desejados e somente depois avaliar prestadores; a bridge agora consulta slots reais (`/api/service-appointments/slots`) por prestador/janela antes de montar o lote, evitando sugestao prematura e reduzindo respostas de indisponibilidade apos confirmacao textual. Tambem foi corrigida a interpretacao de "semana q vem" para manter todos os dias na semana seguinte.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramChatbotOrchestrator.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramChatbotApiClient.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/ITelegramChatbotApiClient.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramSchedulingNaturalLanguageParser.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Models/TelegramServiceRequestModels.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramChatbotOrchestratorTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramSchedulingNaturalLanguageParserTests.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md`
+- Risco/Impacto: medio
+
+- [2026-03-04] [ST-008] Hotfix de inferencia de agendamento por sinais de dia/periodo no chatbot Telegram
+- Tipo: fix
+- Resumo: corrigido o parser de agenda para considerar intencao de agendamento quando o cliente informa apenas sinais naturais de data/periodo (ex.: "quarta, quinta e sexta de manha"), mesmo sem palavra-chave explicita como "agendar"; com isso o orquestrador deixa de responder confirmacao sem persistencia e volta a executar o lote real de agendamentos (`schedule-visits-batch`) quando ha dados suficientes.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramSchedulingNaturalLanguageParser.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramSchedulingNaturalLanguageParserTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramChatbotOrchestratorTests.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md`
+- Risco/Impacto: medio
+
+- [2026-03-03] [ST-008] Hotfix do loop de resposta e consulta de status/agendamento no chatbot Telegram
+- Tipo: fix
+- Resumo: corrigido o comportamento em que o bot repetia "pedido ja registrado" para qualquer mensagem apos criacao do pedido; a triagem agora so continua automaticamente enquanto o pedido nao foi criado, e o orquestrador passou a responder consultas de status/agendamento/prestadores usando o contexto historico (`serviceRequestId`) com fallback para listagem de prestadores quando ainda nao ha visitas confirmadas.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramServiceRequestTriageEngine.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramChatbotOrchestrator.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramServiceRequestTriageEngineTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramChatbotOrchestratorTests.cs`
+- Risco/Impacto: medio
+
+- [2026-03-03] [ST-008] Story encerrada e movida para DONE no board realtime
+- Tipo: docs
+- Resumo: concluida a ST-008 com todas as tasks finalizadas, incluindo parser natural, matching e agendamento multi-visitas; story movida para `STORIES/DONE` e indices/manuais da trilha atualizados.
+- Arquivos principais: `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/DONE/ST-008-matching-prestadores-e-agendamento-multi-visitas.md`, `Documentacao/REALTIME_PRESENCA_CHAT/INDEX.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md`
+- Risco/Impacto: baixo
+
+- [2026-03-03] [ST-008] Orquestracao de matching + agendamento natural no Telegram Bridge
+- Tipo: feat
+- Resumo: integrado o fluxo ST-008 no `TelegramChatbotOrchestrator` para, apos criacao de pedido ou solicitacao do cliente, consultar prestadores elegiveis, interpretar janelas em linguagem natural, executar `schedule-visits-batch`, persistir sugestoes/decisoes em `context-snapshots/actions` e responder em linguagem humana com cenarios de sucesso total, parcial ou replanejamento.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramChatbotOrchestrator.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/ITelegramChatbotApiClient.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramChatbotApiClient.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Models/TelegramServiceRequestModels.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Program.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramChatbotOrchestratorTests.cs`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-008-matching-agendamento-multi-visitas/fluxo-matching-agendamento-multi-visitas.mmd`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-008-matching-agendamento-multi-visitas/sequencia-matching-agendamento-multi-visitas.mmd`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-008-matching-prestadores-e-agendamento-multi-visitas.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md`
+- Risco/Impacto: medio
+
+- [2026-03-03] [ST-008] Parser de linguagem natural para janela de agendamento no chatbot Telegram
+- Tipo: feat
+- Resumo: implementado parser dedicado na bridge para interpretar pedido de agenda em linguagem natural (dias da semana, periodo manha/tarde/noite e horario explicito), convertendo para janelas UTC e retornando erros orientados quando faltar dia/periodo ou houver dias insuficientes para a quantidade solicitada.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramSchedulingNaturalLanguageParser.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Models/TelegramSchedulingModels.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramSchedulingNaturalLanguageParserTests.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-008-matching-prestadores-e-agendamento-multi-visitas.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md`
+- Risco/Impacto: medio
+
+- [2026-03-03] [ST-008] Agendamento em lote de visitas (ate 3) para o chatbot Telegram
+- Tipo: feat
+- Resumo: evoluido o fluxo ST-008 com endpoint `POST /api/telegram-chatbot/service-requests/{serviceRequestId}/schedule-visits-batch`, incluindo validacoes de ownership do cliente, limite de ate 3 visitas, bloqueio de dias duplicados e retorno consolidado por visita para suporte a replanejamento conversacional.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/TelegramChatbotSchedulingDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Interfaces/ITelegramChatbotSchedulingService.cs`, `Backend/src/ConsertaPraMim.Application/Services/TelegramChatbotSchedulingService.cs`, `Backend/src/ConsertaPraMim.API/Contracts/TelegramChatbotContracts.cs`, `Backend/src/ConsertaPraMim.API/Controllers/TelegramChatbotController.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ApiEndpointDocumentationCatalog.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramChatbotSchedulingServiceTests.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-008-matching-prestadores-e-agendamento-multi-visitas.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md`, `Documentacao/REALTIME_PRESENCA_CHAT/INDEX.md`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-008-matching-agendamento-multi-visitas/README.md`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-008-matching-agendamento-multi-visitas/fluxo-matching-agendamento-multi-visitas.mmd`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-008-matching-agendamento-multi-visitas/sequencia-matching-agendamento-multi-visitas.mmd`, `Documentacao/DIAGRAMAS/INDEX.md`
+- Risco/Impacto: medio
+
+- [2026-03-03] [ST-008] Endpoint de matching de prestadores elegiveis para o chatbot Telegram
+- Tipo: feat
+- Resumo: iniciado o fluxo ST-008 com servico de aplicacao dedicado ao chatbot para listar prestadores elegiveis por pedido e cobertura, incluindo endpoint `GET /api/telegram-chatbot/service-requests/{serviceRequestId}/eligible-providers` com validacao de ownership por `ClientId`.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/TelegramChatbotSchedulingDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Interfaces/ITelegramChatbotSchedulingService.cs`, `Backend/src/ConsertaPraMim.Application/Services/TelegramChatbotSchedulingService.cs`, `Backend/src/ConsertaPraMim.Application/DependencyInjection.cs`, `Backend/src/ConsertaPraMim.API/Controllers/TelegramChatbotController.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ApiEndpointDocumentationCatalog.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramChatbotSchedulingServiceTests.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-008-matching-prestadores-e-agendamento-multi-visitas.md`, `Documentacao/REALTIME_PRESENCA_CHAT/INDEX.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md`
+- Risco/Impacto: medio
+
+- [2026-03-03] [ST-007] Correcao da abertura automatica de pedido com CEP valido no chatbot Telegram
+- Tipo: fix
+- Resumo: corrigida incompatibilidade de contrato no payload da triagem para `POST /api/service-requests` (categoria agora enviada como enum numerico compatÃ­vel com o backend), com pre-resolucao de CEP via `GET /api/service-requests/zip-resolution` para enriquecer endereco/coordenadas e reduzir falhas falsas de "instabilidade" na abertura automatica.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/Models/TelegramServiceRequestModels.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramServiceRequestTriageEngine.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramChatbotApiClient.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramServiceRequestTriageEngineTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramChatbotOrchestratorTests.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/DONE/ST-007-triagem-natural-e-abertura-automatica-de-pedido.md`
+- Risco/Impacto: medio
+
+- [2026-03-03] [ST-007] Diagrama Mermaid de sequencia e encerramento da story no board realtime
+- Tipo: docs
+- Resumo: publicada sequencia da ST-007 com chamadas entre chat bridge, orquestrador de triagem, endpoint de criacao de pedido e persistencia conversacional, com story movida para `STORIES/DONE` e indices atualizados.
+- Arquivos principais: `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-007-triagem-abertura-automatica-pedido/sequencia-triagem-abertura-automatica-pedido.mmd`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-007-triagem-abertura-automatica-pedido/README.md`, `Documentacao/DIAGRAMAS/INDEX.md`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/DONE/ST-007-triagem-natural-e-abertura-automatica-de-pedido.md`, `Documentacao/REALTIME_PRESENCA_CHAT/INDEX.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md`
+- Risco/Impacto: baixo
+
+- [2026-03-03] [ST-007] Diagrama Mermaid de fluxo da triagem e abertura automatica de pedido
+- Tipo: docs
+- Resumo: publicado fluxo funcional da ST-007 detalhando analise de intent/entidades, state machine de triagem, validacao de dados minimos, chamada ao endpoint de criacao de pedido e persistencia de snapshots/acoes no historico conversacional.
+- Arquivos principais: `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-007-triagem-abertura-automatica-pedido/fluxo-triagem-abertura-automatica-pedido.mmd`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-007-triagem-abertura-automatica-pedido/README.md`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/DONE/ST-007-triagem-natural-e-abertura-automatica-de-pedido.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md`
+- Risco/Impacto: baixo
+
+- [2026-03-03] [ST-007] Testes unitarios da triagem e criacao automatica de pedido
+- Tipo: test
+- Resumo: adicionados testes para validar regras de completude/merge de contexto da triagem (`TelegramServiceRequestTriageEngine`) e cenario de sucesso da abertura automatica de pedido no `TelegramChatbotOrchestrator`, mantendo cobertura dos fluxos de fallback/cache.
+- Arquivos principais: `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramServiceRequestTriageEngineTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramChatbotOrchestratorTests.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-007-triagem-natural-e-abertura-automatica-de-pedido.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md`
+- Risco/Impacto: baixo
+
+- [2026-03-03] [ST-007] Triagem natural e abertura automatica de pedido no Telegram Bridge
+- Tipo: feat
+- Resumo: iniciada a ST-007 com contrato de intent `open_service_request`, state machine de triagem por contexto historico e abertura automatica de pedido via `POST /api/service-requests` quando os dados minimos (categoria, descricao e CEP) estao completos; fluxo tambem persiste payload final e estado de triagem em snapshots/acoes da conversa.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramChatbotOrchestrator.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramServiceRequestTriageEngine.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/ITelegramChatbotApiClient.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramChatbotApiClient.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Models/TelegramServiceRequestModels.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Program.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-007-triagem-natural-e-abertura-automatica-de-pedido.md`, `Documentacao/REALTIME_PRESENCA_CHAT/INDEX.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md`
+- Risco/Impacto: medio
+
+- [2026-03-03] [ST-006] Diagrama Mermaid de sequencia e encerramento da story no board realtime
+- Tipo: docs
+- Resumo: publicada sequencia da ST-006 para a orquestracao OpenAI no Telegram Bridge e story movida para `STORIES/DONE`, com atualizacao do board realtime e manual operacional.
+- Arquivos principais: `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-006-orquestrador-openai-contexto-historico/sequencia-orquestrador-openai-contexto-historico.mmd`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-006-orquestrador-openai-contexto-historico/README.md`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/DONE/ST-006-orquestrador-openai-contexto-historico-linguagem-humana.md`, `Documentacao/REALTIME_PRESENCA_CHAT/INDEX.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md`, `Documentacao/DIAGRAMAS/INDEX.md`
+- Risco/Impacto: baixo
+
+- [2026-03-03] [ST-006] Diagrama Mermaid de fluxo da orquestracao OpenAI no chatbot Telegram
+- Tipo: docs
+- Resumo: publicado fluxo funcional da ST-006 cobrindo envio da mensagem do cliente, montagem de contexto historico, chamada OpenAI com retries, fallback/cache, persistencia de trilha conversacional e broadcast realtime no Telegram Bridge.
+- Arquivos principais: `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-006-orquestrador-openai-contexto-historico/fluxo-orquestrador-openai-contexto-historico.mmd`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-006-orquestrador-openai-contexto-historico/README.md`, `Documentacao/DIAGRAMAS/INDEX.md`, `Documentacao/REALTIME_PRESENCA_CHAT/INDEX.md`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/DONE/ST-006-orquestrador-openai-contexto-historico-linguagem-humana.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md`
+- Risco/Impacto: baixo
+
+- [2026-03-03] [ST-006] Orquestrador OpenAI com contexto, fallback e observabilidade no Telegram Bridge
+- Tipo: feat
+- Resumo: implementado `TelegramChatbotOrchestrator` com prompt de atendimento humano e saida estruturada, montagem de contexto por historico da conversa (`messages/snapshots/actions`), fallback seguro, cache por conversa/mensagem, metricas de custo/latencia e integracao no envio de mensagens para responder automaticamente no chat do cliente.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramChatbotOrchestrator.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/ITelegramChatbotApiClient.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramChatbotApiClient.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Controllers/ChatApiController.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/ITelegramChatService.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramChatService.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Program.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/appsettings.json`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/appsettings.Development.json`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramAiResponseParserTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramChatbotOrchestratorTests.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-006-orquestrador-openai-contexto-historico-linguagem-humana.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md`
+- Risco/Impacto: medio
+
+- [2026-03-03] [ST-006] Gateway OpenAI resiliente para orquestracao do chatbot Telegram
+- Tipo: feat
+- Resumo: criada a fundacao tecnica da ST-006 no `Telegram Bridge` com gateway dedicado para a OpenAI (`Responses API`), incluindo timeout por chamada, retries para erros transientes, parse de tokens/erros e modelos/opcoes de configuracao da trilha de IA (`TelegramBridgeAi`).
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/OpenAiTelegramGateway.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/ITelegramAiGateway.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Options/TelegramBridgeAiOptions.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Models/TelegramAiModels.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramAiResponseParser.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-006-orquestrador-openai-contexto-historico-linguagem-humana.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md`
+- Risco/Impacto: medio
+
+- [2026-03-03] [ST-005] Story concluida e movida para DONE no board realtime
+- Tipo: docs
+- Resumo: ST-005 foi encerrada com todas as tasks concluidas, movida de `STORIES/IN_PROGRESS` para `STORIES/DONE` e board da trilha realtime atualizado.
+- Arquivos principais: `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/DONE/ST-005-login-cliente-telegram-bridge-e-vinculo-conversa.md`, `Documentacao/REALTIME_PRESENCA_CHAT/INDEX.md`
+- Risco/Impacto: baixo
+
+- [2026-03-03] [ST-005] Diagrama Mermaid de sequencia e indices da trilha atualizados
+- Tipo: docs
+- Resumo: publicada sequencia detalhada da ST-005 (login, sessao, conversa unica, SignalR e envio de mensagem), com atualizacao dos indices de diagramas e do board de realtime para incluir a story.
+- Arquivos principais: `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-005-login-cliente-telegram-bridge-vinculo-conversa/sequencia-login-cliente-vinculo-conversa.mmd`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-005-login-cliente-telegram-bridge-vinculo-conversa/README.md`, `Documentacao/DIAGRAMAS/INDEX.md`, `Documentacao/REALTIME_PRESENCA_CHAT/INDEX.md`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-005-login-cliente-telegram-bridge-e-vinculo-conversa.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md`
+- Risco/Impacto: baixo
+
+- [2026-03-03] [ST-005] Diagrama Mermaid de fluxo do login e vinculo de conversa no Telegram Bridge
+- Tipo: docs
+- Resumo: publicado fluxo funcional da ST-005 cobrindo autenticacao por email/senha, criacao automatica de conversa unica por cliente, regras de autorizacao em API/Hub e envio de mensagens com persistencia.
+- Arquivos principais: `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-005-login-cliente-telegram-bridge-vinculo-conversa/fluxo-login-cliente-vinculo-conversa.mmd`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-005-login-cliente-telegram-bridge-vinculo-conversa/README.md`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-005-login-cliente-telegram-bridge-e-vinculo-conversa.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md`
+- Risco/Impacto: baixo
+
+- [2026-03-03] [ST-005] Testes de login e autorizacao basica no Telegram Bridge
+- Tipo: test
+- Resumo: adicionados testes unitarios cobrindo login valido, erro de credencial e regras de autorizacao basica da bridge (controladores/hub protegidos e login anonimo), com referencia direta ao projeto web do Telegram Bridge no projeto de testes.
+- Arquivos principais: `Backend/tests/ConsertaPraMim.Tests.Unit/ConsertaPraMim.Tests.Unit.csproj`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramBridgeAccountControllerTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramBridgeAuthorizationTests.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-005-login-cliente-telegram-bridge-e-vinculo-conversa.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md`
+- Risco/Impacto: baixo
+
+- [2026-03-03] [ST-005] Conversa unica automatica por cliente no Telegram Bridge
+- Tipo: feat
+- Resumo: login no bridge passa a abrir automaticamente uma unica conversa por `ClientId`, sem campo manual de `chatId`; endpoints e SignalR agora bloqueiam acesso a conversas de outros clientes, `chatId` passa a ser serializado como string para evitar perda de precisao no frontend e chamadas API/Hub retornam `401/403` sem redirecionamento em loop.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/Controllers/ChatApiController.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Hubs/TelegramChatHub.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Security/TelegramBridgeClientConversation.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Models/ChatConversationSummaryDto.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Models/ChatMessageDto.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Program.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Properties/launchSettings.json`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/ITelegramChatService.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramChatService.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/ITelegramChatbotApiClient.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramChatbotApiClient.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Views/Home/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/wwwroot/js/chat.js`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/README.md`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-005-login-cliente-telegram-bridge-e-vinculo-conversa.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md`
+- Risco/Impacto: medio
+
+- [2026-03-03] [ST-005] Fluxo de logout do Telegram Bridge com limpeza de sessao
+- Tipo: feat
+- Resumo: implementado `POST /Account/Logout` com antiforgery e `SignOutAsync`, adicionando botao `Sair` na interface do chat para invalidar cookie local e remover acesso imediato as rotas protegidas.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/Controllers/AccountController.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Views/Home/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/wwwroot/css/site.css`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-005-login-cliente-telegram-bridge-e-vinculo-conversa.md`
+- Risco/Impacto: baixo
+
+- [2026-03-03] [ST-005] VÃ­nculo do `ClientId` da sessÃ£o da bridge com a API do chatbot
+- Tipo: feat
+- Resumo: `ChatApiController` passou a sincronizar abertura de sessÃ£o e mensagens de saÃ­da com `/api/telegram-chatbot/session` e `/api/telegram-chatbot/messages` usando `Bearer` token da sessÃ£o autenticada, garantindo derivaÃ§Ã£o de `ClientId` no backend.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/Controllers/ChatApiController.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/ITelegramChatbotApiClient.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramChatbotApiClient.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Program.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-005-login-cliente-telegram-bridge-e-vinculo-conversa.md`
+- Risco/Impacto: medio
+
+- [2026-03-03] [ST-005] Rotas de chat do Telegram Bridge protegidas por autenticacao
+- Tipo: feat
+- Resumo: aplicados atributos `[Authorize]` no `HomeController`, `ChatApiController` e `TelegramChatHub`, garantindo redirecionamento de anonimos para login nas telas web e bloqueio de chamadas de chat sem sessao autenticada.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/Controllers/HomeController.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Controllers/ChatApiController.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Hubs/TelegramChatHub.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-005-login-cliente-telegram-bridge-e-vinculo-conversa.md`
+- Risco/Impacto: medio
+
+- [2026-03-03] [ST-005] Sessao de autenticacao do Telegram Bridge persistida com cookie seguro
+- Tipo: feat
+- Resumo: bridge passou a usar cookie auth para manter sessao do cliente apos login valido, com `SignInAsync` armazenando token da API em claim e configuracao de cookie com `HttpOnly`, `SameSite=Strict`, expiracao e `SlidingExpiration`.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/Program.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Controllers/AccountController.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Security/TelegramBridgeClaimTypes.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-005-login-cliente-telegram-bridge-e-vinculo-conversa.md`
+- Risco/Impacto: medio
+
+- [2026-03-03] [ST-005] Login do Telegram Bridge integrado ao endpoint oficial de autenticacao da API
+- Tipo: feat
+- Resumo: implementado `TelegramBridgeAuthApiClient` consumindo `POST /api/auth/login` com `ApiBaseUrl` configuravel; `AccountController` passou a validar credenciais reais da plataforma e role `Client`, sem duplicar regra de senha no frontend.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/ITelegramBridgeAuthApiClient.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramBridgeAuthApiClient.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Controllers/AccountController.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Models/TelegramBridgeLoginResponse.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Program.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/appsettings.json`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/appsettings.Development.json`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-005-login-cliente-telegram-bridge-e-vinculo-conversa.md`
+- Risco/Impacto: medio
+
+- [2026-03-03] [ST-005] Tela e controller de login criados no Telegram Bridge
+- Tipo: feat
+- Resumo: adicionados `AccountController` e view de login com email/senha no `ConsertaPraMim.Web.TelegramBridge`, incluindo ajuste de layout para carregar `chat.js` apenas na tela do chat e evitar falhas em paginas de autenticacao.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/Controllers/AccountController.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Models/LoginViewModel.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Views/Account/Login.cshtml`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Views/Shared/_Layout.cshtml`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Views/Home/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/wwwroot/css/site.css`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-005-login-cliente-telegram-bridge-e-vinculo-conversa.md`
+- Risco/Impacto: medio
+
+- [2026-03-03] [ST-004] Story de fundacao do chatbot Telegram concluida e movida para DONE
+- Tipo: docs
+- Resumo: ST-004 foi encerrada com todas as tasks marcadas, arquivo movido para `STORIES/DONE` e board `INDEX` atualizado para refletir conclusao da base de API/persistencia conversacional.
+- Arquivos principais: `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/DONE/ST-004-fundacao-api-chatbot-telegram-persistencia.md`, `Documentacao/REALTIME_PRESENCA_CHAT/INDEX.md`
+- Risco/Impacto: baixo
+
+- [2026-03-03] [ST-004] Diagrama de sequencia Mermaid da API conversacional do chatbot Telegram
+- Tipo: docs
+- Resumo: publicado diagrama de sequencia da ST-004 detalhando chamadas entre bridge, controller, servico, repositorio e banco para sessao, mensagens, contexto, acoes e historico com validacao por `ClientId`.
+- Arquivos principais: `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-004-fundacao-api-chatbot-telegram-persistencia/sequencia-api-chatbot-telegram-persistencia.mmd`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-004-fundacao-api-chatbot-telegram-persistencia/README.md`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-004-fundacao-api-chatbot-telegram-persistencia.md`
+- Risco/Impacto: baixo
+
+- [2026-03-03] [ST-004] Diagrama de fluxo Mermaid da API conversacional do chatbot Telegram
+- Tipo: docs
+- Resumo: publicado fluxo funcional da ST-004 cobrindo sessao, registro de mensagens/contexto/acoes, consulta de historico e bloqueio de acesso cruzado por `ClientId`.
+- Arquivos principais: `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-004-fundacao-api-chatbot-telegram-persistencia/fluxo-api-chatbot-telegram-persistencia.mmd`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-004-fundacao-api-chatbot-telegram-persistencia/README.md`, `Documentacao/REALTIME_PRESENCA_CHAT/INDEX.md`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-004-fundacao-api-chatbot-telegram-persistencia.md`
+- Risco/Impacto: baixo
+
+- [2026-03-03] [ST-004] Testes unitarios e integracao para persistencia/autorizacao do chatbot Telegram
+- Tipo: test
+- Resumo: adicionados testes para `TelegramChatbotConversationService` e `TelegramChatbotController` cobrindo criacao de sessao, normalizacao UTC, validacao de tokens e bloqueio de acesso cruzado entre clientes usando base SQLite em memoria.
+- Arquivos principais: `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramChatbotConversationServiceTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Integration/Controllers/TelegramChatbotControllerSqliteIntegrationTests.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-004-fundacao-api-chatbot-telegram-persistencia.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md`
+- Risco/Impacto: baixo
+
+- [2026-03-03] [ST-004] Politica UTC, isolamento por cliente e paridade OpenAPI do chatbot Telegram consolidados
+- Tipo: feat
+- Resumo: consolidada a regra de timestamps em UTC no fluxo conversacional (persistencia e retorno), com isolamento por `ClientId` no servico/controlador e documentacao Swagger alinhada nos tres arquivos obrigatorios (`ApiEndpointDocumentationCatalog`, `ComprehensiveSwaggerOperationFilter`, `ApiTagDescriptionsDocumentFilter`).
+- Arquivos principais: `Backend/src/ConsertaPraMim.Application/Services/TelegramChatbotConversationService.cs`, `Backend/src/ConsertaPraMim.API/Controllers/TelegramChatbotController.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ApiEndpointDocumentationCatalog.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ComprehensiveSwaggerOperationFilter.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ApiTagDescriptionsDocumentFilter.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-004-fundacao-api-chatbot-telegram-persistencia.md`
+- Risco/Impacto: medio
+
+- [2026-03-03] [ST-004] Endpoints `/api/telegram-chatbot/*` com historico, acoes e documentacao Swagger dedicada
+- Tipo: feat
+- Resumo: criado `TelegramChatbotController` com endpoints para abrir sessao, registrar mensagem, registrar contexto, registrar acao, atualizar estado e consultar historico conversacional; atualizada documentacao Swagger/OpenAPI para dominio de chatbot Telegram com narrativa de negocio e tecnica.
+- Arquivos principais: `Backend/src/ConsertaPraMim.API/Controllers/TelegramChatbotController.cs`, `Backend/src/ConsertaPraMim.API/Contracts/TelegramChatbotContracts.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ApiEndpointDocumentationCatalog.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ComprehensiveSwaggerOperationFilter.cs`, `Backend/src/ConsertaPraMim.API/Swagger/ApiTagDescriptionsDocumentFilter.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-004-fundacao-api-chatbot-telegram-persistencia.md`
+- Risco/Impacto: medio
+
+- [2026-03-03] [ST-004] Servico de aplicacao e repositorio para trilha conversacional do chatbot Telegram
+- Tipo: feat
+- Resumo: implementado repositorio dedicado do chatbot e servico de aplicacao para abrir/retomar conversa, registrar mensagens de entrada/saida, snapshots de contexto, action logs e atualizar estado conversacional com normalizacao UTC e validacoes de payload/token.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Domain/Repositories/IChatbotConversationRepository.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Repositories/ChatbotConversationRepository.cs`, `Backend/src/ConsertaPraMim.Application/DTOs/TelegramChatbotDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Interfaces/ITelegramChatbotConversationService.cs`, `Backend/src/ConsertaPraMim.Application/Services/TelegramChatbotConversationService.cs`, `Backend/src/ConsertaPraMim.Application/DependencyInjection.cs`, `Backend/src/ConsertaPraMim.Infrastructure/DependencyInjection.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-004-fundacao-api-chatbot-telegram-persistencia.md`
+- Risco/Impacto: medio
+
+- [2026-03-03] [ST-004] Mapeamento EF Core e migration inicial do armazenamento conversacional do chatbot
+- Tipo: feat
+- Resumo: adicionados `DbSet` e configuracoes EF Core para as quatro entidades do chatbot (indices, constraints, relacoes e campos de auditoria), com migration `AddTelegramChatbotConversationFoundation` e snapshot atualizado do contexto.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Infrastructure/Data/ConsertaPraMimDbContext.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Migrations/20260303181725_AddTelegramChatbotConversationFoundation.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Migrations/20260303181725_AddTelegramChatbotConversationFoundation.Designer.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Migrations/ConsertaPraMimDbContextModelSnapshot.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-004-fundacao-api-chatbot-telegram-persistencia.md`
+- Risco/Impacto: medio
+
+- [2026-03-03] [ST-004] Entidades de dominio base para persistencia conversacional do chatbot Telegram
+- Tipo: feat
+- Resumo: adicionadas entidades de dominio `ChatbotConversation`, `ChatbotMessage`, `ChatbotContextSnapshot` e `ChatbotActionLog`, com enums de estado/direcao para estruturar trilha conversacional e auditavel do chatbot.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Domain/Entities/ChatbotConversation.cs`, `Backend/src/ConsertaPraMim.Domain/Entities/ChatbotMessage.cs`, `Backend/src/ConsertaPraMim.Domain/Entities/ChatbotContextSnapshot.cs`, `Backend/src/ConsertaPraMim.Domain/Entities/ChatbotActionLog.cs`, `Backend/src/ConsertaPraMim.Domain/Enums/ChatbotEnums.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-004-fundacao-api-chatbot-telegram-persistencia.md`, `Documentacao/REALTIME_PRESENCA_CHAT/INDEX.md`
+- Risco/Impacto: medio
+
+- [2026-03-03] [ST-003] Sanitizacao de segredo e higiene de artefatos locais no Telegram Bridge
+- Tipo: fix
+- Resumo: removido token real do bot Telegram dos `appsettings` versionados da bridge e adicionadas regras no `.gitignore` do projeto para nao versionar uploads locais e arquivo `*.csproj.user`.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/appsettings.json`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/appsettings.Development.json`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/.gitignore`
+- Risco/Impacto: baixo
+
+- [2026-03-03] [ST-003] Novo projeto .NET 8 para atendimento Telegram com UI estilo WhatsApp
+- Tipo: feat
+- Resumo: criado o projeto `ConsertaPraMim.Web.TelegramBridge` (ASP.NET Core MVC net8.0) com chat em tempo real via SignalR, integracao com Telegram Bot API por polling (`getUpdates`), envio/recebimento de anexos (imagem/video/documento), persistencia local de arquivos em `wwwroot/uploads/telegram-bridge` e painel visual inspirado no WhatsApp para operacao.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/ConsertaPraMim.Web.TelegramBridge.csproj`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Program.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Controllers/ChatApiController.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Hubs/TelegramChatHub.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramBotApiClient.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramAttachmentStorage.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramChatService.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramLongPollingBackgroundService.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Views/Home/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/wwwroot/css/site.css`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/wwwroot/js/chat.js`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/DONE/ST-003-telegram-bridge-web-whatsapp-realtime-anexos.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_TELEGRAM_BRIDGE_ST-003.md`
+- Risco/Impacto: medio
 
 - [2026-02-25] [ST-008] Criacao de usuario Admin no portal com modal Bootstrap e overlay de status
 - Tipo: feat

@@ -1,0 +1,37 @@
+flowchart TD
+    A[Receber visita no ScheduleVisitsAsync] --> B[Chamar CreateAsync do agendamento]
+    B --> C{CreateAsync retornou sucesso?}
+    C -->|Nao| D[Registrar falha por visita e encerrar]
+    C -->|Sim| E[Consultar sync por AppointmentId]
+    E --> F{Registro de sync existe?}
+    F -->|Nao| G[Inserir sync com Pending e Error null]
+    F -->|Sim| H[Atualizar sync existente para Pending e limpar Error]
+    G --> I[Chamar Google CreateEventAsync com IdempotencyKey cpm-apt-appointmentId]
+    H --> I
+    I --> J{Google create com sucesso?}
+    J -->|Sim| K[Atualizar sync para Synced com GoogleEventId]
+    J -->|Nao| L[Atualizar sync para Failed com Error e limpar GoogleEventId residual]
+    K --> M[Retornar visita agendada no lote]
+    L --> M
+
+    N[RespondRescheduleAsync com Accept=true] --> O[Aplicar nova janela no appointment]
+    O --> P[Buscar sync por AppointmentId]
+    P --> Q{GoogleEventId existe?}
+    Q -->|Sim| R[Chamar UpdateEventAsync com nova janela]
+    Q -->|Nao| S[Chamar CreateEventAsync idempotente]
+    R --> T{Update retornou event_not_found?}
+    T -->|Sim| S
+    T -->|Nao| U{Update/create ok?}
+    S --> U
+    U -->|Sim| V[Atualizar sync para Synced]
+    U -->|Nao| W[Atualizar sync para Failed; se create/fallback falhou limpar GoogleEventId]
+
+    X[CancelAsync apos persistir cancelamento local] --> Y[Buscar sync por AppointmentId]
+    Y --> Z{Sync existe?}
+    Z -->|Nao| ZA[Criar sync com Deleted]
+    Z -->|Sim| ZB{GoogleEventId existe?}
+    ZB -->|Nao| ZC[Atualizar sync para Deleted]
+    ZB -->|Sim| ZD[Chamar DeleteEventAsync no Google]
+    ZD --> ZE{Delete ok?}
+    ZE -->|Sim| ZF[Atualizar sync para Deleted]
+    ZE -->|Nao| ZG[Atualizar sync para Failed com Error]

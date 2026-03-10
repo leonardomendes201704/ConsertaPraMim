@@ -1,0 +1,49 @@
+sequenceDiagram
+    participant Cliente as Cliente
+    participant Bridge as Telegram Bridge
+    participant Orch as TelegramChatbotOrchestrator
+    participant Flag as FeatureFlagService
+    participant OpenAI as OpenAI Responses
+    participant ApiClient as TelegramChatbotApiClient
+    participant Obs as ObservabilityService
+    participant Dash as Ops Dashboard
+
+    Cliente->>Bridge: Envia mensagem
+    Bridge->>Obs: RecordInboundMessage()
+    Bridge->>Orch: GenerateAssistantReply()
+
+    Orch->>Flag: Evaluate(chatId)
+    Flag-->>Orch: Allowed/Blocked + reason
+
+    alt Rollout bloqueado
+        Orch->>Obs: RecordIncident(feature_flag)
+        Orch-->>Bridge: fallback catalogado (handoff humano)
+    else Rollout liberado
+        Orch->>ApiClient: OpenOrResumeSession()
+        Orch->>ApiClient: GetConversationHistory()
+        Orch->>OpenAI: GenerateReply(prompt + guardrails)
+        OpenAI-->>Orch: resposta ou erro
+        Orch->>Obs: RecordDependency(openai.responses)
+
+        alt OpenAI erro
+            Orch->>Obs: RecordIncident(openai_gateway)
+            Orch-->>Bridge: fallback catalogado por errorCode
+        else OpenAI sucesso
+            Orch->>Orch: Apply triage/query/scheduling
+            Orch->>Orch: Apply guardrail policy runtime
+            alt Guardrail acionado
+                Orch->>ApiClient: RegisterContextSnapshot(guardrail_intervention)
+                Orch->>ApiClient: RegisterAction(guardrail_intervention)
+            end
+            Orch->>ApiClient: PersistOrchestrationTrail()
+            Orch->>Obs: RecordAiOutcome() + business/dependency metrics
+            Orch-->>Bridge: resposta final
+        end
+    end
+
+    Bridge->>Obs: RecordOutboundMessage()
+    Bridge-->>Cliente: Mensagem do assistente
+
+    Dash->>Bridge: GET /api/chatbot-observability/dashboard
+    Bridge->>Obs: GetSnapshot()
+    Obs-->>Dash: trafego, IA, negocio, dependencias, erros, incidentes

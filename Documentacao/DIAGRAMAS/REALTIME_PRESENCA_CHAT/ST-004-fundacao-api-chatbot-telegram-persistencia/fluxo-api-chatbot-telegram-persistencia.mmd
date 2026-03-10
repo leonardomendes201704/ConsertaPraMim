@@ -1,0 +1,27 @@
+flowchart TD
+    A[Cliente autentica no Telegram Bridge] --> B[POST /api/telegram-chatbot/session]
+    B --> C[TelegramChatbotController valida claim ClientId]
+    C --> D[TelegramChatbotConversationService abre ou retoma conversa]
+    D --> E[(ChatbotConversations)]
+
+    F[Cliente envia mensagem natural] --> G[POST /api/telegram-chatbot/messages]
+    G --> H[Service normaliza timestamps para UTC]
+    H --> I[(ChatbotMessages)]
+    H --> J[Atualiza LastInteractionAtUtc e LastIntent na conversa]
+    J --> E
+
+    K[Orquestrador IA atualiza contexto] --> L[POST /api/telegram-chatbot/context-snapshots]
+    L --> M[Service registra snapshot de prompt contexto e tokens]
+    M --> N[(ChatbotContextSnapshots)]
+    M --> E
+
+    O[Bot executa acao de negocio] --> P[POST /api/telegram-chatbot/actions]
+    P --> Q[Service registra action log com status e correlacao]
+    Q --> R[(ChatbotActionLogs)]
+    Q --> E
+
+    S[Cliente consulta historico] --> T[GET /api/telegram-chatbot/conversations/{conversationId}/history]
+    T --> U[Service valida ownership por ClientId]
+    U --> V[Retorna mensagens snapshots e acoes em UTC]
+
+    W[ClientId diferente do dono da conversa] --> X[Controller retorna 404]

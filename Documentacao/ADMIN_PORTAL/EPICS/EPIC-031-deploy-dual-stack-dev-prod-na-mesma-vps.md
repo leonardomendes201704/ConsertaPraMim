@@ -30,3 +30,4 @@ Permitir que a branch `dev-local` publique um ambiente DEV isolado por `IP:porta
 ## Historias relacionadas
 
 - ST-072 - Pipeline branch-aware para deploy DEV/PROD na mesma VPS
+- ST-073 - Otimizacao do pipeline de APK com segregacao HML/PRD no fileserver

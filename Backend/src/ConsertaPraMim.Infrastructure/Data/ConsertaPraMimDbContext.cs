@@ -39,6 +39,7 @@ public class ConsertaPraMimDbContext : DbContext
     public DbSet<ProviderAvailabilityRule> ProviderAvailabilityRules { get; set; }
     public DbSet<ProviderAvailabilityException> ProviderAvailabilityExceptions { get; set; }
     public DbSet<ServiceAppointment> ServiceAppointments { get; set; }
+    public DbSet<ServiceAppointmentCalendarSync> ServiceAppointmentCalendarSyncs { get; set; }
     public DbSet<ServiceAppointmentNoShowRiskPolicy> ServiceAppointmentNoShowRiskPolicies { get; set; }
     public DbSet<ServiceAppointmentNoShowQueueItem> ServiceAppointmentNoShowQueueItems { get; set; }
     public DbSet<NoShowAlertThresholdConfiguration> NoShowAlertThresholdConfigurations { get; set; }
@@ -62,6 +63,10 @@ public class ConsertaPraMimDbContext : DbContext
     public DbSet<MobilePushDevice> MobilePushDevices { get; set; }
     public DbSet<ChatMessage> ChatMessages { get; set; }
     public DbSet<ChatAttachment> ChatAttachments { get; set; }
+    public DbSet<ChatbotConversation> ChatbotConversations { get; set; }
+    public DbSet<ChatbotMessage> ChatbotMessages { get; set; }
+    public DbSet<ChatbotContextSnapshot> ChatbotContextSnapshots { get; set; }
+    public DbSet<ChatbotActionLog> ChatbotActionLogs { get; set; }
     public DbSet<AdminAuditLog> AdminAuditLogs { get; set; }
     public DbSet<SystemSetting> SystemSettings { get; set; }
     public DbSet<ApiRequestLog> ApiRequestLogs { get; set; }
@@ -1132,6 +1137,54 @@ public class ConsertaPraMimDbContext : DbContext
                 t.HasCheckConstraint("CK_ServiceAppointments_NoShowRiskScore_Range", "[NoShowRiskScore] IS NULL OR ([NoShowRiskScore] BETWEEN 0 AND 100)");
             });
 
+        modelBuilder.Entity<ServiceAppointmentCalendarSync>()
+            .HasOne(x => x.Appointment)
+            .WithOne(a => a.CalendarSync)
+            .HasForeignKey<ServiceAppointmentCalendarSync>(x => x.AppointmentId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ServiceAppointmentCalendarSync>()
+            .Property(x => x.GoogleEventId)
+            .HasMaxLength(200);
+
+        modelBuilder.Entity<ServiceAppointmentCalendarSync>()
+            .Property(x => x.Error)
+            .HasMaxLength(1200);
+
+        modelBuilder.Entity<ServiceAppointmentCalendarSync>()
+            .Property(x => x.LastErrorCode)
+            .HasMaxLength(160);
+
+        modelBuilder.Entity<ServiceAppointmentCalendarSync>()
+            .Property(x => x.LastLatencyMs)
+            .HasPrecision(10, 2);
+
+        modelBuilder.Entity<ServiceAppointmentCalendarSync>()
+            .HasIndex(x => x.AppointmentId)
+            .IsUnique();
+
+        modelBuilder.Entity<ServiceAppointmentCalendarSync>()
+            .HasIndex(x => x.GoogleEventId)
+            .IsUnique()
+            .HasFilter("[GoogleEventId] IS NOT NULL");
+
+        modelBuilder.Entity<ServiceAppointmentCalendarSync>()
+            .HasIndex(x => new { x.SyncStatus, x.LastSyncAtUtc });
+
+        modelBuilder.Entity<ServiceAppointmentCalendarSync>()
+            .HasIndex(x => new { x.SyncStatus, x.NextRetryAtUtc });
+
+        modelBuilder.Entity<ServiceAppointmentCalendarSync>()
+            .ToTable(t =>
+            {
+                t.HasCheckConstraint(
+                    "CK_ServiceAppointmentCalendarSyncs_SyncStatus_Valid",
+                    "[SyncStatus] IN (1,2,3,4,5)");
+                t.HasCheckConstraint(
+                    "CK_ServiceAppointmentCalendarSyncs_Retry_NonNegative",
+                    "[RetryCount] >= 0 AND [MaxRetryAttempts] > 0");
+            });
+
         modelBuilder.Entity<ServiceScopeChangeRequest>()
             .HasOne(s => s.ServiceRequest)
             .WithMany(r => r.ScopeChangeRequests)
@@ -1875,6 +1928,200 @@ public class ConsertaPraMimDbContext : DbContext
         modelBuilder.Entity<ChatAttachment>()
             .Property(a => a.MediaKind)
             .HasMaxLength(20);
+
+        modelBuilder.Entity<ChatbotConversation>()
+            .HasOne(c => c.Client)
+            .WithMany()
+            .HasForeignKey(c => c.ClientId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ChatbotConversation>()
+            .Property(c => c.Channel)
+            .HasMaxLength(32);
+
+        modelBuilder.Entity<ChatbotConversation>()
+            .Property(c => c.ChannelConversationId)
+            .HasMaxLength(128);
+
+        modelBuilder.Entity<ChatbotConversation>()
+            .Property(c => c.LastIntent)
+            .HasMaxLength(120);
+
+        modelBuilder.Entity<ChatbotConversation>()
+            .Property(c => c.LastStep)
+            .HasMaxLength(120);
+
+        modelBuilder.Entity<ChatbotConversation>()
+            .Property(c => c.MetadataJson)
+            .HasMaxLength(4000);
+
+        modelBuilder.Entity<ChatbotConversation>()
+            .HasIndex(c => new { c.ClientId, c.Channel, c.ChannelConversationId })
+            .IsUnique();
+
+        modelBuilder.Entity<ChatbotConversation>()
+            .HasIndex(c => new { c.ClientId, c.Status, c.LastInteractionAtUtc });
+
+        modelBuilder.Entity<ChatbotConversation>()
+            .ToTable(t =>
+            {
+                t.HasCheckConstraint(
+                    "CK_ChatbotConversations_Status_Valid",
+                    "[Status] IN (1,2)");
+            });
+
+        modelBuilder.Entity<ChatbotMessage>()
+            .HasOne(m => m.Conversation)
+            .WithMany(c => c.Messages)
+            .HasForeignKey(m => m.ConversationId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ChatbotMessage>()
+            .HasOne(m => m.Client)
+            .WithMany()
+            .HasForeignKey(m => m.ClientId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ChatbotMessage>()
+            .Property(m => m.Source)
+            .HasMaxLength(32);
+
+        modelBuilder.Entity<ChatbotMessage>()
+            .Property(m => m.ChannelMessageId)
+            .HasMaxLength(128);
+
+        modelBuilder.Entity<ChatbotMessage>()
+            .Property(m => m.Content)
+            .HasMaxLength(8000);
+
+        modelBuilder.Entity<ChatbotMessage>()
+            .Property(m => m.IntentName)
+            .HasMaxLength(120);
+
+        modelBuilder.Entity<ChatbotMessage>()
+            .Property(m => m.ModelName)
+            .HasMaxLength(120);
+
+        modelBuilder.Entity<ChatbotMessage>()
+            .Property(m => m.MetadataJson)
+            .HasMaxLength(4000);
+
+        modelBuilder.Entity<ChatbotMessage>()
+            .HasIndex(m => new { m.ConversationId, m.SentAtUtc });
+
+        modelBuilder.Entity<ChatbotMessage>()
+            .HasIndex(m => new { m.ClientId, m.SentAtUtc });
+
+        modelBuilder.Entity<ChatbotMessage>()
+            .ToTable(t =>
+            {
+                t.HasCheckConstraint(
+                    "CK_ChatbotMessages_Direction_Valid",
+                    "[Direction] IN (1,2,3)");
+                t.HasCheckConstraint(
+                    "CK_ChatbotMessages_Tokens_NonNegative",
+                    "([PromptTokens] IS NULL OR [PromptTokens] >= 0) AND ([CompletionTokens] IS NULL OR [CompletionTokens] >= 0) AND ([TotalTokens] IS NULL OR [TotalTokens] >= 0)");
+            });
+
+        modelBuilder.Entity<ChatbotContextSnapshot>()
+            .HasOne(s => s.Conversation)
+            .WithMany(c => c.ContextSnapshots)
+            .HasForeignKey(s => s.ConversationId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ChatbotContextSnapshot>()
+            .HasOne(s => s.Client)
+            .WithMany()
+            .HasForeignKey(s => s.ClientId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ChatbotContextSnapshot>()
+            .Property(s => s.SnapshotType)
+            .HasMaxLength(80);
+
+        modelBuilder.Entity<ChatbotContextSnapshot>()
+            .Property(s => s.ContextJson)
+            .HasMaxLength(16000);
+
+        modelBuilder.Entity<ChatbotContextSnapshot>()
+            .Property(s => s.PromptVersion)
+            .HasMaxLength(60);
+
+        modelBuilder.Entity<ChatbotContextSnapshot>()
+            .Property(s => s.ModelName)
+            .HasMaxLength(120);
+
+        modelBuilder.Entity<ChatbotContextSnapshot>()
+            .HasIndex(s => new { s.ConversationId, s.CapturedAtUtc });
+
+        modelBuilder.Entity<ChatbotContextSnapshot>()
+            .HasIndex(s => new { s.ClientId, s.CapturedAtUtc });
+
+        modelBuilder.Entity<ChatbotContextSnapshot>()
+            .ToTable(t =>
+            {
+                t.HasCheckConstraint(
+                    "CK_ChatbotContextSnapshots_Tokens_NonNegative",
+                    "([PromptTokens] IS NULL OR [PromptTokens] >= 0) AND ([CompletionTokens] IS NULL OR [CompletionTokens] >= 0) AND ([TotalTokens] IS NULL OR [TotalTokens] >= 0)");
+            });
+
+        modelBuilder.Entity<ChatbotActionLog>()
+            .HasOne(a => a.Conversation)
+            .WithMany(c => c.ActionLogs)
+            .HasForeignKey(a => a.ConversationId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<ChatbotActionLog>()
+            .HasOne(a => a.Client)
+            .WithMany()
+            .HasForeignKey(a => a.ClientId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<ChatbotActionLog>()
+            .Property(a => a.ActionType)
+            .HasMaxLength(80);
+
+        modelBuilder.Entity<ChatbotActionLog>()
+            .Property(a => a.IntentName)
+            .HasMaxLength(120);
+
+        modelBuilder.Entity<ChatbotActionLog>()
+            .Property(a => a.PayloadJson)
+            .HasMaxLength(16000);
+
+        modelBuilder.Entity<ChatbotActionLog>()
+            .Property(a => a.ResultJson)
+            .HasMaxLength(16000);
+
+        modelBuilder.Entity<ChatbotActionLog>()
+            .Property(a => a.ErrorCode)
+            .HasMaxLength(80);
+
+        modelBuilder.Entity<ChatbotActionLog>()
+            .Property(a => a.ErrorMessage)
+            .HasMaxLength(1200);
+
+        modelBuilder.Entity<ChatbotActionLog>()
+            .Property(a => a.CorrelationId)
+            .HasMaxLength(80);
+
+        modelBuilder.Entity<ChatbotActionLog>()
+            .Property(a => a.MetadataJson)
+            .HasMaxLength(4000);
+
+        modelBuilder.Entity<ChatbotActionLog>()
+            .HasIndex(a => new { a.ConversationId, a.OccurredAtUtc });
+
+        modelBuilder.Entity<ChatbotActionLog>()
+            .HasIndex(a => new { a.ClientId, a.OccurredAtUtc });
+
+        modelBuilder.Entity<ChatbotActionLog>()
+            .ToTable(t =>
+            {
+                t.HasCheckConstraint(
+                    "CK_ChatbotActionLogs_Status_Valid",
+                    "[Status] IN (1,2,3)");
+            });
 
         modelBuilder.Entity<AdminAuditLog>()
             .Property(a => a.ActorEmail)

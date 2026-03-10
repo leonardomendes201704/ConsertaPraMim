@@ -182,6 +182,22 @@ public static class ApiEndpointDocumentationCatalog
                 ExpectedOutcome: "Dashboard retorna KPIs de qualidade pos-servico (`operationalNpsScore`, `operationalQualityScore`), recompra (`repurchaseRatePercent`) e analytics da landing no mesmo payload executivo.");
         }
 
+        if (path.Contains("/api/admin/google-calendar-sync/overview", StringComparison.Ordinal) && httpMethod == "GET")
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Dar visibilidade operacional da integracao de agenda com Google Calendar para gestao de risco e continuidade.",
+                Scenario: "Time admin acompanha fila de retries, dead-letter, latencia e volume por status para decidir reprocessamento ou acao corretiva.",
+                ExpectedOutcome: "Resumo consolidado de sincronizacao com contagens acionaveis para observabilidade e governanca da agenda externa.");
+        }
+
+        if (path.Contains("/api/admin/google-calendar-sync/reprocess", StringComparison.Ordinal) && httpMethod == "POST")
+        {
+            return new OperationNarrativeContext(
+                BusinessObjective: "Recuperar sincronizacoes quebradas do Google Calendar sem depender de deploy ou ajuste manual em banco.",
+                Scenario: "Operacao filtra por `appointmentId` ou intervalo e executa reprocessamento controlado de itens pendentes/falhos/dead-letter.",
+                ExpectedOutcome: "Retorno item a item com sucesso/falha e proxima acao, permitindo fechamento de incidentes com rastreabilidade.");
+        }
+
         if (path.Contains("/api/admin/no-show-dashboard/kpis/", StringComparison.Ordinal) &&
             httpMethod == "GET")
         {
@@ -395,6 +411,106 @@ public static class ApiEndpointDocumentationCatalog
                 BusinessObjective: "Agendar atendimento com base na proposta aceita e slot disponivel.",
                 Scenario: "Cliente confirma data/horario para execucao do servico contratado.",
                 ExpectedOutcome: "Atendimento agendado com status sincronizado em pedido, proposta e agenda.");
+        }
+
+        if (path.Contains("/api/telegram-chatbot", StringComparison.Ordinal))
+        {
+            if (httpMethod == "POST" && path.Contains("/session", StringComparison.Ordinal))
+            {
+                return new OperationNarrativeContext(
+                    BusinessObjective: "Abrir ou retomar a sessao conversacional do cliente no canal Telegram com vinculo auditavel.",
+                    Scenario: "Fluxo inicial apos autenticacao do cliente para garantir que a conversa natural com IA use contexto correto por `ClientId`.",
+                    ExpectedOutcome: "Conversa ativa e pronta para registrar mensagens, contexto da IA e eventos de negocio.");
+            }
+
+            if (httpMethod == "GET" &&
+                path.Contains("/api/telegram-chatbot/service-requests", StringComparison.Ordinal) &&
+                !path.Contains("/eligible-providers", StringComparison.Ordinal) &&
+                !path.Contains("/details", StringComparison.Ordinal) &&
+                !path.Contains("/status", StringComparison.Ordinal))
+            {
+                return new OperationNarrativeContext(
+                    BusinessObjective: "Listar pedidos do cliente autenticado para acompanhamento em linguagem natural no chatbot.",
+                    Scenario: "Cliente pergunta 'quais pedidos eu tenho?' e o bot consulta carteira paginada sem expor dados de terceiros.",
+                    ExpectedOutcome: "Lista objetiva de pedidos com protocolo, status, sinais de proposta e proxima visita para continuidade da conversa.");
+            }
+
+            if (httpMethod == "GET" && path.Contains("/details", StringComparison.Ordinal))
+            {
+                return new OperationNarrativeContext(
+                    BusinessObjective: "Trazer detalhe consolidado de um pedido especifico para respostas contextuais do chatbot.",
+                    Scenario: "Cliente pede aprofundamento de um protocolo citado na conversa ('me mostra detalhes desse pedido').",
+                    ExpectedOutcome: "Retorno de status, propostas e visitas do pedido, respeitando ownership por `ClientId`.");
+            }
+
+            if (httpMethod == "GET" && path.Contains("/status", StringComparison.Ordinal))
+            {
+                return new OperationNarrativeContext(
+                    BusinessObjective: "Consultar status sintetico de um pedido especifico para resposta rapida no chatbot.",
+                    Scenario: "Cliente pergunta 'como esta meu pedido?' e o bot precisa retornar estado atual com proximos passos.",
+                    ExpectedOutcome: "Resumo de status do pedido com contagem de propostas/agendamentos e proxima visita quando existir.");
+            }
+
+            if (httpMethod == "GET" && path.Contains("/api/telegram-chatbot/appointments", StringComparison.Ordinal))
+            {
+                return new OperationNarrativeContext(
+                    BusinessObjective: "Listar agenda do cliente autenticado para consultas naturais de visitas no chatbot.",
+                    Scenario: "Cliente pergunta 'quais agendamentos tenho?' e o bot consulta agenda paginada por janela temporal opcional.",
+                    ExpectedOutcome: "Lista de visitas com protocolo vinculado, prestador e janelas UTC para continuidade da jornada.");
+            }
+
+            if (httpMethod == "GET" && path.Contains("/eligible-providers", StringComparison.Ordinal))
+            {
+                return new OperationNarrativeContext(
+                    BusinessObjective: "Listar prestadores elegiveis para o pedido aberto pelo chatbot conforme cobertura geografica e categoria.",
+                    Scenario: "Apos triagem e abertura do pedido no Telegram, o bot consulta opcoes reais para sugerir agendamento de visitas tecnicas.",
+                    ExpectedOutcome: "Retorno priorizado de prestadores elegiveis com distancia/cobertura para continuidade do fluxo conversacional.");
+            }
+
+            if (httpMethod == "POST" && path.Contains("/schedule-visits-batch", StringComparison.Ordinal))
+            {
+                return new OperationNarrativeContext(
+                    BusinessObjective: "Criar agendamentos em lote (1 a 3 visitas) para o pedido no fluxo conversacional do chatbot.",
+                    Scenario: "Cliente escolhe dias/periodos em linguagem natural e o bot consolida tentativas de agenda com validacao de limite, conflitos e disponibilidade.",
+                    ExpectedOutcome: "Resposta consolidada por visita (sucesso/falha) para permitir confirmacao ou replanejamento no mesmo atendimento.");
+            }
+
+            if (httpMethod == "POST" && path.Contains("/messages", StringComparison.Ordinal))
+            {
+                return new OperationNarrativeContext(
+                    BusinessObjective: "Persistir mensagens inbound/outbound/system da conversa do chatbot Telegram.",
+                    Scenario: "Bridge/orquestrador envia cada interacao do cliente e da IA para manter historico completo da trilha conversacional.",
+                    ExpectedOutcome: "Mensagem registrada em UTC e estado da conversa atualizado para uso em contexto/historico.");
+            }
+
+            if (httpMethod == "GET" && path.Contains("/history", StringComparison.Ordinal))
+            {
+                return new OperationNarrativeContext(
+                    BusinessObjective: "Consultar historico consolidado da conversa para continuidade da jornada em linguagem natural.",
+                    Scenario: "Bridge/orquestrador recupera mensagens, snapshots e acoes para montar contexto antes de nova resposta da IA.",
+                    ExpectedOutcome: "Payload historico consistente e restrito ao cliente autenticado.");
+            }
+
+            if (httpMethod == "POST" && path.Contains("/actions", StringComparison.Ordinal))
+            {
+                return new OperationNarrativeContext(
+                    BusinessObjective: "Registrar eventos de negocio da conversa (triagem, abertura de pedido, matching, agendamento, falhas).",
+                    Scenario: "Cada acao executada pelo bot/IA e registrada para auditoria operacional e suporte.",
+                    ExpectedOutcome: "Evento persistido com status, correlacao e metadados para rastreabilidade ponta a ponta.");
+            }
+
+            if (httpMethod == "POST" && path.Contains("/context-snapshots", StringComparison.Ordinal))
+            {
+                return new OperationNarrativeContext(
+                    BusinessObjective: "Persistir snapshot de contexto da IA para manter continuidade e memoria conversacional.",
+                    Scenario: "Orquestrador salva JSON de estado da conversa apos processamento de intencao/prompt.",
+                    ExpectedOutcome: "Contexto estruturado disponivel para consultas futuras e investigacao de comportamento do bot.");
+            }
+
+            return new OperationNarrativeContext(
+                BusinessObjective: "Operar ciclo conversacional do chatbot Telegram com persistencia e auditabilidade por cliente.",
+                Scenario: "Endpoints dedicados do chatbot para manter sessao, estado e eventos de conversa natural.",
+                ExpectedOutcome: "Conversa consistente por `ClientId`, pronta para suportar triagem automatizada e acompanhamento de pedidos.");
         }
 
         if (path.Contains("/api/chats", StringComparison.Ordinal) || path.Contains("/chat", StringComparison.Ordinal))
@@ -723,6 +839,22 @@ public static class ApiEndpointDocumentationCatalog
 
     private static CatalogEntry ResolveByController(string controller)
     {
+        if (controller.Equals("AdminGoogleCalendarSync", StringComparison.OrdinalIgnoreCase))
+        {
+            return new CatalogEntry(
+                DomainTitle: "Governanca de Integracao Google Calendar",
+                ResourceLabel: "observabilidade e reprocessamento da sincronizacao de agenda",
+                BusinessContext: "Assegura continuidade operacional dos agendamentos externos com fila de retry, dead-letter e recuperacao manual auditavel.",
+                TechnicalContext: "Consumido pelo portal admin para monitorar a esteira de sync e disparar reprocessamento por recorte operacional.",
+                Audience: "Operacao/Admin/SRE/Suporte",
+                Rules:
+                [
+                    "Falhas permanentes devem ir para dead-letter com motivo objetivo.",
+                    "Reprocessamento manual precisa registrar resultado item a item para auditoria.",
+                    "Nao considerar sincronizacao como concluida quando a API Google retornar erro."
+                ]);
+        }
+
         if (controller.StartsWith("Admin", StringComparison.OrdinalIgnoreCase))
         {
             return new CatalogEntry(
@@ -899,6 +1031,18 @@ public static class ApiEndpointDocumentationCatalog
                     "Mensagens devem manter ordem temporal consistente.",
                     "Anexos precisam ser validados e vinculados ao chat correto.",
                     "Leitura/entrega deve considerar status de recibo quando aplicavel."
+                ]),
+            "TelegramChatbot" => new CatalogEntry(
+                DomainTitle: "Chatbot Telegram com IA",
+                ResourceLabel: "sessao, historico e eventos conversacionais do chatbot",
+                BusinessContext: "Sustenta a jornada em linguagem natural do cliente no Telegram para triagem, abertura de pedido e agendamento.",
+                TechnicalContext: "Endpoints autenticados por `Client` que persistem mensagens, contexto da IA e logs de acao na `ConsertaPraMim.API`.",
+                Audience: "Bridge Telegram/App Cliente/Operacao de suporte",
+                Rules:
+                [
+                    "Sempre vincular dados da conversa ao `ClientId` autenticado.",
+                    "Persistir datas em UTC para consistencia de historico e auditoria.",
+                    "Registrar acao/contexto com metadados suficientes para troubleshooting de IA."
                 ]),
             "Notifications" => new CatalogEntry(
                 DomainTitle: "Notificacoes",

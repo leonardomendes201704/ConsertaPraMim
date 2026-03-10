@@ -1,0 +1,22 @@
+flowchart TD
+    A[API inicializa] --> B[Bind de GoogleCalendarSyncOptions]
+    B --> C{Enabled}
+
+    C -->|false| D[Integracao desabilitada]
+    D --> E[Startup segue normalmente]
+
+    C -->|true| F[Validar campos obrigatorios]
+    F --> G{Configuracao valida?}
+    G -->|nao| H[Startup falha com erro de validacao]
+    G -->|sim| I[Registrar IGoogleCalendarService]
+
+    I --> J[Fluxo de negocio solicita create/update/delete]
+    J --> K[Normalizar janela em UTC]
+    K --> L[Converter para timezone de negocio America/Sao_Paulo]
+    L --> M[Montar payload padrao]
+    M --> N[title + description + location + metadata]
+    N --> O[Autenticar com Service Account]
+    O --> P[Chamar Google Calendar API]
+    P --> Q{Sucesso?}
+    Q -->|sim| R[Retornar eventId/htmlLink]
+    Q -->|nao| S[Retornar erro catalogado]

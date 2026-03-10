@@ -1,4 +1,4 @@
-# ST-072 - Deploy branch-aware `dev-local` e `main` na mesma VPS
+﻿# ST-072 - Deploy branch-aware `dev-local` e `main` na mesma VPS
 
 ## Como
 DevOps / engenharia de plataforma
