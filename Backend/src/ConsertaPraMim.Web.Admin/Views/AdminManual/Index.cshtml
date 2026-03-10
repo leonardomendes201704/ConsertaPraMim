@@ -928,7 +928,7 @@
                     <li>Secao `Swagger` em `Configuracoes Runtime` deve permitir ligar/desligar exposicao do `/swagger` em producao com restart assistido da API.</li>
                     <li>Relatorio consolidado de creditos com filtros e paginação retornando dados coerentes.</li>
                     <li>Atalho `Swagger API` abre documentacao OpenAPI em nova aba.</li>
-                    <li>Atalhos `Portal Cliente`, `Portal Prestador` e `Swagger API` no menu lateral devem abrir os dominios publicos HTTPS (`cliente.consertapramim.com`, `prestador.consertapramim.com`, `api.consertapramim.com/swagger`), nunca IP/porta legado da VPS.</li>
+                    <li>Atalhos `Portal Cliente`, `Portal Prestador` e `Swagger API` no menu lateral devem abrir dominios publicos HTTPS corretos por ambiente: producao (`cliente.consertapramim.com`, `prestador.consertapramim.com`, `api.consertapramim.com/swagger`) e homologacao (`hml.cliente.consertapramim.com`, `hml.prestador.consertapramim.com`, `hml.api.consertapramim.com/swagger`), nunca IP/porta legado da VPS nem composicao incorreta do host (ex.: `cliente.admin.*`).</li>
                     <li>Portal admin em HTTPS nao pode bloquear `notificationHub`/SignalR por `Content-Security-Policy`; o `connect-src` deve permitir `https://api.consertapramim.com` e `wss://api.consertapramim.com` quando o acesso ocorrer por `admin.consertapramim.com`.</li>
                     <li>Portal cliente em HTTPS nao pode registrar `Mixed Content` ou bloqueio de SignalR; `notificationHub`, `chatHub` e uploads do chat devem usar `https://api.consertapramim.com`/`wss://api.consertapramim.com`, nunca o IP HTTP legado da VPS.</li>
                     <li>Swagger exibe documentacao completa por endpoint (negocio + tecnico + cURL) sem lacunas de `summary`/`description`.</li>
@@ -1178,6 +1178,11 @@
                     </tr>
                 </thead>
                 <tbody>
+                    <tr>
+                        <td>10/03/2026</td>
+                        <td>ST-076</td>
+                        <td>Correcao de inferencia de subdominios HML no menu lateral do Admin para `Portal Cliente` e `Portal Prestador`, impedindo composicao incorreta de host (`cliente.admin.*`/`prestador.admin.*`) quando o acesso ocorre em `hml.admin.consertapramim.com`.</td>
+                    </tr>
                     <tr>
                         <td>08/03/2026</td>
                         <td>ST-060</td>

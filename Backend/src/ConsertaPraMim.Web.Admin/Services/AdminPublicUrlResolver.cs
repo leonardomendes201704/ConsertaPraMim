@@ -4,6 +4,18 @@ namespace ConsertaPraMim.Web.Admin.Services;
 
 public static class AdminPublicUrlResolver
 {
+    private static readonly HashSet<string> EnvironmentPrefixHosts = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "hml",
+        "hom",
+        "homolog",
+        "dev",
+        "qa",
+        "stg",
+        "stage",
+        "sandbox"
+    };
+
     public static string ResolvePortalUrl(
         string? candidateUrl,
         string? requestHost,
@@ -119,6 +131,26 @@ public static class AdminPublicUrlResolver
         if (IsLocalOrIpHost(trimmedHost))
         {
             return null;
+        }
+
+        var hostParts = trimmedHost
+            .Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (hostParts.Length >= 3 && EnvironmentPrefixHosts.Contains(hostParts[0]))
+        {
+            var rootStartIndex = hostParts.Length >= 4 ? 2 : 1;
+            if (rootStartIndex >= hostParts.Length)
+            {
+                return null;
+            }
+
+            var rootDomainWithEnvironment = string.Join('.', hostParts[rootStartIndex..]).ToLowerInvariant();
+            if (string.IsNullOrWhiteSpace(rootDomainWithEnvironment))
+            {
+                return null;
+            }
+
+            var environmentPrefix = hostParts[0].ToLowerInvariant();
+            return $"https://{environmentPrefix}.{expectedSubdomain.Trim().ToLowerInvariant()}.{rootDomainWithEnvironment}/";
         }
 
         var dotIndex = trimmedHost.IndexOf('.');

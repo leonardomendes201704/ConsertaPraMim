@@ -12,6 +12,12 @@
 
 ## Released
 
+- [2026-03-10] [ST-076][ADMIN-HML-PORTAL-LINKS] Correcao dos links de Portal Cliente/Prestador no menu admin em homologacao
+- Tipo: fix
+- Resumo: o resolvedor de URLs publicas do Admin passou a reconhecer hosts com prefixo de ambiente (`hml`, `dev`, `qa`, `stg`) e montar subdominios irmaos corretamente, eliminando geracao incorreta de links como `cliente.admin.consertapramim.com` e `prestador.admin.consertapramim.com` quando o acesso ocorre por `hml.admin.consertapramim.com`.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Services/AdminPublicUrlResolver.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminPublicUrlResolverTests.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: baixo
+
 - [2026-03-10] [ST-075][ADMIN-APPLICATIONS-APK-CHANNEL] Links de APK da tela Aplicativos agora respeitam canal HML/PRD
 - Tipo: fix
 - Resumo: a tela `AdminApplications` passou a normalizar automaticamente a base de download para o diretorio do ambiente ativo (`/files/apks/hml` em `DEPLOY_PROFILE=development` e `/files/apks/prd` em `DEPLOY_PROFILE=production`), corrigindo o apontamento legado para `/files/apks` sem sufixo; tambem foram adicionados testes de regressao para os dois perfis.
