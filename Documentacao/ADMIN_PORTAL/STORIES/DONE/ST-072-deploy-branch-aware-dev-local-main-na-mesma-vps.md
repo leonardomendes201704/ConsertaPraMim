@@ -37,3 +37,4 @@ validar funcionalidades em ambiente paralelo sem interromper producao e sem risc
 - [x] evitar crash da API em `dev-local` por `PendingModelChangesWarning`, mantendo o comportamento estrito em `production`.
 - [x] injetar `DEPLOY_PROFILE` no container da API para aplicar a regra de warning somente no stack `development`.
 - [x] padronizar nomes de projetos/containers por ambiente para `cpm-prd-*` (producao) e `cpm-hml-*` (homologacao), incluindo apps mobile em `app-*`.
+- [x] corrigir permissao de upload de APK no fileserver executando etapa de ownership/permissoes com `docker exec --user 0`, sem fallback silencioso.

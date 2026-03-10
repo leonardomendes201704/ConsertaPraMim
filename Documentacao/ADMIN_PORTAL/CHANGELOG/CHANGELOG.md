@@ -12,6 +12,12 @@
 
 ## Released
 
+- [2026-03-10] [ST-072][OPS-VPS-APK-UPLOAD-PERMISSION-ROOT] Publicacao de APK sem falha por permissao no filebrowser
+- Tipo: fix
+- Resumo: os steps `Publish APK fileserver` (client/provider/admin) passaram a executar `docker exec` com `--user 0` para criacao de diretorios e ajuste de ownership/permissoes em `/srv/apks`, eliminando falha por `Operation not permitted` no `chown` sem uso de fallback silencioso; a etapa permanece estrita e deve falhar apenas em erro real de filesystem/permissao.
+- Arquivos principais: `.github/workflows/deploy-vps.yml`, `Backend/DEPLOY_VPS.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-072-deploy-branch-aware-dev-local-main-na-mesma-vps.md`
+- Risco/Impacto: medio
+
 - [2026-03-10] [ST-072][OPS-VPS-CONTAINER-NAMING-PRD-HML] Padronizacao dos nomes Docker para producao e homologacao
 - Tipo: fix
 - Resumo: o deploy VPS passou a adotar nomes operacionais padronizados por ambiente para projetos e containers Docker, com `cpm-prd-*` em `main/master` e `cpm-hml-*` em `dev-local`; os sufixos agora refletem o dominio de negocio (`admin`, `cliente`, `prestador`, `landing`, `app-*`) e o script de deploy passou a mapear explicitamente o nome de projeto compose por servico para manter isolamento sem nomes tecnicos legados.

@@ -1777,7 +1777,7 @@ jobs:
           container_apk_dir="/srv/apks"
           container_debug_dir="/srv/apks/debug"
 
-          docker exec filebrowser sh -lc "mkdir -p '$container_apk_dir' '$container_debug_dir'"
+          docker exec --user 0 filebrowser sh -lc "mkdir -p '$container_apk_dir' '$container_debug_dir'"
 
           client_metadata_path="apk-upload/client/apk-publication-client.json"
           cat > "$client_metadata_path" <<EOF
@@ -1799,7 +1799,7 @@ jobs:
             fi
           done < <(find "apk-upload/client" -maxdepth 1 -type f -print0)
 
-          docker exec filebrowser sh -lc 'set -e; uid="$(id -u user 2>/dev/null || echo 0)"; gid="$(id -g user 2>/dev/null || echo 0)"; chown -R "$uid:$gid" /srv/apks; find /srv/apks -type d -exec chmod 775 {} \;; find /srv/apks -type f -exec chmod 664 {} \;;'
+          docker exec --user 0 filebrowser sh -lc 'set -e; uid="$(id -u user 2>/dev/null || echo 0)"; gid="$(id -g user 2>/dev/null || echo 0)"; chown -R "$uid:$gid" /srv/apks; find /srv/apks -type d -exec chmod 775 {} \;; find /srv/apks -type f -exec chmod 664 {} \;;'
 
       - name: Publish APK metadata (client)
         shell: bash
@@ -1977,7 +1977,7 @@ jobs:
           container_apk_dir="/srv/apks"
           container_debug_dir="/srv/apks/debug"
 
-          docker exec filebrowser sh -lc "mkdir -p '$container_apk_dir' '$container_debug_dir'"
+          docker exec --user 0 filebrowser sh -lc "mkdir -p '$container_apk_dir' '$container_debug_dir'"
 
           provider_metadata_path="apk-upload/provider/apk-publication-provider.json"
           cat > "$provider_metadata_path" <<EOF
@@ -1999,7 +1999,7 @@ jobs:
             fi
           done < <(find "apk-upload/provider" -maxdepth 1 -type f -print0)
 
-          docker exec filebrowser sh -lc 'set -e; uid="$(id -u user 2>/dev/null || echo 0)"; gid="$(id -g user 2>/dev/null || echo 0)"; chown -R "$uid:$gid" /srv/apks; find /srv/apks -type d -exec chmod 775 {} \;; find /srv/apks -type f -exec chmod 664 {} \;;'
+          docker exec --user 0 filebrowser sh -lc 'set -e; uid="$(id -u user 2>/dev/null || echo 0)"; gid="$(id -g user 2>/dev/null || echo 0)"; chown -R "$uid:$gid" /srv/apks; find /srv/apks -type d -exec chmod 775 {} \;; find /srv/apks -type f -exec chmod 664 {} \;;'
 
       - name: Publish APK metadata (provider)
         shell: bash
@@ -2256,7 +2256,7 @@ jobs:
           container_apk_dir="/srv/apks"
           container_debug_dir="/srv/apks/debug"
 
-          docker exec filebrowser sh -lc "mkdir -p '$container_apk_dir' '$container_debug_dir'"
+          docker exec --user 0 filebrowser sh -lc "mkdir -p '$container_apk_dir' '$container_debug_dir'"
 
           admin_metadata_path="apk-upload/admin/apk-publication-admin.json"
           cat > "$admin_metadata_path" <<EOF
@@ -2278,7 +2278,7 @@ jobs:
             fi
           done < <(find "apk-upload/admin" -maxdepth 1 -type f -print0)
 
-          docker exec filebrowser sh -lc 'set -e; uid="$(id -u user 2>/dev/null || echo 0)"; gid="$(id -g user 2>/dev/null || echo 0)"; chown -R "$uid:$gid" /srv/apks; find /srv/apks -type d -exec chmod 775 {} \;; find /srv/apks -type f -exec chmod 664 {} \;;'
+          docker exec --user 0 filebrowser sh -lc 'set -e; uid="$(id -u user 2>/dev/null || echo 0)"; gid="$(id -g user 2>/dev/null || echo 0)"; chown -R "$uid:$gid" /srv/apks; find /srv/apks -type d -exec chmod 775 {} \;; find /srv/apks -type f -exec chmod 664 {} \;;'
 
       - name: Publish APK metadata (admin)
         shell: bash
