@@ -429,6 +429,7 @@ Observacoes sobre metadados de APK e push de resumo:
 - os APKs agora sao segregados por ambiente no fileserver:
   - `dev-local` publica em `/srv/apks/hml` (`/files/apks/hml/...`);
   - `main/master` publica em `/srv/apks/prd` (`/files/apks/prd/...`).
+- a view `AdminApplications` do portal admin resolve automaticamente os links para o canal do ambiente ativo (`hml` ou `prd`) usando `DEPLOY_PROFILE`, mesmo quando `Fileserver:ApkBaseUrl` estiver legado sem sufixo de ambiente.
 - os builds de APK (`client`, `provider`, `admin`) executam em paralelo apos os healthchecks de deploy e usam cache Gradle no GitHub Actions para reduzir tempo total de pipeline.
 
 ## 9) Operacao por projeto

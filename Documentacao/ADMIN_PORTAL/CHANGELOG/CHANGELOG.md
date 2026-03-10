@@ -12,6 +12,12 @@
 
 ## Released
 
+- [2026-03-10] [ST-075][ADMIN-APPLICATIONS-APK-CHANNEL] Links de APK da tela Aplicativos agora respeitam canal HML/PRD
+- Tipo: fix
+- Resumo: a tela `AdminApplications` passou a normalizar automaticamente a base de download para o diretorio do ambiente ativo (`/files/apks/hml` em `DEPLOY_PROFILE=development` e `/files/apks/prd` em `DEPLOY_PROFILE=production`), corrigindo o apontamento legado para `/files/apks` sem sufixo; tambem foram adicionados testes de regressao para os dois perfis.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminApplicationsController.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Controllers/AdminApplicationsControllerTests.cs`, `Backend/DEPLOY_VPS.md`, `Documentacao/ADMIN_PORTAL/EPICS/EPIC-031-deploy-dual-stack-dev-prod-na-mesma-vps.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-075-admin-applications-apk-por-ambiente-hml-prd.md`
+- Risco/Impacto: baixo
+
 - [2026-03-10] [ST-074][WEB-HML-FOOTER-BANNER] Rodape fixo de ambiente em homologacao nos portais web
 - Tipo: feat
 - Resumo: os projetos `Web.Admin`, `Web.Client`, `Web.Provider` e `Web.Landing` passaram a renderizar um rodape fixo de aviso de homologacao somente quando `DEPLOY_PROFILE=development`; o deploy VPS tambem passou a injetar `DEPLOY_PROFILE` nos servicos web para garantir comportamento consistente entre HML e PRD.
