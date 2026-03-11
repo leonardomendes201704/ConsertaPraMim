@@ -31,6 +31,7 @@ builder.Services.AddScoped<IAdminPortalLinksService, AdminPortalLinksService>();
 builder.Services.AddScoped<IAdminWikiService, AdminWikiService>();
 builder.Services.AddScoped<IAdminChangeLogsService, AdminChangeLogsService>();
 builder.Services.AddScoped<IAdminDiagramsService, AdminDiagramsService>();
+builder.Services.AddScoped<IAdminDatabaseSchemaService, AdminDatabaseSchemaService>();
 builder.Services.AddScoped<IAdminRoadmapService, AdminRoadmapService>();
 var configuredBrowserApiBaseUrl = builder.Configuration["BrowserApiBaseUrl"] ?? builder.Configuration["ApiBaseUrl"];
 

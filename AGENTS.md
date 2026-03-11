@@ -1,8 +1,21 @@
-﻿# AGENTS.md
+# AGENTS.md
 
 ## Escopo
 
 Estas diretrizes valem para todo o repositorio `ConsertaPraMimWeb`.
+
+## Diretriz obrigatoria de mapeamento fixo de projetos (Portal/API)
+
+1. Toda solicitacao que citar `Portal Admin` deve ser direcionada diretamente para `Backend/src/ConsertaPraMim.Web.Admin`.
+2. Toda solicitacao que citar `Portal do Cliente` deve ser direcionada diretamente para `Backend/src/ConsertaPraMim.Web.Client`.
+3. Toda solicitacao que citar `Portal do Prestador` deve ser direcionada diretamente para `Backend/src/ConsertaPraMim.Web.Provider`.
+4. Toda solicitacao que citar `API` (ou `Api`) deve ser direcionada diretamente para `Backend/src/ConsertaPraMim.API`.
+5. Para os quatro casos acima, o agente nao deve iniciar com busca ampla no repositorio; o ponto de partida obrigatorio e o caminho mapeado.
+6. Quando a demanda mencionar explicitamente `app mobile`:
+   - Admin: `conserta-pra-mim-admin app`
+   - Cliente: `conserta-pra-mim app`
+   - Prestador: `conserta-pra-mim-provider app`
+7. Se houver ambiguidade entre `portal web` e `app mobile`, a confirmacao com o solicitante deve ocorrer antes de qualquer alteracao.
 
 ## Diretriz obrigatoria de changelog
 
