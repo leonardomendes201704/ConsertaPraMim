@@ -160,6 +160,37 @@ public sealed class ChatwootApiClient : IChatwootApiClient
         return MapContactInbox(response);
     }
 
+    public async Task<IReadOnlyList<string>> ListContactLabelsAsync(long contactId, CancellationToken cancellationToken = default)
+    {
+        var response = await SendAsync<ChatwootContactLabelsResponse>(
+            HttpMethod.Get,
+            $"api/v1/accounts/{_options.AccountId}/contacts/{contactId}/labels",
+            body: null,
+            cancellationToken);
+
+        return response.Payload
+            .Where(label => !string.IsNullOrWhiteSpace(label))
+            .Select(label => label.Trim())
+            .ToList();
+    }
+
+    public async Task<IReadOnlyList<string>> ReplaceContactLabelsAsync(long contactId, IReadOnlyList<string> labels, CancellationToken cancellationToken = default)
+    {
+        var response = await SendAsync<ChatwootContactLabelsResponse>(
+            HttpMethod.Post,
+            $"api/v1/accounts/{_options.AccountId}/contacts/{contactId}/labels",
+            new
+            {
+                labels
+            },
+            cancellationToken);
+
+        return response.Payload
+            .Where(label => !string.IsNullOrWhiteSpace(label))
+            .Select(label => label.Trim())
+            .ToList();
+    }
+
     public async Task<ChatwootConversationSummary> CreateConversationAsync(ChatwootCreateConversationRequest request, CancellationToken cancellationToken = default)
     {
         var response = await SendAsync<ChatwootConversationResponse>(
@@ -444,6 +475,11 @@ public sealed class ChatwootApiClient : IChatwootApiClient
     }
 
     private sealed class ChatwootConversationLabelsResponse
+    {
+        public List<string> Payload { get; init; } = [];
+    }
+
+    private sealed class ChatwootContactLabelsResponse
     {
         public List<string> Payload { get; init; } = [];
     }

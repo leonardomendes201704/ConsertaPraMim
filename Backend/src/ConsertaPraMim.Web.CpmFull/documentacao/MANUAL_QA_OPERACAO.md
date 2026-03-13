@@ -119,9 +119,12 @@ Preencher a secao `Chatwoot` via `appsettings.Local.json` ou variaveis de ambien
 - Leads do funil `clientes` devem usar `ClientsInboxId`; leads do funil `prestadores` devem usar `ProvidersInboxId`.
 - O fluxo deve procurar contato existente por `identifier`, e-mail e telefone antes de criar novo contato.
 - Quando o contato existir sem vinculo ao inbox do funil atual, o sistema deve criar `contact_inbox` para reutilizar o mesmo contato.
+- O contato sincronizado deve receber `custom_attributes` operacionais do CPM e labels gerenciadas pelo prefixo `cpm_`, preservando labels manuais fora desse prefixo.
+- O contato e a conversa devem espelhar o canal de origem do lead em atributos estruturados do CPM (`CPM Canal de Origem` e `CPM Canal de Origem Slug`), preservando o valor bruto em `additional_attributes.source`.
 - Quando o lead ainda nao possuir `ChatwootConversationId`, o sistema deve criar a conversa e registrar uma primeira mensagem privada com o resumo operacional do lead.
 - Em falha externa, o lead local continua salvo e os campos `ChatwootSyncStatus`/`ChatwootLastError` devem refletir o erro sem quebrar o Kanban.
 - O modal de detalhe do lead deve oferecer o botao `Sincronizar Chatwoot` para reprocessar leads antigos ou falhas anteriores.
+- Quando existir `ChatwootConversationId`, o modal deve exibir o atalho `Abrir no Chatwoot` para navegar direto para a conversa correta.
 
 ### Checklist de QA
 
@@ -131,12 +134,13 @@ Preencher a secao `Chatwoot` via `appsettings.Local.json` ou variaveis de ambien
 4. Confirmar que `Contato Chatwoot`, `Conversa Chatwoot` e `Inbox Chatwoot` estao preenchidos.
 5. Entrar em `https://chatwoot.consertapramim.com` e validar o contato/conversa no inbox `CPM Clientes`.
 6. Validar que a primeira mensagem da conversa foi criada como anotacao privada com resumo do lead.
-7. Editar o mesmo lead e confirmar que o fluxo reaproveita os IDs ja gravados, sem criar nova conversa.
-8. Escolher um lead antigo ainda sem sync e acionar `Sincronizar Chatwoot` no modal.
-9. Confirmar atualizacao imediata do status e dos IDs no detalhe do lead.
-10. Repetir o fluxo com um lead do funil de prestadores e validar uso do inbox `CPM Prestadores`.
-11. Criar um lead sem telefone e sem e-mail.
-12. Confirmar que o lead local continua salvo, mas com `Sync Chatwoot = Falha` e `Ultimo erro Chatwoot` explicando a ausencia de dados minimos.
+7. Abrir a ficha do contato no Chatwoot e validar labels `cpm_` e atributos `CPM Lead ID`, `CPM Board Type`, `CPM Stage Name`, `CPM Stage Slug`, `CPM Canal de Origem` e `CPM Canal de Origem Slug`.
+8. Editar o mesmo lead e confirmar que o fluxo reaproveita os IDs ja gravados, sem criar nova conversa.
+9. Escolher um lead antigo ainda sem sync e acionar `Sincronizar Chatwoot` no modal.
+10. Confirmar atualizacao imediata do status, dos IDs e do atalho `Abrir no Chatwoot` no detalhe do lead.
+11. Repetir o fluxo com um lead do funil de prestadores e validar uso do inbox `CPM Prestadores`.
+12. Criar um lead sem telefone e sem e-mail.
+13. Confirmar que o lead local continua salvo, mas com `Sync Chatwoot = Falha` e `Ultimo erro Chatwoot` explicando a ausencia de dados minimos.
 
 ### Troubleshooting
 
@@ -145,6 +149,7 @@ Preencher a secao `Chatwoot` via `appsettings.Local.json` ou variaveis de ambien
 - `Phone number has already been taken`: o contato pode ter sido criado manualmente sem `identifier`; validar busca por telefone/e-mail no Chatwoot e reprocessar o lead.
 - O modal nao atualiza apos clicar em `Sincronizar Chatwoot`: validar o endpoint `POST /admin/funil/lead/{id}/chatwoot/sincronizar` e o anti-forgery token da pagina.
 - Nova conversa nao aparece: validar `ChatwootConversationId`, `Inbox Chatwoot` e se a chamada de criacao da conversa nao falhou antes da primeira mensagem privada.
+- A ficha do contato continua sem atributos: validar se a conta do Chatwoot possui as definicoes `CPM Lead ID`, `CPM Board Type`, `CPM Stage Name`, `CPM Stage Slug`, `CPM Canal de Origem` e `CPM Canal de Origem Slug` em `Settings > Custom Attributes`.
 
 ## Integracao Chatwoot - sincronizacao de etapa do Kanban
 
@@ -158,7 +163,9 @@ Preencher a secao `Chatwoot` via `appsettings.Local.json` ou variaveis de ambien
 - A sincronizacao de etapa deve atualizar:
 - status da conversa (`open`, `pending` ou `resolved`);
 - labels gerenciadas pelo prefixo `cpm_`, preservando labels manuais nao pertencentes ao CPM;
-- `custom_attributes` da conversa com `cpm_lead_id`, `cpm_board_type`, `cpm_stage_name` e `cpm_stage_slug`.
+- `custom_attributes` da conversa com `cpm_lead_id`, `cpm_board_type`, `cpm_stage_name`, `cpm_stage_slug`, `cpm_lead_source` e `cpm_lead_source_slug`.
+- A sincronizacao de etapa deve registrar uma nota privada adicional na conversa do Chatwoot, para enriquecer a aba de historico do contato com o movimento realizado no funil.
+- A mesma etapa atual deve ser espelhada no contato do Chatwoot, atualizando labels `cpm_` e `custom_attributes` equivalentes para facilitar busca operacional fora da conversa.
 - Quando o lead ainda nao tiver conversa no Chatwoot, o fluxo de sync de etapa deve primeiro criar/reaproveitar contato e conversa, depois aplicar o mapa da etapa.
 - Em falha externa, o card continua movido localmente e o lead deve registrar `ChatwootSyncStatus = failed`, `ChatwootLastError` e evento de historico correspondente.
 
@@ -189,9 +196,11 @@ Preencher a secao `Chatwoot` via `appsettings.Local.json` ou variaveis de ambien
 6. Confirmar novo evento de historico `Etapa sincronizada no Chatwoot`.
 7. No Chatwoot, abrir a conversa correspondente e validar:
 8. novo status da conversa;
-9. labels `cpm_` compatíveis com a etapa atual;
+9. labels `cpm_` compativeis com a etapa atual;
 10. preservacao de labels manuais nao pertencentes ao prefixo `cpm_`.
-11. Repetir o teste com card ainda sem conversa no Chatwoot e confirmar bootstrap automatico antes da sync de etapa.
+11. Confirmar que a conversa recebeu uma nova nota privada descrevendo a etapa atualizada no CPM.
+12. Abrir a ficha do contato e validar que labels e atributos `CPM Stage Name`/`CPM Stage Slug` e `CPM Canal de Origem` acompanharam a mesma etapa.
+13. Repetir o teste com card ainda sem conversa no Chatwoot e confirmar bootstrap automatico antes da sync de etapa.
 
 ### Troubleshooting
 
@@ -199,6 +208,8 @@ Preencher a secao `Chatwoot` via `appsettings.Local.json` ou variaveis de ambien
 - Labels manuais sumiram: revisar se houve label manual usando prefixo `cpm_`; esse prefixo esta reservado para labels gerenciadas pelo CPM.
 - Status de conversa inesperado: revisar o mapa fixo em `Integrations/Chatwoot/ChatwootStageMapping.cs`.
 - Falha recorrente de sync de etapa: usar `Sincronizar Chatwoot` no modal para reprocessar o lead e confirmar bootstrap de contato/conversa antes de novo drag-and-drop.
+- Dificuldade para localizar a conversa apos mover o card: usar o atalho `Abrir no Chatwoot` no modal do lead para abrir diretamente `/app/accounts/{accountId}/conversations/{conversationId}`.
+- A conversa mostra so a nota inicial do lead: validar se a aplicacao publicada ja contem o fluxo que cria nota privada por mudanca de etapa e repetir um novo movimento de card apos o deploy.
 
 ## Integracao Chatwoot - deploy da VPS
 
@@ -212,6 +223,8 @@ Preencher a secao `Chatwoot` via `appsettings.Local.json` ou variaveis de ambien
 - Renovacao TLS: job global em `/etc/cron.d/profinder-certbot-renew`
 - Signup publico: desabilitado apos criacao do primeiro admin (`ENABLE_ACCOUNT_SIGNUP=false`)
 - Proxy da API: `underscores_in_headers on`, `ignore_invalid_headers off` e forward explicito de `api_access_token`
+- Definicoes customizadas do CPM: `cpm_lead_id`, `cpm_board_type`, `cpm_stage_name`, `cpm_stage_slug`, `cpm_lead_source` e `cpm_lead_source_slug` provisionadas para `conversation_attribute` e `contact_attribute`
+- Catalogo global de labels do CPM provisionado na conta: labels `cpm_clientes*` e `cpm_prestadores*` com `show_on_sidebar=true`
 
 ### Comportamento esperado
 
@@ -253,3 +266,4 @@ Preencher a secao `Chatwoot` via `appsettings.Local.json` ou variaveis de ambien
 - `erro de memoria` ou reinicio de container: validar `free -h`, `docker stats` e se `vm.overcommit_memory` continua em `1`.
 - `pagina em branco` apos login: validar se o `FRONTEND_URL` em `/opt/chatwoot/.env` continua `https://chatwoot.consertapramim.com`.
 - `401 Unauthorized` na Application API: validar se o Nginx do Chatwoot continua com `underscores_in_headers on;`, `ignore_invalid_headers off;` e `proxy_set_header api_access_token $http_api_access_token;`.
+- Labels nao aparecem abaixo do nome do contato: validar se a conta possui o catalogo global em `Settings > Labels` e fazer refresh completo da tela do contato apos criar novas labels.

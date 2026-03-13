@@ -3,6 +3,7 @@ using AppMobileCPM.Integrations.Chatwoot;
 using AppMobileCPM.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 namespace AppMobileCPM.Areas.Admin.Controllers;
 
@@ -13,13 +14,16 @@ public sealed class KanbanController : Controller
 {
     private readonly IAdminKanbanService _kanbanService;
     private readonly IChatwootLeadSyncService _chatwootLeadSyncService;
+    private readonly ChatwootOptions _chatwootOptions;
 
     public KanbanController(
         IAdminKanbanService kanbanService,
-        IChatwootLeadSyncService chatwootLeadSyncService)
+        IChatwootLeadSyncService chatwootLeadSyncService,
+        IOptions<ChatwootOptions> chatwootOptions)
     {
         _kanbanService = kanbanService;
         _chatwootLeadSyncService = chatwootLeadSyncService;
+        _chatwootOptions = chatwootOptions.Value;
     }
 
     [HttpGet("clientes")]
@@ -70,7 +74,8 @@ public sealed class KanbanController : Controller
                 syncStatus = lead.Chatwoot.SyncStatus,
                 syncStatusLabel = FormatChatwootSyncStatusLabel(lead.Chatwoot.SyncStatus),
                 lastSyncAt = lead.Chatwoot.LastSyncAt?.ToString("dd/MM/yyyy HH:mm") ?? "-",
-                lastError = string.IsNullOrWhiteSpace(lead.Chatwoot.LastError) ? "-" : lead.Chatwoot.LastError
+                lastError = string.IsNullOrWhiteSpace(lead.Chatwoot.LastError) ? "-" : lead.Chatwoot.LastError,
+                conversationUrl = BuildChatwootConversationUrl(lead.Chatwoot.ConversationId)
             },
             history = lead.History.Select(item => new
             {
@@ -357,4 +362,15 @@ public sealed class KanbanController : Controller
             "chatwoot_etapa_sync_falhou" => "Falha ao sincronizar etapa no Chatwoot",
             _ => "Evento do funil"
         };
+
+    private string BuildChatwootConversationUrl(long? conversationId)
+    {
+        if (!_chatwootOptions.Enabled || !conversationId.HasValue || string.IsNullOrWhiteSpace(_chatwootOptions.BaseUrl))
+        {
+            return string.Empty;
+        }
+
+        var baseUrl = _chatwootOptions.BaseUrl.TrimEnd('/');
+        return $"{baseUrl}/app/accounts/{_chatwootOptions.AccountId}/conversations/{conversationId.Value}";
+    }
 }

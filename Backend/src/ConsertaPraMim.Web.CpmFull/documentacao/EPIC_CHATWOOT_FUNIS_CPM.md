@@ -28,7 +28,7 @@
 ## 4.1 Em escopo
 1. Criacao de integracao server-to-server com API do Chatwoot.
 2. Sincronizacao de lead do CPM para contato e conversa no Chatwoot.
-3. Atualizacao de status/labels/custom attributes da conversa ao mover etapa no funil CPM.
+3. Atualizacao de status/labels/custom attributes da conversa e do contato ao mover etapa no funil CPM.
 4. Recepcao de webhooks do Chatwoot para atualizar ultimo contato e historico do lead.
 5. Mecanismo de retentativa e idempotencia.
 6. Backfill inicial para leads existentes.
@@ -173,7 +173,7 @@ Como operacao, quero que todo lead relevante tenha contato correspondente no Cha
 
 ### Criterios de aceite
 1. Lead novo gera contato no Chatwoot quando dados minimos estao presentes.
-2. Se contato ja existir, sistema reaproveita e atualiza atributos.
+2. Se contato ja existir, sistema reaproveita e atualiza atributos e labels operacionais, incluindo o canal de origem normalizado do lead.
 3. Sem telefone/email validos, sistema nao quebra fluxo do lead e registra erro de sincronizacao.
 
 ### Tasks
@@ -181,6 +181,8 @@ Como operacao, quero que todo lead relevante tenha contato correspondente no Cha
 - `TASK-03.02` Normalizar telefone para E.164 (quando possivel) antes de enviar.
 - `TASK-03.03` Implementar fluxo `find or create contact`.
 - `TASK-03.04` Mapear atributos: nome, telefone, email, tipo de funil, categoria de servico.
+- `TASK-03.09` Projetar o canal de origem do lead em atributos estruturados (`cpm_lead_source` e `cpm_lead_source_slug`) para contato e conversa.
+- `TASK-03.08` Espelhar labels e atributos operacionais no contato para facilitar busca no Chatwoot.
 - `TASK-03.05` Gravar `ChatwootContactId` no lead.
 - `TASK-03.06` Registrar evento no historico do lead: `chatwoot_contato_sincronizado`.
 - `TASK-03.07` Criar testes para:
@@ -222,12 +224,15 @@ Como operacao, quero que mover card no Kanban reflita no status/labels da conver
 
 ### Status
 - Em andamento. Entrega inicial concluida em 2026-03-13 no `ConsertaPraMim.Web.CpmFull`, com sincronizacao direta de status/labels/custom attributes no drag-and-drop.
+- Refinamento operacional entregue em 2026-03-13 com espelhamento da etapa tambem no contato, nota privada por mudanca de etapa e atalho direto do modal do lead para a conversa no Chatwoot.
 - A fila de retentativa da falha externa permanece na `US-07`.
 
 ### Criterios de aceite
 1. Cada mudanca de etapa atualiza status da conversa no Chatwoot conforme mapa.
-2. Labels e custom attributes sao atualizados na conversa.
-3. Em caso de falha externa, o card local continua movido e a sincronizacao entra em fila de retentativa.
+2. Labels e custom attributes sao atualizados na conversa, incluindo o canal/origem do lead.
+3. O contato vinculado recebe o mesmo espelhamento de labels/atributos operacionais para facilitar busca e triagem.
+4. O detalhe do lead permite abrir a conversa correta diretamente no Chatwoot.
+5. Em caso de falha externa, o card local continua movido e a sincronizacao entra em fila de retentativa.
 
 ### Tasks
 - `TASK-05.01` Criar tabela/config de mapeamento de etapas para status/labels.
@@ -241,6 +246,8 @@ Como operacao, quero que mover card no Kanban reflita no status/labels da conver
 - `TASK-05.06` Registrar historico `chatwoot_stage_synced`.
 - `TASK-05.07` Em falha, registrar `ChatwootSyncStatus=failed` e enfileirar retentativa.
 - `TASK-05.08` Adicionar teste de regressao para drag-and-drop sem impacto funcional.
+- `TASK-05.09` Expor atalho direto para a conversa no modal do lead para reduzir perda de contexto operacional.
+- `TASK-05.10` Registrar nota privada na conversa a cada mudanca de etapa para enriquecer o historico do contato no Chatwoot.
 
 ## US-06 - Receber webhooks do Chatwoot no CPM
 ### Descricao

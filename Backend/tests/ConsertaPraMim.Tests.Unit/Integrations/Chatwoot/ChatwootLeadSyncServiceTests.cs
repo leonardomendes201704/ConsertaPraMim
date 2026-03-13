@@ -80,7 +80,11 @@ public sealed class ChatwootLeadSyncServiceTests
                 It.Is<ChatwootUpsertContactRequest>(request =>
                     request.InboxId == 1 &&
                     request.Identifier.StartsWith("phone:+5513997114422", StringComparison.Ordinal) &&
-                    request.PhoneNumber == "+5513997114422"),
+                    request.PhoneNumber == "+5513997114422" &&
+                    request.CustomAttributes.ContainsKey("cpm_lead_source") &&
+                    Equals(request.CustomAttributes["cpm_lead_source"], "WhatsApp") &&
+                    request.CustomAttributes.ContainsKey("cpm_lead_source_slug") &&
+                    Equals(request.CustomAttributes["cpm_lead_source_slug"], "whatsapp")),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ChatwootContactSummary
             {
@@ -126,12 +130,53 @@ public sealed class ChatwootLeadSyncServiceTests
                 Private = true
             });
         chatwootApiClient
+            .Setup(client => client.UpdateContactAsync(
+                101,
+                It.Is<ChatwootUpsertContactRequest>(request =>
+                    request.CustomAttributes.ContainsKey("cpm_stage_name") &&
+                    Equals(request.CustomAttributes["cpm_stage_name"], "Novo lead") &&
+                    request.CustomAttributes.ContainsKey("cpm_stage_slug") &&
+                    Equals(request.CustomAttributes["cpm_stage_slug"], "clientes_novo_lead") &&
+                    request.CustomAttributes.ContainsKey("cpm_lead_source") &&
+                    Equals(request.CustomAttributes["cpm_lead_source"], "WhatsApp")),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ChatwootContactSummary
+            {
+                Id = 101,
+                Name = "Ricardo Almeida",
+                Email = "ricardo@email.com",
+                PhoneNumber = "+5513997114422",
+                Identifier = "phone:+5513997114422",
+                ContactInboxes =
+                [
+                    new ChatwootContactInboxSummary
+                    {
+                        InboxId = 1,
+                        InboxName = "CPM Clientes",
+                        SourceId = "cpm-lead-clientes-21"
+                    }
+                ]
+            });
+        chatwootApiClient
+            .Setup(client => client.ListContactLabelsAsync(101, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        chatwootApiClient
+            .Setup(client => client.ReplaceContactLabelsAsync(
+                101,
+                It.Is<IReadOnlyList<string>>(labels =>
+                    labels.Contains("cpm_clientes") &&
+                    labels.Contains("cpm_clientes_novo_lead")),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(["cpm_clientes", "cpm_clientes_novo_lead"]);
+        chatwootApiClient
             .Setup(client => client.UpdateConversationCustomAttributesAsync(
                 202,
                 It.Is<IReadOnlyDictionary<string, object?>>(attributes =>
                     Equals(attributes["cpm_lead_id"], 21) &&
                     Equals(attributes["cpm_board_type"], AdminKanbanBoardTypes.Clients) &&
-                    Equals(attributes["cpm_stage_name"], "Novo lead")),
+                    Equals(attributes["cpm_stage_name"], "Novo lead") &&
+                    Equals(attributes["cpm_lead_source"], "WhatsApp") &&
+                    Equals(attributes["cpm_lead_source_slug"], "whatsapp")),
                 It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
         chatwootApiClient
@@ -219,7 +264,13 @@ public sealed class ChatwootLeadSyncServiceTests
         chatwootApiClient
             .Setup(client => client.UpdateContactAsync(
                 101,
-                It.IsAny<ChatwootUpsertContactRequest>(),
+                It.Is<ChatwootUpsertContactRequest>(request =>
+                    request.CustomAttributes.ContainsKey("cpm_stage_name") &&
+                    Equals(request.CustomAttributes["cpm_stage_name"], "Novo lead") &&
+                    request.CustomAttributes.ContainsKey("cpm_stage_slug") &&
+                    Equals(request.CustomAttributes["cpm_stage_slug"], "clientes_novo_lead") &&
+                    request.CustomAttributes.ContainsKey("cpm_lead_source") &&
+                    Equals(request.CustomAttributes["cpm_lead_source"], "WhatsApp")),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ChatwootContactSummary
             {
@@ -239,11 +290,25 @@ public sealed class ChatwootLeadSyncServiceTests
                 ]
             });
         chatwootApiClient
+            .Setup(client => client.ListContactLabelsAsync(101, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(["manual_contact"]);
+        chatwootApiClient
+            .Setup(client => client.ReplaceContactLabelsAsync(
+                101,
+                It.Is<IReadOnlyList<string>>(labels =>
+                    labels.Contains("manual_contact") &&
+                    labels.Contains("cpm_clientes") &&
+                    labels.Contains("cpm_clientes_novo_lead")),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(["manual_contact", "cpm_clientes", "cpm_clientes_novo_lead"]);
+        chatwootApiClient
             .Setup(client => client.UpdateConversationCustomAttributesAsync(
                 202,
                 It.Is<IReadOnlyDictionary<string, object?>>(attributes =>
                     Equals(attributes["cpm_lead_id"], 32) &&
-                    Equals(attributes["cpm_board_type"], AdminKanbanBoardTypes.Clients)),
+                    Equals(attributes["cpm_board_type"], AdminKanbanBoardTypes.Clients) &&
+                    Equals(attributes["cpm_lead_source"], "WhatsApp") &&
+                    Equals(attributes["cpm_lead_source_slug"], "whatsapp")),
                 It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
         chatwootApiClient
@@ -313,11 +378,54 @@ public sealed class ChatwootLeadSyncServiceTests
             .Returns(true);
 
         chatwootApiClient
+            .Setup(client => client.UpdateContactAsync(
+                101,
+                It.Is<ChatwootUpsertContactRequest>(request =>
+                    request.CustomAttributes.ContainsKey("cpm_stage_name") &&
+                    Equals(request.CustomAttributes["cpm_stage_name"], "Tentativa de contato") &&
+                    request.CustomAttributes.ContainsKey("cpm_stage_slug") &&
+                    Equals(request.CustomAttributes["cpm_stage_slug"], "clientes_tentativa_de_contato") &&
+                    request.CustomAttributes.ContainsKey("cpm_lead_source") &&
+                    Equals(request.CustomAttributes["cpm_lead_source"], "WhatsApp")),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ChatwootContactSummary
+            {
+                Id = 101,
+                Name = "Ricardo Almeida",
+                Email = "ricardo@email.com",
+                PhoneNumber = "+5513997114422",
+                Identifier = "phone:+5513997114422",
+                ContactInboxes =
+                [
+                    new ChatwootContactInboxSummary
+                    {
+                        InboxId = 1,
+                        InboxName = "CPM Clientes",
+                        SourceId = "cpm-lead-clientes-45"
+                    }
+                ]
+            });
+        chatwootApiClient
+            .Setup(client => client.ListContactLabelsAsync(101, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(["vip"]);
+        chatwootApiClient
+            .Setup(client => client.ReplaceContactLabelsAsync(
+                101,
+                It.Is<IReadOnlyList<string>>(labels =>
+                    labels.Contains("vip") &&
+                    labels.Contains("cpm_clientes") &&
+                    labels.Contains("cpm_clientes_tentativa_de_contato") &&
+                    !labels.Contains("cpm_clientes_novo_lead")),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(["vip", "cpm_clientes", "cpm_clientes_tentativa_de_contato"]);
+        chatwootApiClient
             .Setup(client => client.UpdateConversationCustomAttributesAsync(
                 909,
                 It.Is<IReadOnlyDictionary<string, object?>>(attributes =>
                     Equals(attributes["cpm_stage_name"], "Tentativa de contato") &&
-                    Equals(attributes["cpm_stage_slug"], "clientes_tentativa_de_contato")),
+                    Equals(attributes["cpm_stage_slug"], "clientes_tentativa_de_contato") &&
+                    Equals(attributes["cpm_lead_source"], "WhatsApp") &&
+                    Equals(attributes["cpm_lead_source_slug"], "whatsapp")),
                 It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
         chatwootApiClient
@@ -336,6 +444,20 @@ public sealed class ChatwootLeadSyncServiceTests
         chatwootApiClient
             .Setup(client => client.UpdateConversationStatusAsync(909, "pending", It.IsAny<CancellationToken>()))
             .ReturnsAsync("pending");
+        chatwootApiClient
+            .Setup(client => client.CreateMessageAsync(
+                909,
+                It.Is<ChatwootCreateMessageRequest>(request =>
+                    request.Private &&
+                    request.MessageType == "outgoing" &&
+                    request.Content.Contains("Atualizacao de etapa", StringComparison.Ordinal) &&
+                    request.Content.Contains("Tentativa de contato", StringComparison.Ordinal)),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ChatwootMessageSummary
+            {
+                Id = 111,
+                Private = true
+            });
 
         var sut = CreateSut(kanbanService.Object, chatwootApiClient.Object);
 
@@ -343,6 +465,152 @@ public sealed class ChatwootLeadSyncServiceTests
 
         Assert.True(result.Succeeded);
         Assert.Equal(ChatwootSyncStatuses.Synced, result.Status);
+        kanbanService.VerifyAll();
+        chatwootApiClient.VerifyAll();
+    }
+
+    [Fact(DisplayName = "Deve normalizar canal do lead para atributos visiveis no Chatwoot")]
+    public async Task DeveNormalizarCanalDoLeadParaAtributosVisiveisNoChatwoot()
+    {
+        var kanbanService = new Mock<IAdminKanbanService>();
+        var chatwootApiClient = new Mock<IChatwootApiClient>();
+        var lead = CreateLead(
+            58,
+            AdminKanbanBoardTypes.Clients,
+            phone: "(13) 99711-4422",
+            email: "ricardo@email.com",
+            source: "Instagram Ads");
+
+        kanbanService
+            .Setup(service => service.GetLeadDetails(58))
+            .Returns(lead);
+        kanbanService
+            .Setup(service => service.UpdateLeadChatwootSync(
+                58,
+                It.Is<AdminKanbanLeadChatwootSyncUpdateRequest>(request =>
+                    request.ChatwootContactId == 501 &&
+                    request.ChatwootConversationId == 502 &&
+                    request.ChatwootInboxId == 1 &&
+                    request.ChatwootSyncStatus == ChatwootSyncStatuses.Synced &&
+                    request.ClearChatwootLastError)))
+            .Returns(true);
+        kanbanService
+            .Setup(service => service.AddHistoryEvent(58, "chatwoot_contato_sincronizado", It.IsAny<string>()))
+            .Returns(true);
+        kanbanService
+            .Setup(service => service.AddHistoryEvent(58, "chatwoot_conversa_criada", It.IsAny<string>()))
+            .Returns(true);
+        kanbanService
+            .Setup(service => service.AddHistoryEvent(58, "chatwoot_sincronizado", It.IsAny<string>()))
+            .Returns(true);
+
+        chatwootApiClient
+            .Setup(client => client.SearchContactsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        chatwootApiClient
+            .Setup(client => client.CreateContactAsync(
+                It.Is<ChatwootUpsertContactRequest>(request =>
+                    request.CustomAttributes.ContainsKey("cpm_lead_source") &&
+                    Equals(request.CustomAttributes["cpm_lead_source"], "Instagram") &&
+                    request.CustomAttributes.ContainsKey("cpm_lead_source_slug") &&
+                    Equals(request.CustomAttributes["cpm_lead_source_slug"], "instagram") &&
+                    request.AdditionalAttributes.ContainsKey("source") &&
+                    Equals(request.AdditionalAttributes["source"], "Instagram Ads") &&
+                    request.AdditionalAttributes.ContainsKey("source_display") &&
+                    Equals(request.AdditionalAttributes["source_display"], "Instagram")),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ChatwootContactSummary
+            {
+                Id = 501,
+                Name = "Ricardo Almeida",
+                Email = "ricardo@email.com",
+                PhoneNumber = "+5513997114422",
+                Identifier = "phone:+5513997114422",
+                ContactInboxes =
+                [
+                    new ChatwootContactInboxSummary
+                    {
+                        InboxId = 1,
+                        InboxName = "CPM Clientes",
+                        SourceId = "cpm-lead-clientes-58"
+                    }
+                ]
+            });
+        chatwootApiClient
+            .Setup(client => client.CreateConversationAsync(It.IsAny<ChatwootCreateConversationRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ChatwootConversationSummary
+            {
+                Id = 502,
+                InboxId = 1,
+                Status = "open"
+            });
+        chatwootApiClient
+            .Setup(client => client.CreateMessageAsync(
+                502,
+                It.Is<ChatwootCreateMessageRequest>(request =>
+                    request.Content.Contains("Canal de origem: Instagram", StringComparison.Ordinal) &&
+                    request.Content.Contains("Fonte original informada: Instagram Ads", StringComparison.Ordinal)),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ChatwootMessageSummary
+            {
+                Id = 503,
+                Private = true
+            });
+        chatwootApiClient
+            .Setup(client => client.UpdateContactAsync(
+                501,
+                It.Is<ChatwootUpsertContactRequest>(request =>
+                    request.CustomAttributes.ContainsKey("cpm_lead_source") &&
+                    Equals(request.CustomAttributes["cpm_lead_source"], "Instagram") &&
+                    request.CustomAttributes.ContainsKey("cpm_lead_source_slug") &&
+                    Equals(request.CustomAttributes["cpm_lead_source_slug"], "instagram")),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ChatwootContactSummary
+            {
+                Id = 501,
+                Name = "Ricardo Almeida",
+                Email = "ricardo@email.com",
+                PhoneNumber = "+5513997114422",
+                Identifier = "phone:+5513997114422",
+                ContactInboxes =
+                [
+                    new ChatwootContactInboxSummary
+                    {
+                        InboxId = 1,
+                        InboxName = "CPM Clientes",
+                        SourceId = "cpm-lead-clientes-58"
+                    }
+                ]
+            });
+        chatwootApiClient
+            .Setup(client => client.ListContactLabelsAsync(501, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        chatwootApiClient
+            .Setup(client => client.ReplaceContactLabelsAsync(501, It.IsAny<IReadOnlyList<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(["cpm_clientes", "cpm_clientes_novo_lead"]);
+        chatwootApiClient
+            .Setup(client => client.UpdateConversationCustomAttributesAsync(
+                502,
+                It.Is<IReadOnlyDictionary<string, object?>>(attributes =>
+                    Equals(attributes["cpm_lead_source"], "Instagram") &&
+                    Equals(attributes["cpm_lead_source_slug"], "instagram")),
+                It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        chatwootApiClient
+            .Setup(client => client.ListConversationLabelsAsync(502, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        chatwootApiClient
+            .Setup(client => client.ReplaceConversationLabelsAsync(502, It.IsAny<IReadOnlyList<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(["cpm_clientes", "cpm_clientes_novo_lead"]);
+        chatwootApiClient
+            .Setup(client => client.UpdateConversationStatusAsync(502, "open", It.IsAny<CancellationToken>()))
+            .ReturnsAsync("open");
+
+        var sut = CreateSut(kanbanService.Object, chatwootApiClient.Object);
+
+        var result = await sut.SyncLeadAsync(58);
+
+        Assert.True(result.Succeeded);
         kanbanService.VerifyAll();
         chatwootApiClient.VerifyAll();
     }
@@ -373,6 +641,7 @@ public sealed class ChatwootLeadSyncServiceTests
         string? phone,
         string? email,
         string stageName = "Novo lead",
+        string source = "WhatsApp",
         AdminKanbanLeadChatwootSyncRecord? chatwoot = null) =>
         new()
         {
@@ -386,7 +655,7 @@ public sealed class ChatwootLeadSyncServiceTests
             ServiceCategory = "Eletricista",
             PostalCode = "11701-200",
             City = "Praia Grande",
-            Source = "WhatsApp",
+            Source = source,
             Priority = "normal",
             StatusNote = "Lead vindo do canal de atendimento.",
             InternalNotes = string.Empty,

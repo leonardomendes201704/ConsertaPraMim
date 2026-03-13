@@ -110,6 +110,7 @@ public sealed class ChatwootLeadSyncService : IChatwootLeadSyncService
             }
 
             await ApplyStageMappingAsync(lead, conversationId.Value, trackHistory: false, cancellationToken);
+            await UpdateContactProjectionAsync(lead, contactId.Value, cancellationToken);
 
             _kanbanService.UpdateLeadChatwootSync(
                 leadId,
@@ -208,6 +209,8 @@ public sealed class ChatwootLeadSyncService : IChatwootLeadSyncService
         try
         {
             await ApplyStageMappingAsync(lead, lead.Chatwoot.ConversationId.Value, trackHistory: true, cancellationToken);
+            await UpdateContactProjectionAsync(lead, lead.Chatwoot.ContactId, cancellationToken);
+            await AppendStageSyncHistoryMessageAsync(lead, lead.Chatwoot.ConversationId.Value, cancellationToken);
 
             _kanbanService.UpdateLeadChatwootSync(
                 leadId,
@@ -334,11 +337,14 @@ public sealed class ChatwootLeadSyncService : IChatwootLeadSyncService
 
     private static Dictionary<string, object?> BuildAdditionalAttributes(AdminKanbanLeadDetailsRecord lead)
     {
+        var sourceMapping = ChatwootLeadSourceMappings.Resolve(lead.Source);
         var attributes = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase)
         {
             ["board_type"] = lead.BoardType,
             ["service_category"] = NullIfWhiteSpace(lead.ServiceCategory),
             ["source"] = NullIfWhiteSpace(lead.Source),
+            ["source_display"] = sourceMapping?.DisplayName,
+            ["source_slug"] = sourceMapping?.Slug,
             ["city"] = NullIfWhiteSpace(lead.City),
             ["postal_code"] = NullIfWhiteSpace(lead.PostalCode),
             ["status_note"] = NullIfWhiteSpace(TrimTo(lead.StatusNote, 300)),
@@ -352,14 +358,21 @@ public sealed class ChatwootLeadSyncService : IChatwootLeadSyncService
 
     private static Dictionary<string, object?> BuildCustomAttributes(AdminKanbanLeadDetailsRecord lead)
     {
+        var stageMapping = ChatwootStageMappings.Resolve(lead.BoardType, lead.StageName);
+        var sourceMapping = ChatwootLeadSourceMappings.Resolve(lead.Source);
         var attributes = new Dictionary<string, object?>
         {
             ["cpm_lead_id"] = lead.Id,
             ["cpm_board_type"] = lead.BoardType,
-            ["cpm_stage_name"] = NullIfWhiteSpace(lead.StageName)
+            ["cpm_stage_name"] = NullIfWhiteSpace(lead.StageName),
+            ["cpm_stage_slug"] = stageMapping.StageSlug,
+            ["cpm_lead_source"] = sourceMapping?.DisplayName,
+            ["cpm_lead_source_slug"] = sourceMapping?.Slug
         };
 
-        return attributes;
+        return attributes
+            .Where(item => item.Value is not null)
+            .ToDictionary(item => item.Key, item => item.Value);
     }
 
     private static IReadOnlyList<string> BuildSearchQueries(AdminKanbanLeadDetailsRecord lead, ChatwootUpsertContactRequest request)
@@ -418,6 +431,7 @@ public sealed class ChatwootLeadSyncService : IChatwootLeadSyncService
 
     private static string BuildOpeningMessage(AdminKanbanLeadDetailsRecord lead)
     {
+        var sourceMapping = ChatwootLeadSourceMappings.Resolve(lead.Source);
         var lines = new List<string>
         {
             "Novo lead recebido no funil do ConsertaPraMim.",
@@ -448,9 +462,13 @@ public sealed class ChatwootLeadSyncService : IChatwootLeadSyncService
             lines.Add($"CEP/Cidade: {location}");
         }
 
-        if (!string.IsNullOrWhiteSpace(lead.Source))
+        if (sourceMapping is not null)
         {
-            lines.Add($"Fonte: {lead.Source}");
+            lines.Add($"Canal de origem: {sourceMapping.DisplayName}");
+            if (!string.Equals(sourceMapping.RawValue, sourceMapping.DisplayName, StringComparison.Ordinal))
+            {
+                lines.Add($"Fonte original informada: {sourceMapping.RawValue}");
+            }
         }
 
         if (!string.IsNullOrWhiteSpace(lead.StatusNote))
@@ -531,23 +549,14 @@ public sealed class ChatwootLeadSyncService : IChatwootLeadSyncService
 
         await _chatwootApiClient.UpdateConversationCustomAttributesAsync(
             conversationId,
-            new Dictionary<string, object?>
-            {
-                ["cpm_lead_id"] = lead.Id,
-                ["cpm_board_type"] = lead.BoardType,
-                ["cpm_stage_name"] = lead.StageName,
-                ["cpm_stage_slug"] = mapping.StageSlug
-            },
+            BuildCustomAttributes(lead),
             cancellationToken);
 
-        var existingLabels = await _chatwootApiClient.ListConversationLabelsAsync(conversationId, cancellationToken);
-        var mergedLabels = existingLabels
-            .Where(label => !label.StartsWith(ManagedLabelPrefix, StringComparison.OrdinalIgnoreCase))
-            .Concat(mapping.Labels)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        await _chatwootApiClient.ReplaceConversationLabelsAsync(conversationId, mergedLabels, cancellationToken);
+        await SyncManagedLabelsAsync(
+            listLabels: token => _chatwootApiClient.ListConversationLabelsAsync(conversationId, token),
+            replaceLabels: (labels, token) => _chatwootApiClient.ReplaceConversationLabelsAsync(conversationId, labels, token),
+            mapping,
+            cancellationToken);
         await _chatwootApiClient.UpdateConversationStatusAsync(conversationId, mapping.ConversationStatus, cancellationToken);
 
         if (trackHistory)
@@ -556,6 +565,53 @@ public sealed class ChatwootLeadSyncService : IChatwootLeadSyncService
                 lead.Id,
                 "chatwoot_etapa_sincronizada",
                 $"Etapa '{lead.StageName}' sincronizada no Chatwoot com status '{FormatConversationStatusLabel(mapping.ConversationStatus)}'.");
+        }
+    }
+
+    private async Task UpdateContactProjectionAsync(
+        AdminKanbanLeadDetailsRecord lead,
+        long? contactId,
+        CancellationToken cancellationToken)
+    {
+        if (!contactId.HasValue)
+        {
+            return;
+        }
+
+        var inboxId = lead.Chatwoot.InboxId ?? ResolveInboxId(lead.BoardType);
+        if (!TryBuildContactRequest(lead, inboxId, out var contactRequest, out _))
+        {
+            return;
+        }
+
+        await _chatwootApiClient.UpdateContactAsync(contactId.Value, contactRequest!, cancellationToken);
+        await SyncManagedLabelsAsync(
+            listLabels: token => _chatwootApiClient.ListContactLabelsAsync(contactId.Value, token),
+            replaceLabels: (labels, token) => _chatwootApiClient.ReplaceContactLabelsAsync(contactId.Value, labels, token),
+            mapping: ChatwootStageMappings.Resolve(lead.BoardType, lead.StageName),
+            cancellationToken);
+    }
+
+    private async Task AppendStageSyncHistoryMessageAsync(
+        AdminKanbanLeadDetailsRecord lead,
+        long conversationId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _chatwootApiClient.CreateMessageAsync(
+                conversationId,
+                new ChatwootCreateMessageRequest
+                {
+                    Content = BuildStageSyncMessage(lead),
+                    MessageType = "outgoing",
+                    Private = true
+                },
+                cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Nao foi possivel registrar nota privada da etapa do lead {LeadId} no Chatwoot.", lead.Id);
         }
     }
 
@@ -568,6 +624,56 @@ public sealed class ChatwootLeadSyncService : IChatwootLeadSyncService
             "snoozed" => "adiada",
             _ => "atualizada"
         };
+
+    private async Task SyncManagedLabelsAsync(
+        Func<CancellationToken, Task<IReadOnlyList<string>>> listLabels,
+        Func<IReadOnlyList<string>, CancellationToken, Task<IReadOnlyList<string>>> replaceLabels,
+        ChatwootStageMapping mapping,
+        CancellationToken cancellationToken)
+    {
+        var existingLabels = await listLabels(cancellationToken);
+        var mergedLabels = existingLabels
+            .Where(label => !label.StartsWith(ManagedLabelPrefix, StringComparison.OrdinalIgnoreCase))
+            .Concat(mapping.Labels)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        await replaceLabels(mergedLabels, cancellationToken);
+    }
+
+    private static string BuildStageSyncMessage(AdminKanbanLeadDetailsRecord lead)
+    {
+        var sourceMapping = ChatwootLeadSourceMappings.Resolve(lead.Source);
+        var latestMove = lead.History.FirstOrDefault(item =>
+            string.Equals(item.EventType, "movido", StringComparison.OrdinalIgnoreCase) &&
+            item.ToStageId == lead.StageId);
+
+        var lines = new List<string>
+        {
+            "Atualizacao de etapa registrada no funil do ConsertaPraMim.",
+            $"Lead ID: {lead.Id}",
+            $"Funil: {AdminKanbanBoardTypes.GetTitle(lead.BoardType)}"
+        };
+
+        if (!string.IsNullOrWhiteSpace(latestMove?.FromStageName))
+        {
+            lines.Add($"Etapa anterior: {latestMove.FromStageName}");
+        }
+
+        lines.Add($"Etapa atual: {lead.StageName}");
+
+        if (!string.IsNullOrWhiteSpace(lead.StatusNote))
+        {
+            lines.Add($"Status do lead: {TrimTo(lead.StatusNote, 300)}");
+        }
+
+        if (sourceMapping is not null)
+        {
+            lines.Add($"Canal de origem: {sourceMapping.DisplayName}");
+        }
+
+        return string.Join(Environment.NewLine, lines);
+    }
 
     private sealed record ResolvedChatwootContact(
         ChatwootContactSummary Contact,

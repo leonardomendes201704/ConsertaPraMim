@@ -12,6 +12,30 @@
 
 ## Released
 
+- [2026-03-13] [CPMFULL-012][CHATWOOT-LEAD-SOURCE-PROJECTION] Projecao do canal de origem do lead no Chatwoot
+- Tipo: feat
+- Resumo: o `ConsertaPraMim.Web.CpmFull` passou a normalizar a `Fonte` do lead para atributos estruturados do CPM no Chatwoot, espelhando `CPM Canal de Origem` e `CPM Canal de Origem Slug` tanto no contato quanto na conversa, sem perder o valor bruto original em `additional_attributes.source`. A conta publicada tambem recebeu as definicoes `cpm_lead_source` e `cpm_lead_source_slug` para `conversation_attribute` e `contact_attribute`, e o contato/conversa do Ricardo foram atualizados para validacao imediata.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/ChatwootLeadSourceMapping.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/ChatwootLeadSyncService.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Integrations/Chatwoot/ChatwootLeadSyncServiceTests.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/EPIC_CHATWOOT_FUNIS_CPM.md`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/MANUAL_QA_OPERACAO.md`, `Documentacao/ADMIN_PORTAL/CHANGELOG/CHANGELOG.md`
+- Risco/Impacto: baixo
+
+- [2026-03-13] [CPMFULL-011][CHATWOOT-LABEL-CATALOG-SEED] Provisionamento do catalogo global de labels do CPM no Chatwoot
+- Tipo: fix
+- Resumo: a conta `1` do `chatwoot.consertapramim.com` passou a ter o catalogo global das labels `cpm_clientes*` e `cpm_prestadores*`, todas com `show_on_sidebar=true`, eliminando a ausencia de labels cadastradas na conta e preparando a UI do Chatwoot para exibir as marcacoes operacionais do CPM abaixo do nome do contato e da conversa.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/MANUAL_QA_OPERACAO.md`, `Documentacao/ADMIN_PORTAL/CHANGELOG/CHANGELOG.md`
+- Risco/Impacto: baixo
+
+- [2026-03-13] [CPMFULL-010][CHATWOOT-STAGE-HISTORY-NOTES] Notas privadas de historico por mudanca de etapa no Chatwoot
+- Tipo: fix
+- Resumo: a sincronizacao de etapa do Kanban no `ConsertaPraMim.Web.CpmFull` passou a registrar uma nota privada adicional na conversa do Chatwoot sempre que o card muda de etapa, enriquecendo a aba de historico do contato com a trilha do funil sem depender apenas da nota inicial de recepcao do lead.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/ChatwootLeadSyncService.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Integrations/Chatwoot/ChatwootLeadSyncServiceTests.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/EPIC_CHATWOOT_FUNIS_CPM.md`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/MANUAL_QA_OPERACAO.md`, `Documentacao/ADMIN_PORTAL/CHANGELOG/CHANGELOG.md`
+- Risco/Impacto: baixo
+
+- [2026-03-13] [CPMFULL-009][CHATWOOT-CONTACT-PROJECTION-UX] Projecao de labels/atributos no contato e atalho direto para a conversa do Chatwoot
+- Tipo: fix
+- Resumo: o `ConsertaPraMim.Web.CpmFull` passou a espelhar a etapa atual tambem no contato do Chatwoot, sincronizando labels gerenciadas pelo prefixo `cpm_` e `custom_attributes` do contato, enquanto o modal do lead ganhou o atalho `Abrir no Chatwoot` para levar direto a conversa correta. Na conta publicada tambem foram provisionadas as definicoes `cpm_lead_id`, `cpm_board_type`, `cpm_stage_name` e `cpm_stage_slug` para `conversation_attribute` e `contact_attribute`, destravando a exibicao desses campos na UI do Chatwoot.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/ChatwootApiClient.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/ChatwootLeadSyncService.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/IChatwootApiClient.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Areas/Admin/Controllers/KanbanController.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Areas/Admin/Views/Kanban/Index.cshtml`, `Backend/tests/ConsertaPraMim.Tests.Unit/Integrations/Chatwoot/ChatwootLeadSyncServiceTests.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/EPIC_CHATWOOT_FUNIS_CPM.md`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/MANUAL_QA_OPERACAO.md`, `Documentacao/ADMIN_PORTAL/CHANGELOG/CHANGELOG.md`
+- Risco/Impacto: medio
+
 - [2026-03-13] [CPMFULL-008][CHATWOOT-STAGE-SYNC] Sincronizacao da etapa do Kanban com status, labels e atributos da conversa no Chatwoot
 - Tipo: feat
 - Resumo: o drag-and-drop do funil do `ConsertaPraMim.Web.CpmFull` passou a sincronizar a etapa atual do lead com a conversa do Chatwoot, atualizando `conversation status`, labels gerenciadas pelo prefixo `cpm_`, `custom_attributes` operacionais e historico do lead, sem bloquear a persistencia local da mudanca no Kanban.
