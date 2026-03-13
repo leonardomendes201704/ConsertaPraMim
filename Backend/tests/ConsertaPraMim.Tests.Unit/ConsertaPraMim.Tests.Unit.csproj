@@ -38,6 +38,7 @@
     <ProjectReference Include="..\..\src\ConsertaPraMim.Infrastructure\ConsertaPraMim.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\ConsertaPraMim.Web.Admin\ConsertaPraMim.Web.Admin.csproj" />
     <ProjectReference Include="..\..\src\ConsertaPraMim.Web.Client\ConsertaPraMim.Web.Client.csproj" />
+    <ProjectReference Include="..\..\src\ConsertaPraMim.Web.CpmFull\ConsertaPraMim.Web.CpmFull.csproj" />
     <ProjectReference Include="..\..\src\ConsertaPraMim.Web.Landing\ConsertaPraMim.Web.Landing.csproj" />
     <ProjectReference Include="..\..\src\ConsertaPraMim.Web.Provider\ConsertaPraMim.Web.Provider.csproj" />
     <ProjectReference Include="..\..\src\ConsertaPraMim.Web.TelegramBridge\ConsertaPraMim.Web.TelegramBridge.csproj" />

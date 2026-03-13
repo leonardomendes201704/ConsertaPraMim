@@ -12,6 +12,24 @@
 
 ## Released
 
+- [2026-03-13] [CPMFULL-003][CHATWOOT-VPS-DEPLOY] Publicacao do Chatwoot na VPS do ConsertaPraMim
+- Tipo: feat
+- Resumo: a instancia self-hosted do `Chatwoot` foi publicada na VPS em `https://chatwoot.consertapramim.com`, com stack Docker isolada (`rails`, `sidekiq`, `postgres`, `redis`), proxy reverso no `Nginx`, TLS via `Let's Encrypt` e onboarding inicial pronto para criacao do primeiro admin.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/MANUAL_QA_OPERACAO.md`, `Documentacao/ADMIN_PORTAL/CHANGELOG/CHANGELOG.md`
+- Risco/Impacto: medio
+
+- [2026-03-13] [CPMFULL-002][CHATWOOT-BASE-CONFIG-HEALTHCHECK] Base inicial da integracao Chatwoot no CPM Full
+- Tipo: feat
+- Resumo: o `ConsertaPraMim.Web.CpmFull` passou a ter configuracao forte para `Chatwoot`, validacao de startup quando habilitado, cliente HTTP tipado com timeout/retentativa e endpoint interno `/internal/health/chatwoot` para diagnostico de conectividade e validacao dos inboxes configurados.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.CpmFull/Program.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/appsettings.json`, `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/ChatwootOptions.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/ChatwootOptionsValidator.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/ChatwootApiClient.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/ChatwootConnectionHealthCheck.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/README.md`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/MANUAL_QA_OPERACAO.md`, `Backend/tests/ConsertaPraMim.Tests.Unit/Integrations/Chatwoot/ChatwootOptionsValidatorTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/ConsertaPraMim.Tests.Unit.csproj`
+- Risco/Impacto: medio
+
+- [2026-03-13] [CPMFULL-001][CPMFULL-HOME-WHATSAPP-SUPPORT] Botao flutuante de WhatsApp na home do CPM Full
+- Tipo: feat
+- Resumo: a home do `ConsertaPraMim.Web.CpmFull` passou a exibir um botao flutuante de WhatsApp com CTA de suporte, abrindo conversa direta com o numero `(13) 99689-1738` e mensagem inicial pronta, sem dependencia de CDN ou asset externo adicional.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.CpmFull/Views/Home/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.CpmFull/wwwroot/css/site.css`, `Backend/src/ConsertaPraMim.Web.CpmFull/README.md`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/MANUAL_QA_OPERACAO.md`
+- Risco/Impacto: baixo
+
 - [2026-03-13] [GOV-005][SOLUTION-IMPORT-CPM-FULL] Importacao do projeto legado cpm-full para a solution
 - Tipo: feat
 - Resumo: a solution `ConsertaPraMim` passou a incluir o projeto standalone `ConsertaPraMim.Web.CpmFull` em `Backend/src`, preservando a base do `cpm-full` para migracao gradual; a importacao tambem alinhou o projeto para `net9.0`, removeu dependencia de CDN para `bootstrap-icons`/`SortableJS` e passou a suportar `appsettings.Local.json` ignorado pelo Git para uso temporario de connection string sensivel fora do versionamento.

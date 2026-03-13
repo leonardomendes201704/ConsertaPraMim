@@ -1,6 +1,10 @@
 @model HomePageViewModel
 @{
     string C(string key, string fallback) => SiteContent.Get(key, fallback);
+    const string whatsappSupportNumber = "5513996891738";
+    const string whatsappSupportDisplay = "(13) 99689-1738";
+    var whatsappSupportMessage = C("home.support_whatsapp.message", "Ola! Preciso de suporte no chat da ConsertaPraMim.");
+    var whatsappSupportUrl = $"https://wa.me/{whatsappSupportNumber}?text={Uri.EscapeDataString(whatsappSupportMessage)}";
 
     var pageTitle = C("home.meta.title", "Resolva os problemas da sua casa");
     ViewData["Title"] = pageTitle;
@@ -207,6 +211,19 @@
         <a class="btn btn-dark btn-lg" asp-controller="Home" asp-action="RequestService">@C("home.finalcta.button", "Solicitar servico agora")</a>
     </div>
 </section>
+
+<a
+    class="cpm-whatsapp-fab"
+    href="@whatsappSupportUrl"
+    target="_blank"
+    rel="noopener noreferrer"
+    aria-label="@C("home.support_whatsapp.aria_label", $"Abrir conversa no WhatsApp com o suporte {whatsappSupportDisplay}")"
+    title="@C("home.support_whatsapp.title", $"Falar com o suporte no WhatsApp: {whatsappSupportDisplay}")">
+    <span class="cpm-whatsapp-fab-icon" aria-hidden="true">
+        <i class="bi bi-whatsapp"></i>
+    </span>
+    <span class="cpm-whatsapp-fab-text">@C("home.support_whatsapp.label", "Suporte no WhatsApp")</span>
+</a>
 
 @section Head {
     @{

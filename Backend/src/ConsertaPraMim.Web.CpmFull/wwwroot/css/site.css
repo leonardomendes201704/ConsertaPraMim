@@ -191,6 +191,47 @@ a {
     font-size: 0.85rem;
 }
 
+.cpm-whatsapp-fab {
+    position: fixed;
+    right: 1.5rem;
+    bottom: 1.5rem;
+    z-index: 1040;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-height: 3.75rem;
+    padding: 0.7rem 1rem 0.7rem 0.8rem;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #25d366, #128c49);
+    color: #fff;
+    box-shadow: 0 18px 38px rgba(18, 140, 73, 0.32);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+}
+
+.cpm-whatsapp-fab:hover,
+.cpm-whatsapp-fab:focus-visible {
+    color: #fff;
+    transform: translateY(-2px);
+    box-shadow: 0 22px 42px rgba(18, 140, 73, 0.4);
+    filter: saturate(1.04);
+}
+
+.cpm-whatsapp-fab-icon {
+    width: 2.4rem;
+    height: 2.4rem;
+    display: inline-grid;
+    place-items: center;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.18);
+    font-size: 1.35rem;
+}
+
+.cpm-whatsapp-fab-text {
+    font-weight: 700;
+    line-height: 1.1;
+    white-space: nowrap;
+}
+
 .cpm-btn-primary {
     background: var(--cpm-primary);
     border-color: var(--cpm-primary);
@@ -410,5 +451,19 @@ a {
 
     .cpm-hero {
         padding: 4rem 0;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .cpm-whatsapp-fab {
+        right: 1rem;
+        bottom: 1rem;
+        min-width: 3.75rem;
+        padding: 0.7rem;
+        justify-content: center;
+    }
+
+    .cpm-whatsapp-fab-text {
+        display: none;
     }
 }

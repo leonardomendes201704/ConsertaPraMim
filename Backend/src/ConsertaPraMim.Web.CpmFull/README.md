@@ -1,6 +1,6 @@
 ﻿# ConsertaPraMim - CPM Full
 
-Aplicacao web em **ASP.NET Core 8 (MVC)** para conectar clientes a profissionais de servicos residenciais.
+Aplicacao web em **ASP.NET Core 9 (MVC)** para conectar clientes a profissionais de servicos residenciais.
 
 ## Visao geral
 
@@ -43,7 +43,7 @@ Toda a camada de apresentacao usa Razor Views e Bootstrap, enquanto a logica de 
 
 ## Stack
 
-- .NET 8 (`net8.0`)
+- .NET 9 (`net9.0`)
 - ASP.NET Core MVC
 - Razor Views
 - Bootstrap 5 + Bootstrap Icons
@@ -57,6 +57,50 @@ Toda a camada de apresentacao usa Razor Views e Bootstrap, enquanto a logica de 
 - `Services/` - repositorio em memoria e regras de acesso a dados.
 - `Views/` - paginas Razor.
 - `wwwroot/` - CSS, JS e imagens estaticas.
+- `documentacao/` - materiais operacionais e apoio da trilha.
+
+## Documentacao operacional
+
+- [Manual de QA e Operacao](documentacao/MANUAL_QA_OPERACAO.md)
+- [Epic de integracao Chatwoot](documentacao/EPIC_CHATWOOT_FUNIS_CPM.md)
+
+## Configuracao Chatwoot
+
+O projeto ja possui a base inicial da integracao com `Chatwoot`, incluindo:
+
+- binding forte da secao `Chatwoot`;
+- validacao explicita quando `Chatwoot:Enabled=true`;
+- cliente HTTP tipado com timeout e retentativa;
+- health check interno em `/internal/health/chatwoot`.
+
+Variaveis/parametros minimos:
+
+- `Chatwoot__Enabled`
+- `Chatwoot__BaseUrl`
+- `Chatwoot__ApiAccessToken`
+- `Chatwoot__AccountId`
+- `Chatwoot__ClientsInboxId`
+- `Chatwoot__ProvidersInboxId`
+- `Chatwoot__WebhookSecret`
+
+Exemplo local em `appsettings.Local.json`:
+
+```json
+{
+  "Chatwoot": {
+    "Enabled": true,
+    "BaseUrl": "https://chat.seudominio.com",
+    "ApiAccessToken": "seu-token",
+    "AccountId": 1,
+    "ClientsInboxId": 10,
+    "ProvidersInboxId": 11,
+    "WebhookSecret": "segredo-webhook",
+    "RequestTimeoutSeconds": 15,
+    "MaxRetryAttempts": 3,
+    "RetryBaseDelayMs": 500
+  }
+}
+```
 
 ## Rotas principais
 
@@ -73,7 +117,7 @@ Toda a camada de apresentacao usa Razor Views e Bootstrap, enquanto a logica de 
 
 ## Requisitos
 
-- .NET SDK 8.0+
+- .NET SDK 9.0+
 
 ## Como executar localmente
 
