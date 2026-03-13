@@ -12,6 +12,30 @@
 
 ## Released
 
+- [2026-03-13] [CPMFULL-007][CHATWOOT-AUTO-LEAD-SYNC] Sincronizacao automatica do lead com Chatwoot no CPM Full
+- Tipo: feat
+- Resumo: o `ConsertaPraMim.Web.CpmFull` passou a sincronizar automaticamente os leads do Kanban com o Chatwoot durante criacao/edicao, reaproveitando contato quando existente, criando `contact_inbox` quando necessario, abrindo conversa no inbox correto, registrando mensagem privada inicial e oferecendo botao manual `Sincronizar Chatwoot` para reprocessar leads antigos ou falhas operacionais.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/ChatwootApiClient.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/ChatwootDtos.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/ChatwootLeadSyncService.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/IChatwootApiClient.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/IChatwootLeadSyncService.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Areas/Admin/Controllers/KanbanController.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Areas/Admin/Views/Kanban/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.CpmFull/Program.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Services/IAdminKanbanService.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Services/SqlAdminKanbanService.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Integrations/Chatwoot/ChatwootLeadSyncServiceTests.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/EPIC_CHATWOOT_FUNIS_CPM.md`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/MANUAL_QA_OPERACAO.md`, `Documentacao/ADMIN_PORTAL/CHANGELOG/CHANGELOG.md`
+- Risco/Impacto: medio
+
+- [2026-03-13] [CPMFULL-006][CHATWOOT-US-02-LEAD-LINK-PERSISTENCE] Persistencia do vinculo Chatwoot no Kanban do CPM Full
+- Tipo: feat
+- Resumo: o funil do `ConsertaPraMim.Web.CpmFull` passou a persistir `ChatwootContactId`, `ChatwootConversationId`, `ChatwootInboxId`, `ChatwootSyncStatus`, `ChatwootLastSyncAt` e `ChatwootLastError` em `cpm_web_kanban_leads`, com DDL idempotente, indice por conversa, leitura/escrita no `SqlAdminKanbanService` e exibicao operacional desses dados no detalhe do lead do Kanban.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.CpmFull/Services/AdminKanbanModels.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Services/IAdminKanbanService.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Services/SqlAdminKanbanService.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Areas/Admin/Controllers/KanbanController.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Areas/Admin/Views/Kanban/Index.cshtml`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/SqlAdminKanbanServiceChatwootPersistenceTests.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/EPIC_CHATWOOT_FUNIS_CPM.md`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/MANUAL_QA_OPERACAO.md`, `Documentacao/ADMIN_PORTAL/CHANGELOG/CHANGELOG.md`
+- Risco/Impacto: medio
+
+- [2026-03-13] [CPMFULL-005][CHATWOOT-API-TOKEN-PROXY-FIX] Correcao do proxy para autenticar a Application API do Chatwoot
+- Tipo: fix
+- Resumo: o proxy `Nginx` da instancia `chatwoot.consertapramim.com` foi ajustado para aceitar e encaminhar o header `api_access_token`, eliminando `401 Unauthorized` nas chamadas da Application API e permitindo que o CPM Full validasse a conectividade com os inboxes configurados.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/MANUAL_QA_OPERACAO.md`, `Documentacao/ADMIN_PORTAL/CHANGELOG/CHANGELOG.md`
+- Risco/Impacto: medio
+
+- [2026-03-13] [CPMFULL-004][CHATWOOT-SIGNUP-HARDENING] Desabilitacao do signup publico apos onboarding do Chatwoot
+- Tipo: fix
+- Resumo: apos a criacao do primeiro admin no `Chatwoot` publicado em `chatwoot.consertapramim.com`, o ambiente foi endurecido com `ENABLE_ACCOUNT_SIGNUP=false` e reaplicacao da stack Docker, encerrando o fluxo de onboarding aberto ao publico.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/MANUAL_QA_OPERACAO.md`, `Documentacao/ADMIN_PORTAL/CHANGELOG/CHANGELOG.md`
+- Risco/Impacto: baixo
+
 - [2026-03-13] [CPMFULL-003][CHATWOOT-VPS-DEPLOY] Publicacao do Chatwoot na VPS do ConsertaPraMim
 - Tipo: feat
 - Resumo: a instancia self-hosted do `Chatwoot` foi publicada na VPS em `https://chatwoot.consertapramim.com`, com stack Docker isolada (`rails`, `sidekiq`, `postgres`, `redis`), proxy reverso no `Nginx`, TLS via `Let's Encrypt` e onboarding inicial pronto para criacao do primeiro admin.

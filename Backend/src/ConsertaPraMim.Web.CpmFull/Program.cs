@@ -19,6 +19,7 @@ builder.Services.AddSingleton<IAdminSiteContentService, SqlAdminSiteContentServi
 builder.Services.AddSingleton<IAdminSupportFaqService, SqlAdminSupportFaqService>();
 builder.Services.AddSingleton<IAdminKanbanService, SqlAdminKanbanService>();
 builder.Services.AddScoped<ISiteContentResolver, SiteContentResolver>();
+builder.Services.AddScoped<IChatwootLeadSyncService, ChatwootLeadSyncService>();
 builder.Services.AddSingleton<IValidateOptions<ChatwootOptions>, ChatwootOptionsValidator>();
 builder.Services.AddOptions<ChatwootOptions>()
     .Bind(builder.Configuration.GetSection(ChatwootOptions.SectionName))

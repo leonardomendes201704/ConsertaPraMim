@@ -1,4 +1,5 @@
 using AppMobileCPM.Areas.Admin.ViewModels;
+using AppMobileCPM.Integrations.Chatwoot;
 using AppMobileCPM.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -11,10 +12,14 @@ namespace AppMobileCPM.Areas.Admin.Controllers;
 public sealed class KanbanController : Controller
 {
     private readonly IAdminKanbanService _kanbanService;
+    private readonly IChatwootLeadSyncService _chatwootLeadSyncService;
 
-    public KanbanController(IAdminKanbanService kanbanService)
+    public KanbanController(
+        IAdminKanbanService kanbanService,
+        IChatwootLeadSyncService chatwootLeadSyncService)
     {
         _kanbanService = kanbanService;
+        _chatwootLeadSyncService = chatwootLeadSyncService;
     }
 
     [HttpGet("clientes")]
@@ -57,10 +62,21 @@ public sealed class KanbanController : Controller
             createdAt = lead.CreatedAt.ToString("dd/MM/yyyy HH:mm"),
             updatedAt = lead.UpdatedAt?.ToString("dd/MM/yyyy HH:mm") ?? "-",
             lastContactAt = lead.LastContactAt?.ToString("yyyy-MM-ddTHH:mm") ?? string.Empty,
+            chatwoot = new
+            {
+                contactId = lead.Chatwoot.ContactId,
+                conversationId = lead.Chatwoot.ConversationId,
+                inboxId = lead.Chatwoot.InboxId,
+                syncStatus = lead.Chatwoot.SyncStatus,
+                syncStatusLabel = FormatChatwootSyncStatusLabel(lead.Chatwoot.SyncStatus),
+                lastSyncAt = lead.Chatwoot.LastSyncAt?.ToString("dd/MM/yyyy HH:mm") ?? "-",
+                lastError = string.IsNullOrWhiteSpace(lead.Chatwoot.LastError) ? "-" : lead.Chatwoot.LastError
+            },
             history = lead.History.Select(item => new
             {
                 id = item.Id,
                 eventType = item.EventType,
+                eventTypeLabel = FormatHistoryEventLabel(item.EventType),
                 fromStageName = item.FromStageName,
                 toStageName = item.ToStageName,
                 description = item.Description,
@@ -71,7 +87,7 @@ public sealed class KanbanController : Controller
 
     [HttpPost("lead/novo")]
     [ValidateAntiForgeryToken]
-    public IActionResult CreateLead([FromBody] AdminKanbanLeadInputModel model)
+    public async Task<IActionResult> CreateLead([FromBody] AdminKanbanLeadInputModel model)
     {
         if (!ModelState.IsValid)
         {
@@ -97,7 +113,17 @@ public sealed class KanbanController : Controller
                 LastContactAt = model.LastContactAt
             });
 
-            return Json(new { success = true, leadId });
+            var syncResult = await _chatwootLeadSyncService.SyncLeadAsync(leadId, HttpContext.RequestAborted);
+            return Json(new
+            {
+                success = true,
+                leadId,
+                chatwoot = new
+                {
+                    status = syncResult.Status,
+                    message = syncResult.Message
+                }
+            });
         }
         catch (Exception ex)
         {
@@ -107,7 +133,7 @@ public sealed class KanbanController : Controller
 
     [HttpPost("lead/editar")]
     [ValidateAntiForgeryToken]
-    public IActionResult UpdateLead([FromBody] AdminKanbanLeadInputModel model)
+    public async Task<IActionResult> UpdateLead([FromBody] AdminKanbanLeadInputModel model)
     {
         if (!ModelState.IsValid || model.Id <= 0)
         {
@@ -138,12 +164,52 @@ public sealed class KanbanController : Controller
                 return NotFound(new { success = false, message = "Lead nao encontrado para atualizacao." });
             }
 
-            return Json(new { success = true });
+            var syncResult = await _chatwootLeadSyncService.SyncLeadAsync(model.Id, HttpContext.RequestAborted);
+            return Json(new
+            {
+                success = true,
+                chatwoot = new
+                {
+                    status = syncResult.Status,
+                    message = syncResult.Message
+                }
+            });
         }
         catch (Exception ex)
         {
             return BadRequest(new { success = false, message = ex.Message });
         }
+    }
+
+    [HttpPost("lead/{id:int}/chatwoot/sincronizar")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SyncLeadChatwoot(int id)
+    {
+        var result = await _chatwootLeadSyncService.SyncLeadAsync(id, HttpContext.RequestAborted);
+        if (result.Status == ChatwootSyncStatuses.NotFound)
+        {
+            return NotFound(new { success = false, message = result.Message });
+        }
+
+        if (!result.Succeeded)
+        {
+            return BadRequest(new
+            {
+                success = false,
+                status = result.Status,
+                message = result.Message
+            });
+        }
+
+        return Json(new
+        {
+            success = true,
+            status = result.Status,
+            message = result.Message,
+            contactId = result.ContactId,
+            conversationId = result.ConversationId,
+            inboxId = result.InboxId
+        });
     }
 
     [HttpPost("lead/ordem")]
@@ -243,4 +309,30 @@ public sealed class KanbanController : Controller
             }).ToList()
         };
     }
+
+    private static string FormatChatwootSyncStatusLabel(string? syncStatus) =>
+        (syncStatus ?? string.Empty).Trim().ToLowerInvariant() switch
+        {
+            "pending" => "Pendente",
+            "synced" => "Sincronizado",
+            "failed" => "Falha",
+            "skipped" => "Ignorado",
+            "disabled" => "Desabilitado",
+            _ => "Ainda nao sincronizado"
+        };
+
+    private static string FormatHistoryEventLabel(string? eventType) =>
+        (eventType ?? string.Empty).Trim().ToLowerInvariant() switch
+        {
+            "criado" => "Lead criado",
+            "movido" => "Etapa alterada",
+            "atualizado" => "Dados atualizados",
+            "nota" => "Anotacao",
+            "seed" => "Carga inicial",
+            "chatwoot_contato_sincronizado" => "Contato sincronizado no Chatwoot",
+            "chatwoot_conversa_criada" => "Conversa criada no Chatwoot",
+            "chatwoot_sincronizado" => "Sincronizacao com Chatwoot",
+            "chatwoot_sync_falhou" => "Falha na sincronizacao com Chatwoot",
+            _ => "Evento do funil"
+        };
 }

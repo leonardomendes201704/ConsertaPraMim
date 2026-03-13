@@ -127,6 +127,9 @@
 ### Descricao
 Como equipe tecnica, queremos configurar parametros e infraestrutura minima da integracao para permitir comunicacao segura com o Chatwoot.
 
+### Status
+- Concluida em 2026-03-13 no `ConsertaPraMim.Web.CpmFull`.
+
 ### Criterios de aceite
 1. Existe secao `Chatwoot` validada no startup.
 2. A aplicacao falha de forma explicita quando `Enabled=true` e faltam credenciais obrigatorias.
@@ -145,6 +148,9 @@ Como equipe tecnica, queremos configurar parametros e infraestrutura minima da i
 ### Descricao
 Como sistema, quero armazenar IDs tecnicos do Chatwoot no lead para rastrear e sincronizar a conversa.
 
+### Status
+- Concluida em 2026-03-13 no `ConsertaPraMim.Web.CpmFull`.
+
 ### Criterios de aceite
 1. Colunas de vinculo estao disponiveis em banco.
 2. Leitura e escrita dessas colunas funcionam no repositorio de Kanban.
@@ -161,6 +167,9 @@ Como sistema, quero armazenar IDs tecnicos do Chatwoot no lead para rastrear e s
 ## US-03 - Criar/atualizar contato no Chatwoot a partir do lead
 ### Descricao
 Como operacao, quero que todo lead relevante tenha contato correspondente no Chatwoot para iniciar atendimento sem cadastro manual.
+
+### Status
+- Concluida em 2026-03-13 no `ConsertaPraMim.Web.CpmFull`.
 
 ### Criterios de aceite
 1. Lead novo gera contato no Chatwoot quando dados minimos estao presentes.
@@ -183,6 +192,9 @@ Como operacao, quero que todo lead relevante tenha contato correspondente no Cha
 ## US-04 - Criar conversa no Chatwoot para cada lead
 ### Descricao
 Como atendente, quero receber uma conversa ja aberta no inbox certo para cada lead criado no CPM.
+
+### Status
+- Concluida em 2026-03-13 no `ConsertaPraMim.Web.CpmFull`.
 
 ### Criterios de aceite
 1. Lead de clientes abre conversa em inbox de clientes.

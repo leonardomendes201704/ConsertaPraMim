@@ -184,7 +184,8 @@ ORDER BY SortOrder, Id;
             command.CommandText = $"""
 SELECT TOP (1)
     l.Id, l.StageId, s.Name, l.BoardType, l.Name, l.Phone, l.Email, l.ServiceCategory, l.PostalCode, l.City,
-    l.Source, l.Priority, l.StatusNote, l.InternalNotes, l.CreatedAt, l.UpdatedAt, l.LastContactAt
+    l.Source, l.Priority, l.StatusNote, l.InternalNotes, l.CreatedAt, l.UpdatedAt, l.LastContactAt,
+    l.ChatwootContactId, l.ChatwootConversationId, l.ChatwootInboxId, l.ChatwootSyncStatus, l.ChatwootLastSyncAt, l.ChatwootLastError
 FROM dbo.{TablePrefix}kanban_leads l
 INNER JOIN dbo.{TablePrefix}kanban_stages s ON s.Id = l.StageId
 WHERE l.Id = @leadId AND l.IsActive = 1;
@@ -213,6 +214,15 @@ WHERE l.Id = @leadId AND l.IsActive = 1;
                     CreatedAt = reader.GetDateTime(14),
                     UpdatedAt = reader.IsDBNull(15) ? null : reader.GetDateTime(15),
                     LastContactAt = reader.IsDBNull(16) ? null : reader.GetDateTime(16),
+                    Chatwoot = new AdminKanbanLeadChatwootSyncRecord
+                    {
+                        ContactId = ReadNullableInt64(reader, 17),
+                        ConversationId = ReadNullableInt64(reader, 18),
+                        InboxId = ReadNullableInt64(reader, 19),
+                        SyncStatus = reader.IsDBNull(20) ? string.Empty : reader.GetString(20),
+                        LastSyncAt = reader.IsDBNull(21) ? null : reader.GetDateTime(21),
+                        LastError = reader.IsDBNull(22) ? string.Empty : reader.GetString(22)
+                    },
                     History = []
                 };
             }
@@ -272,6 +282,7 @@ ORDER BY h.CreatedAt DESC, h.Id DESC;
             CreatedAt = details.CreatedAt,
             UpdatedAt = details.UpdatedAt,
             LastContactAt = details.LastContactAt,
+            Chatwoot = details.Chatwoot,
             History = history
         };
     }
@@ -442,6 +453,44 @@ WHERE Id = @leadId AND IsActive = 1 AND BoardType = @boardType;
         return true;
     }
 
+    public bool UpdateLeadChatwootSync(int leadId, AdminKanbanLeadChatwootSyncUpdateRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        EnsureInitialized();
+
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = $"""
+UPDATE dbo.{TablePrefix}kanban_leads
+SET ChatwootContactId = COALESCE(@chatwootContactId, ChatwootContactId),
+    ChatwootConversationId = COALESCE(@chatwootConversationId, ChatwootConversationId),
+    ChatwootInboxId = COALESCE(@chatwootInboxId, ChatwootInboxId),
+    ChatwootSyncStatus = COALESCE(@chatwootSyncStatus, ChatwootSyncStatus),
+    ChatwootLastSyncAt = COALESCE(@chatwootLastSyncAt, ChatwootLastSyncAt),
+    ChatwootLastError = CASE
+        WHEN @clearChatwootLastError = 1 THEN NULL
+        WHEN @chatwootLastError IS NOT NULL THEN @chatwootLastError
+        ELSE ChatwootLastError
+    END,
+    UpdatedAt = SYSUTCDATETIME()
+WHERE Id = @leadId AND IsActive = 1;
+""";
+        command.Parameters.AddRange(
+        [
+            new SqlParameter("@chatwootContactId", SqlDbType.BigInt) { Value = request.ChatwootContactId.HasValue ? request.ChatwootContactId.Value : DBNull.Value },
+            new SqlParameter("@chatwootConversationId", SqlDbType.BigInt) { Value = request.ChatwootConversationId.HasValue ? request.ChatwootConversationId.Value : DBNull.Value },
+            new SqlParameter("@chatwootInboxId", SqlDbType.BigInt) { Value = request.ChatwootInboxId.HasValue ? request.ChatwootInboxId.Value : DBNull.Value },
+            new SqlParameter("@chatwootSyncStatus", SqlDbType.NVarChar, 30) { Value = ToDbValue(NormalizeChatwootSyncStatus(request.ChatwootSyncStatus)) },
+            new SqlParameter("@chatwootLastSyncAt", SqlDbType.DateTime2) { Value = request.ChatwootLastSyncAt.HasValue ? request.ChatwootLastSyncAt.Value : DBNull.Value },
+            new SqlParameter("@chatwootLastError", SqlDbType.NVarChar, -1) { Value = ToDbValue(request.ChatwootLastError) },
+            new SqlParameter("@clearChatwootLastError", SqlDbType.Bit) { Value = request.ClearChatwootLastError },
+            new SqlParameter("@leadId", SqlDbType.Int) { Value = leadId }
+        ]);
+
+        return command.ExecuteNonQuery() > 0;
+    }
+
     public bool SaveBoardOrder(AdminKanbanBoardOrderUpdateRequest request)
     {
         EnsureInitialized();
@@ -505,20 +554,9 @@ WHERE Id = @leadId AND IsActive = 1 AND BoardType = @boardType;
         using var connection = OpenConnection();
         using var transaction = connection.BeginTransaction();
 
-        using (var checkCommand = connection.CreateCommand())
+        if (!ActiveLeadExists(connection, transaction, leadId))
         {
-            checkCommand.Transaction = transaction;
-            checkCommand.CommandText = $"""
-SELECT TOP (1) Id
-FROM dbo.{TablePrefix}kanban_leads
-WHERE Id = @leadId AND IsActive = 1;
-""";
-            checkCommand.Parameters.Add(new SqlParameter("@leadId", SqlDbType.Int) { Value = leadId });
-            var exists = checkCommand.ExecuteScalar();
-            if (exists is null)
-            {
-                return false;
-            }
+            return false;
         }
 
         InsertHistory(
@@ -529,6 +567,36 @@ WHERE Id = @leadId AND IsActive = 1;
             fromStageId: null,
             toStageId: null,
             description: TrimTo(note, 3000)
+        );
+
+        transaction.Commit();
+        return true;
+    }
+
+    public bool AddHistoryEvent(int leadId, string eventType, string description)
+    {
+        EnsureInitialized();
+        if (string.IsNullOrWhiteSpace(eventType) || string.IsNullOrWhiteSpace(description))
+        {
+            return false;
+        }
+
+        using var connection = OpenConnection();
+        using var transaction = connection.BeginTransaction();
+
+        if (!ActiveLeadExists(connection, transaction, leadId))
+        {
+            return false;
+        }
+
+        InsertHistory(
+            connection,
+            transaction,
+            leadId,
+            eventType: TrimTo(eventType, 40),
+            fromStageId: null,
+            toStageId: null,
+            description: TrimTo(description, 3000)
         );
 
         transaction.Commit();
@@ -594,6 +662,12 @@ CREATE TABLE dbo.{TablePrefix}kanban_leads
     StatusNote NVARCHAR(500) NULL,
     InternalNotes NVARCHAR(MAX) NULL,
     LastContactAt DATETIME2 NULL,
+    ChatwootContactId BIGINT NULL,
+    ChatwootConversationId BIGINT NULL,
+    ChatwootInboxId BIGINT NULL,
+    ChatwootSyncStatus NVARCHAR(30) NULL,
+    ChatwootLastSyncAt DATETIME2 NULL,
+    ChatwootLastError NVARCHAR(MAX) NULL,
     IsActive BIT NOT NULL DEFAULT(1),
     CreatedAt DATETIME2 NOT NULL DEFAULT(SYSUTCDATETIME()),
     UpdatedAt DATETIME2 NULL
@@ -615,9 +689,31 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID('dbo.{Table
 CREATE INDEX IX_{TablePrefix}kanban_stages_board
     ON dbo.{TablePrefix}kanban_stages(BoardType, SortOrder, Id);
 
+IF COL_LENGTH('dbo.{TablePrefix}kanban_leads', 'ChatwootContactId') IS NULL
+ALTER TABLE dbo.{TablePrefix}kanban_leads ADD ChatwootContactId BIGINT NULL;
+
+IF COL_LENGTH('dbo.{TablePrefix}kanban_leads', 'ChatwootConversationId') IS NULL
+ALTER TABLE dbo.{TablePrefix}kanban_leads ADD ChatwootConversationId BIGINT NULL;
+
+IF COL_LENGTH('dbo.{TablePrefix}kanban_leads', 'ChatwootInboxId') IS NULL
+ALTER TABLE dbo.{TablePrefix}kanban_leads ADD ChatwootInboxId BIGINT NULL;
+
+IF COL_LENGTH('dbo.{TablePrefix}kanban_leads', 'ChatwootSyncStatus') IS NULL
+ALTER TABLE dbo.{TablePrefix}kanban_leads ADD ChatwootSyncStatus NVARCHAR(30) NULL;
+
+IF COL_LENGTH('dbo.{TablePrefix}kanban_leads', 'ChatwootLastSyncAt') IS NULL
+ALTER TABLE dbo.{TablePrefix}kanban_leads ADD ChatwootLastSyncAt DATETIME2 NULL;
+
+IF COL_LENGTH('dbo.{TablePrefix}kanban_leads', 'ChatwootLastError') IS NULL
+ALTER TABLE dbo.{TablePrefix}kanban_leads ADD ChatwootLastError NVARCHAR(MAX) NULL;
+
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID('dbo.{TablePrefix}kanban_leads') AND name = 'IX_{TablePrefix}kanban_leads_board_stage')
 CREATE INDEX IX_{TablePrefix}kanban_leads_board_stage
     ON dbo.{TablePrefix}kanban_leads(BoardType, StageId, SortOrder, Id);
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID('dbo.{TablePrefix}kanban_leads') AND name = 'IX_{TablePrefix}kanban_leads_chatwoot_conversation')
+CREATE INDEX IX_{TablePrefix}kanban_leads_chatwoot_conversation
+    ON dbo.{TablePrefix}kanban_leads(ChatwootConversationId);
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID('dbo.{TablePrefix}kanban_lead_history') AND name = 'IX_{TablePrefix}kanban_history_lead')
 CREATE INDEX IX_{TablePrefix}kanban_history_lead
@@ -899,6 +995,21 @@ SELECT CASE WHEN EXISTS (
         return Convert.ToInt32(command.ExecuteScalar()) == 1;
     }
 
+    private static bool ActiveLeadExists(SqlConnection connection, SqlTransaction transaction, int leadId)
+    {
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = $"""
+SELECT CASE WHEN EXISTS (
+    SELECT 1
+    FROM dbo.{TablePrefix}kanban_leads
+    WHERE Id = @leadId AND IsActive = 1
+) THEN 1 ELSE 0 END;
+""";
+        command.Parameters.Add(new SqlParameter("@leadId", SqlDbType.Int) { Value = leadId });
+        return Convert.ToInt32(command.ExecuteScalar()) == 1;
+    }
+
     private static int GetStageIdByName(SqlConnection connection, SqlTransaction transaction, string boardType, string stageName)
     {
         using var command = connection.CreateCommand();
@@ -1148,6 +1259,9 @@ VALUES
     private static object ToDbValue(string? value) =>
         string.IsNullOrWhiteSpace(value) ? DBNull.Value : value.Trim();
 
+    private static long? ReadNullableInt64(SqlDataReader reader, int ordinal) =>
+        reader.IsDBNull(ordinal) ? null : reader.GetInt64(ordinal);
+
     private static DateTime ReadAsUtcDateTime(SqlDataReader reader, int ordinal)
     {
         if (reader.IsDBNull(ordinal))
@@ -1168,6 +1282,16 @@ VALUES
     {
         var normalized = (value ?? string.Empty).Trim();
         return normalized.Length <= maxLength ? normalized : normalized[..maxLength];
+    }
+
+    private static string? NormalizeChatwootSyncStatus(string? syncStatus)
+    {
+        if (string.IsNullOrWhiteSpace(syncStatus))
+        {
+            return null;
+        }
+
+        return TrimTo(syncStatus, 30).ToLowerInvariant();
     }
 
     private static string NormalizePriority(string? priority)

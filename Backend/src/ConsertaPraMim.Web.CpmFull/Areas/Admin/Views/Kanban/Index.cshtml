@@ -138,14 +138,20 @@
                 <div class="row g-3 mb-3">
                     <div class="col-12 col-md-6"><strong>Nome:</strong> <span id="detailsName"></span></div>
                     <div class="col-12 col-md-6"><strong>Etapa:</strong> <span id="detailsStage"></span></div>
+                    <div class="col-12 col-md-6"><strong>Sync Chatwoot:</strong> <span id="detailsChatwootStatus"></span></div>
+                    <div class="col-12 col-md-6"><strong>Ultima sync Chatwoot:</strong> <span id="detailsChatwootLastSyncAt"></span></div>
                     <div class="col-12 col-md-6"><strong>Telefone:</strong> <span id="detailsPhone"></span></div>
                     <div class="col-12 col-md-6"><strong>E-mail:</strong> <span id="detailsEmail"></span></div>
                     <div class="col-12 col-md-6"><strong>Servico:</strong> <span id="detailsService"></span></div>
                     <div class="col-12 col-md-6"><strong>CEP / Cidade:</strong> <span id="detailsAddress"></span></div>
                     <div class="col-12 col-md-6"><strong>Fonte:</strong> <span id="detailsSource"></span></div>
                     <div class="col-12 col-md-6"><strong>Prioridade:</strong> <span id="detailsPriority"></span></div>
+                    <div class="col-12 col-md-4"><strong>Contato Chatwoot:</strong> <span id="detailsChatwootContactId"></span></div>
+                    <div class="col-12 col-md-4"><strong>Conversa Chatwoot:</strong> <span id="detailsChatwootConversationId"></span></div>
+                    <div class="col-12 col-md-4"><strong>Inbox Chatwoot:</strong> <span id="detailsChatwootInboxId"></span></div>
                     <div class="col-12"><strong>Status:</strong> <div id="detailsStatusNote" class="text-secondary-emphasis"></div></div>
                     <div class="col-12"><strong>Observacoes internas:</strong> <div id="detailsInternalNotes" class="text-secondary-emphasis"></div></div>
+                    <div class="col-12"><strong>Ultimo erro Chatwoot:</strong> <div id="detailsChatwootLastError" class="text-secondary-emphasis"></div></div>
                 </div>
 
                 <hr />
@@ -159,6 +165,9 @@
                 <div id="leadHistoryTimeline" class="cpm-history-timeline"></div>
             </div>
             <div class="modal-footer">
+                <button type="button" id="syncLeadChatwootBtn" class="btn btn-outline-success">
+                    Sincronizar Chatwoot
+                </button>
                 <button type="button" id="openEditLeadBtn" class="btn btn-primary">Editar lead</button>
             </div>
         </div>
@@ -276,6 +285,7 @@
 
             const endpoint = {
                 details: (id) => `/admin/funil/lead/${id}/json`,
+                sync: (id) => `/admin/funil/lead/${id}/chatwoot/sincronizar`,
                 create: "/admin/funil/lead/novo",
                 update: "/admin/funil/lead/editar",
                 order: "/admin/funil/lead/ordem",
@@ -438,7 +448,7 @@
                     return `
                         <div class="cpm-history-item">
                             <div class="d-flex justify-content-between align-items-center gap-2 mb-1">
-                                <strong class="small text-uppercase">${item.eventType}</strong>
+                                <strong class="small text-uppercase">${item.eventTypeLabel || item.eventType || "Evento"}</strong>
                                 <span class="cpm-history-date">${item.createdAt}</span>
                             </div>
                             ${stageMove}
@@ -449,16 +459,23 @@
             };
 
             const fillDetails = (lead) => {
+                const chatwoot = lead.chatwoot || {};
                 document.getElementById("detailsName").textContent = lead.name || "-";
                 document.getElementById("detailsStage").textContent = lead.stageName || "-";
+                document.getElementById("detailsChatwootStatus").textContent = chatwoot.syncStatusLabel || "Ainda nao sincronizado";
+                document.getElementById("detailsChatwootLastSyncAt").textContent = chatwoot.lastSyncAt || "-";
                 document.getElementById("detailsPhone").textContent = lead.phone || "-";
                 document.getElementById("detailsEmail").textContent = lead.email || "-";
                 document.getElementById("detailsService").textContent = lead.serviceCategory || "-";
                 document.getElementById("detailsAddress").textContent = [lead.postalCode, lead.city].filter(Boolean).join(" / ") || "-";
                 document.getElementById("detailsSource").textContent = lead.source || "-";
                 document.getElementById("detailsPriority").textContent = lead.priority || "-";
+                document.getElementById("detailsChatwootContactId").textContent = chatwoot.contactId || "-";
+                document.getElementById("detailsChatwootConversationId").textContent = chatwoot.conversationId || "-";
+                document.getElementById("detailsChatwootInboxId").textContent = chatwoot.inboxId || "-";
                 document.getElementById("detailsStatusNote").textContent = lead.statusNote || "-";
                 document.getElementById("detailsInternalNotes").textContent = lead.internalNotes || "-";
+                document.getElementById("detailsChatwootLastError").textContent = chatwoot.lastError || "-";
                 renderHistory(lead.history || []);
             };
 
@@ -537,6 +554,34 @@
                 setFormValues("edit", currentLead);
                 detailsModal?.hide();
                 editModal?.show();
+            });
+
+            document.getElementById("syncLeadChatwootBtn")?.addEventListener("click", async (event) => {
+                if (!currentLead?.id) {
+                    return;
+                }
+
+                const button = event.currentTarget;
+                const originalText = button.textContent;
+                button.disabled = true;
+                button.textContent = "Sincronizando...";
+
+                try {
+                    const response = await postJson(endpoint.sync(currentLead.id), {});
+                    currentLead = await loadLeadDetails(currentLead.id);
+                    fillDetails(currentLead);
+                    alert(response.message || "Lead sincronizado com Chatwoot.");
+                } catch (error) {
+                    try {
+                        currentLead = await loadLeadDetails(currentLead.id);
+                        fillDetails(currentLead);
+                    } catch { }
+
+                    alert(error.message || "Nao foi possivel sincronizar o lead com Chatwoot.");
+                } finally {
+                    button.disabled = false;
+                    button.textContent = originalText;
+                }
             });
 
             document.getElementById("saveEditLeadBtn")?.addEventListener("click", async () => {

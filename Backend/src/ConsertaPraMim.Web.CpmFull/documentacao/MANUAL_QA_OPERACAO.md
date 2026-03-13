@@ -75,6 +75,77 @@ Preencher a secao `Chatwoot` via `appsettings.Local.json` ou variaveis de ambien
 - `Degraded`: validar se `ClientsInboxId` e `ProvidersInboxId` pertencem a mesma conta configurada.
 - `TaskCanceledException`: revisar timeout, DNS, proxy reverso e acesso da aplicacao ao host do Chatwoot.
 
+## Integracao Chatwoot - persistencia de vinculo no funil
+
+### Objetivo desta etapa
+
+- Persistir no lead os IDs tecnicos e o status operacional da sincronizacao com Chatwoot para rastreabilidade no funil.
+
+### Comportamento esperado
+
+- O bootstrap SQL do `SqlAdminKanbanService` deve criar as colunas `ChatwootContactId`, `ChatwootConversationId`, `ChatwootInboxId`, `ChatwootSyncStatus`, `ChatwootLastSyncAt` e `ChatwootLastError` quando elas ainda nao existirem.
+- O bootstrap SQL deve criar de forma idempotente o indice `IX_cpm_web_kanban_leads_chatwoot_conversation`.
+- Leads antigos, ainda sem IDs do Chatwoot, devem continuar abrindo normalmente no Kanban.
+- O endpoint `/admin/funil/lead/{id}/json` deve expor um bloco `chatwoot` com os campos persistidos.
+- O modal de detalhes do lead no Kanban deve exibir status, data da ultima sync, IDs tecnicos e ultimo erro, sempre com fallback seguro quando nao houver dados.
+
+### Checklist de QA
+
+1. Subir o `ConsertaPraMim.Web.CpmFull`.
+2. Acessar `/admin/funil/clientes` ou `/admin/funil/prestadores`.
+3. Abrir o detalhe de um lead legado e confirmar exibicao de `Ainda nao sincronizado`, sem quebra de tela.
+4. Identificar o `Id` do lead e executar update manual no banco:
+5. `UPDATE dbo.cpm_web_kanban_leads SET ChatwootContactId = 101, ChatwootConversationId = 202, ChatwootInboxId = 1, ChatwootSyncStatus = 'synced', ChatwootLastSyncAt = SYSUTCDATETIME(), ChatwootLastError = NULL WHERE Id = <leadId>;`
+6. Reabrir o detalhe do lead.
+7. Confirmar preenchimento dos campos `Sync Chatwoot`, `Ultima sync Chatwoot`, `Contato Chatwoot`, `Conversa Chatwoot` e `Inbox Chatwoot`.
+8. Chamar `/admin/funil/lead/<leadId>/json` e validar o bloco `chatwoot`.
+9. Executar a suite `SqlAdminKanbanServiceChatwootPersistenceTests` em ambiente com SQL Server de teste disponivel.
+
+### Troubleshooting
+
+- `Invalid column name 'Chatwoot...'`: a aplicacao iniciou contra base antiga sem permissao para `ALTER TABLE`; revisar permissao DDL do usuario e reiniciar a aplicacao.
+- Campo de Chatwoot vazio no modal mesmo apos atualizar o banco: validar se a publicacao levou `Areas/Admin/Controllers/KanbanController.cs` e `Areas/Admin/Views/Kanban/Index.cshtml`.
+- Teste automatizado marcado como `Skipped`: validar se o host possui `MSSQLLocalDB` funcional ou definir `CPMFULL_SQLSERVER_TEST_MASTER_CONNECTION` para um SQL Server de teste acessivel.
+
+## Integracao Chatwoot - sincronizacao ativa do lead
+
+### Objetivo desta etapa
+
+- Criar ou reaproveitar contato no Chatwoot, abrir conversa no inbox correto e permitir reprocessamento manual de leads ja existentes no funil.
+
+### Comportamento esperado
+
+- Ao criar ou editar um lead com telefone ou e-mail valido, o CPM Full deve tentar sincronizar automaticamente com o Chatwoot.
+- Leads do funil `clientes` devem usar `ClientsInboxId`; leads do funil `prestadores` devem usar `ProvidersInboxId`.
+- O fluxo deve procurar contato existente por `identifier`, e-mail e telefone antes de criar novo contato.
+- Quando o contato existir sem vinculo ao inbox do funil atual, o sistema deve criar `contact_inbox` para reutilizar o mesmo contato.
+- Quando o lead ainda nao possuir `ChatwootConversationId`, o sistema deve criar a conversa e registrar uma primeira mensagem privada com o resumo operacional do lead.
+- Em falha externa, o lead local continua salvo e os campos `ChatwootSyncStatus`/`ChatwootLastError` devem refletir o erro sem quebrar o Kanban.
+- O modal de detalhe do lead deve oferecer o botao `Sincronizar Chatwoot` para reprocessar leads antigos ou falhas anteriores.
+
+### Checklist de QA
+
+1. Criar um lead novo no funil de clientes com telefone e e-mail validos.
+2. Confirmar retorno do fluxo sem erro funcional na tela.
+3. Abrir o detalhe do lead e validar `Sync Chatwoot = Sincronizado`.
+4. Confirmar que `Contato Chatwoot`, `Conversa Chatwoot` e `Inbox Chatwoot` estao preenchidos.
+5. Entrar em `https://chatwoot.consertapramim.com` e validar o contato/conversa no inbox `CPM Clientes`.
+6. Validar que a primeira mensagem da conversa foi criada como anotacao privada com resumo do lead.
+7. Editar o mesmo lead e confirmar que o fluxo reaproveita os IDs ja gravados, sem criar nova conversa.
+8. Escolher um lead antigo ainda sem sync e acionar `Sincronizar Chatwoot` no modal.
+9. Confirmar atualizacao imediata do status e dos IDs no detalhe do lead.
+10. Repetir o fluxo com um lead do funil de prestadores e validar uso do inbox `CPM Prestadores`.
+11. Criar um lead sem telefone e sem e-mail.
+12. Confirmar que o lead local continua salvo, mas com `Sync Chatwoot = Falha` e `Ultimo erro Chatwoot` explicando a ausencia de dados minimos.
+
+### Troubleshooting
+
+- `Lead sem telefone ou e-mail valido`: corrigir o cadastro e usar o botao `Sincronizar Chatwoot`.
+- `Chatwoot retornou erro HTTP 401`: validar token admin, proxy reverso e se o header `api_access_token` continua sendo encaminhado pelo Nginx.
+- `Phone number has already been taken`: o contato pode ter sido criado manualmente sem `identifier`; validar busca por telefone/e-mail no Chatwoot e reprocessar o lead.
+- O modal nao atualiza apos clicar em `Sincronizar Chatwoot`: validar o endpoint `POST /admin/funil/lead/{id}/chatwoot/sincronizar` e o anti-forgery token da pagina.
+- Nova conversa nao aparece: validar `ChatwootConversationId`, `Inbox Chatwoot` e se a chamada de criacao da conversa nao falhou antes da primeira mensagem privada.
+
 ## Integracao Chatwoot - deploy da VPS
 
 ### Estado atual do ambiente
@@ -85,10 +156,13 @@ Preencher a secao `Chatwoot` via `appsettings.Local.json` ou variaveis de ambien
 - Proxy reverso Nginx: `/etc/nginx/sites-available/chatwoot.consertapramim.com.conf`
 - Certificado TLS: `/etc/letsencrypt/live/chatwoot.consertapramim.com/fullchain.pem`
 - Renovacao TLS: job global em `/etc/cron.d/profinder-certbot-renew`
+- Signup publico: desabilitado apos criacao do primeiro admin (`ENABLE_ACCOUNT_SIGNUP=false`)
+- Proxy da API: `underscores_in_headers on`, `ignore_invalid_headers off` e forward explicito de `api_access_token`
 
 ### Comportamento esperado
 
 - A URL publica deve responder em HTTPS e redirecionar para `/installation/onboarding` enquanto o primeiro admin nao for criado.
+- Apos a criacao do primeiro admin e o endurecimento da instancia, a raiz deve responder com a experiencia autenticada/login do Chatwoot, sem onboarding aberto.
 - O container `chatwoot-rails` deve responder internamente em `127.0.0.1:3300`.
 - Postgres e Redis nao devem ficar expostos publicamente; o acesso e somente pela rede Docker.
 - O host deve manter `vm.overcommit_memory = 1` para estabilidade do Redis.
@@ -111,9 +185,17 @@ Preencher a secao `Chatwoot` via `appsettings.Local.json` ou variaveis de ambien
 3. Aplicar `cd /opt/chatwoot && docker compose up -d`.
 4. Revalidar login e garantir que novos cadastros publicos nao estejam mais disponiveis.
 
+### Endurecimento aplicado no ambiente atual
+
+1. O primeiro admin ja foi criado no ambiente publicado.
+2. O arquivo `/opt/chatwoot/.env` foi atualizado para `ENABLE_ACCOUNT_SIGNUP=false`.
+3. A stack foi reaplicada com `cd /opt/chatwoot && docker compose up -d`.
+4. A URL `https://chatwoot.consertapramim.com` foi revalidada com sucesso apos o restart.
+
 ### Troubleshooting
 
 - `502 Bad Gateway`: validar `docker compose ps`, `docker logs --tail 50 chatwoot-rails` e `docker logs --tail 50 chatwoot-sidekiq`.
 - `SSL certificate problem`: validar se o certificado continua presente em `/etc/letsencrypt/live/chatwoot.consertapramim.com/`.
 - `erro de memoria` ou reinicio de container: validar `free -h`, `docker stats` e se `vm.overcommit_memory` continua em `1`.
 - `pagina em branco` apos login: validar se o `FRONTEND_URL` em `/opt/chatwoot/.env` continua `https://chatwoot.consertapramim.com`.
+- `401 Unauthorized` na Application API: validar se o Nginx do Chatwoot continua com `underscores_in_headers on;`, `ignore_invalid_headers off;` e `proxy_set_header api_access_token $http_api_access_token;`.

@@ -94,7 +94,18 @@ public sealed class AdminKanbanLeadDetailsRecord
     public DateTime CreatedAt { get; init; }
     public DateTime? UpdatedAt { get; init; }
     public DateTime? LastContactAt { get; init; }
+    public AdminKanbanLeadChatwootSyncRecord Chatwoot { get; init; } = new();
     public required IReadOnlyList<AdminKanbanLeadHistoryRecord> History { get; init; }
+}
+
+public sealed class AdminKanbanLeadChatwootSyncRecord
+{
+    public long? ContactId { get; init; }
+    public long? ConversationId { get; init; }
+    public long? InboxId { get; init; }
+    public string SyncStatus { get; init; } = string.Empty;
+    public DateTime? LastSyncAt { get; init; }
+    public string LastError { get; init; } = string.Empty;
 }
 
 public sealed class AdminKanbanLeadHistoryRecord
@@ -139,4 +150,15 @@ public sealed class AdminKanbanStageOrderUpdateItem
 {
     public int StageId { get; init; }
     public required IReadOnlyList<int> LeadIds { get; init; }
+}
+
+public sealed class AdminKanbanLeadChatwootSyncUpdateRequest
+{
+    public long? ChatwootContactId { get; init; }
+    public long? ChatwootConversationId { get; init; }
+    public long? ChatwootInboxId { get; init; }
+    public string? ChatwootSyncStatus { get; init; }
+    public DateTime? ChatwootLastSyncAt { get; init; }
+    public string? ChatwootLastError { get; init; }
+    public bool ClearChatwootLastError { get; init; }
 }

@@ -29,14 +29,15 @@ public sealed class ChatwootOptionsValidatorTests
         };
 
         var result = _validator.Validate(Options.DefaultName, options);
+        var failures = result.Failures ?? [];
 
         Assert.False(result.Succeeded);
-        Assert.Contains(result.Failures, failure => failure.Contains("BaseUrl", StringComparison.Ordinal));
-        Assert.Contains(result.Failures, failure => failure.Contains("ApiAccessToken", StringComparison.Ordinal));
-        Assert.Contains(result.Failures, failure => failure.Contains("AccountId", StringComparison.Ordinal));
-        Assert.Contains(result.Failures, failure => failure.Contains("ClientsInboxId", StringComparison.Ordinal));
-        Assert.Contains(result.Failures, failure => failure.Contains("ProvidersInboxId", StringComparison.Ordinal));
-        Assert.Contains(result.Failures, failure => failure.Contains("WebhookSecret", StringComparison.Ordinal));
+        Assert.Contains(failures, failure => failure.Contains("BaseUrl", StringComparison.Ordinal));
+        Assert.Contains(failures, failure => failure.Contains("ApiAccessToken", StringComparison.Ordinal));
+        Assert.Contains(failures, failure => failure.Contains("AccountId", StringComparison.Ordinal));
+        Assert.Contains(failures, failure => failure.Contains("ClientsInboxId", StringComparison.Ordinal));
+        Assert.Contains(failures, failure => failure.Contains("ProvidersInboxId", StringComparison.Ordinal));
+        Assert.Contains(failures, failure => failure.Contains("WebhookSecret", StringComparison.Ordinal));
     }
 
     [Fact(DisplayName = "Deve aceitar configuracao completa quando Chatwoot estiver habilitado")]
