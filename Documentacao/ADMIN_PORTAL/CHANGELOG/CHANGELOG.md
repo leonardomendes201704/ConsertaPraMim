@@ -12,6 +12,12 @@
 
 ## Released
 
+- [2026-03-13] [GOV-004][GITIGNORE-TEMP-ARTIFACTS-CLEANUP] Limpeza dos artefatos temporarios locais exibidos no Git do Visual Studio
+- Tipo: fix
+- Resumo: o repositorio passou a ignorar a pasta raiz `tmp/` e arquivos `.tmp_pr_body_*.md`, eliminando a exibicao indevida de mais de 99 arquivos locais temporarios no painel Git do Visual Studio quando nao ha alteracoes reais para commit.
+- Arquivos principais: `.gitignore`, `Documentacao/ADMIN_PORTAL/CHANGELOG/CHANGELOG.md`
+- Risco/Impacto: baixo
+
 - [2026-03-11] [ST-078][ADMIN-ER-DIAGRAM-AUTO-LAYOUT] Botao de auto-layout no Diagramar ER
 - Tipo: feat
 - Resumo: a tela `Diagramar ER` passou a expor o botao `Reaplicar auto-layout`, usando `dagre` local para reorganizar automaticamente o grafo atual do `ReactFlow` conforme dependencias entre tabelas, reduzindo empilhamento manual e melhorando leitura por recorte/contexto.
