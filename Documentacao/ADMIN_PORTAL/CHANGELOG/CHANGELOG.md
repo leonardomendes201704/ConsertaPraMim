@@ -12,6 +12,12 @@
 
 ## Released
 
+- [2026-03-13] [CPMFULL-008][CHATWOOT-STAGE-SYNC] Sincronizacao da etapa do Kanban com status, labels e atributos da conversa no Chatwoot
+- Tipo: feat
+- Resumo: o drag-and-drop do funil do `ConsertaPraMim.Web.CpmFull` passou a sincronizar a etapa atual do lead com a conversa do Chatwoot, atualizando `conversation status`, labels gerenciadas pelo prefixo `cpm_`, `custom_attributes` operacionais e historico do lead, sem bloquear a persistencia local da mudanca no Kanban.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/ChatwootApiClient.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/ChatwootLeadSyncService.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/ChatwootStageMapping.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/IChatwootApiClient.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/IChatwootLeadSyncService.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Areas/Admin/Controllers/KanbanController.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/EPIC_CHATWOOT_FUNIS_CPM.md`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/MANUAL_QA_OPERACAO.md`, `Documentacao/ADMIN_PORTAL/CHANGELOG/CHANGELOG.md`
+- Risco/Impacto: medio
+
 - [2026-03-13] [CPMFULL-007][CHATWOOT-AUTO-LEAD-SYNC] Sincronizacao automatica do lead com Chatwoot no CPM Full
 - Tipo: feat
 - Resumo: o `ConsertaPraMim.Web.CpmFull` passou a sincronizar automaticamente os leads do Kanban com o Chatwoot durante criacao/edicao, reaproveitando contato quando existente, criando `contact_inbox` quando necessario, abrindo conversa no inbox correto, registrando mensagem privada inicial e oferecendo botao manual `Sincronizar Chatwoot` para reprocessar leads antigos ou falhas operacionais.

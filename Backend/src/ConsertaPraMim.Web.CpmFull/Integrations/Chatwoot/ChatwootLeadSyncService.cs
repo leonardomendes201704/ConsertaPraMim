@@ -6,6 +6,8 @@ namespace AppMobileCPM.Integrations.Chatwoot;
 
 public sealed class ChatwootLeadSyncService : IChatwootLeadSyncService
 {
+    private const string ManagedLabelPrefix = "cpm_";
+
     private readonly IAdminKanbanService _kanbanService;
     private readonly IChatwootApiClient _chatwootApiClient;
     private readonly ChatwootOptions _options;
@@ -107,6 +109,8 @@ public sealed class ChatwootLeadSyncService : IChatwootLeadSyncService
                     cancellationToken);
             }
 
+            await ApplyStageMappingAsync(lead, conversationId.Value, trackHistory: false, cancellationToken);
+
             _kanbanService.UpdateLeadChatwootSync(
                 leadId,
                 new AdminKanbanLeadChatwootSyncUpdateRequest
@@ -171,6 +175,84 @@ public sealed class ChatwootLeadSyncService : IChatwootLeadSyncService
                 $"Falha na sincronizacao com Chatwoot: {sanitizedError}");
 
             return ChatwootLeadSyncResult.Failed(sanitizedError, contactId, conversationId, inboxId);
+        }
+    }
+
+    public async Task<ChatwootLeadSyncResult> SyncLeadStageAsync(int leadId, CancellationToken cancellationToken = default)
+    {
+        var lead = _kanbanService.GetLeadDetails(leadId);
+        if (lead is null)
+        {
+            return ChatwootLeadSyncResult.NotFound("Lead nao encontrado para sincronizar etapa com o Chatwoot.");
+        }
+
+        if (!lead.Chatwoot.ConversationId.HasValue)
+        {
+            var bootstrapResult = await SyncLeadAsync(leadId, cancellationToken);
+            if (!bootstrapResult.Succeeded || !bootstrapResult.ConversationId.HasValue)
+            {
+                return bootstrapResult;
+            }
+
+            lead = _kanbanService.GetLeadDetails(leadId);
+            if (lead is null || !lead.Chatwoot.ConversationId.HasValue)
+            {
+                return ChatwootLeadSyncResult.Failed(
+                    "Nao foi possivel recarregar o lead apos sincronizar a conversa no Chatwoot.",
+                    bootstrapResult.ContactId,
+                    bootstrapResult.ConversationId,
+                    bootstrapResult.InboxId);
+            }
+        }
+
+        try
+        {
+            await ApplyStageMappingAsync(lead, lead.Chatwoot.ConversationId.Value, trackHistory: true, cancellationToken);
+
+            _kanbanService.UpdateLeadChatwootSync(
+                leadId,
+                new AdminKanbanLeadChatwootSyncUpdateRequest
+                {
+                    ChatwootContactId = lead.Chatwoot.ContactId,
+                    ChatwootConversationId = lead.Chatwoot.ConversationId,
+                    ChatwootInboxId = lead.Chatwoot.InboxId ?? ResolveInboxId(lead.BoardType),
+                    ChatwootSyncStatus = ChatwootSyncStatuses.Synced,
+                    ChatwootLastSyncAt = DateTime.UtcNow,
+                    ClearChatwootLastError = true
+                });
+
+            return ChatwootLeadSyncResult.Synced(
+                $"Etapa '{lead.StageName}' sincronizada com Chatwoot.",
+                lead.Chatwoot.ContactId,
+                lead.Chatwoot.ConversationId,
+                lead.Chatwoot.InboxId ?? ResolveInboxId(lead.BoardType));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Falha ao sincronizar etapa do lead {LeadId} com Chatwoot.", leadId);
+
+            var sanitizedError = TrimTo(BuildUserFacingError(ex), 500);
+            _kanbanService.UpdateLeadChatwootSync(
+                leadId,
+                new AdminKanbanLeadChatwootSyncUpdateRequest
+                {
+                    ChatwootContactId = lead.Chatwoot.ContactId,
+                    ChatwootConversationId = lead.Chatwoot.ConversationId,
+                    ChatwootInboxId = lead.Chatwoot.InboxId ?? ResolveInboxId(lead.BoardType),
+                    ChatwootSyncStatus = ChatwootSyncStatuses.Failed,
+                    ChatwootLastSyncAt = DateTime.UtcNow,
+                    ChatwootLastError = sanitizedError
+                });
+            _kanbanService.AddHistoryEvent(
+                leadId,
+                "chatwoot_etapa_sync_falhou",
+                $"Falha ao sincronizar etapa '{lead.StageName}' com Chatwoot: {sanitizedError}");
+
+            return ChatwootLeadSyncResult.Failed(
+                sanitizedError,
+                lead.Chatwoot.ContactId,
+                lead.Chatwoot.ConversationId,
+                lead.Chatwoot.InboxId ?? ResolveInboxId(lead.BoardType));
         }
     }
 
@@ -438,6 +520,54 @@ public sealed class ChatwootLeadSyncService : IChatwootLeadSyncService
         var normalized = (value ?? string.Empty).Trim();
         return normalized.Length <= maxLength ? normalized : normalized[..maxLength];
     }
+
+    private async Task ApplyStageMappingAsync(
+        AdminKanbanLeadDetailsRecord lead,
+        long conversationId,
+        bool trackHistory,
+        CancellationToken cancellationToken)
+    {
+        var mapping = ChatwootStageMappings.Resolve(lead.BoardType, lead.StageName);
+
+        await _chatwootApiClient.UpdateConversationCustomAttributesAsync(
+            conversationId,
+            new Dictionary<string, object?>
+            {
+                ["cpm_lead_id"] = lead.Id,
+                ["cpm_board_type"] = lead.BoardType,
+                ["cpm_stage_name"] = lead.StageName,
+                ["cpm_stage_slug"] = mapping.StageSlug
+            },
+            cancellationToken);
+
+        var existingLabels = await _chatwootApiClient.ListConversationLabelsAsync(conversationId, cancellationToken);
+        var mergedLabels = existingLabels
+            .Where(label => !label.StartsWith(ManagedLabelPrefix, StringComparison.OrdinalIgnoreCase))
+            .Concat(mapping.Labels)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        await _chatwootApiClient.ReplaceConversationLabelsAsync(conversationId, mergedLabels, cancellationToken);
+        await _chatwootApiClient.UpdateConversationStatusAsync(conversationId, mapping.ConversationStatus, cancellationToken);
+
+        if (trackHistory)
+        {
+            _kanbanService.AddHistoryEvent(
+                lead.Id,
+                "chatwoot_etapa_sincronizada",
+                $"Etapa '{lead.StageName}' sincronizada no Chatwoot com status '{FormatConversationStatusLabel(mapping.ConversationStatus)}'.");
+        }
+    }
+
+    private static string FormatConversationStatusLabel(string status) =>
+        status.Trim().ToLowerInvariant() switch
+        {
+            "open" => "aberta",
+            "pending" => "pendente",
+            "resolved" => "resolvida",
+            "snoozed" => "adiada",
+            _ => "atualizada"
+        };
 
     private sealed record ResolvedChatwootContact(
         ChatwootContactSummary Contact,

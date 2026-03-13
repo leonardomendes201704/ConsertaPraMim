@@ -146,6 +146,60 @@ Preencher a secao `Chatwoot` via `appsettings.Local.json` ou variaveis de ambien
 - O modal nao atualiza apos clicar em `Sincronizar Chatwoot`: validar o endpoint `POST /admin/funil/lead/{id}/chatwoot/sincronizar` e o anti-forgery token da pagina.
 - Nova conversa nao aparece: validar `ChatwootConversationId`, `Inbox Chatwoot` e se a chamada de criacao da conversa nao falhou antes da primeira mensagem privada.
 
+## Integracao Chatwoot - sincronizacao de etapa do Kanban
+
+### Objetivo desta etapa
+
+- Refletir no Chatwoot a mudanca de etapa do card no Kanban, atualizando status da conversa, labels gerenciadas pelo CPM e custom attributes operacionais.
+
+### Comportamento esperado
+
+- Ao mover um card entre etapas no Kanban, o CPM Full deve manter a mudanca local como fonte de verdade e tentar sincronizar a conversa correspondente no Chatwoot.
+- A sincronizacao de etapa deve atualizar:
+- status da conversa (`open`, `pending` ou `resolved`);
+- labels gerenciadas pelo prefixo `cpm_`, preservando labels manuais nao pertencentes ao CPM;
+- `custom_attributes` da conversa com `cpm_lead_id`, `cpm_board_type`, `cpm_stage_name` e `cpm_stage_slug`.
+- Quando o lead ainda nao tiver conversa no Chatwoot, o fluxo de sync de etapa deve primeiro criar/reaproveitar contato e conversa, depois aplicar o mapa da etapa.
+- Em falha externa, o card continua movido localmente e o lead deve registrar `ChatwootSyncStatus = failed`, `ChatwootLastError` e evento de historico correspondente.
+
+### Mapeamento inicial aplicado
+
+- `clientes`
+- `Novo lead` -> status `open`, labels `cpm_clientes`, `cpm_clientes_novo_lead`
+- `Tentativa de contato` -> status `pending`, labels `cpm_clientes`, `cpm_clientes_tentativa_de_contato`
+- `Agendado` -> status `pending`, labels `cpm_clientes`, `cpm_clientes_agendado`
+- `Em atendimento` -> status `open`, labels `cpm_clientes`, `cpm_clientes_em_atendimento`
+- `Concluido` -> status `resolved`, labels `cpm_clientes`, `cpm_clientes_concluido`
+- `Perdido` -> status `resolved`, labels `cpm_clientes`, `cpm_clientes_perdido`
+- `prestadores`
+- `Novo cadastro` -> status `open`, labels `cpm_prestadores`, `cpm_prestadores_novo_cadastro`
+- `Primeiro contato` -> status `pending`, labels `cpm_prestadores`, `cpm_prestadores_primeiro_contato`
+- `Documentacao pendente` -> status `pending`, labels `cpm_prestadores`, `cpm_prestadores_documentacao_pendente`
+- `Validacao tecnica` -> status `pending`, labels `cpm_prestadores`, `cpm_prestadores_validacao_tecnica`
+- `Ativo na plataforma` -> status `resolved`, labels `cpm_prestadores`, `cpm_prestadores_ativo_na_plataforma`
+- `Inativo/Recusado` -> status `resolved`, labels `cpm_prestadores`, `cpm_prestadores_inativo_recusado`
+
+### Checklist de QA
+
+1. Garantir que o lead testado ja possua `ChatwootConversationId`.
+2. Abrir o card no funil e anotar a etapa atual.
+3. Mover o card para outra etapa via drag-and-drop.
+4. Confirmar que a mudanca local no Kanban continua salva mesmo se houver lentidao na API externa.
+5. Abrir o detalhe do lead e validar `Sync Chatwoot = Sincronizado`.
+6. Confirmar novo evento de historico `Etapa sincronizada no Chatwoot`.
+7. No Chatwoot, abrir a conversa correspondente e validar:
+8. novo status da conversa;
+9. labels `cpm_` compatíveis com a etapa atual;
+10. preservacao de labels manuais nao pertencentes ao prefixo `cpm_`.
+11. Repetir o teste com card ainda sem conversa no Chatwoot e confirmar bootstrap automatico antes da sync de etapa.
+
+### Troubleshooting
+
+- O card moveu, mas o Chatwoot nao refletiu a etapa: abrir o detalhe do lead e validar `Ultimo erro Chatwoot`.
+- Labels manuais sumiram: revisar se houve label manual usando prefixo `cpm_`; esse prefixo esta reservado para labels gerenciadas pelo CPM.
+- Status de conversa inesperado: revisar o mapa fixo em `Integrations/Chatwoot/ChatwootStageMapping.cs`.
+- Falha recorrente de sync de etapa: usar `Sincronizar Chatwoot` no modal para reprocessar o lead e confirmar bootstrap de contato/conversa antes de novo drag-and-drop.
+
 ## Integracao Chatwoot - deploy da VPS
 
 ### Estado atual do ambiente

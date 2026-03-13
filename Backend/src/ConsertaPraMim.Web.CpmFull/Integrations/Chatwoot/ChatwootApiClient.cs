@@ -202,6 +202,63 @@ public sealed class ChatwootApiClient : IChatwootApiClient
         };
     }
 
+    public async Task<IReadOnlyList<string>> ListConversationLabelsAsync(long conversationId, CancellationToken cancellationToken = default)
+    {
+        var response = await SendAsync<ChatwootConversationLabelsResponse>(
+            HttpMethod.Get,
+            $"api/v1/accounts/{_options.AccountId}/conversations/{conversationId}/labels",
+            body: null,
+            cancellationToken);
+
+        return response.Payload
+            .Where(label => !string.IsNullOrWhiteSpace(label))
+            .Select(label => label.Trim())
+            .ToList();
+    }
+
+    public async Task<IReadOnlyList<string>> ReplaceConversationLabelsAsync(long conversationId, IReadOnlyList<string> labels, CancellationToken cancellationToken = default)
+    {
+        var response = await SendAsync<ChatwootConversationLabelsResponse>(
+            HttpMethod.Post,
+            $"api/v1/accounts/{_options.AccountId}/conversations/{conversationId}/labels",
+            new
+            {
+                labels = labels
+            },
+            cancellationToken);
+
+        return response.Payload
+            .Where(label => !string.IsNullOrWhiteSpace(label))
+            .Select(label => label.Trim())
+            .ToList();
+    }
+
+    public async Task UpdateConversationCustomAttributesAsync(long conversationId, IReadOnlyDictionary<string, object?> customAttributes, CancellationToken cancellationToken = default)
+    {
+        await SendAsync<ChatwootConversationCustomAttributesResponse>(
+            HttpMethod.Post,
+            $"api/v1/accounts/{_options.AccountId}/conversations/{conversationId}/custom_attributes",
+            new
+            {
+                custom_attributes = customAttributes
+            },
+            cancellationToken);
+    }
+
+    public async Task<string> UpdateConversationStatusAsync(long conversationId, string status, CancellationToken cancellationToken = default)
+    {
+        var response = await SendAsync<ChatwootConversationStatusResponse>(
+            HttpMethod.Post,
+            $"api/v1/accounts/{_options.AccountId}/conversations/{conversationId}/toggle_status",
+            new
+            {
+                status
+            },
+            cancellationToken);
+
+        return response.Payload?.CurrentStatus ?? string.Empty;
+    }
+
     private async Task<TResponse> SendAsync<TResponse>(
         HttpMethod method,
         string relativePath,
@@ -384,5 +441,27 @@ public sealed class ChatwootApiClient : IChatwootApiClient
 
         [JsonPropertyName("private")]
         public bool Private { get; init; }
+    }
+
+    private sealed class ChatwootConversationLabelsResponse
+    {
+        public List<string> Payload { get; init; } = [];
+    }
+
+    private sealed class ChatwootConversationCustomAttributesResponse
+    {
+        [JsonPropertyName("custom_attributes")]
+        public Dictionary<string, JsonElement> CustomAttributes { get; init; } = [];
+    }
+
+    private sealed class ChatwootConversationStatusResponse
+    {
+        public ChatwootConversationStatusPayload? Payload { get; init; }
+    }
+
+    private sealed class ChatwootConversationStatusPayload
+    {
+        [JsonPropertyName("current_status")]
+        public string? CurrentStatus { get; init; }
     }
 }

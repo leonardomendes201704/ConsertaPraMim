@@ -214,7 +214,7 @@ public sealed class KanbanController : Controller
 
     [HttpPost("lead/ordem")]
     [ValidateAntiForgeryToken]
-    public IActionResult SaveOrder([FromBody] AdminKanbanOrderInputModel model)
+    public async Task<IActionResult> SaveOrder([FromBody] AdminKanbanOrderInputModel model)
     {
         if (!ModelState.IsValid || model.Stages.Count == 0)
         {
@@ -223,12 +223,16 @@ public sealed class KanbanController : Controller
 
         try
         {
+            var changedLeadId = model.ChangedLeadId > 0 ? model.ChangedLeadId : (int?)null;
+            var fromStageId = model.FromStageId > 0 ? model.FromStageId : (int?)null;
+            var toStageId = model.ToStageId > 0 ? model.ToStageId : (int?)null;
+
             var saved = _kanbanService.SaveBoardOrder(new AdminKanbanBoardOrderUpdateRequest
             {
                 BoardType = model.BoardType,
-                ChangedLeadId = model.ChangedLeadId,
-                FromStageId = model.FromStageId,
-                ToStageId = model.ToStageId,
+                ChangedLeadId = changedLeadId,
+                FromStageId = fromStageId,
+                ToStageId = toStageId,
                 Stages = model.Stages
                     .Select(stage => new AdminKanbanStageOrderUpdateItem
                     {
@@ -238,7 +242,23 @@ public sealed class KanbanController : Controller
                     .ToList()
             });
 
-            return Json(new { success = saved });
+            ChatwootLeadSyncResult? chatwoot = null;
+            if (saved && changedLeadId.HasValue && fromStageId.HasValue && toStageId.HasValue && fromStageId.Value != toStageId.Value)
+            {
+                chatwoot = await _chatwootLeadSyncService.SyncLeadStageAsync(changedLeadId.Value, HttpContext.RequestAborted);
+            }
+
+            return Json(new
+            {
+                success = saved,
+                chatwoot = chatwoot is null
+                    ? null
+                    : new
+                    {
+                        status = chatwoot.Status,
+                        message = chatwoot.Message
+                    }
+            });
         }
         catch (Exception ex)
         {
@@ -333,6 +353,8 @@ public sealed class KanbanController : Controller
             "chatwoot_conversa_criada" => "Conversa criada no Chatwoot",
             "chatwoot_sincronizado" => "Sincronizacao com Chatwoot",
             "chatwoot_sync_falhou" => "Falha na sincronizacao com Chatwoot",
+            "chatwoot_etapa_sincronizada" => "Etapa sincronizada no Chatwoot",
+            "chatwoot_etapa_sync_falhou" => "Falha ao sincronizar etapa no Chatwoot",
             _ => "Evento do funil"
         };
 }

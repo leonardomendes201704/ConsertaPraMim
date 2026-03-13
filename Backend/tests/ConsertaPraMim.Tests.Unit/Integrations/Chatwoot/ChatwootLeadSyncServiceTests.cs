@@ -125,6 +125,29 @@ public sealed class ChatwootLeadSyncServiceTests
                 Id = 303,
                 Private = true
             });
+        chatwootApiClient
+            .Setup(client => client.UpdateConversationCustomAttributesAsync(
+                202,
+                It.Is<IReadOnlyDictionary<string, object?>>(attributes =>
+                    Equals(attributes["cpm_lead_id"], 21) &&
+                    Equals(attributes["cpm_board_type"], AdminKanbanBoardTypes.Clients) &&
+                    Equals(attributes["cpm_stage_name"], "Novo lead")),
+                It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        chatwootApiClient
+            .Setup(client => client.ListConversationLabelsAsync(202, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        chatwootApiClient
+            .Setup(client => client.ReplaceConversationLabelsAsync(
+                202,
+                It.Is<IReadOnlyList<string>>(labels =>
+                    labels.Contains("cpm_clientes") &&
+                    labels.Contains("cpm_clientes_novo_lead")),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { "cpm_clientes", "cpm_clientes_novo_lead" });
+        chatwootApiClient
+            .Setup(client => client.UpdateConversationStatusAsync(202, "open", It.IsAny<CancellationToken>()))
+            .ReturnsAsync("open");
 
         var sut = CreateSut(kanbanService.Object, chatwootApiClient.Object);
 
@@ -215,6 +238,29 @@ public sealed class ChatwootLeadSyncServiceTests
                     }
                 ]
             });
+        chatwootApiClient
+            .Setup(client => client.UpdateConversationCustomAttributesAsync(
+                202,
+                It.Is<IReadOnlyDictionary<string, object?>>(attributes =>
+                    Equals(attributes["cpm_lead_id"], 32) &&
+                    Equals(attributes["cpm_board_type"], AdminKanbanBoardTypes.Clients)),
+                It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        chatwootApiClient
+            .Setup(client => client.ListConversationLabelsAsync(202, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(["manual_label"]);
+        chatwootApiClient
+            .Setup(client => client.ReplaceConversationLabelsAsync(
+                202,
+                It.Is<IReadOnlyList<string>>(labels =>
+                    labels.Contains("manual_label") &&
+                    labels.Contains("cpm_clientes") &&
+                    labels.Contains("cpm_clientes_novo_lead")),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(["manual_label", "cpm_clientes", "cpm_clientes_novo_lead"]);
+        chatwootApiClient
+            .Setup(client => client.UpdateConversationStatusAsync(202, "open", It.IsAny<CancellationToken>()))
+            .ReturnsAsync("open");
 
         var sut = CreateSut(kanbanService.Object, chatwootApiClient.Object);
 
@@ -225,6 +271,80 @@ public sealed class ChatwootLeadSyncServiceTests
         chatwootApiClient.Verify(client => client.CreateConversationAsync(It.IsAny<ChatwootCreateConversationRequest>(), It.IsAny<CancellationToken>()), Times.Never);
         chatwootApiClient.Verify(client => client.CreateMessageAsync(It.IsAny<long>(), It.IsAny<ChatwootCreateMessageRequest>(), It.IsAny<CancellationToken>()), Times.Never);
         kanbanService.VerifyAll();
+    }
+
+    [Fact(DisplayName = "Deve sincronizar etapa do lead com status, labels e atributos da conversa")]
+    public async Task DeveSincronizarEtapaDoLeadComStatusLabelsEAtributosDaConversa()
+    {
+        var kanbanService = new Mock<IAdminKanbanService>();
+        var chatwootApiClient = new Mock<IChatwootApiClient>();
+        var lead = CreateLead(
+            45,
+            AdminKanbanBoardTypes.Clients,
+            phone: "(13) 99711-4422",
+            email: "ricardo@email.com",
+            stageName: "Tentativa de contato",
+            chatwoot: new AdminKanbanLeadChatwootSyncRecord
+            {
+                ContactId = 101,
+                ConversationId = 909,
+                InboxId = 1,
+                SyncStatus = ChatwootSyncStatuses.Synced
+            });
+
+        kanbanService
+            .Setup(service => service.GetLeadDetails(45))
+            .Returns(lead);
+        kanbanService
+            .Setup(service => service.UpdateLeadChatwootSync(
+                45,
+                It.Is<AdminKanbanLeadChatwootSyncUpdateRequest>(request =>
+                    request.ChatwootContactId == 101 &&
+                    request.ChatwootConversationId == 909 &&
+                    request.ChatwootInboxId == 1 &&
+                    request.ChatwootSyncStatus == ChatwootSyncStatuses.Synced &&
+                    request.ClearChatwootLastError)))
+            .Returns(true);
+        kanbanService
+            .Setup(service => service.AddHistoryEvent(
+                45,
+                "chatwoot_etapa_sincronizada",
+                It.Is<string>(message => message.Contains("Tentativa de contato", StringComparison.Ordinal))))
+            .Returns(true);
+
+        chatwootApiClient
+            .Setup(client => client.UpdateConversationCustomAttributesAsync(
+                909,
+                It.Is<IReadOnlyDictionary<string, object?>>(attributes =>
+                    Equals(attributes["cpm_stage_name"], "Tentativa de contato") &&
+                    Equals(attributes["cpm_stage_slug"], "clientes_tentativa_de_contato")),
+                It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        chatwootApiClient
+            .Setup(client => client.ListConversationLabelsAsync(909, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(["manual", "cpm_clientes_novo_lead"]);
+        chatwootApiClient
+            .Setup(client => client.ReplaceConversationLabelsAsync(
+                909,
+                It.Is<IReadOnlyList<string>>(labels =>
+                    labels.Contains("manual") &&
+                    labels.Contains("cpm_clientes") &&
+                    labels.Contains("cpm_clientes_tentativa_de_contato") &&
+                    !labels.Contains("cpm_clientes_novo_lead")),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(["manual", "cpm_clientes", "cpm_clientes_tentativa_de_contato"]);
+        chatwootApiClient
+            .Setup(client => client.UpdateConversationStatusAsync(909, "pending", It.IsAny<CancellationToken>()))
+            .ReturnsAsync("pending");
+
+        var sut = CreateSut(kanbanService.Object, chatwootApiClient.Object);
+
+        var result = await sut.SyncLeadStageAsync(45);
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(ChatwootSyncStatuses.Synced, result.Status);
+        kanbanService.VerifyAll();
+        chatwootApiClient.VerifyAll();
     }
 
     private static ChatwootLeadSyncService CreateSut(IAdminKanbanService kanbanService, IChatwootApiClient chatwootApiClient, bool enabled = true)
@@ -252,12 +372,13 @@ public sealed class ChatwootLeadSyncServiceTests
         string boardType,
         string? phone,
         string? email,
+        string stageName = "Novo lead",
         AdminKanbanLeadChatwootSyncRecord? chatwoot = null) =>
         new()
         {
             Id = leadId,
             StageId = 1,
-            StageName = "Novo lead",
+            StageName = stageName,
             BoardType = boardType,
             Name = "Ricardo Almeida",
             Phone = phone ?? string.Empty,

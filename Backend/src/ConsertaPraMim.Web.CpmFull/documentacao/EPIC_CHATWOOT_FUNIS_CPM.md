@@ -220,6 +220,10 @@ Como atendente, quero receber uma conversa ja aberta no inbox certo para cada le
 ### Descricao
 Como operacao, quero que mover card no Kanban reflita no status/labels da conversa no Chatwoot.
 
+### Status
+- Em andamento. Entrega inicial concluida em 2026-03-13 no `ConsertaPraMim.Web.CpmFull`, com sincronizacao direta de status/labels/custom attributes no drag-and-drop.
+- A fila de retentativa da falha externa permanece na `US-07`.
+
 ### Criterios de aceite
 1. Cada mudanca de etapa atualiza status da conversa no Chatwoot conforme mapa.
 2. Labels e custom attributes sao atualizados na conversa.
