@@ -12,6 +12,12 @@
 
 ## Released
 
+- [2026-03-13] [GOV-005][SOLUTION-IMPORT-CPM-FULL] Importacao do projeto legado cpm-full para a solution
+- Tipo: feat
+- Resumo: a solution `ConsertaPraMim` passou a incluir o projeto standalone `ConsertaPraMim.Web.CpmFull` em `Backend/src`, preservando a base do `cpm-full` para migracao gradual; a importacao tambem alinhou o projeto para `net9.0`, removeu dependencia de CDN para `bootstrap-icons`/`SortableJS` e passou a suportar `appsettings.Local.json` ignorado pelo Git para uso temporario de connection string sensivel fora do versionamento.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.CpmFull/ConsertaPraMim.Web.CpmFull.csproj`, `Backend/src/ConsertaPraMim.Web.CpmFull/Program.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/appsettings.json`, `Backend/src/ConsertaPraMim.Web.CpmFull/.gitignore`, `Backend/src/ConsertaPraMim.Web.CpmFull/Views/Shared/_Layout.cshtml`, `Backend/src/ConsertaPraMim.Web.CpmFull/Areas/Admin/Views/Shared/_LayoutAdmin.cshtml`, `Backend/src/ConsertaPraMim.Web.CpmFull/Areas/Admin/Views/Kanban/Index.cshtml`, `Backend/ConsertaPraMim.sln`, `Backend/src/src.sln`, `Documentacao/ADMIN_PORTAL/RUNBOOKS/RUNBOOK_IMPORTACAO_CPM_FULL_GOV-005.md`
+- Risco/Impacto: medio
+
 - [2026-03-13] [GOV-004][GITIGNORE-TEMP-ARTIFACTS-CLEANUP] Limpeza dos artefatos temporarios locais exibidos no Git do Visual Studio
 - Tipo: fix
 - Resumo: o repositorio passou a ignorar a pasta raiz `tmp/` e arquivos `.tmp_pr_body_*.md`, eliminando a exibicao indevida de mais de 99 arquivos locais temporarios no painel Git do Visual Studio quando nao ha alteracoes reais para commit.

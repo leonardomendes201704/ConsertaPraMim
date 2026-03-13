@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Admin ConsertaPraMim</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/lib/bootstrap-icons/font/bootstrap-icons.min.css" />
+    @await RenderSectionAsync("Head", required: false)
+</head>
+<body class="bg-light">
+    <header class="border-bottom bg-white">
+        <nav class="navbar navbar-expand-lg">
+            <div class="container-fluid px-0">
+                <a class="navbar-brand fw-bold" style="padding: 10px;" asp-area="Admin" asp-controller="Dashboard" asp-action="Index">
+                    Admin ConsertaPraMim
+                </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#adminNav" aria-controls="adminNav" aria-expanded="false" aria-label="Alternar menu">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="adminNav">
+                    <ul class="navbar-nav ms-auto align-items-lg-center gap-lg-2">
+                        @if (User.Identity?.IsAuthenticated == true)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link" asp-area="Admin" asp-controller="Dashboard" asp-action="Index">Painel</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" asp-area="Admin" asp-controller="SiteContent" asp-action="Index">Conteudos</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" asp-area="Admin" asp-controller="Kanban" asp-action="Clients">Funil Clientes</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" asp-area="Admin" asp-controller="Kanban" asp-action="Providers">Onboarding Prestadores</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" asp-area="Admin" asp-controller="SupportFaq" asp-action="Index">FAQ</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" asp-area="Admin" asp-controller="Account" asp-action="ChangePassword">Alterar senha</a>
+                            </li>
+                            <li class="nav-item">
+                                <form asp-area="Admin" asp-controller="Account" asp-action="Logout" method="post" class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-outline-secondary btn-sm">Sair</button>
+                                </form>
+                            </li>
+                        }
+                        else
+                        {
+                            <li class="nav-item">
+                                <a class="btn btn-primary btn-sm" asp-area="Admin" asp-controller="Account" asp-action="Login">Entrar</a>
+                            </li>
+                        }
+                    </ul>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main class="py-4 px-0">
+        <div class="container-fluid px-0" style="width: 98%; margin-left: auto; margin-right: auto;">
+            @if (TempData["AdminSuccessMessage"] is string successMessage && !string.IsNullOrWhiteSpace(successMessage))
+            {
+                <div class="alert alert-success" role="alert">@successMessage</div>
+            }
+            @RenderBody()
+        </div>
+    </main>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

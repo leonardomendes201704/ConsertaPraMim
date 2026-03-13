@@ -116,6 +116,7 @@
 
 ## Runbooks
 
+- [RUNBOOK GOV-005 - Importacao do projeto CPM Full para a solution](RUNBOOKS/RUNBOOK_IMPORTACAO_CPM_FULL_GOV-005.md)
 - [RUNBOOK ST-046 - Operacao e Contestacao de No-show/Cancelamento](RUNBOOKS/RUNBOOK_NO_SHOW_CANCELAMENTO_ST-046.md)
 - [RUNBOOK ST-050 - Melhoria Operacional por Baixa Avaliacao](RUNBOOKS/RUNBOOK_MELHORIA_BAIXA_AVALIACAO_ST-050.md)
 - [RUNBOOK ST-066 - Build e instalacao do dashboard Fire TV](RUNBOOKS/RUNBOOK_FIRE_TV_DASHBOARD_ST-066.md)

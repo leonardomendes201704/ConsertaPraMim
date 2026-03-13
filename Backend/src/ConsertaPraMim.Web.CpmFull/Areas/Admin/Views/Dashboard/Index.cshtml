@@ -1,0 +1,67 @@
+@model AdminDashboardViewModel
+@{
+    ViewData["Title"] = "Painel";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h4 fw-bold mb-1">Painel administrativo</h1>
+        <p class="text-secondary mb-0">Bem-vindo, @Model.AdminDisplayName.</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a class="btn btn-outline-secondary" asp-area="Admin" asp-controller="SiteContent" asp-action="Index">
+            Gerenciar conteudos
+        </a>
+        <a class="btn btn-outline-secondary" asp-area="Admin" asp-controller="SupportFaq" asp-action="Index">
+            Gerenciar FAQ
+        </a>
+        <a class="btn btn-outline-secondary" asp-area="Admin" asp-controller="Kanban" asp-action="Clients">
+            Funil clientes
+        </a>
+        <a class="btn btn-outline-secondary" asp-area="Admin" asp-controller="Kanban" asp-action="Providers">
+            Onboarding prestadores
+        </a>
+        <a class="btn btn-outline-primary" asp-area="Admin" asp-controller="Account" asp-action="ChangePassword">
+            Alterar senha
+        </a>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="small text-uppercase text-secondary fw-semibold mb-1">Profissionais</div>
+                <div class="display-6 fw-bold">@Model.ProfessionalsCount</div>
+                <div class="small text-secondary">Cadastros exibidos no site</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="small text-uppercase text-secondary fw-semibold mb-1">Solicitacoes</div>
+                <div class="display-6 fw-bold">@Model.ServiceRequestsCount</div>
+                <div class="small text-secondary">Pedidos de servico recebidos</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="small text-uppercase text-secondary fw-semibold mb-1">Cadastros Pro</div>
+                <div class="display-6 fw-bold">@Model.ProfessionalRegistrationsCount</div>
+                <div class="small text-secondary">Interessados em anunciar</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="small text-uppercase text-secondary fw-semibold mb-1">Suporte</div>
+                <div class="display-6 fw-bold">@Model.SupportRequestsCount</div>
+                <div class="small text-secondary">Tickets registrados</div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,581 @@
+@model AdminKanbanPageViewModel
+@{
+    ViewData["Title"] = Model.BoardTitle;
+
+    static string PriorityLabel(string priority) => priority.ToLowerInvariant() switch
+    {
+        "alta" => "Alta",
+        "baixa" => "Baixa",
+        _ => "Normal"
+    };
+
+    static string PriorityBadgeClass(string priority) => priority.ToLowerInvariant() switch
+    {
+        "alta" => "text-bg-danger",
+        "baixa" => "text-bg-secondary",
+        _ => "text-bg-primary"
+    };
+
+    static string ToRgba(string hexColor, double alpha)
+    {
+        var normalized = (hexColor ?? string.Empty).Trim().TrimStart('#');
+        if (normalized.Length == 3)
+        {
+            normalized = $"{normalized[0]}{normalized[0]}{normalized[1]}{normalized[1]}{normalized[2]}{normalized[2]}";
+        }
+
+        var alphaText = alpha.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        if (normalized.Length != 6)
+        {
+            return $"rgba(13, 110, 253, {alphaText})";
+        }
+
+        if (!int.TryParse(normalized.Substring(0, 2), System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out var red) ||
+            !int.TryParse(normalized.Substring(2, 2), System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out var green) ||
+            !int.TryParse(normalized.Substring(4, 2), System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out var blue))
+        {
+            return $"rgba(13, 110, 253, {alphaText})";
+        }
+
+        return $"rgba({red}, {green}, {blue}, {alphaText})";
+    }
+}
+
+<div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
+    <div>
+        <h1 class="h4 fw-bold mb-1">@Model.BoardTitle</h1>
+        <p class="text-secondary mb-0">@Model.BoardSubtitle</p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        <a class="btn btn-outline-secondary" href="@Model.AlternateBoardUrl">
+            @Model.AlternateBoardLabel
+        </a>
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createLeadModal">
+            Novo lead
+        </button>
+    </div>
+</div>
+
+<form id="kanbanAntiForgeryForm" class="d-none">
+    @Html.AntiForgeryToken()
+</form>
+
+<div class="small text-secondary mb-3">
+    Total de leads: <strong>@Model.TotalLeads</strong>
+</div>
+
+<div class="cpm-kanban-wrap">
+    <div id="kanbanBoard" class="cpm-kanban-board" data-board-type="@Model.BoardType">
+        @foreach (var stage in Model.Stages)
+        {
+            <section
+                class="cpm-kanban-column"
+                data-stage-id="@stage.Id"
+                style="background-color: @ToRgba(stage.Color, 0.2); border-color: @ToRgba(stage.Color, 0.35);">
+                <header class="cpm-kanban-column-header" style="border-top-color: @stage.Color;">
+                    <div class="d-flex justify-content-between align-items-center gap-2">
+                        <h2 class="h6 mb-0 fw-bold">@stage.Name</h2>
+                        <span
+                            class="badge rounded-pill border cpm-stage-count-badge"
+                            data-stage-count
+                            style="color: @stage.Color; border-color: @stage.Color;">
+                            @(stage.Leads.Count == 1 ? "1 card" : $"{stage.Leads.Count} cards")
+                        </span>
+                    </div>
+                </header>
+                <div class="cpm-kanban-list" data-stage-id="@stage.Id">
+                    @foreach (var lead in stage.Leads)
+                    {
+                        <article
+                            class="cpm-lead-card"
+                            data-lead-id="@lead.Id"
+                            data-stage-id="@lead.StageId"
+                            data-stage-entered-at-ms="@(new DateTimeOffset(lead.StageEnteredAt).ToUnixTimeMilliseconds())"
+                            role="button"
+                            tabindex="0">
+                            <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                                <strong class="text-truncate" title="@lead.Name">@lead.Name</strong>
+                                <span class="badge @PriorityBadgeClass(lead.Priority)">@PriorityLabel(lead.Priority)</span>
+                            </div>
+                            <div class="small text-secondary d-grid gap-1">
+                                @if (!string.IsNullOrWhiteSpace(lead.ServiceCategory))
+                                {
+                                    <div><i class="bi bi-tools me-1"></i>@lead.ServiceCategory</div>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(lead.Phone))
+                                {
+                                    <div><i class="bi bi-telephone me-1"></i>@lead.Phone</div>
+                                }
+                                @if (!string.IsNullOrWhiteSpace(lead.Source))
+                                {
+                                    <div><i class="bi bi-bullseye me-1"></i>@lead.Source</div>
+                                }
+                                <div class="cpm-stage-age-line">
+                                    <i class="bi bi-hourglass-split me-1"></i>
+                                    <span data-stage-age>Parado ha instantes</span>
+                                </div>
+                            </div>
+                            @if (!string.IsNullOrWhiteSpace(lead.StatusNote))
+                            {
+                                <p class="small mb-0 mt-2 text-secondary-emphasis cpm-lead-note">@lead.StatusNote</p>
+                            }
+                        </article>
+                    }
+                </div>
+            </section>
+        }
+    </div>
+</div>
+
+<div class="modal fade" id="leadDetailsModal" tabindex="-1" aria-labelledby="leadDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="leadDetailsModalLabel">Detalhes do lead</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-3 mb-3">
+                    <div class="col-12 col-md-6"><strong>Nome:</strong> <span id="detailsName"></span></div>
+                    <div class="col-12 col-md-6"><strong>Etapa:</strong> <span id="detailsStage"></span></div>
+                    <div class="col-12 col-md-6"><strong>Telefone:</strong> <span id="detailsPhone"></span></div>
+                    <div class="col-12 col-md-6"><strong>E-mail:</strong> <span id="detailsEmail"></span></div>
+                    <div class="col-12 col-md-6"><strong>Servico:</strong> <span id="detailsService"></span></div>
+                    <div class="col-12 col-md-6"><strong>CEP / Cidade:</strong> <span id="detailsAddress"></span></div>
+                    <div class="col-12 col-md-6"><strong>Fonte:</strong> <span id="detailsSource"></span></div>
+                    <div class="col-12 col-md-6"><strong>Prioridade:</strong> <span id="detailsPriority"></span></div>
+                    <div class="col-12"><strong>Status:</strong> <div id="detailsStatusNote" class="text-secondary-emphasis"></div></div>
+                    <div class="col-12"><strong>Observacoes internas:</strong> <div id="detailsInternalNotes" class="text-secondary-emphasis"></div></div>
+                </div>
+
+                <hr />
+                <h6 class="fw-bold mb-2">Adicionar anotacao</h6>
+                <div class="input-group mb-4">
+                    <textarea id="leadNoteInput" class="form-control" rows="2" placeholder="Registre interacoes, retornos e proximos passos."></textarea>
+                    <button type="button" id="addLeadNoteBtn" class="btn btn-outline-primary">Salvar nota</button>
+                </div>
+
+                <h6 class="fw-bold mb-2">Historico no funil</h6>
+                <div id="leadHistoryTimeline" class="cpm-history-timeline"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" id="openEditLeadBtn" class="btn btn-primary">Editar lead</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="createLeadModal" tabindex="-1" aria-labelledby="createLeadModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="createLeadModalLabel">Novo lead</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <partial
+                    name="_KanbanLeadFormFields"
+                    model="Model"
+                    view-data='new ViewDataDictionary(ViewData) { ["Prefix"] = "create" }' />
+            </div>
+            <div class="modal-footer">
+                <button type="button" id="saveCreateLeadBtn" class="btn btn-primary">Criar lead</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editLeadModal" tabindex="-1" aria-labelledby="editLeadModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="editLeadModalLabel">Editar lead</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editLeadId" />
+                <partial
+                    name="_KanbanLeadFormFields"
+                    model="Model"
+                    view-data='new ViewDataDictionary(ViewData) { ["Prefix"] = "edit" }' />
+            </div>
+            <div class="modal-footer">
+                <button type="button" id="saveEditLeadBtn" class="btn btn-primary">Salvar alteracoes</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Head {
+    <style>
+        .cpm-kanban-wrap { overflow-x: auto; padding-bottom: 0.5rem; }
+        .cpm-kanban-board { display: flex; gap: 1rem; align-items: stretch; min-height: 65vh; }
+        .cpm-kanban-column { flex: 0 0 320px; background: #f8f9fc; border: 1px solid #e4e9f1; border-radius: 0.9rem; display: flex; flex-direction: column; }
+        .cpm-kanban-column-header { padding: 0.75rem; border-top: 4px solid #0d6efd; border-radius: 0.9rem 0.9rem 0 0; background: #fff; border-bottom: 1px solid #e8edf4; }
+        .cpm-stage-count-badge { background: #fff; font-weight: 600; }
+        .cpm-kanban-list { padding: 0.75rem; display: flex; flex-direction: column; gap: 0.65rem; overflow-y: auto; min-height: 120px; flex: 1 1 auto; }
+        .cpm-lead-card { background: #fff; border: 1px solid #dfe6f0; border-radius: 0.7rem; padding: 0.7rem; cursor: grab; box-shadow: 0 6px 16px rgba(13, 43, 69, 0.04); }
+        .cpm-lead-card:active { cursor: grabbing; }
+        .cpm-stage-age-line { color: #6c757d; font-size: 0.78rem; }
+        .cpm-lead-note { line-height: 1.35; max-height: 2.7rem; overflow: hidden; }
+        .cpm-history-timeline { display: grid; gap: 0.65rem; max-height: 320px; overflow-y: auto; }
+        .cpm-history-item { border: 1px solid #e4e9f1; border-radius: 0.65rem; padding: 0.6rem 0.7rem; background: #fff; }
+        .cpm-history-date { font-size: 0.78rem; color: #6c757d; }
+        .cpm-sortable-ghost {
+            opacity: 0.95 !important;
+            border: 2px dashed #fd7e14 !important;
+            background: #fff8e8 !important;
+            box-shadow: 0 0 0 3px rgba(253, 126, 20, 0.2), 0 12px 24px rgba(13, 43, 69, 0.16) !important;
+        }
+        .cpm-sortable-chosen {
+            opacity: 0.85 !important;
+            border: 2px solid #fd7e14 !important;
+            box-shadow: 0 0 0 3px rgba(253, 126, 20, 0.18) !important;
+        }
+        .cpm-sortable-fallback {
+            opacity: 1 !important;
+            border: 2px solid #fd7e14 !important;
+            background: #fff8e8 !important;
+            box-shadow: 0 0 0 3px rgba(253, 126, 20, 0.24), 0 16px 28px rgba(13, 43, 69, 0.22) !important;
+            transform: rotate(1deg) scale(1.02);
+            pointer-events: none;
+            z-index: 2000 !important;
+        }
+        .cpm-sortable-drag {
+            transform: rotate(1deg) scale(1.02);
+            opacity: 1 !important;
+            box-shadow: 0 14px 28px rgba(13, 43, 69, 0.22);
+        }
+        body.cpm-drag-active,
+        body.cpm-drag-active * {
+            user-select: none !important;
+            -webkit-user-select: none !important;
+            -ms-user-select: none !important;
+        }
+        body.cpm-drag-active { cursor: grabbing; }
+        body.cpm-drag-active .cpm-lead-card { cursor: grabbing !important; }
+    </style>
+}
+
+@section Scripts {
+    <script src="~/lib/sortablejs/Sortable.min.js"></script>
+    <script>
+        (() => {
+            const board = document.getElementById("kanbanBoard");
+            const token = document.querySelector('#kanbanAntiForgeryForm input[name="__RequestVerificationToken"]')?.value || "";
+            const boardType = board?.dataset.boardType || "";
+
+            const detailsModalEl = document.getElementById("leadDetailsModal");
+            const createModalEl = document.getElementById("createLeadModal");
+            const editModalEl = document.getElementById("editLeadModal");
+            const detailsModal = detailsModalEl ? new bootstrap.Modal(detailsModalEl) : null;
+            const createModal = createModalEl ? new bootstrap.Modal(createModalEl) : null;
+            const editModal = editModalEl ? new bootstrap.Modal(editModalEl) : null;
+
+            let currentLead = null;
+
+            const endpoint = {
+                details: (id) => `/admin/funil/lead/${id}/json`,
+                create: "/admin/funil/lead/novo",
+                update: "/admin/funil/lead/editar",
+                order: "/admin/funil/lead/ordem",
+                note: "/admin/funil/lead/nota"
+            };
+
+            const postJson = async (url, payload) => {
+                const response = await fetch(url, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "RequestVerificationToken": token
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                let data = null;
+                try { data = await response.json(); } catch { }
+                if (!response.ok || !data?.success) {
+                    throw new Error(data?.message || "Operacao nao concluida.");
+                }
+
+                return data;
+            };
+
+            const formatCardCount = (count) => count === 1 ? "1 card" : `${count} cards`;
+            const pluralize = (value, singular, plural) => value === 1 ? `${value} ${singular}` : `${value} ${plural}`;
+
+            const formatStageAge = (enteredAtMsText) => {
+                const enteredAtMs = Number.parseInt(enteredAtMsText || "", 10);
+                if (!Number.isFinite(enteredAtMs)) return "Parado ha instantes";
+
+                const diffMs = Math.max(0, Date.now() - enteredAtMs);
+                const totalMinutes = Math.floor(diffMs / 60000);
+                if (totalMinutes < 1) return "Parado ha instantes";
+                if (totalMinutes < 60) return `Parado ha ${totalMinutes} min`;
+
+                const totalHours = Math.floor(totalMinutes / 60);
+                const minutes = totalMinutes % 60;
+                if (totalHours < 24) {
+                    return minutes > 0
+                        ? `Parado ha ${totalHours} h ${minutes} min`
+                        : `Parado ha ${totalHours} h`;
+                }
+
+                const totalDays = Math.floor(totalHours / 24);
+                const hours = totalHours % 24;
+                if (totalDays < 30) {
+                    return hours > 0
+                        ? `Parado ha ${pluralize(totalDays, "dia", "dias")} ${hours} h`
+                        : `Parado ha ${pluralize(totalDays, "dia", "dias")}`;
+                }
+
+                const totalMonths = Math.floor(totalDays / 30);
+                const days = totalDays % 30;
+                if (totalMonths < 12) {
+                    return days > 0
+                        ? `Parado ha ${pluralize(totalMonths, "mes", "meses")} ${pluralize(days, "dia", "dias")}`
+                        : `Parado ha ${pluralize(totalMonths, "mes", "meses")}`;
+                }
+
+                const totalYears = Math.floor(totalMonths / 12);
+                const months = totalMonths % 12;
+                return months > 0
+                    ? `Parado ha ${pluralize(totalYears, "ano", "anos")} ${pluralize(months, "mes", "meses")}`
+                    : `Parado ha ${pluralize(totalYears, "ano", "anos")}`;
+            };
+
+            const updateCardStageAge = (card) => {
+                if (!card) return;
+                const ageLabel = card.querySelector("[data-stage-age]");
+                if (!ageLabel) return;
+                ageLabel.textContent = formatStageAge(card.dataset.stageEnteredAtMs || "");
+            };
+
+            const updateAllCardStageAges = () => {
+                document.querySelectorAll(".cpm-lead-card").forEach((card) => updateCardStageAge(card));
+            };
+
+            const updateStageCounts = () => {
+                document.querySelectorAll(".cpm-kanban-column").forEach((column) => {
+                    const list = column.querySelector(".cpm-kanban-list");
+                    const countBadge = column.querySelector("[data-stage-count]");
+                    if (!list || !countBadge) return;
+                    const count = list.querySelectorAll(".cpm-lead-card").length;
+                    countBadge.textContent = formatCardCount(count);
+                });
+            };
+
+            const serializeBoardOrder = (changedLeadId, fromStageId, toStageId) => {
+                const stagePayload = Array.from(document.querySelectorAll(".cpm-kanban-list")).map((list) => ({
+                    stageId: Number(list.dataset.stageId || "0"),
+                    leadIds: Array.from(list.querySelectorAll(".cpm-lead-card")).map((card) => Number(card.dataset.leadId || "0"))
+                }));
+
+                return { boardType, changedLeadId, fromStageId, toStageId, stages: stagePayload };
+            };
+
+            const startDragMode = () => {
+                document.body.classList.add("cpm-drag-active");
+                const selection = window.getSelection?.();
+                if (selection && selection.rangeCount > 0) {
+                    selection.removeAllRanges();
+                }
+            };
+
+            const endDragMode = () => {
+                document.body.classList.remove("cpm-drag-active");
+            };
+
+            document.querySelectorAll(".cpm-kanban-list").forEach((list) => {
+                new Sortable(list, {
+                    group: "kanban",
+                    animation: 160,
+                    ghostClass: "cpm-sortable-ghost",
+                    chosenClass: "cpm-sortable-chosen",
+                    dragClass: "cpm-sortable-drag",
+                    fallbackClass: "cpm-sortable-fallback",
+                    forceFallback: true,
+                    fallbackOnBody: true,
+                    onStart: () => {
+                        startDragMode();
+                    },
+                    onEnd: async (evt) => {
+                        const changedLeadId = Number(evt.item?.dataset.leadId || "0");
+                        const fromStageId = Number(evt.from?.dataset.stageId || "0");
+                        const toStageId = Number(evt.to?.dataset.stageId || "0");
+
+                        try {
+                            await postJson(endpoint.order, serializeBoardOrder(changedLeadId, fromStageId, toStageId));
+                            if (fromStageId !== toStageId && evt.item) {
+                                evt.item.dataset.stageId = toStageId.toString();
+                                evt.item.dataset.stageEnteredAtMs = Date.now().toString();
+                                updateCardStageAge(evt.item);
+                            }
+                            updateStageCounts();
+                        } catch (error) {
+                            alert(error.message || "Nao foi possivel atualizar o kanban.");
+                            window.location.reload();
+                        } finally {
+                            endDragMode();
+                        }
+                    }
+                });
+            });
+
+            const renderHistory = (history) => {
+                const container = document.getElementById("leadHistoryTimeline");
+                if (!container) return;
+
+                if (!history || !history.length) {
+                    container.innerHTML = "<div class='small text-secondary'>Sem historico registrado.</div>";
+                    return;
+                }
+
+                container.innerHTML = history.map((item) => {
+                    const stageMove = item.fromStageName || item.toStageName
+                        ? `<div class="small text-secondary">${item.fromStageName || "-"} <i class="bi bi-arrow-right"></i> ${item.toStageName || "-"}</div>`
+                        : "";
+                    return `
+                        <div class="cpm-history-item">
+                            <div class="d-flex justify-content-between align-items-center gap-2 mb-1">
+                                <strong class="small text-uppercase">${item.eventType}</strong>
+                                <span class="cpm-history-date">${item.createdAt}</span>
+                            </div>
+                            ${stageMove}
+                            <div class="small">${item.description || "-"}</div>
+                        </div>
+                    `;
+                }).join("");
+            };
+
+            const fillDetails = (lead) => {
+                document.getElementById("detailsName").textContent = lead.name || "-";
+                document.getElementById("detailsStage").textContent = lead.stageName || "-";
+                document.getElementById("detailsPhone").textContent = lead.phone || "-";
+                document.getElementById("detailsEmail").textContent = lead.email || "-";
+                document.getElementById("detailsService").textContent = lead.serviceCategory || "-";
+                document.getElementById("detailsAddress").textContent = [lead.postalCode, lead.city].filter(Boolean).join(" / ") || "-";
+                document.getElementById("detailsSource").textContent = lead.source || "-";
+                document.getElementById("detailsPriority").textContent = lead.priority || "-";
+                document.getElementById("detailsStatusNote").textContent = lead.statusNote || "-";
+                document.getElementById("detailsInternalNotes").textContent = lead.internalNotes || "-";
+                renderHistory(lead.history || []);
+            };
+
+            const loadLeadDetails = async (leadId) => {
+                const response = await fetch(endpoint.details(leadId), { headers: { Accept: "application/json" } });
+                if (!response.ok) throw new Error("Lead nao encontrado.");
+                return await response.json();
+            };
+
+            document.addEventListener("click", async (event) => {
+                const card = event.target.closest(".cpm-lead-card");
+                if (!card) return;
+
+                const leadId = Number(card.dataset.leadId || "0");
+                if (!leadId) return;
+
+                try {
+                    currentLead = await loadLeadDetails(leadId);
+                    fillDetails(currentLead);
+                    detailsModal?.show();
+                } catch (error) {
+                    alert(error.message || "Nao foi possivel carregar os detalhes.");
+                }
+            });
+
+            const getFormValues = (prefix) => ({
+                id: Number(document.getElementById(`${prefix}LeadId`)?.value || "0"),
+                boardType,
+                stageId: Number(document.getElementById(`${prefix}StageId`)?.value || "0"),
+                name: document.getElementById(`${prefix}Name`)?.value?.trim() || "",
+                phone: document.getElementById(`${prefix}Phone`)?.value?.trim() || "",
+                email: document.getElementById(`${prefix}Email`)?.value?.trim() || "",
+                serviceCategory: document.getElementById(`${prefix}ServiceCategory`)?.value?.trim() || "",
+                postalCode: document.getElementById(`${prefix}PostalCode`)?.value?.trim() || "",
+                city: document.getElementById(`${prefix}City`)?.value?.trim() || "",
+                source: document.getElementById(`${prefix}Source`)?.value?.trim() || "",
+                priority: document.getElementById(`${prefix}Priority`)?.value || "normal",
+                statusNote: document.getElementById(`${prefix}StatusNote`)?.value?.trim() || "",
+                internalNotes: document.getElementById(`${prefix}InternalNotes`)?.value?.trim() || "",
+                lastContactAt: document.getElementById(`${prefix}LastContactAt`)?.value || null
+            });
+
+            const setFormValues = (prefix, lead) => {
+                document.getElementById(`${prefix}LeadId`).value = lead.id || "";
+                document.getElementById(`${prefix}StageId`).value = lead.stageId || "";
+                document.getElementById(`${prefix}Name`).value = lead.name || "";
+                document.getElementById(`${prefix}Phone`).value = lead.phone || "";
+                document.getElementById(`${prefix}Email`).value = lead.email || "";
+                document.getElementById(`${prefix}ServiceCategory`).value = lead.serviceCategory || "";
+                document.getElementById(`${prefix}PostalCode`).value = lead.postalCode || "";
+                document.getElementById(`${prefix}City`).value = lead.city || "";
+                document.getElementById(`${prefix}Source`).value = lead.source || "";
+                document.getElementById(`${prefix}Priority`).value = lead.priority || "normal";
+                document.getElementById(`${prefix}StatusNote`).value = lead.statusNote || "";
+                document.getElementById(`${prefix}InternalNotes`).value = lead.internalNotes || "";
+                document.getElementById(`${prefix}LastContactAt`).value = lead.lastContactAt || "";
+            };
+
+            document.getElementById("saveCreateLeadBtn")?.addEventListener("click", async () => {
+                const payload = getFormValues("create");
+                if (!payload.name) {
+                    alert("Informe o nome do lead.");
+                    return;
+                }
+
+                try {
+                    await postJson(endpoint.create, payload);
+                    window.location.reload();
+                } catch (error) {
+                    alert(error.message || "Nao foi possivel criar o lead.");
+                }
+            });
+
+            document.getElementById("openEditLeadBtn")?.addEventListener("click", () => {
+                if (!currentLead) return;
+                setFormValues("edit", currentLead);
+                detailsModal?.hide();
+                editModal?.show();
+            });
+
+            document.getElementById("saveEditLeadBtn")?.addEventListener("click", async () => {
+                const payload = getFormValues("edit");
+                if (!payload.id || !payload.name) {
+                    alert("Preencha os dados obrigatorios do lead.");
+                    return;
+                }
+
+                try {
+                    await postJson(endpoint.update, payload);
+                    window.location.reload();
+                } catch (error) {
+                    alert(error.message || "Nao foi possivel atualizar o lead.");
+                }
+            });
+
+            document.getElementById("addLeadNoteBtn")?.addEventListener("click", async () => {
+                if (!currentLead?.id) return;
+                const noteInput = document.getElementById("leadNoteInput");
+                const note = noteInput?.value?.trim() || "";
+                if (!note) {
+                    alert("Digite uma anotacao para salvar.");
+                    return;
+                }
+
+                try {
+                    await postJson(endpoint.note, { leadId: currentLead.id, note });
+                    noteInput.value = "";
+                    currentLead = await loadLeadDetails(currentLead.id);
+                    fillDetails(currentLead);
+                } catch (error) {
+                    alert(error.message || "Nao foi possivel salvar a anotacao.");
+                }
+            });
+
+            updateStageCounts();
+            updateAllCardStageAges();
+            window.setInterval(updateAllCardStageAges, 60000);
+        })();
+    </script>
+}

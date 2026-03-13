@@ -1,0 +1,64 @@
+@model AdminKanbanPageViewModel
+@{
+    var prefix = ViewData["Prefix"]?.ToString() ?? "create";
+}
+
+<div class="row g-3">
+    <div class="col-12 col-md-6">
+        <label class="form-label" for="@(prefix)Name">Nome</label>
+        <input id="@(prefix)Name" type="text" class="form-control" maxlength="140" />
+    </div>
+    <div class="col-12 col-md-6">
+        <label class="form-label" for="@(prefix)StageId">Etapa atual</label>
+        <select id="@(prefix)StageId" class="form-select">
+            @foreach (var stage in Model.Stages)
+            {
+                <option value="@stage.Id">@stage.Name</option>
+            }
+        </select>
+    </div>
+    <div class="col-12 col-md-6">
+        <label class="form-label" for="@(prefix)Phone">Telefone</label>
+        <input id="@(prefix)Phone" type="text" class="form-control" maxlength="30" />
+    </div>
+    <div class="col-12 col-md-6">
+        <label class="form-label" for="@(prefix)Email">E-mail</label>
+        <input id="@(prefix)Email" type="email" class="form-control" maxlength="180" />
+    </div>
+    <div class="col-12 col-md-6">
+        <label class="form-label" for="@(prefix)ServiceCategory">Servico / Especialidade</label>
+        <input id="@(prefix)ServiceCategory" type="text" class="form-control" maxlength="140" />
+    </div>
+    <div class="col-12 col-md-3">
+        <label class="form-label" for="@(prefix)PostalCode">CEP</label>
+        <input id="@(prefix)PostalCode" type="text" class="form-control" maxlength="9" />
+    </div>
+    <div class="col-12 col-md-3">
+        <label class="form-label" for="@(prefix)City">Cidade</label>
+        <input id="@(prefix)City" type="text" class="form-control" maxlength="120" />
+    </div>
+    <div class="col-12 col-md-6">
+        <label class="form-label" for="@(prefix)Source">Origem do lead</label>
+        <input id="@(prefix)Source" type="text" class="form-control" maxlength="120" placeholder="Manual, WhatsApp, Indicacao..." />
+    </div>
+    <div class="col-12 col-md-3">
+        <label class="form-label" for="@(prefix)Priority">Prioridade</label>
+        <select id="@(prefix)Priority" class="form-select">
+            <option value="alta">Alta</option>
+            <option value="normal" selected>Normal</option>
+            <option value="baixa">Baixa</option>
+        </select>
+    </div>
+    <div class="col-12 col-md-3">
+        <label class="form-label" for="@(prefix)LastContactAt">Ultimo contato</label>
+        <input id="@(prefix)LastContactAt" type="datetime-local" class="form-control" />
+    </div>
+    <div class="col-12">
+        <label class="form-label" for="@(prefix)StatusNote">Resumo do status</label>
+        <input id="@(prefix)StatusNote" type="text" class="form-control" maxlength="500" />
+    </div>
+    <div class="col-12">
+        <label class="form-label" for="@(prefix)InternalNotes">Observacoes internas</label>
+        <textarea id="@(prefix)InternalNotes" class="form-control" rows="4"></textarea>
+    </div>
+</div>

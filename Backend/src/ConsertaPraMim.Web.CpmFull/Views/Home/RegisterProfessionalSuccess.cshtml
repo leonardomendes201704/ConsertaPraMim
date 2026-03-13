@@ -1,0 +1,33 @@
+@model RegisterProfessionalSuccessViewModel
+@{
+    string C(string key, string fallback) => SiteContent.Get(key, fallback);
+    var displayName = string.IsNullOrWhiteSpace(Model.ProfessionalName)
+        ? C("register.success.page.default_name", "Profissional")
+        : Model.ProfessionalName;
+    var welcomeHtml = C("register.success.page.welcome_template", "Seja bem-vindo, <strong>{name}</strong>!")
+        .Replace("{name}", System.Net.WebUtility.HtmlEncode(displayName), StringComparison.OrdinalIgnoreCase);
+
+    ViewData["Title"] = C("register.success.meta.title", "Cadastro realizado com sucesso");
+    ViewData["MetaDescription"] = C("register.success.meta.description", "Confirmacao de cadastro de profissional no ConsertaPraMim.");
+    ViewData["CanonicalPath"] = "/cadastro-profissional/sucesso";
+    ViewData["Robots"] = "noindex,nofollow,noarchive";
+}
+
+<section class="cpm-section">
+    <div class="container-lg cpm-form-wrap">
+        <div class="cpm-card cpm-form-card p-4 p-md-5 bg-white text-center">
+            <div class="mb-3">
+                <i class="bi bi-check-circle-fill text-success" style="font-size: 3rem;"></i>
+            </div>
+            <h1 class="fw-bold mb-3">@C("register.success.page.title", "Cadastro realizado com sucesso")</h1>
+            <p class="lead mb-2">@Html.Raw(welcomeHtml)</p>
+            <p class="text-secondary-emphasis mb-4">
+                @C("register.success.page.subtitle", "Seu perfil foi recebido e em breve voce comecara a receber novas oportunidades de servico.")
+            </p>
+            <div class="d-flex flex-column flex-md-row justify-content-center gap-2">
+                <a class="btn cpm-btn-primary" asp-controller="Home" asp-action="Index">@C("register.success.page.home_button", "Ir para a pagina inicial")</a>
+                <a class="btn btn-outline-secondary" asp-controller="Home" asp-action="Professionals">@C("register.success.page.professionals_button", "Ver profissionais")</a>
+            </div>
+        </div>
+    </div>
+</section>

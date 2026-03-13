@@ -1,0 +1,358 @@
+@model HomePageViewModel
+@{
+    string C(string key, string fallback) => SiteContent.Get(key, fallback);
+
+    var pageTitle = C("home.meta.title", "Resolva os problemas da sua casa");
+    ViewData["Title"] = pageTitle;
+    ViewData["SeoTitle"] = C("home.meta.seo_title", pageTitle);
+    ViewData["MetaDescription"] = C("home.meta.description", "Solicite servicos residenciais no ConsertaPraMim e encontre eletricista, encanador, pintor e outros profissionais perto de voce.");
+    ViewData["MetaKeywords"] = C("home.meta.keywords", "servicos residenciais, eletricista, encanador, pedreiro, pintor, conserto casa");
+    ViewData["CanonicalPath"] = "/";
+    ViewData["OgImage"] = C("home.meta.og_image_url", C("branding.og_image_url", Url.Content("~/images/7237a130-fa5b-4e98-9118-ed5b0d465fa6.png")));
+}
+
+<section class="cpm-hero">
+    <div class="container-lg text-center">
+        <h1 class="display-5 fw-bold mb-3">@C("home.hero.title", "Resolva os problemas da sua casa")</h1>
+        <p class="lead text-white-50 mx-auto mb-4" style="max-width: 760px;">
+            @C("home.hero.subtitle", "Encontre eletricistas, encanadores, pedreiros e outros especialistas em minutos, com atendimento proximo de voce.")
+        </p>
+        <form class="row g-2 justify-content-center" asp-controller="Home" asp-action="RequestService" method="get">
+            <div class="col-12 col-md-4">
+                <input type="text" name="description" class="form-control form-control-lg" placeholder="@C("home.hero.form.description_placeholder", "Descreva o servico desejado")" />
+            </div>
+            <div class="col-12 col-md-3">
+                <div class="input-group input-group-lg cpm-location-group">
+                    <input
+                        id="homeLocationInput"
+                        type="text"
+                        name="location"
+                        class="form-control"
+                        placeholder="@C("home.hero.form.location_placeholder", "Digite seu CEP")"
+                        autocomplete="postal-code"
+                        inputmode="numeric"
+                        pattern="[0-9]{5}-?[0-9]{3}"
+                        maxlength="9" />
+                    <button
+                        id="getUserLocationBtn"
+                        type="button"
+                        class="btn cpm-location-btn"
+                        aria-label="@C("home.hero.form.location_button_aria", "Usar minha localizacao")"
+                        title="@C("home.hero.form.location_button_title", "Usar minha localizacao")">
+                        <i class="bi bi-geo-alt-fill"></i>
+                    </button>
+                </div>
+                <div id="homeLocationFeedback" class="cpm-location-feedback d-none"></div>
+            </div>
+            <div class="col-12 col-md-auto d-grid">
+                <button type="submit" class="btn cpm-btn-primary btn-lg px-4">@C("home.hero.form.submit", "Encontrar profissionais")</button>
+            </div>
+        </form>
+    </div>
+</section>
+
+<section class="cpm-section bg-white cpm-top-services">
+    <div class="container-lg">
+        <div class="text-center mb-5">
+            <h2 class="fw-bold">@C("home.topservices.title", "Servicos mais buscados")</h2>
+            <p class="text-secondary-emphasis mb-0">@C("home.topservices.subtitle", "Escolha a categoria e receba orcamentos rapidamente")</p>
+        </div>
+        <div class="row g-3 justify-content-center">
+            @foreach (var category in Model.Categories)
+            {
+                <div class="col-6 col-md-4 col-lg-3 col-xl-2">
+                    <a class="cpm-category-card" data-equalize-item="top-services" asp-controller="Home" asp-action="RequestService" asp-route-categoryId="@category.Id">
+                        <span class="cpm-category-icon"><i class="bi @category.IconClass"></i></span>
+                        <span class="fw-semibold">@category.Name</span>
+                    </a>
+                </div>
+            }
+        </div>
+    </div>
+</section>
+
+<section class="cpm-section">
+    <div class="container-lg">
+        <div class="text-center mb-5">
+            <h2 class="fw-bold">@C("home.about.title", "Sobre a ConsertaPraMim")</h2>
+            <p class="text-secondary-emphasis mb-0">
+                @C("home.about.subtitle", "Somos uma plataforma digital que conecta clientes e prestadores locais para servicos domesticos, manutencao, instalacoes e reformas.")
+            </p>
+        </div>
+
+        <div class="row g-4 align-items-stretch">
+            <div class="col-12 col-lg-6">
+                <div class="cpm-card h-100 p-4">
+                    <h5 class="fw-bold mb-3">@C("home.about.proposal.title", "Nossa proposta")</h5>
+                    <p class="text-secondary-emphasis mb-3">
+                        @C("home.about.proposal.paragraph1", "A ConsertaPraMim nasceu para simplificar a contratacao de servicos e fortalecer profissionais da propria regiao. A operacao inicial comeca em Praia Grande, com foco em qualidade, organizacao e comunicacao clara.")
+                    </p>
+                    <p class="text-secondary-emphasis mb-0">
+                        @C("home.about.proposal.paragraph2", "Aqui, cliente e profissional conversam de forma direta, recebem e enviam orcamentos com agilidade e acompanham o atendimento com mais transparencia.")
+                    </p>
+                </div>
+            </div>
+            <div class="col-12 col-lg-6">
+                <div class="cpm-card h-100 p-4">
+                    <h5 class="fw-bold mb-3">@C("home.about.differentials.title", "Diferenciais da plataforma")</h5>
+                    <div class="row g-2">
+                        <div class="col-12 col-sm-6"><span class="cpm-badge d-inline-flex py-2 px-3">@C("home.about.differentials.item1", "Prestadores locais")</span></div>
+                        <div class="col-12 col-sm-6"><span class="cpm-badge d-inline-flex py-2 px-3">@C("home.about.differentials.item2", "Comunicacao direta")</span></div>
+                        <div class="col-12 col-sm-6"><span class="cpm-badge d-inline-flex py-2 px-3">@C("home.about.differentials.item3", "Orcamento rapido")</span></div>
+                        <div class="col-12 col-sm-6"><span class="cpm-badge d-inline-flex py-2 px-3">@C("home.about.differentials.item4", "Agendamento simples")</span></div>
+                        <div class="col-12 col-sm-6"><span class="cpm-badge d-inline-flex py-2 px-3">@C("home.about.differentials.item5", "Contato via WhatsApp")</span></div>
+                        <div class="col-12 col-sm-6"><span class="cpm-badge d-inline-flex py-2 px-3">@C("home.about.differentials.item6", "Avaliacao mutua")</span></div>
+                        <div class="col-12 col-sm-6"><span class="cpm-badge d-inline-flex py-2 px-3">@C("home.about.differentials.item7", "Painel de acompanhamento")</span></div>
+                        <div class="col-12 col-sm-6"><span class="cpm-badge d-inline-flex py-2 px-3">@C("home.about.differentials.item8", "Equipe de suporte")</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="cpm-section">
+    <div class="container-lg">
+        <div class="text-center mb-5">
+            <h2 class="fw-bold">@C("home.howitworks.title", "Como funciona")</h2>
+            <p class="text-secondary-emphasis mb-0">@C("home.howitworks.subtitle", "Fluxo completo da solicitacao ate a avaliacao final")</p>
+        </div>
+        <div class="row g-4">
+            <div class="col-12 col-md-6 col-lg-4 cpm-step">
+                <div class="cpm-step-number">1</div>
+                <h5 class="fw-bold">@C("home.howitworks.step1.title", "Cliente solicita o servico")</h5>
+                <p class="text-secondary-emphasis mb-0">@C("home.howitworks.step1.description", "O cliente descreve o problema e informa a localizacao.")</p>
+            </div>
+            <div class="col-12 col-md-6 col-lg-4 cpm-step">
+                <div class="cpm-step-number">2</div>
+                <h5 class="fw-bold">@C("home.howitworks.step2.title", "Prestadores recebem o pedido")</h5>
+                <p class="text-secondary-emphasis mb-0">@C("home.howitworks.step2.description", "Profissionais da regiao visualizam a oportunidade de atendimento.")</p>
+            </div>
+            <div class="col-12 col-md-6 col-lg-4 cpm-step">
+                <div class="cpm-step-number">3</div>
+                <h5 class="fw-bold">@C("home.howitworks.step3.title", "Profissional envia orcamento")</h5>
+                <p class="text-secondary-emphasis mb-0">@C("home.howitworks.step3.description", "Cada prestador interessado pode enviar sua proposta.")</p>
+            </div>
+            <div class="col-12 col-md-6 col-lg-4 cpm-step">
+                <div class="cpm-step-number">4</div>
+                <h5 class="fw-bold">@C("home.howitworks.step4.title", "Cliente conversa diretamente")</h5>
+                <p class="text-secondary-emphasis mb-0">@C("home.howitworks.step4.description", "As partes alinham detalhes, prazo, valor e agendamento.")</p>
+            </div>
+            <div class="col-12 col-md-6 col-lg-4 cpm-step">
+                <div class="cpm-step-number">5</div>
+                <h5 class="fw-bold">@C("home.howitworks.step5.title", "Servico e realizado")</h5>
+                <p class="text-secondary-emphasis mb-0">@C("home.howitworks.step5.description", "O profissional executa o trabalho conforme o combinado.")</p>
+            </div>
+            <div class="col-12 col-md-6 col-lg-4 cpm-step">
+                <div class="cpm-step-number">6</div>
+                <h5 class="fw-bold">@C("home.howitworks.step6.title", "Ambos avaliam o atendimento")</h5>
+                <p class="text-secondary-emphasis mb-0">@C("home.howitworks.step6.description", "As avaliacoes ajudam a manter confianca e qualidade na plataforma.")</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="cpm-section cpm-trust">
+    <div class="container-lg">
+        <div class="row g-4">
+            <div class="col-12 col-md-4">
+                <div class="cpm-card p-4 h-100 text-center">
+                    <i class="bi bi-shield-check"></i>
+                    <h5 class="fw-bold mt-3">@C("home.trust.card1.title", "Profissionais verificados")</h5>
+                    <p class="mb-0">@C("home.trust.card1.description", "Analisamos dados e documentos antes da ativacao no portal.")</p>
+                </div>
+            </div>
+            <div class="col-12 col-md-4">
+                <div class="cpm-card p-4 h-100 text-center">
+                    <i class="bi bi-star-fill"></i>
+                    <h5 class="fw-bold mt-3">@C("home.trust.card2.title", "Avaliacoes reais")</h5>
+                    <p class="mb-0">@C("home.trust.card2.description", "Consulte opinioes de clientes para escolher com mais seguranca.")</p>
+                </div>
+            </div>
+            <div class="col-12 col-md-4">
+                <div class="cpm-card p-4 h-100 text-center">
+                    <i class="bi bi-people-fill"></i>
+                    <h5 class="fw-bold mt-3">@C("home.trust.card3.title", "Suporte humano")</h5>
+                    <p class="mb-0">@C("home.trust.card3.description", "Nossa equipe acompanha voce durante toda a jornada.")</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="cpm-section cpm-professional-cta">
+    <div class="container-lg">
+        <div class="row align-items-center g-4">
+            <div class="col-12 col-lg-7">
+                <h2 class="fw-bold">@C("home.procta.title", "Voce e profissional?")</h2>
+                <p class="text-secondary-emphasis">
+                    @C("home.procta.subtitle", "Cadastre-se no ConsertaPraMim e receba novas oportunidades todos os dias na sua cidade.")
+                </p>
+                <div class="d-flex flex-wrap gap-2">
+                    <a class="btn cpm-btn-primary" asp-controller="Home" asp-action="RegisterProfessional">@C("home.procta.button_primary", "Quero me cadastrar")</a>
+                    <a class="btn btn-outline-secondary" asp-controller="Home" asp-action="RegisterProfessional">@C("home.procta.button_secondary", "Saiba mais")</a>
+                </div>
+            </div>
+            <div class="col-12 col-lg-5">
+                <img src="@C("home.procta.image_url", Url.Content("~/images/7237a130-fa5b-4e98-9118-ed5b0d465fa6.png"))" alt="@C("home.procta.image_alt", "Profissional trabalhando")" class="img-fluid rounded-4 shadow" />
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="py-5 text-center" style="background: var(--cpm-primary); color: #fff;">
+    <div class="container-lg py-4">
+        <h2 class="fw-bold mb-3">@C("home.finalcta.title", "Pronto para resolver seu problema?")</h2>
+        <p class="mb-4">@C("home.finalcta.subtitle", "Solicite agora e receba contatos de profissionais proximos.")</p>
+        <a class="btn btn-dark btn-lg" asp-controller="Home" asp-action="RequestService">@C("home.finalcta.button", "Solicitar servico agora")</a>
+    </div>
+</section>
+
+@section Head {
+    @{
+        var baseUrl = $"{Context.Request.Scheme}://{Context.Request.Host}";
+        var itemListElements = Model.Categories
+            .Select((category, idx) => new Dictionary<string, object?>
+            {
+                ["@type"] = "ListItem",
+                ["position"] = idx + 1,
+                ["name"] = category.Name,
+                ["url"] = $"{baseUrl}/solicitar-servico?categoryId={category.Id}"
+            })
+            .ToList();
+
+        var structuredData = new object[]
+        {
+            new Dictionary<string, object?>
+            {
+                ["@context"] = "https://schema.org",
+                ["@type"] = "WebPage",
+                ["name"] = C("home.schema.webpage.name", pageTitle),
+                ["description"] = C("home.schema.webpage.description", "Solicite servicos residenciais no ConsertaPraMim e encontre profissionais perto de voce."),
+                ["url"] = $"{baseUrl}/",
+                ["inLanguage"] = "pt-BR"
+            },
+            new Dictionary<string, object?>
+            {
+                ["@context"] = "https://schema.org",
+                ["@type"] = "ItemList",
+                ["name"] = C("home.schema.itemlist.name", C("home.topservices.title", "Servicos mais buscados")),
+                ["itemListElement"] = itemListElements
+            },
+            new Dictionary<string, object?>
+            {
+                ["@context"] = "https://schema.org",
+                ["@type"] = "HowTo",
+                ["name"] = C("home.schema.howto.name", "Como funciona a plataforma ConsertaPraMim"),
+                ["step"] = new object[]
+                {
+                    new Dictionary<string, object?> { ["@type"] = "HowToStep", ["name"] = C("home.schema.howto.step1.name", C("home.howitworks.step1.title", "Cliente solicita o servico")), ["text"] = C("home.schema.howto.step1.text", "Descreva o problema e informe seu CEP.") },
+                    new Dictionary<string, object?> { ["@type"] = "HowToStep", ["name"] = C("home.schema.howto.step2.name", C("home.howitworks.step2.title", "Prestadores recebem o pedido")), ["text"] = C("home.schema.howto.step2.text", "Profissionais da regiao visualizam sua solicitacao.") },
+                    new Dictionary<string, object?> { ["@type"] = "HowToStep", ["name"] = C("home.schema.howto.step3.name", C("home.howitworks.step3.title", "Profissional envia orcamento")), ["text"] = C("home.schema.howto.step3.text", "Os interessados retornam com proposta e prazo.") },
+                    new Dictionary<string, object?> { ["@type"] = "HowToStep", ["name"] = C("home.schema.howto.step4.name", "Cliente conversa e fecha"), ["text"] = C("home.schema.howto.step4.text", "Cliente e profissional alinham valor e agendamento.") },
+                    new Dictionary<string, object?> { ["@type"] = "HowToStep", ["name"] = C("home.schema.howto.step5.name", "Servico concluido e avaliado"), ["text"] = C("home.schema.howto.step5.text", "Apos o atendimento, ambos podem avaliar a experiencia.") }
+                }
+            }
+        };
+    }
+    <script type="application/ld+json">@Html.Raw(System.Text.Json.JsonSerializer.Serialize(structuredData))</script>
+}
+
+@section Scripts {
+    <script>
+        (() => {
+            const locationInput = document.getElementById("homeLocationInput");
+            const locationButton = document.getElementById("getUserLocationBtn");
+            const feedback = document.getElementById("homeLocationFeedback");
+            const messages = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(new
+            {
+                loading = C("home.hero.cep.loading", "Consultando CEP..."),
+                resolvedTemplate = C("home.hero.cep.resolved_template", "Endereco do CEP: {address}"),
+                unresolved = C("home.hero.cep.unresolved", "Nao foi possivel resolver rua, bairro, cidade e UF. O CEP digitado sera aceito."),
+                geolocationUnsupported = C("home.hero.location.unsupported", "Seu navegador nao suporta geolocalizacao."),
+                geolocationLoading = C("home.hero.location.loading", "Obtendo sua localizacao..."),
+                cepNotIdentified = C("home.hero.location.cep_not_identified", "Nao foi possivel identificar o CEP automaticamente."),
+                reverseFailed = C("home.hero.location.reverse_failed", "Nao foi possivel converter sua localizacao em CEP."),
+                denied = C("home.hero.location.denied", "Permissao negada para acessar sua localizacao."),
+                unavailable = C("home.hero.location.unavailable", "Localizacao indisponivel no momento."),
+                timeout = C("home.hero.location.timeout", "Tempo excedido ao buscar sua localizacao."),
+                genericError = C("home.hero.location.generic_error", "Nao foi possivel obter sua localizacao.")
+            }));
+
+            if (!locationInput || !locationButton || !feedback || !window.CepResolver) {
+                return;
+            }
+
+            const cepLookup = window.CepResolver.bindCepLookup({
+                input: locationInput,
+                feedback: feedback,
+                messages: {
+                    loading: messages.loading,
+                    resolved: (addressText) => messages.resolvedTemplate.replace("{address}", addressText),
+                    unresolved: messages.unresolved
+                }
+            });
+
+            const reverseGeocodeToCep = async (lat, lon) => {
+                const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}`;
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error("reverse-geocode-failed");
+                }
+
+                const data = await response.json();
+                const cepDigits = window.CepResolver.onlyDigits(data?.address?.postcode ?? "").slice(0, 8);
+                return cepDigits.length === 8 ? cepDigits : null;
+            };
+
+            locationButton.addEventListener("click", () => {
+                if (!navigator.geolocation) {
+                    cepLookup.setFeedback("error", messages.geolocationUnsupported);
+                    return;
+                }
+
+                locationButton.disabled = true;
+                cepLookup.setFeedback("", messages.geolocationLoading);
+
+                navigator.geolocation.getCurrentPosition(
+                    async (position) => {
+                        const latitude = position.coords.latitude.toFixed(6);
+                        const longitude = position.coords.longitude.toFixed(6);
+
+                        try {
+                            const cepDigits = await reverseGeocodeToCep(latitude, longitude);
+                            if (!cepDigits) {
+                                cepLookup.setFeedback("warning", messages.cepNotIdentified);
+                            } else {
+                                locationInput.value = window.CepResolver.formatCep(cepDigits);
+                                await cepLookup.lookupCurrent();
+                            }
+                        } catch {
+                            cepLookup.setFeedback("warning", messages.reverseFailed);
+                        } finally {
+                            locationButton.disabled = false;
+                        }
+                    },
+                    (error) => {
+                        let message = messages.genericError;
+
+                        if (error.code === 1) {
+                            message = messages.denied;
+                        } else if (error.code === 2) {
+                            message = messages.unavailable;
+                        } else if (error.code === 3) {
+                            message = messages.timeout;
+                        }
+
+                        cepLookup.setFeedback("error", message);
+                        locationButton.disabled = false;
+                    },
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 10000,
+                        maximumAge: 60000
+                    });
+            });
+        })();
+    </script>
+}

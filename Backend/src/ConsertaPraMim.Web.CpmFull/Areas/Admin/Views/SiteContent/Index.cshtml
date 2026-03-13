@@ -1,0 +1,692 @@
+@model AdminSiteContentListViewModel
+@{
+    ViewData["Title"] = "Conteudos do Site";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h4 fw-bold mb-1">Conteudos do Site</h1>
+        <p class="text-secondary mb-0">Edite textos e imagens da plataforma para personalizacao futura do Admin.</p>
+    </div>
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createContentModal">
+        Novo conteudo
+    </button>
+</div>
+
+@if (TempData["AdminErrorMessage"] is string errorMessage && !string.IsNullOrWhiteSpace(errorMessage))
+{
+    <div class="alert alert-danger" role="alert">@errorMessage</div>
+}
+
+<div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+        <table class="table align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Conteudo</th>
+                    <th>Valor</th>
+                    <th>Status</th>
+                    <th>Atualizado</th>
+                    <th class="text-end">Acoes</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (!Model.Items.Any())
+                {
+                    <tr>
+                        <td colspan="5" class="text-center text-secondary py-4">Nenhum conteudo cadastrado.</td>
+                    </tr>
+                }
+                else
+                {
+                    foreach (var item in Model.Items)
+                    {
+                        <tr>
+                            <td>
+                                <div class="fw-semibold">@item.FriendlyName</div>
+                            </td>
+                            <td class="text-break" style="max-width: 420px;">@item.ValuePreview</td>
+                            <td>
+                                @if (item.IsActive)
+                                {
+                                    <span class="badge text-bg-success">Ativo</span>
+                                }
+                                else
+                                {
+                                    <span class="badge text-bg-secondary">Inativo</span>
+                                }
+                            </td>
+                            <td class="small text-secondary">
+                                @(item.UpdatedAt?.ToString("dd/MM/yyyy HH:mm") ?? item.CreatedAt.ToString("dd/MM/yyyy HH:mm"))
+                            </td>
+                            <td class="text-end">
+                                <div class="d-inline-flex gap-1">
+                                    <button
+                                        type="button"
+                                        class="btn btn-sm btn-outline-secondary cpm-details-btn"
+                                        data-id="@item.Id"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#detailsContentModal">
+                                        Detalhes
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="btn btn-sm btn-outline-primary cpm-edit-btn"
+                                        data-id="@item.Id"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#editContentModal">
+                                        Editar
+                                    </button>
+                                    <form asp-area="Admin" asp-controller="SiteContent" asp-action="Delete" method="post" class="d-inline">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="id" value="@item.Id" />
+                                        <button
+                                            type="submit"
+                                            class="btn btn-sm btn-outline-danger"
+                                            onclick="return confirm('Deseja excluir este conteudo?');">
+                                            Excluir
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="detailsContentModal" tabindex="-1" aria-labelledby="detailsContentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="detailsContentModalLabel">Detalhes do conteudo</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <dl class="row mb-3">
+                    <dt class="col-sm-3">Nome legivel</dt>
+                    <dd class="col-sm-9" id="detailsFriendlyName"></dd>
+
+                    <dt class="col-sm-3">Descricao</dt>
+                    <dd class="col-sm-9" id="detailsDescription"></dd>
+
+                    <dt class="col-sm-3">Status</dt>
+                    <dd class="col-sm-9" id="detailsStatus"></dd>
+
+                    <dt class="col-sm-3">Criado em</dt>
+                    <dd class="col-sm-9" id="detailsCreatedAt"></dd>
+
+                    <dt class="col-sm-3">Atualizado em</dt>
+                    <dd class="col-sm-9" id="detailsUpdatedAt"></dd>
+
+                </dl>
+
+                <ul class="nav nav-tabs mb-3" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#contentDetailsPreviewTab" type="button" role="tab">Preview</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#contentDetailsHtmlTab" type="button" role="tab">HTML</button>
+                    </li>
+                </ul>
+                <div class="tab-content">
+                    <div class="tab-pane fade show active" id="contentDetailsPreviewTab" role="tabpanel">
+                        <iframe id="detailsPreviewFrame" class="w-100 border rounded" style="height: 260px;" sandbox></iframe>
+                    </div>
+                    <div class="tab-pane fade" id="contentDetailsHtmlTab" role="tabpanel">
+                        <pre id="detailsValue" class="bg-light border rounded p-3 mb-0 text-break" style="white-space: pre-wrap;"></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="createContentModal" tabindex="-1" aria-labelledby="createContentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <form asp-area="Admin" asp-controller="SiteContent" asp-action="Create" method="post" novalidate>
+                @Html.AntiForgeryToken()
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold" id="createContentModalLabel">Novo conteudo</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Nome legivel no Admin (opcional)</label>
+                        <input name="Description" class="form-control" maxlength="260" placeholder="Ex: Home > Hero > Titulo" />
+                    </div>
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                        <button type="button" class="btn btn-sm btn-outline-secondary cpm-open-image-cropper" data-target-input="createContentValue">
+                            Upload e recortar imagem
+                        </button>
+                        <span class="small text-secondary align-self-center">A imagem recortada sera salva no banco de dados ao salvar o conteudo.</span>
+                    </div>
+
+                    <ul class="nav nav-tabs mb-3" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#createContentEditorTab" type="button" role="tab">Editor HTML/URL</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#createContentPreviewTab" type="button" role="tab">Preview</button>
+                        </li>
+                    </ul>
+                    <div class="tab-content">
+                        <div class="tab-pane fade show active" id="createContentEditorTab" role="tabpanel">
+                            <textarea id="createContentValue" name="Value" class="form-control" rows="8" required></textarea>
+                        </div>
+                        <div class="tab-pane fade" id="createContentPreviewTab" role="tabpanel">
+                            <iframe id="createContentPreviewFrame" class="w-100 border rounded" style="height: 260px;" sandbox></iframe>
+                        </div>
+                    </div>
+
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="IsActive" value="true" checked />
+                        <input type="hidden" name="IsActive" value="false" />
+                        <label class="form-check-label">Ativo</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Criar conteudo</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editContentModal" tabindex="-1" aria-labelledby="editContentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <form asp-area="Admin" asp-controller="SiteContent" asp-action="Edit" method="post" novalidate>
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="Id" id="editId" />
+                <input type="hidden" name="Key" id="editKey" />
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold" id="editContentModalLabel">Editar conteudo</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Nome legivel no Admin (opcional)</label>
+                        <input id="editDescription" name="Description" class="form-control" maxlength="260" />
+                    </div>
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                        <button type="button" class="btn btn-sm btn-outline-secondary cpm-open-image-cropper" data-target-input="editValue">
+                            Upload e recortar imagem
+                        </button>
+                        <span class="small text-secondary align-self-center">A imagem recortada sera salva no banco de dados ao salvar o conteudo.</span>
+                    </div>
+
+                    <ul class="nav nav-tabs mb-3" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#editContentEditorTab" type="button" role="tab">Editor HTML/URL</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#editContentPreviewTab" type="button" role="tab">Preview</button>
+                        </li>
+                    </ul>
+                    <div class="tab-content">
+                        <div class="tab-pane fade show active" id="editContentEditorTab" role="tabpanel">
+                            <textarea id="editValue" name="Value" class="form-control" rows="8" required></textarea>
+                        </div>
+                        <div class="tab-pane fade" id="editContentPreviewTab" role="tabpanel">
+                            <iframe id="editContentPreviewFrame" class="w-100 border rounded" style="height: 260px;" sandbox></iframe>
+                        </div>
+                    </div>
+
+                    <div class="form-check">
+                        <input id="editIsActive" class="form-check-input" type="checkbox" name="IsActive" value="true" />
+                        <input type="hidden" name="IsActive" value="false" />
+                        <label class="form-check-label" for="editIsActive">Ativo</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar alteracoes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="imageCropModal" tabindex="-1" aria-labelledby="imageCropModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="imageCropModalLabel">Upload e recorte de imagem</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-3">
+                    <div class="col-12 col-lg-8">
+                        <div class="cpm-image-crop-stage border rounded bg-light p-2">
+                            <img id="imageCropSource" alt="Imagem para recorte" class="img-fluid d-none" />
+                            <div id="imageCropPlaceholder" class="small text-secondary text-center p-4">
+                                Selecione uma imagem para visualizar e recortar.
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-lg-4">
+                        <div class="mb-3">
+                            <label for="imageCropFileInput" class="form-label">Arquivo</label>
+                            <input id="imageCropFileInput" type="file" class="form-control" accept="image/*" />
+                            <div class="form-text">Use JPG, PNG ou WEBP.</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="imageCropAspectRatio" class="form-label">Proporcao fixa</label>
+                            <select id="imageCropAspectRatio" class="form-select">
+                                <option value="1">1:1 (quadrado)</option>
+                                <option value="1.3333333333">4:3</option>
+                                <option value="1.7777777778" selected>16:9</option>
+                                <option value="3">3:1 (banner)</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="imageCropOutputWidth" class="form-label">Largura de saida (px)</label>
+                            <input id="imageCropOutputWidth" type="number" class="form-control" min="200" max="4000" value="1200" />
+                        </div>
+                        <div class="mb-2">
+                            <label for="imageCropOutputFormat" class="form-label">Formato de saida</label>
+                            <select id="imageCropOutputFormat" class="form-select">
+                                <option value="image/png" selected>PNG</option>
+                                <option value="image/jpeg">JPG</option>
+                                <option value="image/webp">WEBP</option>
+                            </select>
+                        </div>
+                        <div id="imageCropFeedback" class="small text-secondary"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="imageCropApplyBtn">Aplicar recorte no conteudo</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Head {
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.css" />
+    <style>
+        .cpm-image-crop-stage {
+            min-height: 430px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        #imageCropSource {
+            max-width: 100%;
+            max-height: 70vh;
+            display: block;
+        }
+    </style>
+}
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/cropperjs@1.6.2/dist/cropper.min.js"></script>
+    <script>
+        (() => {
+            const detailsModal = document.getElementById("detailsContentModal");
+            const editModal = document.getElementById("editContentModal");
+            const createValue = document.getElementById("createContentValue");
+            const createPreviewFrame = document.getElementById("createContentPreviewFrame");
+            const editValue = document.getElementById("editValue");
+            const editPreviewFrame = document.getElementById("editContentPreviewFrame");
+            const imageCropModalEl = document.getElementById("imageCropModal");
+            const imageCropFileInput = document.getElementById("imageCropFileInput");
+            const imageCropSource = document.getElementById("imageCropSource");
+            const imageCropPlaceholder = document.getElementById("imageCropPlaceholder");
+            const imageCropAspectRatio = document.getElementById("imageCropAspectRatio");
+            const imageCropOutputWidth = document.getElementById("imageCropOutputWidth");
+            const imageCropOutputFormat = document.getElementById("imageCropOutputFormat");
+            const imageCropFeedback = document.getElementById("imageCropFeedback");
+            const imageCropApplyBtn = document.getElementById("imageCropApplyBtn");
+
+            let cropper = null;
+            let imageCropModalInstance = null;
+            let activeTargetInput = null;
+            let currentObjectUrl = null;
+
+            const isImageValue = (value) => {
+                const trimmed = (value || "").trim();
+                if (!trimmed) {
+                    return false;
+                }
+
+                if (/^data:image\//i.test(trimmed)) {
+                    return true;
+                }
+
+                return /^(https?:\/\/|\/).+\.(png|jpe?g|gif|webp|svg)(\?.*)?$/i.test(trimmed);
+            };
+
+            const escapeHtml = (text) =>
+                String(text || "")
+                    .replace(/&/g, "&amp;")
+                    .replace(/</g, "&lt;")
+                    .replace(/>/g, "&gt;")
+                    .replace(/"/g, "&quot;")
+                    .replace(/'/g, "&#39;");
+
+            const buildPreviewMarkup = (contentValue) => {
+                const trimmed = (contentValue || "").trim();
+                if (!trimmed) {
+                    return "<p style='color:#6c757d;'>Sem conteudo para preview.</p>";
+                }
+
+                if (isImageValue(trimmed)) {
+                    const safeSrc = escapeHtml(trimmed);
+                    return `
+                        <div style="height:100%;display:flex;align-items:center;justify-content:center;background:#f8f9fa;padding:12px;">
+                            <img src="${safeSrc}" alt="Preview da imagem" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:8px;" />
+                        </div>
+                    `;
+                }
+
+                return trimmed;
+            };
+
+            const setPreview = (iframe, htmlText) => {
+                if (!iframe) {
+                    return;
+                }
+
+                iframe.srcdoc = buildPreviewMarkup(htmlText);
+            };
+
+            const setCropFeedback = (message, cssClass) => {
+                if (!imageCropFeedback) {
+                    return;
+                }
+
+                imageCropFeedback.className = "small";
+                if (cssClass) {
+                    imageCropFeedback.classList.add(cssClass);
+                } else {
+                    imageCropFeedback.classList.add("text-secondary");
+                }
+                imageCropFeedback.textContent = message || "";
+            };
+
+            const destroyCropper = () => {
+                if (cropper) {
+                    cropper.destroy();
+                    cropper = null;
+                }
+            };
+
+            const getSelectedAspectRatio = () => {
+                const value = Number(imageCropAspectRatio?.value ?? "1");
+                if (!Number.isFinite(value) || value <= 0) {
+                    return 1;
+                }
+
+                return value;
+            };
+
+            const initializeCropper = () => {
+                if (!imageCropSource || typeof Cropper === "undefined") {
+                    return;
+                }
+
+                destroyCropper();
+                cropper = new Cropper(imageCropSource, {
+                    aspectRatio: getSelectedAspectRatio(),
+                    viewMode: 1,
+                    autoCropArea: 1,
+                    dragMode: "move",
+                    responsive: true,
+                    restore: false,
+                    checkCrossOrigin: false,
+                    background: false,
+                    movable: true,
+                    zoomable: true,
+                    rotatable: false,
+                    scalable: false
+                });
+            };
+
+            const showImageInCropper = (sourceUrl) => {
+                if (!imageCropSource || !imageCropPlaceholder) {
+                    return;
+                }
+
+                imageCropSource.classList.add("d-none");
+                imageCropPlaceholder.classList.remove("d-none");
+                destroyCropper();
+
+                imageCropSource.onload = () => {
+                    imageCropSource.classList.remove("d-none");
+                    imageCropPlaceholder.classList.add("d-none");
+                    initializeCropper();
+                };
+
+                imageCropSource.onerror = () => {
+                    imageCropSource.classList.add("d-none");
+                    imageCropPlaceholder.classList.remove("d-none");
+                    setCropFeedback("Nao foi possivel carregar essa imagem para recorte.", "text-danger");
+                };
+
+                imageCropSource.src = sourceUrl;
+            };
+
+            createValue?.addEventListener("input", () => setPreview(createPreviewFrame, createValue.value));
+            document.querySelector('button[data-bs-target="#createContentPreviewTab"]')?.addEventListener("shown.bs.tab", () => {
+                setPreview(createPreviewFrame, createValue?.value || "");
+            });
+
+            editValue?.addEventListener("input", () => setPreview(editPreviewFrame, editValue.value));
+            document.querySelector('button[data-bs-target="#editContentPreviewTab"]')?.addEventListener("shown.bs.tab", () => {
+                setPreview(editPreviewFrame, editValue?.value || "");
+            });
+
+            const fetchContent = async (id) => {
+                const response = await fetch(`/admin/conteudos/${id}/json`, { headers: { "Accept": "application/json" } });
+                if (!response.ok) {
+                    throw new Error("fetch-failed");
+                }
+                return await response.json();
+            };
+
+            document.querySelectorAll(".cpm-details-btn").forEach((button) => {
+                button.addEventListener("click", async () => {
+                    const id = button.getAttribute("data-id");
+                    if (!id) {
+                        return;
+                    }
+
+                    try {
+                        const content = await fetchContent(id);
+                        document.getElementById("detailsFriendlyName").textContent = content.friendlyName ?? "";
+                        document.getElementById("detailsDescription").textContent = content.description || "-";
+                        document.getElementById("detailsStatus").textContent = content.isActive ? "Ativo" : "Inativo";
+                        document.getElementById("detailsCreatedAt").textContent = content.createdAt ?? "-";
+                        document.getElementById("detailsUpdatedAt").textContent = content.updatedAt ?? "-";
+                        document.getElementById("detailsValue").textContent = content.value ?? "";
+                        setPreview(document.getElementById("detailsPreviewFrame"), content.value ?? "");
+                    } catch {
+                        if (detailsModal) {
+                            const instance = bootstrap.Modal.getInstance(detailsModal);
+                            instance?.hide();
+                        }
+                        alert("Nao foi possivel carregar os detalhes do conteudo.");
+                    }
+                });
+            });
+
+            document.querySelectorAll(".cpm-edit-btn").forEach((button) => {
+                button.addEventListener("click", async () => {
+                    const id = button.getAttribute("data-id");
+                    if (!id) {
+                        return;
+                    }
+
+                    try {
+                        const content = await fetchContent(id);
+                        document.getElementById("editId").value = content.id ?? "";
+                        document.getElementById("editKey").value = content.key ?? "";
+                        document.getElementById("editDescription").value = content.description ?? "";
+                        document.getElementById("editValue").value = content.value ?? "";
+                        document.getElementById("editIsActive").checked = !!content.isActive;
+                        setPreview(document.getElementById("editContentPreviewFrame"), content.value ?? "");
+                    } catch {
+                        if (editModal) {
+                            const instance = bootstrap.Modal.getInstance(editModal);
+                            instance?.hide();
+                        }
+                        alert("Nao foi possivel carregar os dados para edicao.");
+                    }
+                });
+            });
+
+            if (imageCropModalEl && typeof bootstrap !== "undefined") {
+                imageCropModalInstance = new bootstrap.Modal(imageCropModalEl);
+            }
+
+            document.querySelectorAll(".cpm-open-image-cropper").forEach((button) => {
+                button.addEventListener("click", () => {
+                    if (!imageCropModalInstance) {
+                        alert("Nao foi possivel abrir o editor de imagem.");
+                        return;
+                    }
+
+                    if (typeof Cropper === "undefined") {
+                        alert("Biblioteca de recorte nao carregada. Atualize a pagina e tente novamente.");
+                        return;
+                    }
+
+                    const targetInputId = button.getAttribute("data-target-input");
+                    const targetInput = targetInputId ? document.getElementById(targetInputId) : null;
+                    if (!targetInput) {
+                        alert("Campo de conteudo nao encontrado para aplicar a imagem.");
+                        return;
+                    }
+
+                    activeTargetInput = targetInput;
+                    setCropFeedback("", "text-secondary");
+
+                    const currentValue = (activeTargetInput.value || "").trim();
+                    if (isImageValue(currentValue)) {
+                        showImageInCropper(currentValue);
+                    } else {
+                        destroyCropper();
+                        if (imageCropSource) {
+                            imageCropSource.classList.add("d-none");
+                            imageCropSource.removeAttribute("src");
+                        }
+                        imageCropPlaceholder?.classList.remove("d-none");
+                    }
+
+                    imageCropModalInstance.show();
+                });
+            });
+
+            imageCropFileInput?.addEventListener("change", () => {
+                const file = imageCropFileInput.files && imageCropFileInput.files[0];
+                if (!file) {
+                    return;
+                }
+
+                if (!file.type.startsWith("image/")) {
+                    setCropFeedback("Selecione um arquivo de imagem valido.", "text-danger");
+                    imageCropFileInput.value = "";
+                    return;
+                }
+
+                if (file.size > 8 * 1024 * 1024) {
+                    setCropFeedback("A imagem deve ter no maximo 8MB.", "text-danger");
+                    imageCropFileInput.value = "";
+                    return;
+                }
+
+                if (currentObjectUrl) {
+                    URL.revokeObjectURL(currentObjectUrl);
+                    currentObjectUrl = null;
+                }
+
+                currentObjectUrl = URL.createObjectURL(file);
+                showImageInCropper(currentObjectUrl);
+                setCropFeedback("Imagem carregada. Ajuste o recorte e aplique.", "text-success");
+            });
+
+            imageCropAspectRatio?.addEventListener("change", () => {
+                if (cropper) {
+                    cropper.setAspectRatio(getSelectedAspectRatio());
+                }
+            });
+
+            imageCropApplyBtn?.addEventListener("click", () => {
+                if (!activeTargetInput) {
+                    setCropFeedback("Campo de conteudo nao encontrado para aplicar a imagem.", "text-danger");
+                    return;
+                }
+
+                if (!cropper) {
+                    setCropFeedback("Carregue uma imagem antes de aplicar o recorte.", "text-danger");
+                    return;
+                }
+
+                const aspectRatio = getSelectedAspectRatio();
+                let outputWidth = Number.parseInt(imageCropOutputWidth?.value ?? "1200", 10);
+                if (!Number.isFinite(outputWidth) || outputWidth < 200) {
+                    outputWidth = 1200;
+                }
+                if (outputWidth > 4000) {
+                    outputWidth = 4000;
+                }
+
+                const outputHeight = Math.max(1, Math.round(outputWidth / aspectRatio));
+                const outputFormat = imageCropOutputFormat?.value || "image/png";
+                const canvas = cropper.getCroppedCanvas({
+                    width: outputWidth,
+                    height: outputHeight,
+                    imageSmoothingEnabled: true,
+                    imageSmoothingQuality: "high",
+                    fillColor: "#ffffff"
+                });
+
+                if (!canvas) {
+                    setCropFeedback("Nao foi possivel gerar a imagem recortada.", "text-danger");
+                    return;
+                }
+
+                const quality = outputFormat === "image/jpeg" || outputFormat === "image/webp" ? 0.92 : undefined;
+                let dataUrl = "";
+                try {
+                    dataUrl = canvas.toDataURL(outputFormat, quality);
+                } catch {
+                    setCropFeedback("Nao foi possivel exportar esta imagem. Faca upload de um arquivo local e tente novamente.", "text-danger");
+                    return;
+                }
+                activeTargetInput.value = dataUrl;
+                activeTargetInput.dispatchEvent(new Event("input", { bubbles: true }));
+                setCropFeedback("Recorte aplicado ao conteudo. Salve para persistir no banco.", "text-success");
+
+                imageCropModalInstance?.hide();
+            });
+
+            imageCropModalEl?.addEventListener("hidden.bs.modal", () => {
+                imageCropFileInput.value = "";
+                setCropFeedback("", "text-secondary");
+                destroyCropper();
+                activeTargetInput = null;
+
+                if (imageCropSource) {
+                    imageCropSource.classList.add("d-none");
+                    imageCropSource.removeAttribute("src");
+                }
+                imageCropPlaceholder?.classList.remove("d-none");
+
+                if (currentObjectUrl) {
+                    URL.revokeObjectURL(currentObjectUrl);
+                    currentObjectUrl = null;
+                }
+            });
+        })();
+    </script>
+}
