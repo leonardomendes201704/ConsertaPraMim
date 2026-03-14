@@ -160,3 +160,55 @@ public sealed class ChatwootLeadSyncResult
             Message = message
         };
 }
+
+public static class ChatwootBackfillRunStatuses
+{
+    public const string Completed = "completed";
+    public const string DryRun = "dry_run";
+}
+
+public static class ChatwootBackfillItemStatuses
+{
+    public const string Pending = "pending";
+    public const string Failed = "failed";
+    public const string Synced = "synced";
+    public const string Skipped = "skipped";
+}
+
+public sealed class ChatwootBackfillRunRequest
+{
+    public string? BoardType { get; init; }
+    public int BatchSize { get; init; } = 20;
+    public bool DryRun { get; init; }
+    public int? StartAfterLeadId { get; init; }
+}
+
+public sealed class ChatwootBackfillRunResult
+{
+    public string ScopeKey { get; init; } = string.Empty;
+    public string ScopeLabel { get; init; } = string.Empty;
+    public bool DryRun { get; init; }
+    public int BatchSize { get; init; }
+    public int? EffectiveStartAfterLeadId { get; init; }
+    public int? StoredCheckpointLeadId { get; init; }
+    public int? LastProcessedLeadId { get; init; }
+    public int TotalSelected { get; init; }
+    public int SuccessCount { get; init; }
+    public int FailedCount { get; init; }
+    public int PendingCount { get; init; }
+    public string Status { get; init; } = string.Empty;
+    public IReadOnlyList<ChatwootBackfillItemResult> Items { get; init; } = [];
+}
+
+public sealed class ChatwootBackfillItemResult
+{
+    public int LeadId { get; init; }
+    public string BoardType { get; init; } = string.Empty;
+    public string LeadName { get; init; } = string.Empty;
+    public string StageName { get; init; } = string.Empty;
+    public string Status { get; init; } = string.Empty;
+    public string Message { get; init; } = string.Empty;
+    public long? ContactId { get; init; }
+    public long? ConversationId { get; init; }
+    public long? InboxId { get; init; }
+}

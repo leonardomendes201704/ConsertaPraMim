@@ -106,6 +106,32 @@ ORDER BY c.column_id;
         Assert.Contains("ProcessedAt", queueColumnNames);
         Assert.Contains("DeadLetterAt", queueColumnNames);
 
+        using var backfillColumnsCommand = connection.CreateCommand();
+        backfillColumnsCommand.CommandText = """
+SELECT c.name
+FROM sys.columns c
+INNER JOIN sys.objects o ON o.object_id = c.object_id
+WHERE o.type = 'U' AND o.name = 'cpm_web_chatwoot_backfill_checkpoints'
+ORDER BY c.column_id;
+""";
+
+        var backfillColumnNames = new List<string>();
+        using (var reader = backfillColumnsCommand.ExecuteReader())
+        {
+            while (reader.Read())
+            {
+                backfillColumnNames.Add(reader.GetString(0));
+            }
+        }
+
+        Assert.Contains("ScopeKey", backfillColumnNames);
+        Assert.Contains("LastProcessedLeadId", backfillColumnNames);
+        Assert.Contains("LastRunStartedAt", backfillColumnNames);
+        Assert.Contains("LastRunCompletedAt", backfillColumnNames);
+        Assert.Contains("LastRunStatus", backfillColumnNames);
+        Assert.Contains("LastSummaryJson", backfillColumnNames);
+        Assert.Contains("UpdatedAt", backfillColumnNames);
+
         using var indexCommand = connection.CreateCommand();
         indexCommand.CommandText = """
 SELECT COUNT(1)
@@ -145,6 +171,16 @@ WHERE object_id = OBJECT_ID('dbo.cpm_web_chatwoot_sync_queue')
 """;
 
         Assert.Equal(1, Convert.ToInt32(queueActiveIndexCommand.ExecuteScalar()));
+
+        using var backfillIndexCommand = connection.CreateCommand();
+        backfillIndexCommand.CommandText = """
+SELECT COUNT(1)
+FROM sys.indexes
+WHERE object_id = OBJECT_ID('dbo.cpm_web_chatwoot_backfill_checkpoints')
+  AND name = 'UX_cpm_web_chatwoot_backfill_checkpoints_scope';
+""";
+
+        Assert.Equal(1, Convert.ToInt32(backfillIndexCommand.ExecuteScalar()));
     }
 
     [Fact(DisplayName = "UpdateLeadChatwootSync deve persistir e ler vinculo do Chatwoot no lead")]
@@ -421,6 +457,94 @@ WHERE Id = @id;
         Assert.Equal("processed", reader.GetString(3));
         Assert.False(reader.IsDBNull(4));
         Assert.True(reader.IsDBNull(5));
+    }
+
+    [Fact(DisplayName = "Backfill Chatwoot deve listar candidatos pendentes e persistir checkpoint por escopo")]
+    public void ChatwootBackfill_DeveListarCandidatosEPersistirCheckpoint()
+    {
+        using var database = new LocalDbKanbanDatabaseScope();
+        if (!database.IsAvailable)
+        {
+            return;
+        }
+
+        var service = CreateService(database.ConnectionString);
+
+        var leadId1 = service.CreateLead(new AdminKanbanLeadUpsertRequest
+        {
+            BoardType = AdminKanbanBoardTypes.Clients,
+            StageId = 0,
+            Name = "Lead Backfill 1",
+            Phone = "(13) 99111-1111",
+            Email = "backfill1@teste.com",
+            ServiceCategory = "Eletricista",
+            Source = "WhatsApp",
+            Priority = "normal"
+        });
+
+        var leadId2 = service.CreateLead(new AdminKanbanLeadUpsertRequest
+        {
+            BoardType = AdminKanbanBoardTypes.Clients,
+            StageId = 0,
+            Name = "Lead Backfill 2",
+            Phone = "(13) 99222-2222",
+            Email = "backfill2@teste.com",
+            ServiceCategory = "Encanador",
+            Source = "Formulario",
+            Priority = "normal"
+        });
+
+        var synced = service.UpdateLeadChatwootSync(leadId1, new AdminKanbanLeadChatwootSyncUpdateRequest
+        {
+            ChatwootConversationId = 8881,
+            ChatwootContactId = 7771,
+            ChatwootInboxId = 1,
+            ChatwootSyncStatus = ChatwootSyncStatuses.Synced,
+            ChatwootLastSyncAt = new DateTime(2026, 3, 13, 19, 0, 0, DateTimeKind.Utc)
+        });
+
+        Assert.True(synced);
+
+        var candidates = service.ListChatwootBackfillCandidates(AdminKanbanBoardTypes.Clients, null, 20);
+
+        Assert.Contains(candidates, item => item.LeadId == leadId2);
+        Assert.DoesNotContain(candidates, item => item.LeadId == leadId1);
+
+        var savedCheckpoint = service.SaveChatwootBackfillCheckpoint(new AdminKanbanChatwootBackfillCheckpointUpsertRequest
+        {
+            ScopeKey = "board:clientes",
+            LastProcessedLeadId = leadId2,
+            LastRunStartedAt = new DateTime(2026, 3, 13, 20, 0, 0, DateTimeKind.Utc),
+            LastRunCompletedAt = new DateTime(2026, 3, 13, 20, 5, 0, DateTimeKind.Utc),
+            LastRunStatus = "completed",
+            LastSummaryJson = "{\"totalSelected\":1}"
+        });
+
+        Assert.Equal("board:clientes", savedCheckpoint.ScopeKey);
+        Assert.Equal(leadId2, savedCheckpoint.LastProcessedLeadId);
+
+        var reloadedCheckpoint = service.GetChatwootBackfillCheckpoint("board:clientes");
+
+        Assert.NotNull(reloadedCheckpoint);
+        Assert.Equal(leadId2, reloadedCheckpoint!.LastProcessedLeadId);
+        Assert.Equal("completed", reloadedCheckpoint.LastRunStatus);
+
+        using var connection = new SqlConnection(database.ConnectionString);
+        connection.Open();
+
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+SELECT ScopeKey, LastProcessedLeadId, LastRunStatus
+FROM dbo.cpm_web_chatwoot_backfill_checkpoints
+WHERE ScopeKey = @scopeKey;
+""";
+        command.Parameters.Add(new SqlParameter("@scopeKey", SqlDbType.NVarChar, 80) { Value = "board:clientes" });
+
+        using var reader = command.ExecuteReader();
+        Assert.True(reader.Read());
+        Assert.Equal("board:clientes", reader.GetString(0));
+        Assert.Equal(leadId2, reader.GetInt32(1));
+        Assert.Equal("completed", reader.GetString(2));
     }
 
     private static SqlAdminKanbanService CreateService(string connectionString)

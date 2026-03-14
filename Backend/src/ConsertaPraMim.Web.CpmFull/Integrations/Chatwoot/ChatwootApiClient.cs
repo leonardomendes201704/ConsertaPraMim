@@ -160,6 +160,19 @@ public sealed class ChatwootApiClient : IChatwootApiClient
         return MapContactInbox(response);
     }
 
+    public async Task<IReadOnlyList<ChatwootConversationSummary>> ListContactConversationsAsync(long contactId, CancellationToken cancellationToken = default)
+    {
+        var response = await SendAsync<ChatwootContactConversationListResponse>(
+            HttpMethod.Get,
+            $"api/v1/accounts/{_options.AccountId}/contacts/{contactId}/conversations",
+            body: null,
+            cancellationToken);
+
+        return response.Payload
+            .Select(MapConversation)
+            .ToList();
+    }
+
     public async Task<IReadOnlyList<string>> ListContactLabelsAsync(long contactId, CancellationToken cancellationToken = default)
     {
         var response = await SendAsync<ChatwootContactLabelsResponse>(
@@ -205,12 +218,7 @@ public sealed class ChatwootApiClient : IChatwootApiClient
             },
             cancellationToken);
 
-        return new ChatwootConversationSummary
-        {
-            Id = response.Id,
-            InboxId = response.InboxId,
-            Status = response.Status ?? string.Empty
-        };
+        return MapConversation(response);
     }
 
     public async Task<ChatwootMessageSummary> CreateMessageAsync(long conversationId, ChatwootCreateMessageRequest request, CancellationToken cancellationToken = default)
@@ -380,6 +388,14 @@ public sealed class ChatwootApiClient : IChatwootApiClient
             SourceId = response.SourceId ?? string.Empty
         };
 
+    private static ChatwootConversationSummary MapConversation(ChatwootConversationResponse response) =>
+        new()
+        {
+            Id = response.Id,
+            InboxId = response.InboxId,
+            Status = response.Status ?? string.Empty
+        };
+
     private static string? NullIfWhiteSpace(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
@@ -448,6 +464,11 @@ public sealed class ChatwootApiClient : IChatwootApiClient
         public string? SourceId { get; init; }
 
         public ChatwootInboxReference? Inbox { get; init; }
+    }
+
+    private sealed class ChatwootContactConversationListResponse
+    {
+        public List<ChatwootConversationResponse> Payload { get; init; } = [];
     }
 
     private sealed class ChatwootInboxReference

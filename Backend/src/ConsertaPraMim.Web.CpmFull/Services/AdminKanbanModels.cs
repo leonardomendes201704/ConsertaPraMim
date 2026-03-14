@@ -230,3 +230,36 @@ public sealed record class AdminKanbanChatwootSyncQueueItemRecord
     public DateTime? ProcessedAt { get; init; }
     public DateTime? DeadLetterAt { get; init; }
 }
+
+public sealed record class AdminKanbanChatwootBackfillCandidateRecord
+{
+    public int LeadId { get; init; }
+    public string BoardType { get; init; } = string.Empty;
+    public string StageName { get; init; } = string.Empty;
+    public string LeadName { get; init; } = string.Empty;
+    public string Phone { get; init; } = string.Empty;
+    public string Email { get; init; } = string.Empty;
+    public long? ChatwootContactId { get; init; }
+    public long? ChatwootInboxId { get; init; }
+}
+
+public sealed record class AdminKanbanChatwootBackfillCheckpointRecord
+{
+    public string ScopeKey { get; init; } = string.Empty;
+    public int? LastProcessedLeadId { get; init; }
+    public DateTime? LastRunStartedAt { get; init; }
+    public DateTime? LastRunCompletedAt { get; init; }
+    public string LastRunStatus { get; init; } = string.Empty;
+    public string LastSummaryJson { get; init; } = string.Empty;
+    public DateTime UpdatedAt { get; init; }
+}
+
+public sealed class AdminKanbanChatwootBackfillCheckpointUpsertRequest
+{
+    public string ScopeKey { get; init; } = string.Empty;
+    public int? LastProcessedLeadId { get; init; }
+    public DateTime? LastRunStartedAt { get; init; }
+    public DateTime? LastRunCompletedAt { get; init; }
+    public string LastRunStatus { get; init; } = string.Empty;
+    public string LastSummaryJson { get; init; } = string.Empty;
+}

@@ -873,6 +873,128 @@ WHERE LeadId = @leadId
         return command.ExecuteNonQuery();
     }
 
+    public IReadOnlyList<AdminKanbanChatwootBackfillCandidateRecord> ListChatwootBackfillCandidates(string? boardType, int? startAfterLeadId, int batchSize)
+    {
+        EnsureInitialized();
+
+        var normalizedBatchSize = Math.Clamp(batchSize, 1, 500);
+        var normalizedBoardType = string.IsNullOrWhiteSpace(boardType)
+            ? null
+            : AdminKanbanBoardTypes.Normalize(boardType);
+
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = $"""
+SELECT TOP (@batchSize)
+    l.Id,
+    l.BoardType,
+    s.Name,
+    l.Name,
+    l.Phone,
+    l.Email,
+    l.ChatwootContactId,
+    l.ChatwootInboxId
+FROM dbo.{TablePrefix}kanban_leads l
+INNER JOIN dbo.{TablePrefix}kanban_stages s ON s.Id = l.StageId
+WHERE l.IsActive = 1
+  AND l.ChatwootConversationId IS NULL
+  AND (@boardType IS NULL OR l.BoardType = @boardType)
+  AND (@startAfterLeadId IS NULL OR l.Id > @startAfterLeadId)
+ORDER BY l.Id;
+""";
+        command.Parameters.AddRange(
+        [
+            new SqlParameter("@batchSize", SqlDbType.Int) { Value = normalizedBatchSize },
+            new SqlParameter("@boardType", SqlDbType.NVarChar, 30) { Value = ToDbValue(normalizedBoardType) },
+            new SqlParameter("@startAfterLeadId", SqlDbType.Int) { Value = startAfterLeadId.HasValue ? startAfterLeadId.Value : DBNull.Value }
+        ]);
+
+        var items = new List<AdminKanbanChatwootBackfillCandidateRecord>();
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            items.Add(new AdminKanbanChatwootBackfillCandidateRecord
+            {
+                LeadId = reader.GetInt32(0),
+                BoardType = reader.GetString(1),
+                StageName = reader.GetString(2),
+                LeadName = reader.GetString(3),
+                Phone = reader.IsDBNull(4) ? string.Empty : reader.GetString(4),
+                Email = reader.IsDBNull(5) ? string.Empty : reader.GetString(5),
+                ChatwootContactId = ReadNullableInt64(reader, 6),
+                ChatwootInboxId = ReadNullableInt64(reader, 7)
+            });
+        }
+
+        return items;
+    }
+
+    public AdminKanbanChatwootBackfillCheckpointRecord? GetChatwootBackfillCheckpoint(string scopeKey)
+    {
+        EnsureInitialized();
+
+        ArgumentException.ThrowIfNullOrWhiteSpace(scopeKey);
+
+        using var connection = OpenConnection();
+        return TryGetChatwootBackfillCheckpoint(connection, TrimTo(scopeKey, 80), out var checkpoint)
+            ? checkpoint
+            : null;
+    }
+
+    public AdminKanbanChatwootBackfillCheckpointRecord SaveChatwootBackfillCheckpoint(AdminKanbanChatwootBackfillCheckpointUpsertRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        EnsureInitialized();
+
+        var scopeKey = TrimTo(request.ScopeKey, 80);
+        if (string.IsNullOrWhiteSpace(scopeKey))
+        {
+            throw new InvalidOperationException("Checkpoint de backfill do Chatwoot requer escopo valido.");
+        }
+
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = $"""
+MERGE dbo.{TablePrefix}chatwoot_backfill_checkpoints AS target
+USING (
+    SELECT
+        @scopeKey AS ScopeKey,
+        @lastProcessedLeadId AS LastProcessedLeadId,
+        @lastRunStartedAt AS LastRunStartedAt,
+        @lastRunCompletedAt AS LastRunCompletedAt,
+        @lastRunStatus AS LastRunStatus,
+        @lastSummaryJson AS LastSummaryJson
+) AS source
+ON target.ScopeKey = source.ScopeKey
+WHEN MATCHED THEN
+    UPDATE SET
+        LastProcessedLeadId = source.LastProcessedLeadId,
+        LastRunStartedAt = source.LastRunStartedAt,
+        LastRunCompletedAt = source.LastRunCompletedAt,
+        LastRunStatus = source.LastRunStatus,
+        LastSummaryJson = source.LastSummaryJson,
+        UpdatedAt = SYSUTCDATETIME()
+WHEN NOT MATCHED THEN
+    INSERT (ScopeKey, LastProcessedLeadId, LastRunStartedAt, LastRunCompletedAt, LastRunStatus, LastSummaryJson, UpdatedAt)
+    VALUES (source.ScopeKey, source.LastProcessedLeadId, source.LastRunStartedAt, source.LastRunCompletedAt, source.LastRunStatus, source.LastSummaryJson, SYSUTCDATETIME());
+""";
+        command.Parameters.AddRange(
+        [
+            new SqlParameter("@scopeKey", SqlDbType.NVarChar, 80) { Value = scopeKey },
+            new SqlParameter("@lastProcessedLeadId", SqlDbType.Int) { Value = request.LastProcessedLeadId.HasValue ? request.LastProcessedLeadId.Value : DBNull.Value },
+            new SqlParameter("@lastRunStartedAt", SqlDbType.DateTime2) { Value = request.LastRunStartedAt.HasValue ? request.LastRunStartedAt.Value : DBNull.Value },
+            new SqlParameter("@lastRunCompletedAt", SqlDbType.DateTime2) { Value = request.LastRunCompletedAt.HasValue ? request.LastRunCompletedAt.Value : DBNull.Value },
+            new SqlParameter("@lastRunStatus", SqlDbType.NVarChar, 30) { Value = ToDbValue(TrimTo(request.LastRunStatus, 30)) },
+            new SqlParameter("@lastSummaryJson", SqlDbType.NVarChar, -1) { Value = ToDbValue(request.LastSummaryJson) }
+        ]);
+        _ = command.ExecuteNonQuery();
+
+        return TryGetChatwootBackfillCheckpoint(connection, scopeKey, out var checkpoint)
+            ? checkpoint
+            : throw new InvalidOperationException("Nao foi possivel recarregar o checkpoint de backfill do Chatwoot.");
+    }
+
     public bool SaveBoardOrder(AdminKanbanBoardOrderUpdateRequest request)
     {
         EnsureInitialized();
@@ -1101,6 +1223,19 @@ CREATE TABLE dbo.{TablePrefix}chatwoot_sync_queue
     DeadLetterAt DATETIME2 NULL
 );
 
+IF OBJECT_ID('dbo.{TablePrefix}chatwoot_backfill_checkpoints', 'U') IS NULL
+CREATE TABLE dbo.{TablePrefix}chatwoot_backfill_checkpoints
+(
+    Id INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    ScopeKey NVARCHAR(80) NOT NULL,
+    LastProcessedLeadId INT NULL,
+    LastRunStartedAt DATETIME2 NULL,
+    LastRunCompletedAt DATETIME2 NULL,
+    LastRunStatus NVARCHAR(30) NULL,
+    LastSummaryJson NVARCHAR(MAX) NULL,
+    UpdatedAt DATETIME2 NOT NULL DEFAULT(SYSUTCDATETIME())
+);
+
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID('dbo.{TablePrefix}kanban_stages') AND name = 'IX_{TablePrefix}kanban_stages_board')
 CREATE INDEX IX_{TablePrefix}kanban_stages_board
     ON dbo.{TablePrefix}kanban_stages(BoardType, SortOrder, Id);
@@ -1155,6 +1290,10 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID('dbo.{Table
 CREATE UNIQUE INDEX UX_{TablePrefix}chatwoot_sync_queue_active
     ON dbo.{TablePrefix}chatwoot_sync_queue(LeadId, OperationType)
     WHERE Status IN ('queued', 'retrying', 'processing');
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID('dbo.{TablePrefix}chatwoot_backfill_checkpoints') AND name = 'UX_{TablePrefix}chatwoot_backfill_checkpoints_scope')
+CREATE UNIQUE INDEX UX_{TablePrefix}chatwoot_backfill_checkpoints_scope
+    ON dbo.{TablePrefix}chatwoot_backfill_checkpoints(ScopeKey);
 """;
                 command.ExecuteNonQuery();
             }
@@ -1764,6 +1903,48 @@ VALUES
         }
 
         return TrimTo(processStatus, 30).ToLowerInvariant();
+    }
+
+    private static bool TryGetChatwootBackfillCheckpoint(
+        SqlConnection connection,
+        string scopeKey,
+        out AdminKanbanChatwootBackfillCheckpointRecord checkpoint)
+    {
+        checkpoint = null!;
+
+        using var command = connection.CreateCommand();
+        command.CommandText = $"""
+SELECT TOP (1)
+    ScopeKey,
+    LastProcessedLeadId,
+    LastRunStartedAt,
+    LastRunCompletedAt,
+    LastRunStatus,
+    LastSummaryJson,
+    UpdatedAt
+FROM dbo.{TablePrefix}chatwoot_backfill_checkpoints
+WHERE ScopeKey = @scopeKey
+ORDER BY Id DESC;
+""";
+        command.Parameters.Add(new SqlParameter("@scopeKey", SqlDbType.NVarChar, 80) { Value = scopeKey });
+
+        using var reader = command.ExecuteReader();
+        if (!reader.Read())
+        {
+            return false;
+        }
+
+        checkpoint = new AdminKanbanChatwootBackfillCheckpointRecord
+        {
+            ScopeKey = reader.GetString(0),
+            LastProcessedLeadId = reader.IsDBNull(1) ? null : reader.GetInt32(1),
+            LastRunStartedAt = reader.IsDBNull(2) ? null : reader.GetDateTime(2),
+            LastRunCompletedAt = reader.IsDBNull(3) ? null : reader.GetDateTime(3),
+            LastRunStatus = reader.IsDBNull(4) ? string.Empty : reader.GetString(4),
+            LastSummaryJson = reader.IsDBNull(5) ? string.Empty : reader.GetString(5),
+            UpdatedAt = reader.GetDateTime(6)
+        };
+        return true;
     }
 
     private static bool TryGetChatwootWebhookEventByProviderEventId(

@@ -50,6 +50,9 @@
         <a class="btn btn-outline-secondary" href="@Model.AlternateBoardUrl">
             @Model.AlternateBoardLabel
         </a>
+        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#chatwootBackfillModal">
+            Backfill Chatwoot
+        </button>
         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createLeadModal">
             Novo lead
         </button>
@@ -225,6 +228,70 @@
     </div>
 </div>
 
+<div class="modal fade" id="chatwootBackfillModal" tabindex="-1" aria-labelledby="chatwootBackfillModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="chatwootBackfillModalLabel">Backfill do Chatwoot</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-3">
+                    <div class="col-12 col-md-6">
+                        <label for="backfillBoardScope" class="form-label">Escopo</label>
+                        <select id="backfillBoardScope" class="form-select">
+                            <option value="@Model.BoardType">Somente este funil</option>
+                            <option value="">Clientes e prestadores</option>
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label for="backfillBatchSize" class="form-label">Tamanho do lote</label>
+                        <input id="backfillBatchSize" type="number" min="1" max="200" class="form-control" value="20" />
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label for="backfillStartAfterLeadId" class="form-label">Comecar apos o Lead ID</label>
+                        <input id="backfillStartAfterLeadId" type="number" min="1" class="form-control" placeholder="Usar checkpoint salvo" />
+                    </div>
+                    <div class="col-12 col-md-6 d-flex align-items-end">
+                        <div class="form-check mb-2">
+                            <input id="backfillDryRun" class="form-check-input" type="checkbox" checked />
+                            <label class="form-check-label" for="backfillDryRun">
+                                Executar apenas dry-run
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="alert alert-secondary mt-3 mb-0">
+                    Use o dry-run para listar o backlog elegivel sem criar ou alterar contatos e conversas no Chatwoot.
+                </div>
+
+                <div id="backfillResultSummary" class="alert alert-light border mt-3 d-none"></div>
+                <div id="backfillResultTableWrap" class="mt-3 d-none">
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle">
+                            <thead>
+                                <tr>
+                                    <th>Lead ID</th>
+                                    <th>Funil</th>
+                                    <th>Nome</th>
+                                    <th>Etapa</th>
+                                    <th>Status</th>
+                                    <th>Mensagem</th>
+                                </tr>
+                            </thead>
+                            <tbody id="backfillResultRows"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" id="runChatwootBackfillBtn" class="btn btn-primary">Executar backfill</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @section Head {
     <style>
         .cpm-kanban-wrap { overflow-x: auto; padding-bottom: 0.5rem; }
@@ -287,9 +354,11 @@
             const detailsModalEl = document.getElementById("leadDetailsModal");
             const createModalEl = document.getElementById("createLeadModal");
             const editModalEl = document.getElementById("editLeadModal");
+            const backfillModalEl = document.getElementById("chatwootBackfillModal");
             const detailsModal = detailsModalEl ? new bootstrap.Modal(detailsModalEl) : null;
             const createModal = createModalEl ? new bootstrap.Modal(createModalEl) : null;
             const editModal = editModalEl ? new bootstrap.Modal(editModalEl) : null;
+            const backfillModal = backfillModalEl ? new bootstrap.Modal(backfillModalEl) : null;
 
             let currentLead = null;
 
@@ -300,7 +369,8 @@
                 create: "/admin/funil/lead/novo",
                 update: "/admin/funil/lead/editar",
                 order: "/admin/funil/lead/ordem",
-                note: "/admin/funil/lead/nota"
+                note: "/admin/funil/lead/nota",
+                backfill: "/admin/funil/chatwoot/backfill"
             };
 
             const postJson = async (url, payload) => {
@@ -324,6 +394,12 @@
 
             const formatCardCount = (count) => count === 1 ? "1 card" : `${count} cards`;
             const pluralize = (value, singular, plural) => value === 1 ? `${value} ${singular}` : `${value} ${plural}`;
+            const escapeHtml = (value) => (value || "")
+                .replaceAll("&", "&amp;")
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")
+                .replaceAll("\"", "&quot;")
+                .replaceAll("'", "&#39;");
 
             const formatStageAge = (enteredAtMsText) => {
                 const enteredAtMs = Number.parseInt(enteredAtMsText || "", 10);
@@ -500,6 +576,71 @@
                 renderHistory(lead.history || []);
             };
 
+            const resetBackfillResult = () => {
+                const summary = document.getElementById("backfillResultSummary");
+                const tableWrap = document.getElementById("backfillResultTableWrap");
+                const rows = document.getElementById("backfillResultRows");
+                if (summary) {
+                    summary.className = "alert alert-light border mt-3 d-none";
+                    summary.innerHTML = "";
+                }
+
+                if (tableWrap) {
+                    tableWrap.classList.add("d-none");
+                }
+
+                if (rows) {
+                    rows.innerHTML = "";
+                }
+            };
+
+            const renderBackfillResult = (result) => {
+                const summary = document.getElementById("backfillResultSummary");
+                const tableWrap = document.getElementById("backfillResultTableWrap");
+                const rows = document.getElementById("backfillResultRows");
+                if (!summary || !tableWrap || !rows) {
+                    return;
+                }
+
+                const dryRunLabel = result.dryRun ? "Dry-run" : "Execucao real";
+                const summaryData = result.summary || {};
+                summary.className = `alert ${result.dryRun ? "alert-info" : "alert-success"} mt-3`;
+                summary.innerHTML = `
+                    <div class="fw-semibold mb-1">${escapeHtml(result.statusLabel || dryRunLabel)} concluido para ${escapeHtml(result.scopeLabel || "Backfill do Chatwoot")}.</div>
+                    <div class="small">
+                        Lote: <strong>${escapeHtml(String(result.batchSize || 0))}</strong> |
+                        Total selecionado: <strong>${escapeHtml(String(summaryData.totalSelected || 0))}</strong> |
+                        Sucesso: <strong>${escapeHtml(String(summaryData.successCount || 0))}</strong> |
+                        Falha: <strong>${escapeHtml(String(summaryData.failedCount || 0))}</strong> |
+                        Pendente: <strong>${escapeHtml(String(summaryData.pendingCount || 0))}</strong>
+                    </div>
+                    <div class="small mt-1">
+                        Checkpoint anterior: <strong>${escapeHtml(result.storedCheckpointLeadId ?? "-")}</strong> |
+                        Inicio efetivo: <strong>${escapeHtml(result.effectiveStartAfterLeadId ?? "-")}</strong> |
+                        Ultimo Lead ID processado: <strong>${escapeHtml(result.lastProcessedLeadId ?? "-")}</strong>
+                    </div>
+                `;
+
+                const items = Array.isArray(result.items) ? result.items : [];
+                if (!items.length) {
+                    tableWrap.classList.add("d-none");
+                    rows.innerHTML = "";
+                    return;
+                }
+
+                rows.innerHTML = items.map((item) => `
+                    <tr>
+                        <td>${escapeHtml(String(item.leadId || "-"))}</td>
+                        <td>${escapeHtml(item.boardLabel || item.boardType || "-")}</td>
+                        <td>${escapeHtml(item.leadName || "-")}</td>
+                        <td>${escapeHtml(item.stageName || "-")}</td>
+                        <td>${escapeHtml(item.statusLabel || item.status || "-")}</td>
+                        <td>${escapeHtml(item.message || "-")}</td>
+                    </tr>
+                `).join("");
+                tableWrap.classList.remove("d-none");
+            };
+
             const loadLeadDetails = async (leadId) => {
                 const response = await fetch(endpoint.details(leadId), { headers: { Accept: "application/json" } });
                 if (!response.ok) throw new Error("Lead nao encontrado.");
@@ -664,6 +805,39 @@
                     fillDetails(currentLead);
                 } catch (error) {
                     alert(error.message || "Nao foi possivel salvar a anotacao.");
+                }
+            });
+
+            backfillModalEl?.addEventListener("show.bs.modal", () => {
+                resetBackfillResult();
+            });
+
+            document.getElementById("runChatwootBackfillBtn")?.addEventListener("click", async (event) => {
+                const button = event.currentTarget;
+                const originalText = button.textContent;
+                const batchSize = Number(document.getElementById("backfillBatchSize")?.value || "20");
+                const boardScope = document.getElementById("backfillBoardScope")?.value || "";
+                const startAfterLeadIdText = document.getElementById("backfillStartAfterLeadId")?.value || "";
+                const dryRun = document.getElementById("backfillDryRun")?.checked ?? false;
+
+                button.disabled = true;
+                button.textContent = dryRun ? "Validando..." : "Processando...";
+
+                try {
+                    const response = await postJson(endpoint.backfill, {
+                        boardType: boardScope,
+                        batchSize,
+                        dryRun,
+                        startAfterLeadId: startAfterLeadIdText ? Number(startAfterLeadIdText) : null
+                    });
+
+                    renderBackfillResult(response);
+                } catch (error) {
+                    resetBackfillResult();
+                    alert(error.message || "Nao foi possivel executar o backfill do Chatwoot.");
+                } finally {
+                    button.disabled = false;
+                    button.textContent = originalText;
                 }
             });
 

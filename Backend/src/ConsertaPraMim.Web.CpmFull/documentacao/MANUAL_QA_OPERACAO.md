@@ -305,6 +305,58 @@ Preencher a secao `Chatwoot` via `appsettings.Local.json` ou variaveis de ambien
 - `dead_letter` recorrente: abrir o detalhe do lead, revisar `Ultimo erro Chatwoot` e corrigir causa raiz antes de acionar nova retentativa manual.
 - Botao `Enfileirar retentativa` falha no modal: validar o endpoint `POST /admin/funil/lead/{id}/chatwoot/retentativa` e o anti-forgery token da pagina.
 
+## Integracao Chatwoot - backfill incremental do backlog
+
+### Objetivo
+
+- Sincronizar leads legados que ainda nao possuem `ChatwootConversationId`, sem interromper o uso do funil e sem abrir conversas duplicadas no Chatwoot.
+
+### Comportamento esperado
+
+- O Kanban deve exibir o botao `Backfill Chatwoot` no cabecalho dos funis `clientes` e `prestadores`.
+- O modal de backfill deve permitir:
+  - executar somente no funil atual ou em `Clientes e prestadores`;
+  - configurar `Tamanho do lote` entre `1` e `200`;
+  - informar `Comecar apos o Lead ID` para override manual do checkpoint;
+  - rodar `dry-run` sem criar/alterar contatos e conversas.
+- O checkpoint deve ficar persistido em `dbo.cpm_web_chatwoot_backfill_checkpoints`, por escopo:
+  - `board:clientes`
+  - `board:prestadores`
+  - `all`
+- O backfill deve selecionar apenas leads ativos sem `ChatwootConversationId`.
+- Quando o lead ja tiver contato no Chatwoot e esse contato possuir conversa no inbox correto, o CPM Full deve reaproveitar essa conversa em vez de abrir uma nova.
+- A execucao real deve atualizar o checkpoint a cada lead processado, preservando retomada incremental em lotes curtos.
+- O resumo final do modal deve exibir:
+  - total selecionado;
+  - sucesso;
+  - falha;
+  - pendente.
+
+### Checklist de QA
+
+1. Acessar `/admin/funil/clientes` ou `/admin/funil/prestadores`.
+2. Abrir `Backfill Chatwoot`.
+3. Rodar primeiro com `Executar apenas dry-run` marcado.
+4. Confirmar que o modal exibe resumo com `Total selecionado`, `Sucesso`, `Falha` e `Pendente`.
+5. Validar que o `dry-run` nao cria novos eventos de historico nos leads nem altera `ChatwootConversationId`.
+6. Desmarcar `dry-run` e executar lote pequeno.
+7. Confirmar que leads elegiveis passam a receber `ChatwootContactId`/`ChatwootConversationId`.
+8. Confirmar que o resumo retorna `Ultimo Lead ID processado`.
+9. Consultar `dbo.cpm_web_chatwoot_backfill_checkpoints` e validar atualizacao do escopo usado.
+10. Reexecutar o backfill sem informar `Comecar apos o Lead ID`.
+11. Confirmar que a execucao continua a partir do checkpoint salvo.
+12. Informar manualmente `Comecar apos o Lead ID` com valor maior que o checkpoint salvo.
+13. Confirmar que o override manual prevalece so para aquela execucao.
+14. Validar em lead que ja tinha contato e conversa no Chatwoot que nenhuma conversa duplicada foi criada no inbox correspondente.
+
+### Troubleshooting
+
+- `Integracao com Chatwoot desabilitada no ambiente atual.`: use `dry-run` para diagnostico e confirme os secrets `CPMFULL_CHATWOOT_*` do ambiente publicado antes da execucao real.
+- O resumo mostra muitos `Pendente`: revisar se os erros foram enfileirados para a fila de retentativa e abrir o detalhe do lead para conferir `Ultimo erro Chatwoot`.
+- O backfill parece ignorar leads antigos: consultar `dbo.cpm_web_chatwoot_backfill_checkpoints` e conferir se o escopo ja esta adiantado; use `Comecar apos o Lead ID` para override controlado.
+- Conversa duplicada apareceu: revisar se o contato possuia conversa no mesmo inbox do funil; o reaproveitamento ocorre por `contact_id + inbox_id`.
+- Dry-run trouxe lead como falha: normalmente indica ausencia de telefone e e-mail validos no cadastro do lead.
+
 ## Integracao Chatwoot - deploy da VPS
 
 ### Estado atual do ambiente

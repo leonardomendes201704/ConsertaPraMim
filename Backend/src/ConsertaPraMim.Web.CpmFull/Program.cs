@@ -31,6 +31,7 @@ builder.Services.AddSingleton<IAdminKanbanService, SqlAdminKanbanService>();
 builder.Services.AddScoped<ISiteContentResolver, SiteContentResolver>();
 builder.Services.AddScoped<IChatwootSyncQueueService, ChatwootSyncQueueService>();
 builder.Services.AddScoped<IChatwootLeadSyncService, ChatwootLeadSyncService>();
+builder.Services.AddScoped<IChatwootBackfillService, ChatwootBackfillService>();
 builder.Services.AddScoped<IChatwootWebhookService, ChatwootWebhookService>();
 builder.Services.AddHostedService<ChatwootSyncRetryWorker>();
 builder.Services.AddSingleton<IValidateOptions<ChatwootOptions>, ChatwootOptionsValidator>();

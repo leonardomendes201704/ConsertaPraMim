@@ -149,6 +149,9 @@ public sealed class ChatwootLeadSyncServiceTests
                 ]
             });
         chatwootApiClient
+            .Setup(client => client.ListContactConversationsAsync(101, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        chatwootApiClient
             .Setup(client => client.CreateConversationAsync(
                 It.Is<ChatwootCreateConversationRequest>(request =>
                     request.InboxId == 1 &&
@@ -247,6 +250,119 @@ public sealed class ChatwootLeadSyncServiceTests
         Assert.Equal(ChatwootSyncStatuses.Synced, result.Status);
         Assert.Equal(101, result.ContactId);
         Assert.Equal(202, result.ConversationId);
+        kanbanService.VerifyAll();
+        chatwootApiClient.VerifyAll();
+    }
+
+    [Fact(DisplayName = "Deve reaproveitar conversa existente do contato durante backfill sem duplicar atendimento")]
+    public async Task DeveReaproveitarConversaExistenteDoContatoDuranteBackfillSemDuplicarAtendimento()
+    {
+        var kanbanService = new Mock<IAdminKanbanService>();
+        var chatwootApiClient = new Mock<IChatwootApiClient>();
+        var lead = CreateLead(27, AdminKanbanBoardTypes.Clients, phone: "(13) 99711-4422", email: "ricardo@email.com");
+
+        kanbanService
+            .Setup(service => service.GetLeadDetails(27))
+            .Returns(lead);
+        kanbanService
+            .Setup(service => service.UpdateLeadChatwootSync(
+                27,
+                It.Is<AdminKanbanLeadChatwootSyncUpdateRequest>(request =>
+                    request.ChatwootContactId == 101 &&
+                    request.ChatwootConversationId == 808 &&
+                    request.ChatwootInboxId == 1 &&
+                    request.ChatwootSyncStatus == ChatwootSyncStatuses.Synced &&
+                    request.ClearChatwootLastError)))
+            .Returns(true);
+        kanbanService
+            .Setup(service => service.AddHistoryEvent(27, "chatwoot_contato_sincronizado", It.IsAny<string>()))
+            .Returns(true);
+        kanbanService
+            .Setup(service => service.AddHistoryEvent(27, "chatwoot_conversa_reaproveitada", It.IsAny<string>()))
+            .Returns(true);
+        kanbanService
+            .Setup(service => service.AddHistoryEvent(27, "chatwoot_sincronizado", It.IsAny<string>()))
+            .Returns(true);
+
+        chatwootApiClient
+            .Setup(client => client.SearchContactsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        chatwootApiClient
+            .Setup(client => client.CreateContactAsync(It.IsAny<ChatwootUpsertContactRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ChatwootContactSummary
+            {
+                Id = 101,
+                Name = "Ricardo Almeida",
+                Email = "ricardo@email.com",
+                PhoneNumber = "+5513997114422",
+                Identifier = "phone:+5513997114422",
+                ContactInboxes =
+                [
+                    new ChatwootContactInboxSummary
+                    {
+                        InboxId = 1,
+                        InboxName = "CPM Clientes",
+                        SourceId = "cpm-lead-clientes-27"
+                    }
+                ]
+            });
+        chatwootApiClient
+            .Setup(client => client.ListContactConversationsAsync(101, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(
+            [
+                new ChatwootConversationSummary
+                {
+                    Id = 808,
+                    InboxId = 1,
+                    Status = "pending"
+                }
+            ]);
+        chatwootApiClient
+            .Setup(client => client.UpdateContactAsync(101, It.IsAny<ChatwootUpsertContactRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ChatwootContactSummary
+            {
+                Id = 101,
+                Name = "Ricardo Almeida",
+                Email = "ricardo@email.com",
+                PhoneNumber = "+5513997114422",
+                Identifier = "phone:+5513997114422",
+                ContactInboxes =
+                [
+                    new ChatwootContactInboxSummary
+                    {
+                        InboxId = 1,
+                        InboxName = "CPM Clientes",
+                        SourceId = "cpm-lead-clientes-27"
+                    }
+                ]
+            });
+        chatwootApiClient
+            .Setup(client => client.ListContactLabelsAsync(101, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        chatwootApiClient
+            .Setup(client => client.ReplaceContactLabelsAsync(101, It.IsAny<IReadOnlyList<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(["cpm_clientes", "cpm_clientes_novo_lead"]);
+        chatwootApiClient
+            .Setup(client => client.UpdateConversationCustomAttributesAsync(808, It.IsAny<IReadOnlyDictionary<string, object?>>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        chatwootApiClient
+            .Setup(client => client.ListConversationLabelsAsync(808, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        chatwootApiClient
+            .Setup(client => client.ReplaceConversationLabelsAsync(808, It.IsAny<IReadOnlyList<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(["cpm_clientes", "cpm_clientes_novo_lead"]);
+        chatwootApiClient
+            .Setup(client => client.UpdateConversationStatusAsync(808, "open", It.IsAny<CancellationToken>()))
+            .ReturnsAsync("open");
+
+        var sut = CreateSut(kanbanService.Object, chatwootApiClient.Object);
+
+        var result = await sut.SyncLeadAsync(27);
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(808, result.ConversationId);
+        chatwootApiClient.Verify(client => client.CreateConversationAsync(It.IsAny<ChatwootCreateConversationRequest>(), It.IsAny<CancellationToken>()), Times.Never);
+        chatwootApiClient.Verify(client => client.CreateMessageAsync(It.IsAny<long>(), It.IsAny<ChatwootCreateMessageRequest>(), It.IsAny<CancellationToken>()), Times.Never);
         kanbanService.VerifyAll();
         chatwootApiClient.VerifyAll();
     }
@@ -581,6 +697,9 @@ public sealed class ChatwootLeadSyncServiceTests
                     }
                 ]
             });
+        chatwootApiClient
+            .Setup(client => client.ListContactConversationsAsync(501, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
         chatwootApiClient
             .Setup(client => client.CreateConversationAsync(It.IsAny<ChatwootCreateConversationRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ChatwootConversationSummary
