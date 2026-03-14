@@ -72,6 +72,7 @@
 
 ### Done
 
+- [ST-085 - Diagnostico operacional do Telegram no CPM Full](STORIES/DONE/ST-085-diagnostico-operacional-telegram-cpmfull.md)
 - [ST-084 - Handoff humano do Chatwoot volta para o Telegram](STORIES/DONE/ST-084-chatwoot-handoff-telegram.md)
 - [ST-083 - Mensagens do Telegram espelhadas para o Chatwoot](STORIES/DONE/ST-083-telegram-message-mirror-chatwoot.md)
 - [ST-082 - Lead Telegram abre Chatwoot na inbox correta do CPM Full](STORIES/DONE/ST-082-telegram-bootstrap-chatwoot-inbox-correta.md)

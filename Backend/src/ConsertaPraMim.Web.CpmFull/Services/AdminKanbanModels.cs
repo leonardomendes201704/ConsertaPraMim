@@ -234,6 +234,54 @@ public sealed record class AdminKanbanTelegramDeliveryQueueItemRecord
     public bool IsDuplicate { get; init; }
 }
 
+public sealed record class AdminKanbanTelegramSyncIssueRecord
+{
+    public int QueueItemId { get; init; }
+    public int LeadId { get; init; }
+    public string BoardType { get; init; } = string.Empty;
+    public string StageName { get; init; } = string.Empty;
+    public string LeadName { get; init; } = string.Empty;
+    public string Direction { get; init; } = string.Empty;
+    public string Status { get; init; } = string.Empty;
+    public int AttemptCount { get; init; }
+    public int MaxAttempts { get; init; }
+    public DateTime? LastAttemptAt { get; init; }
+    public string LastError { get; init; } = string.Empty;
+    public long? ChatwootConversationId { get; init; }
+    public long? TelegramChatId { get; init; }
+}
+
+public sealed record class AdminKanbanTelegramQueueDiagnosticRecord
+{
+    public int QueueItemId { get; init; }
+    public int LeadId { get; init; }
+    public string BoardType { get; init; } = string.Empty;
+    public string StageName { get; init; } = string.Empty;
+    public string LeadName { get; init; } = string.Empty;
+    public string Direction { get; init; } = string.Empty;
+    public string Status { get; init; } = string.Empty;
+    public int AttemptCount { get; init; }
+    public int MaxAttempts { get; init; }
+    public DateTime NextAttemptAt { get; init; }
+    public DateTime? LastAttemptAt { get; init; }
+    public string LastError { get; init; } = string.Empty;
+    public long? ChatwootConversationId { get; init; }
+    public long? TelegramChatId { get; init; }
+}
+
+public sealed record class AdminKanbanTelegramDiagnosticsSnapshot
+{
+    public string ScopeBoardType { get; init; } = string.Empty;
+    public int TotalTelegramLeads { get; init; }
+    public int LeadsWithInboundMirror { get; init; }
+    public int LeadsWithOutboundMirror { get; init; }
+    public int HumanHandoffCount { get; init; }
+    public int ActiveQueueCount { get; init; }
+    public int DeadLetterCount { get; init; }
+    public IReadOnlyList<AdminKanbanTelegramSyncIssueRecord> RecentIssues { get; init; } = [];
+    public IReadOnlyList<AdminKanbanTelegramQueueDiagnosticRecord> RecentQueueItems { get; init; } = [];
+}
+
 public sealed class AdminKanbanBoardOrderUpdateRequest
 {
     public required string BoardType { get; init; }

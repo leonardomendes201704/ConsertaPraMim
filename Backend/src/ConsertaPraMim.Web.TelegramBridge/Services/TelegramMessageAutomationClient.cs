@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using ConsertaPraMim.Web.TelegramBridge.Models;
 using ConsertaPraMim.Web.TelegramBridge.Options;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
 
 namespace ConsertaPraMim.Web.TelegramBridge.Services;
@@ -12,15 +13,18 @@ public sealed class TelegramMessageAutomationClient : ITelegramMessageAutomation
 
     private readonly HttpClient _httpClient;
     private readonly TelegramAutomationOptions _options;
+    private readonly IHttpContextAccessor _httpContextAccessor;
     private readonly ILogger<TelegramMessageAutomationClient> _logger;
 
     public TelegramMessageAutomationClient(
         HttpClient httpClient,
         IOptions<TelegramAutomationOptions> options,
+        IHttpContextAccessor httpContextAccessor,
         ILogger<TelegramMessageAutomationClient> logger)
     {
         _httpClient = httpClient;
         _options = options.Value;
+        _httpContextAccessor = httpContextAccessor;
         _logger = logger;
     }
 
@@ -49,6 +53,7 @@ public sealed class TelegramMessageAutomationClient : ITelegramMessageAutomation
         message.Headers.TryAddWithoutValidation("Accept", "application/json");
         message.Headers.TryAddWithoutValidation("User-Agent", "ConsertaPraMim.Web.TelegramBridge/1.0");
         message.Headers.TryAddWithoutValidation("X-Telegram-Automation-Key", _options.SharedSecret);
+        message.Headers.TryAddWithoutValidation("X-Correlation-ID", ResolveCorrelationId(request.ChannelMessageId));
 
         try
         {
@@ -95,6 +100,26 @@ public sealed class TelegramMessageAutomationClient : ITelegramMessageAutomation
                 StatusCodes.Status502BadGateway,
                 "Falha ao comunicar com o CPM Full para espelhamento Telegram.");
         }
+    }
+
+    private string ResolveCorrelationId(string channelMessageId)
+    {
+        var headerValue = _httpContextAccessor.HttpContext?.Request.Headers["X-Correlation-ID"].ToString();
+        if (!string.IsNullOrWhiteSpace(headerValue))
+        {
+            return headerValue.Trim();
+        }
+
+        var normalizedMessageId = string.IsNullOrWhiteSpace(channelMessageId)
+            ? Guid.NewGuid().ToString("N")
+            : channelMessageId.Trim().Replace(' ', '-');
+
+        if (normalizedMessageId.Length > 80)
+        {
+            normalizedMessageId = normalizedMessageId[..80];
+        }
+
+        return $"telegram-msg-{normalizedMessageId}";
     }
 
     private sealed class TelegramInboundMessageAutomationApiResponse

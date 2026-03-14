@@ -1,5 +1,6 @@
 using AppMobileCPM.Areas.Admin.ViewModels;
 using AppMobileCPM.Integrations.Chatwoot;
+using AppMobileCPM.Integrations.Telegram;
 using AppMobileCPM.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -16,20 +17,26 @@ public sealed class KanbanController : Controller
     private readonly IChatwootSyncQueueService _chatwootSyncQueueService;
     private readonly IChatwootLeadSyncService _chatwootLeadSyncService;
     private readonly IChatwootBackfillService _chatwootBackfillService;
+    private readonly ITelegramBridgeObservabilityClient _telegramBridgeObservabilityClient;
     private readonly ChatwootOptions _chatwootOptions;
+    private readonly TelegramAutomationOptions _telegramAutomationOptions;
 
     public KanbanController(
         IAdminKanbanService kanbanService,
         IChatwootSyncQueueService chatwootSyncQueueService,
         IChatwootLeadSyncService chatwootLeadSyncService,
         IChatwootBackfillService chatwootBackfillService,
-        IOptions<ChatwootOptions> chatwootOptions)
+        ITelegramBridgeObservabilityClient telegramBridgeObservabilityClient,
+        IOptions<ChatwootOptions> chatwootOptions,
+        IOptions<TelegramAutomationOptions> telegramAutomationOptions)
     {
         _kanbanService = kanbanService;
         _chatwootSyncQueueService = chatwootSyncQueueService;
         _chatwootLeadSyncService = chatwootLeadSyncService;
         _chatwootBackfillService = chatwootBackfillService;
+        _telegramBridgeObservabilityClient = telegramBridgeObservabilityClient;
         _chatwootOptions = chatwootOptions.Value;
+        _telegramAutomationOptions = telegramAutomationOptions.Value;
     }
 
     [HttpGet("clientes")]
@@ -422,6 +429,187 @@ public sealed class KanbanController : Controller
         });
     }
 
+    [HttpGet("telegram/diagnostico/json")]
+    public async Task<IActionResult> TelegramDiagnosticsJson([FromQuery] string? boardType, [FromQuery] int issueLimit = 10, [FromQuery] int queueLimit = 10)
+    {
+        if (!string.IsNullOrWhiteSpace(boardType) && !AdminKanbanBoardTypes.IsValid(boardType))
+        {
+            return BadRequest(new { success = false, message = "Tipo de funil invalido para diagnostico do Telegram." });
+        }
+
+        var requestedBoardType = string.IsNullOrWhiteSpace(boardType)
+            ? null
+            : AdminKanbanBoardTypes.Normalize(boardType);
+        var diagnostics = _kanbanService.GetTelegramDiagnostics(requestedBoardType, issueLimit, queueLimit);
+        var effectiveBoardType = string.IsNullOrWhiteSpace(diagnostics.ScopeBoardType)
+            ? string.Empty
+            : diagnostics.ScopeBoardType;
+
+        TelegramBridgeObservabilitySnapshotDto? bridgeSnapshot = null;
+        string bridgeMessage;
+        if (_telegramAutomationOptions.Enabled)
+        {
+            var bridgeResult = await _telegramBridgeObservabilityClient.GetSnapshotAsync(HttpContext.RequestAborted);
+            bridgeSnapshot = bridgeResult.Success ? bridgeResult.Snapshot : null;
+            bridgeMessage = bridgeResult.Message;
+        }
+        else
+        {
+            bridgeMessage = "Automacao Telegram desabilitada no ambiente atual.";
+        }
+
+        return Json(new
+        {
+            success = true,
+            enabled = _telegramAutomationOptions.Enabled,
+            mirrorMessagesEnabled = _telegramAutomationOptions.MirrorMessagesEnabled,
+            scope = new
+            {
+                boardType = effectiveBoardType,
+                boardLabel = FormatDiagnosticsScopeLabel(effectiveBoardType)
+            },
+            summary = new
+            {
+                totalTelegramLeads = diagnostics.TotalTelegramLeads,
+                leadsWithInboundMirror = diagnostics.LeadsWithInboundMirror,
+                leadsWithOutboundMirror = diagnostics.LeadsWithOutboundMirror,
+                humanHandoffCount = diagnostics.HumanHandoffCount,
+                activeQueueCount = diagnostics.ActiveQueueCount,
+                deadLetterCount = diagnostics.DeadLetterCount
+            },
+            recentIssues = diagnostics.RecentIssues.Select(item => new
+            {
+                queueItemId = item.QueueItemId,
+                leadId = item.LeadId,
+                boardType = item.BoardType,
+                boardLabel = AdminKanbanBoardTypes.GetTitle(item.BoardType),
+                leadName = item.LeadName,
+                stageName = item.StageName,
+                direction = item.Direction,
+                directionLabel = FormatTelegramDirectionLabel(item.Direction),
+                status = item.Status,
+                statusLabel = FormatTelegramQueueStatusLabel(item.Status),
+                attemptCount = item.AttemptCount,
+                maxAttempts = item.MaxAttempts,
+                lastAttemptAt = item.LastAttemptAt?.ToString("dd/MM/yyyy HH:mm") ?? "-",
+                lastError = string.IsNullOrWhiteSpace(item.LastError) ? "-" : ChatwootSecuritySanitizer.SanitizeMessage(item.LastError, 500),
+                chatwootConversationId = item.ChatwootConversationId,
+                conversationUrl = BuildChatwootConversationUrl(item.ChatwootConversationId),
+                telegramChatId = item.TelegramChatId
+            }),
+            recentQueueItems = diagnostics.RecentQueueItems.Select(item => new
+            {
+                queueItemId = item.QueueItemId,
+                leadId = item.LeadId,
+                boardType = item.BoardType,
+                boardLabel = AdminKanbanBoardTypes.GetTitle(item.BoardType),
+                leadName = item.LeadName,
+                stageName = item.StageName,
+                direction = item.Direction,
+                directionLabel = FormatTelegramDirectionLabel(item.Direction),
+                status = item.Status,
+                statusLabel = FormatTelegramQueueStatusLabel(item.Status),
+                attemptCount = item.AttemptCount,
+                maxAttempts = item.MaxAttempts,
+                nextAttemptAt = item.NextAttemptAt.ToString("dd/MM/yyyy HH:mm"),
+                lastAttemptAt = item.LastAttemptAt?.ToString("dd/MM/yyyy HH:mm") ?? "-",
+                lastError = string.IsNullOrWhiteSpace(item.LastError) ? "-" : ChatwootSecuritySanitizer.SanitizeMessage(item.LastError, 500),
+                chatwootConversationId = item.ChatwootConversationId,
+                conversationUrl = BuildChatwootConversationUrl(item.ChatwootConversationId),
+                telegramChatId = item.TelegramChatId
+            }),
+            bridge = new
+            {
+                available = bridgeSnapshot is not null,
+                message = bridgeMessage,
+                generatedAt = bridgeSnapshot?.GeneratedAtUtc.ToString("dd/MM/yyyy HH:mm") ?? "-",
+                environment = bridgeSnapshot?.Environment ?? string.Empty,
+                traffic = new
+                {
+                    inboundMessages = bridgeSnapshot?.Traffic.InboundMessages ?? 0,
+                    outboundMessages = bridgeSnapshot?.Traffic.OutboundMessages ?? 0,
+                    messagesWithAttachments = bridgeSnapshot?.Traffic.MessagesWithAttachments ?? 0
+                },
+                ai = new
+                {
+                    requests = bridgeSnapshot?.Ai.Requests ?? 0,
+                    failures = bridgeSnapshot?.Ai.Failures ?? 0,
+                    fallbacks = bridgeSnapshot?.Ai.Fallbacks ?? 0,
+                    humanHandoffs = bridgeSnapshot?.Ai.HumanHandoffs ?? 0,
+                    avgLatencyMs = bridgeSnapshot?.Ai.AvgLatencyMs ?? 0,
+                    p95LatencyMs = bridgeSnapshot?.Ai.P95LatencyMs ?? 0
+                },
+                business = new
+                {
+                    triageRequestsOpened = bridgeSnapshot?.Business.TriageRequestsOpened ?? 0,
+                    schedulingAttempts = bridgeSnapshot?.Business.SchedulingAttempts ?? 0,
+                    schedulingConfirmed = bridgeSnapshot?.Business.SchedulingConfirmed ?? 0,
+                    schedulingFailures = bridgeSnapshot?.Business.SchedulingFailures ?? 0,
+                    queryRequests = bridgeSnapshot?.Business.QueryRequests ?? 0
+                },
+                dependencies = bridgeSnapshot?.Dependencies?.Select(item => new
+                {
+                    dependency = item.Dependency,
+                    calls = item.Calls,
+                    successes = item.Successes,
+                    failures = item.Failures,
+                    avgLatencyMs = item.AvgLatencyMs,
+                    p95LatencyMs = item.P95LatencyMs
+                }),
+                topErrors = bridgeSnapshot?.TopErrors?.Select(item => new
+                {
+                    errorCode = item.ErrorCode,
+                    count = item.Count
+                }),
+                recentIncidents = bridgeSnapshot?.RecentIncidents?
+                    .Take(Math.Clamp(issueLimit, 1, 100))
+                    .Select(item => new
+                    {
+                        occurredAt = item.OccurredAtUtc.ToString("dd/MM/yyyy HH:mm"),
+                        stage = item.Stage,
+                        errorCode = item.ErrorCode,
+                        correlationId = item.CorrelationId ?? "-",
+                        message = string.IsNullOrWhiteSpace(item.Message) ? "-" : ChatwootSecuritySanitizer.SanitizeMessage(item.Message, 500)
+                    })
+            }
+        });
+    }
+
+    [HttpPost("telegram/fila/{queueItemId:int}/retentativa")]
+    [ValidateAntiForgeryToken]
+    public IActionResult RequeueTelegramQueueItem(int queueItemId)
+    {
+        if (!_telegramAutomationOptions.Enabled || !_telegramAutomationOptions.MirrorMessagesEnabled)
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message = "Automacao Telegram desabilitada no ambiente atual."
+            });
+        }
+
+        var queueItem = _kanbanService.RequeueTelegramDeliveryQueueItem(queueItemId, DateTime.UtcNow, "admin-manual");
+        if (queueItem is null)
+        {
+            return NotFound(new { success = false, message = "Item da fila Telegram nao encontrado para retentativa." });
+        }
+
+        _ = _kanbanService.AddHistoryEvent(
+            queueItem.LeadId,
+            "telegram_entrega_enfileirada",
+            $"Retentativa manual enfileirada para {FormatTelegramDirectionLabel(queueItem.Direction)}.");
+
+        return Json(new
+        {
+            success = true,
+            queueItemId = queueItem.Id,
+            leadId = queueItem.LeadId,
+            status = queueItem.Status,
+            statusLabel = FormatTelegramQueueStatusLabel(queueItem.Status),
+            message = "Retentativa Telegram enfileirada para processamento imediato."
+        });
+    }
+
     [HttpPost("lead/ordem")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> SaveOrder([FromBody] AdminKanbanOrderInputModel model)
@@ -619,6 +807,25 @@ public sealed class KanbanController : Controller
             ChatwootSyncOperationTypes.LeadSync => "Sincronizacao do lead",
             ChatwootSyncOperationTypes.StageSync => "Sincronizacao da etapa",
             _ => "Operacao Chatwoot"
+        };
+
+    private static string FormatTelegramQueueStatusLabel(string? status) =>
+        (status ?? string.Empty).Trim().ToLowerInvariant() switch
+        {
+            TelegramDeliveryQueueStatuses.Queued => "Na fila",
+            TelegramDeliveryQueueStatuses.Processing => "Processando",
+            TelegramDeliveryQueueStatuses.Retrying => "Aguardando retentativa",
+            TelegramDeliveryQueueStatuses.Processed => "Processado",
+            TelegramDeliveryQueueStatuses.DeadLetter => "Esgotado",
+            _ => "Fila Telegram"
+        };
+
+    private static string FormatTelegramDirectionLabel(string? direction) =>
+        (direction ?? string.Empty).Trim().ToLowerInvariant() switch
+        {
+            TelegramDeliveryDirections.TelegramToChatwoot => "Telegram -> Chatwoot",
+            TelegramDeliveryDirections.ChatwootToTelegram => "Chatwoot -> Telegram",
+            _ => "Telegram"
         };
 
     private static string FormatDiagnosticsScopeLabel(string? boardType)

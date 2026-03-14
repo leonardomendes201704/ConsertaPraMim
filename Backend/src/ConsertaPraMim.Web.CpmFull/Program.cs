@@ -72,6 +72,18 @@ builder.Services.AddHttpClient<ITelegramBridgeDeliveryClient, TelegramBridgeDeli
     client.DefaultRequestHeaders.TryAddWithoutValidation("Accept", "application/json");
     client.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", "ConsertaPraMim.Web.CpmFull/1.0");
 });
+builder.Services.AddHttpClient<ITelegramBridgeObservabilityClient, TelegramBridgeObservabilityClient>((serviceProvider, client) =>
+{
+    var telegramOptions = serviceProvider.GetRequiredService<IOptions<TelegramAutomationOptions>>().Value;
+    if (Uri.TryCreate(telegramOptions.TelegramBridgeBaseUrl, UriKind.Absolute, out var baseUri))
+    {
+        client.BaseAddress = baseUri;
+    }
+
+    client.Timeout = telegramOptions.GetRequestTimeout();
+    client.DefaultRequestHeaders.TryAddWithoutValidation("Accept", "application/json");
+    client.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", "ConsertaPraMim.Web.CpmFull/1.0");
+});
 builder.Services.AddHealthChecks()
     .AddCheck<ChatwootConnectionHealthCheck>("chatwoot_connection");
 builder.Services.AddAuthentication(AdminAuthConstants.AuthenticationScheme)

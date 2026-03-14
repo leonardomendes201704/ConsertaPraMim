@@ -26,6 +26,7 @@ builder.Services.Configure<FormOptions>(options =>
 });
 
 builder.Services.AddControllersWithViews();
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddSignalR();
 builder.Services.AddMemoryCache();
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)

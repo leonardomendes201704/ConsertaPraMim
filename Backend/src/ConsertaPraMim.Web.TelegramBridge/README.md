@@ -31,7 +31,8 @@ Painel web em ASP.NET Core (.NET 8) para conversar com usuarios do Telegram em t
 5. O usuario autenticado entra direto na conversa vinculada ao login e o orquestrador IA responde automaticamente.
 6. Fluxos `Client` continuam podendo abrir pedido e consultar agenda/pedidos; fluxos `Provider` alimentam o board `prestadores` do CPM Full e nao devem abrir `service request` de cliente.
 7. Com `MirrorMessagesEnabled=true`, mensagens recebidas do Telegram passam a ser espelhadas para o CPM Full/Chatwoot, e respostas humanas vindas do Chatwoot passam a ser entregues de volta ao Telegram pelo endpoint interno protegido.
-8. Rode o projeto:
+8. Para diagnostico operacional interno, o bridge expoe `GET /api/internal/telegram/observability/dashboard`, protegido por `TelegramAutomation__SharedSecret` e consumido pelo drawer `Diagnostico Telegram` do CPM Full.
+9. Rode o projeto:
 
 ```bash
 dotnet run --project Backend/src/ConsertaPraMim.Web.TelegramBridge/ConsertaPraMim.Web.TelegramBridge.csproj
@@ -43,4 +44,5 @@ dotnet run --project Backend/src/ConsertaPraMim.Web.TelegramBridge/ConsertaPraMi
 - `GET /api/chats/{chatId}/messages`
 - `POST /api/chats/{chatId}/messages`
 - `POST /api/internal/telegram/messages/send`
+- `GET /api/internal/telegram/observability/dashboard`
 - `Hub SignalR: /hubs/telegram-chat`

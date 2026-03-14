@@ -381,6 +381,97 @@ WHERE LeadId = @leadId;
         Assert.Equal(serviceRequestId, reader.GetGuid(5));
     }
 
+    [Fact(DisplayName = "Diagnostico Telegram deve resumir fila e permitir retentativa manual")]
+    public void TelegramDiagnostics_DeveResumirFilaEPermitirRetentativaManual()
+    {
+        using var database = new LocalDbKanbanDatabaseScope();
+        if (!database.IsAvailable)
+        {
+            return;
+        }
+
+        var service = CreateService(database.ConnectionString);
+        var chatbotConversationId = Guid.Parse("b90f7527-b32c-4387-b8c2-a689d0f6edc9");
+        var clientId = Guid.Parse("c5e77036-6175-4cc4-8d6f-93fe0a1d3ec3");
+        var referenceUtc = new DateTime(2026, 3, 14, 16, 0, 0, DateTimeKind.Utc);
+
+        var upsert = service.UpsertTelegramLead(new AdminKanbanTelegramLeadUpsertRequest
+        {
+            BoardType = AdminKanbanBoardTypes.Clients,
+            ChatbotConversationId = chatbotConversationId,
+            ChannelConversationId = "telegram-client-diagnostics",
+            TelegramChatId = 5513997000001,
+            ClientId = clientId,
+            ClientName = "Lead Diagnostico Telegram",
+            ClientEmail = "diagnostico.telegram@teste.com",
+            ServiceCategory = "Eletricista",
+            City = "Praia Grande",
+            StatusNote = "Lead criado para validar diagnostico Telegram.",
+            LastContactAt = referenceUtc
+        });
+
+        var touched = service.TouchTelegramLeadLink(upsert.LeadId, new AdminKanbanTelegramLinkTouchRequest
+        {
+            HumanHandoffStartedAt = referenceUtc.AddMinutes(3),
+            LastTelegramMessageSyncedAt = referenceUtc.AddMinutes(1),
+            LastChatwootMessageSyncedAt = referenceUtc.AddMinutes(2)
+        });
+
+        Assert.True(touched);
+
+        var queued = service.EnqueueTelegramDeliveryQueueItem(new AdminKanbanTelegramDeliveryQueueEnqueueRequest
+        {
+            LeadId = upsert.LeadId,
+            Direction = TelegramDeliveryDirections.TelegramToChatwoot,
+            DeliveryKey = "telegram-diagnostics-001",
+            PayloadJson = """{"message":"teste"}""",
+            ChatwootConversationId = 902,
+            TelegramChatId = 5513997000001,
+            NextAttemptAt = referenceUtc,
+            MaxAttempts = 5,
+            LastError = "Falha inicial de teste"
+        });
+
+        var acquired = service.AcquireDueTelegramDeliveryQueueItems(10, referenceUtc.AddMinutes(1), "worker-telegram-1");
+        Assert.Single(acquired);
+        Assert.Equal(queued.Id, acquired[0].Id);
+
+        var deadLetter = service.FinalizeTelegramDeliveryQueueItem(new AdminKanbanTelegramDeliveryQueueFinalizeRequest
+        {
+            QueueItemId = queued.Id,
+            FinalStatus = TelegramDeliveryQueueStatuses.DeadLetter,
+            FinalizedAt = referenceUtc.AddMinutes(2),
+            LastError = "Falha definitiva de teste",
+            WorkerInstance = "worker-telegram-1"
+        });
+
+        Assert.NotNull(deadLetter);
+        Assert.Equal(TelegramDeliveryQueueStatuses.DeadLetter, deadLetter!.Status);
+
+        var diagnostics = service.GetTelegramDiagnostics(AdminKanbanBoardTypes.Clients, 10, 10);
+
+        Assert.Equal(1, diagnostics.TotalTelegramLeads);
+        Assert.Equal(1, diagnostics.LeadsWithInboundMirror);
+        Assert.Equal(1, diagnostics.LeadsWithOutboundMirror);
+        Assert.Equal(1, diagnostics.HumanHandoffCount);
+        Assert.Equal(0, diagnostics.ActiveQueueCount);
+        Assert.Equal(1, diagnostics.DeadLetterCount);
+        Assert.Contains(diagnostics.RecentIssues, item => item.QueueItemId == queued.Id && item.Status == TelegramDeliveryQueueStatuses.DeadLetter);
+        Assert.Contains(diagnostics.RecentQueueItems, item => item.QueueItemId == queued.Id && item.Status == TelegramDeliveryQueueStatuses.DeadLetter);
+
+        var requeued = service.RequeueTelegramDeliveryQueueItem(queued.Id, referenceUtc.AddMinutes(5), "admin-manual");
+
+        Assert.NotNull(requeued);
+        Assert.Equal(TelegramDeliveryQueueStatuses.Retrying, requeued!.Status);
+        Assert.Equal("admin-manual", requeued.WorkerInstance);
+        Assert.Equal(referenceUtc.AddMinutes(5), requeued.NextAttemptAt);
+
+        var diagnosticsAfterRetry = service.GetTelegramDiagnostics(AdminKanbanBoardTypes.Clients, 10, 10);
+        Assert.Equal(1, diagnosticsAfterRetry.ActiveQueueCount);
+        Assert.Equal(0, diagnosticsAfterRetry.DeadLetterCount);
+        Assert.Contains(diagnosticsAfterRetry.RecentQueueItems, item => item.QueueItemId == queued.Id && item.Status == TelegramDeliveryQueueStatuses.Retrying);
+    }
+
     [Fact(DisplayName = "Fila de sincronizacao Chatwoot deve enfileirar, adquirir e finalizar item")]
     public void ChatwootSyncQueue_DevePersistirLifecycleDaFila()
     {

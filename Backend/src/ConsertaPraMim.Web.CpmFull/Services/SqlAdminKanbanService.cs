@@ -718,6 +718,43 @@ WHERE Id = @queueItemId;
             : null;
     }
 
+    public AdminKanbanTelegramDeliveryQueueItemRecord? RequeueTelegramDeliveryQueueItem(int queueItemId, DateTime nextAttemptAtUtc, string workerInstance)
+    {
+        EnsureInitialized();
+
+        var normalizedNextAttemptAt = nextAttemptAtUtc.Kind == DateTimeKind.Utc
+            ? nextAttemptAtUtc
+            : nextAttemptAtUtc.ToUniversalTime();
+
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = $"""
+UPDATE dbo.{TablePrefix}telegram_delivery_queue
+SET Status = @retryingStatus,
+    NextAttemptAt = @nextAttemptAtUtc,
+    UpdatedAt = SYSUTCDATETIME(),
+    WorkerInstance = @workerInstance
+WHERE Id = @queueItemId
+  AND Status IN ('queued', 'processing', 'retrying', 'dead_letter');
+""";
+        command.Parameters.AddRange(
+        [
+            new SqlParameter("@retryingStatus", SqlDbType.NVarChar, 30) { Value = TelegramDeliveryQueueStatuses.Retrying },
+            new SqlParameter("@nextAttemptAtUtc", SqlDbType.DateTime2) { Value = normalizedNextAttemptAt },
+            new SqlParameter("@workerInstance", SqlDbType.NVarChar, 120) { Value = ToDbValue(TrimTo(workerInstance, 120)) },
+            new SqlParameter("@queueItemId", SqlDbType.Int) { Value = queueItemId }
+        ]);
+
+        if (command.ExecuteNonQuery() <= 0)
+        {
+            return null;
+        }
+
+        return TryGetTelegramDeliveryQueueItemById(connection, queueItemId, out var queueItem)
+            ? queueItem
+            : null;
+    }
+
     public bool UpdateLead(int leadId, AdminKanbanLeadUpsertRequest request)
     {
         EnsureInitialized();
@@ -1409,6 +1446,194 @@ WHEN NOT MATCHED THEN
         return TryGetChatwootBackfillCheckpoint(connection, scopeKey, out var checkpoint)
             ? checkpoint
             : throw new InvalidOperationException("Nao foi possivel recarregar o checkpoint de backfill do Chatwoot.");
+    }
+
+    public AdminKanbanTelegramDiagnosticsSnapshot GetTelegramDiagnostics(string? boardType, int issueLimit, int queueLimit)
+    {
+        EnsureInitialized();
+
+        var normalizedBoardType = string.IsNullOrWhiteSpace(boardType)
+            ? null
+            : AdminKanbanBoardTypes.Normalize(boardType);
+        var normalizedIssueLimit = Math.Clamp(issueLimit, 1, 100);
+        var normalizedQueueLimit = Math.Clamp(queueLimit, 1, 100);
+
+        using var connection = OpenConnection();
+
+        var snapshot = new AdminKanbanTelegramDiagnosticsSnapshot
+        {
+            ScopeBoardType = normalizedBoardType ?? string.Empty,
+            RecentIssues = [],
+            RecentQueueItems = []
+        };
+
+        using (var summaryCommand = connection.CreateCommand())
+        {
+            summaryCommand.CommandText = $"""
+SELECT
+    COUNT(DISTINCT l.Id) AS TotalTelegramLeads,
+    SUM(CASE WHEN tl.LastTelegramMessageSyncedAt IS NOT NULL THEN 1 ELSE 0 END) AS LeadsWithInboundMirror,
+    SUM(CASE WHEN tl.LastChatwootMessageSyncedAt IS NOT NULL THEN 1 ELSE 0 END) AS LeadsWithOutboundMirror,
+    SUM(CASE WHEN tl.HumanHandoffStartedAt IS NOT NULL THEN 1 ELSE 0 END) AS HumanHandoffCount
+FROM dbo.{TablePrefix}kanban_leads l
+INNER JOIN dbo.{TablePrefix}telegram_funil_links tl ON tl.LeadId = l.Id
+WHERE l.IsActive = 1
+  AND l.Source = 'Telegram'
+  AND (@boardType IS NULL OR l.BoardType = @boardType);
+
+SELECT
+    SUM(CASE WHEN q.Status IN ('queued', 'processing', 'retrying') THEN 1 ELSE 0 END) AS ActiveQueueCount,
+    SUM(CASE WHEN q.Status = 'dead_letter' THEN 1 ELSE 0 END) AS DeadLetterCount
+FROM dbo.{TablePrefix}telegram_delivery_queue q
+INNER JOIN dbo.{TablePrefix}kanban_leads l ON l.Id = q.LeadId
+WHERE l.IsActive = 1
+  AND (@boardType IS NULL OR l.BoardType = @boardType);
+""";
+            summaryCommand.Parameters.Add(new SqlParameter("@boardType", SqlDbType.NVarChar, 30) { Value = ToDbValue(normalizedBoardType) });
+
+            using var summaryReader = summaryCommand.ExecuteReader();
+            if (summaryReader.Read())
+            {
+                snapshot = snapshot with
+                {
+                    TotalTelegramLeads = summaryReader.IsDBNull(0) ? 0 : summaryReader.GetInt32(0),
+                    LeadsWithInboundMirror = summaryReader.IsDBNull(1) ? 0 : summaryReader.GetInt32(1),
+                    LeadsWithOutboundMirror = summaryReader.IsDBNull(2) ? 0 : summaryReader.GetInt32(2),
+                    HumanHandoffCount = summaryReader.IsDBNull(3) ? 0 : summaryReader.GetInt32(3)
+                };
+            }
+
+            if (summaryReader.NextResult() && summaryReader.Read())
+            {
+                snapshot = snapshot with
+                {
+                    ActiveQueueCount = summaryReader.IsDBNull(0) ? 0 : summaryReader.GetInt32(0),
+                    DeadLetterCount = summaryReader.IsDBNull(1) ? 0 : summaryReader.GetInt32(1)
+                };
+            }
+        }
+
+        var issues = new List<AdminKanbanTelegramSyncIssueRecord>();
+        using (var issuesCommand = connection.CreateCommand())
+        {
+            issuesCommand.CommandText = $"""
+SELECT TOP (@issueLimit)
+    q.Id,
+    l.Id,
+    l.BoardType,
+    s.Name,
+    l.Name,
+    q.Direction,
+    q.Status,
+    q.AttemptCount,
+    q.MaxAttempts,
+    q.LastAttemptAt,
+    q.LastError,
+    q.ChatwootConversationId,
+    q.TelegramChatId
+FROM dbo.{TablePrefix}telegram_delivery_queue q
+INNER JOIN dbo.{TablePrefix}kanban_leads l ON l.Id = q.LeadId
+INNER JOIN dbo.{TablePrefix}kanban_stages s ON s.Id = l.StageId
+WHERE l.IsActive = 1
+  AND (@boardType IS NULL OR l.BoardType = @boardType)
+  AND q.Status IN ('retrying', 'dead_letter')
+ORDER BY
+    CASE WHEN q.Status = 'dead_letter' THEN 0 ELSE 1 END,
+    COALESCE(q.LastAttemptAt, q.UpdatedAt) DESC,
+    q.Id DESC;
+""";
+            issuesCommand.Parameters.AddRange(
+            [
+                new SqlParameter("@issueLimit", SqlDbType.Int) { Value = normalizedIssueLimit },
+                new SqlParameter("@boardType", SqlDbType.NVarChar, 30) { Value = ToDbValue(normalizedBoardType) }
+            ]);
+
+            using var issueReader = issuesCommand.ExecuteReader();
+            while (issueReader.Read())
+            {
+                issues.Add(new AdminKanbanTelegramSyncIssueRecord
+                {
+                    QueueItemId = issueReader.GetInt32(0),
+                    LeadId = issueReader.GetInt32(1),
+                    BoardType = issueReader.GetString(2),
+                    StageName = issueReader.GetString(3),
+                    LeadName = issueReader.GetString(4),
+                    Direction = issueReader.GetString(5),
+                    Status = issueReader.GetString(6),
+                    AttemptCount = issueReader.GetInt32(7),
+                    MaxAttempts = issueReader.GetInt32(8),
+                    LastAttemptAt = ReadNullableUtcDateTime(issueReader, 9),
+                    LastError = issueReader.IsDBNull(10) ? string.Empty : issueReader.GetString(10),
+                    ChatwootConversationId = ReadNullableInt64(issueReader, 11),
+                    TelegramChatId = ReadNullableInt64(issueReader, 12)
+                });
+            }
+        }
+
+        var queueItems = new List<AdminKanbanTelegramQueueDiagnosticRecord>();
+        using (var queueCommand = connection.CreateCommand())
+        {
+            queueCommand.CommandText = $"""
+SELECT TOP (@queueLimit)
+    q.Id,
+    l.Id,
+    l.BoardType,
+    s.Name,
+    l.Name,
+    q.Direction,
+    q.Status,
+    q.AttemptCount,
+    q.MaxAttempts,
+    q.NextAttemptAt,
+    q.LastAttemptAt,
+    q.LastError,
+    q.ChatwootConversationId,
+    q.TelegramChatId
+FROM dbo.{TablePrefix}telegram_delivery_queue q
+INNER JOIN dbo.{TablePrefix}kanban_leads l ON l.Id = q.LeadId
+INNER JOIN dbo.{TablePrefix}kanban_stages s ON s.Id = l.StageId
+WHERE l.IsActive = 1
+  AND (@boardType IS NULL OR l.BoardType = @boardType)
+  AND q.Status IN ('queued', 'processing', 'retrying', 'dead_letter')
+ORDER BY
+    CASE WHEN q.Status = 'dead_letter' THEN 0 ELSE 1 END,
+    q.NextAttemptAt,
+    q.Id DESC;
+""";
+            queueCommand.Parameters.AddRange(
+            [
+                new SqlParameter("@queueLimit", SqlDbType.Int) { Value = normalizedQueueLimit },
+                new SqlParameter("@boardType", SqlDbType.NVarChar, 30) { Value = ToDbValue(normalizedBoardType) }
+            ]);
+
+            using var queueReader = queueCommand.ExecuteReader();
+            while (queueReader.Read())
+            {
+                queueItems.Add(new AdminKanbanTelegramQueueDiagnosticRecord
+                {
+                    QueueItemId = queueReader.GetInt32(0),
+                    LeadId = queueReader.GetInt32(1),
+                    BoardType = queueReader.GetString(2),
+                    StageName = queueReader.GetString(3),
+                    LeadName = queueReader.GetString(4),
+                    Direction = queueReader.GetString(5),
+                    Status = queueReader.GetString(6),
+                    AttemptCount = queueReader.GetInt32(7),
+                    MaxAttempts = queueReader.GetInt32(8),
+                    NextAttemptAt = ReadAsUtcDateTime(queueReader, 9),
+                    LastAttemptAt = ReadNullableUtcDateTime(queueReader, 10),
+                    LastError = queueReader.IsDBNull(11) ? string.Empty : queueReader.GetString(11),
+                    ChatwootConversationId = ReadNullableInt64(queueReader, 12),
+                    TelegramChatId = ReadNullableInt64(queueReader, 13)
+                });
+            }
+        }
+
+        return snapshot with
+        {
+            RecentIssues = issues,
+            RecentQueueItems = queueItems
+        };
     }
 
     public AdminKanbanChatwootDiagnosticsSnapshot GetChatwootDiagnostics(string? boardType, int issueLimit, int queueLimit)
@@ -2647,6 +2872,9 @@ VALUES
 
     private static long? ReadNullableInt64(SqlDataReader reader, int ordinal) =>
         reader.IsDBNull(ordinal) ? null : reader.GetInt64(ordinal);
+
+    private static DateTime? ReadNullableUtcDateTime(SqlDataReader reader, int ordinal) =>
+        reader.IsDBNull(ordinal) ? null : ReadAsUtcDateTime(reader, ordinal);
 
     private static DateTime ReadAsUtcDateTime(SqlDataReader reader, int ordinal)
     {

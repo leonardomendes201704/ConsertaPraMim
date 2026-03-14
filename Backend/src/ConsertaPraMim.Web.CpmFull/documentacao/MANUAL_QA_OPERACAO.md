@@ -134,6 +134,26 @@ No `ConsertaPraMim.Web.CpmFull`, configurar a secao `TelegramAutomation`:
 - Fila presa em retentativa: revisar `LastError`, `AttemptCount`, `NextAttemptAt`, reachability entre CPM Full e bridge, e se `DeliveryQueueMaxAttempts` nao ja levou o item para `dead_letter`.
 - Bot continuou respondendo apos handoff humano: validar se `RequireHumanHandoffForOutbound=true`, se o primeiro outbound humano chegou a ativar o handoff e se a conversa esta passando pela trilha web controlada pelo `ChatApiController`.
 
+### Checklist complementar para diagnostico operacional
+
+1. Com `TelegramAutomation:Enabled=true`, acessar `/admin/funil/clientes` ou `/admin/funil/prestadores`.
+2. Abrir o drawer `Diagnostico Telegram`.
+3. Confirmar exibicao do resumo operacional com `Leads Telegram`, `Inbound espelhado`, `Outbound espelhado`, `Handoffs humanos`, `Fila ativa` e `Dead-letter`.
+4. Confirmar exibicao das metricas do Telegram Bridge com volume e latencia (`Msgs recebidas`, `Msgs enviadas`, `Com anexos`, `Handoffs no bot`, `Falhas de IA`, `P95 IA`).
+5. Validar que o drawer mostra incidentes recentes do bot com `Correlation ID`.
+6. Gerar uma falha controlada na entrega Telegram -> Chatwoot ou Chatwoot -> Telegram.
+7. Confirmar que a falha aparece em `Falhas recentes` e tambem em `Fila e dead-letter`.
+8. Acionar `Reprocessar` diretamente no item de fila.
+9. Confirmar retorno visual de sucesso e nova carga do drawer.
+10. Reabrir o detalhe do lead e validar historico `Entrega Telegram enfileirada` apos a retentativa manual.
+
+### Troubleshooting complementar do diagnostico
+
+- Drawer sem metricas do Bridge: validar `TelegramAutomation:TelegramBridgeBaseUrl`, `TelegramAutomation:SharedSecret` e se o bridge publicou `GET /api/internal/telegram/observability/dashboard`.
+- Drawer com metricas locais mas sem snapshot do bridge: comportamento degradado esperado quando o bridge estiver indisponivel; revisar reachability HTTP entre CPM Full e bridge.
+- Reprocessar nao encontra o item: validar se o `queueItemId` ainda existe em `dbo.cpm_web_telegram_delivery_queue` e se o item nao foi limpo por reprocessamento concorrente.
+- `Correlation ID` vazio no diagnostico do bridge: validar se as chamadas do bridge para o CPM Full e do CPM Full para o bridge estao trafegando com `X-Correlation-ID` apos a publicacao da US-08.
+
 ## Home - botao flutuante de WhatsApp
 
 ### Comportamento esperado

@@ -1,5 +1,6 @@
 using System.Net.Http.Json;
 using System.Text.Json;
+using AppMobileCPM.Observability;
 using Microsoft.Extensions.Options;
 
 namespace AppMobileCPM.Integrations.Telegram;
@@ -49,6 +50,9 @@ public sealed class TelegramBridgeDeliveryClient : ITelegramBridgeDeliveryClient
         message.Headers.TryAddWithoutValidation("Accept", "application/json");
         message.Headers.TryAddWithoutValidation("User-Agent", "ConsertaPraMim.Web.CpmFull/1.0");
         message.Headers.TryAddWithoutValidation(TelegramLeadAutomationService.SharedSecretHeaderName, _options.SharedSecret);
+        message.Headers.TryAddWithoutValidation(
+            ChatwootCorrelationContext.HeaderName,
+            ChatwootCorrelationContext.GetOrCreate("telegram-outbound"));
 
         try
         {

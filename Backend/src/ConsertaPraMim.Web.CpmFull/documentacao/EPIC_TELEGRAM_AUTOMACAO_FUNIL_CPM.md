@@ -17,8 +17,8 @@
 - `ChatbotContextSnapshots`
 - `ChatbotActionLogs`
 - O `TelegramChatbotController` agora aceita trilha conversacional para `Client` e `Provider`, mantendo endpoints operacionais de pedidos/agenda restritos a `Client`.
-- O bridge ja consegue criar `service requests`, mas ainda nao cria lead no funil CPM Full.
-- A integracao Chatwoot entregue no CPM Full parte do lead do Kanban; sem lead, nao existe inbox `CPM Clientes` ou `CPM Prestadores` alimentada automaticamente.
+- O bridge ja consegue criar `service requests`, criar/atualizar lead no funil CPM Full e espelhar mensagens bidirecionais para o Chatwoot quando a automacao esta habilitada.
+- A integracao Chatwoot do CPM Full ja alimenta automaticamente as inboxes `CPM Clientes` e `CPM Prestadores` a partir do lead do Kanban, mantendo o funil como sistema de verdade.
 
 ## 3. Objetivos de negocio
 1. Transformar sessoes qualificadas do bot Telegram em leads operacionais no CPM Full.
@@ -322,6 +322,9 @@ Como usuario final, quero continuar no Telegram mesmo quando um humano assumir o
 ### Descricao
 Como time tecnico, queremos diagnosticar rapidamente falhas entre bot, CPM Full e Chatwoot.
 
+### Status
+- Concluida em `2026-03-14` com correlation id propagado, drawer operacional no Kanban e diagnostico interno do Telegram Bridge.
+
 ### Criterios de aceite
 1. A trilha possui correlation id fim a fim.
 2. Falhas ficam visiveis no admin e reprocessaveis.
@@ -333,6 +336,14 @@ Como time tecnico, queremos diagnosticar rapidamente falhas entre bot, CPM Full 
 - `TASK-08.03` Expor diagnostico no admin do funil.
 - `TASK-08.04` Criar acoes rapidas de reprocessamento por conversa/lead.
 - `TASK-08.05` Adicionar metricas de volume, falha e latencia.
+
+### Entrega aplicada
+1. O `ConsertaPraMim.Web.TelegramBridge` passou a propagar `X-Correlation-ID` para o CPM Full nas automacoes de lead e mensagem, enquanto o CPM Full passou a propagar o mesmo header no caminho de entrega humana de volta ao bridge.
+2. O bridge ganhou o endpoint interno `GET /api/internal/telegram/observability/dashboard`, protegido pelo mesmo `SharedSecret` da automacao, expondo snapshot operacional de volume, falha e latencia para consumo interno do CPM Full.
+3. O CPM Full passou a agregar diagnostico local da tabela `dbo.cpm_web_telegram_delivery_queue` com metricas por board, fila ativa, dead-letter, handoff e espelhamento inbound/outbound.
+4. O Kanban agora possui o drawer `Diagnostico Telegram`, com resumo operacional, metricas do Telegram Bridge, falhas recentes, fila/dead-letter, incidentes do bot e acoes rapidas de `Ver lead`, `Reprocessar` e `Abrir no Chatwoot`.
+5. A retentativa manual agora pode ser disparada por item da fila Telegram via `POST /admin/funil/telegram/fila/{queueItemId}/retentativa`, reaproveitando o worker bidirecional sem SQL manual.
+6. A cobertura de regressao passou a validar o snapshot SQL do diagnostico Telegram e a retentativa manual de item `dead_letter` para `retrying`.
 
 ## US-09 - Seguranca e conformidade da trilha Telegram
 ### Descricao
