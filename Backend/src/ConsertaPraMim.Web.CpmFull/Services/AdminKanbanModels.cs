@@ -95,8 +95,23 @@ public sealed class AdminKanbanLeadDetailsRecord
     public DateTime CreatedAt { get; init; }
     public DateTime? UpdatedAt { get; init; }
     public DateTime? LastContactAt { get; init; }
+    public AdminKanbanLeadTelegramLinkRecord Telegram { get; init; } = new();
     public AdminKanbanLeadChatwootSyncRecord Chatwoot { get; init; } = new();
     public required IReadOnlyList<AdminKanbanLeadHistoryRecord> History { get; init; }
+}
+
+public sealed class AdminKanbanLeadTelegramLinkRecord
+{
+    public Guid? ChatbotConversationId { get; init; }
+    public string ChannelConversationId { get; init; } = string.Empty;
+    public long? TelegramChatId { get; init; }
+    public Guid? ClientId { get; init; }
+    public string ClientEmail { get; init; } = string.Empty;
+    public Guid? ServiceRequestId { get; init; }
+    public DateTime? HumanHandoffStartedAt { get; init; }
+    public DateTime? LastTelegramMessageSyncedAt { get; init; }
+    public DateTime? LastChatwootMessageSyncedAt { get; init; }
+    public DateTime? UpdatedAt { get; init; }
 }
 
 public sealed class AdminKanbanLeadChatwootSyncRecord
@@ -136,6 +151,135 @@ public sealed class AdminKanbanLeadUpsertRequest
     public string StatusNote { get; init; } = string.Empty;
     public string InternalNotes { get; init; } = string.Empty;
     public DateTime? LastContactAt { get; init; }
+}
+
+public sealed class AdminKanbanTelegramLeadUpsertRequest
+{
+    public required string BoardType { get; init; }
+    public required Guid ChatbotConversationId { get; init; }
+    public required string ChannelConversationId { get; init; }
+    public long TelegramChatId { get; init; }
+    public Guid ClientId { get; init; }
+    public required string ClientName { get; init; }
+    public string ClientEmail { get; init; } = string.Empty;
+    public Guid? ServiceRequestId { get; init; }
+    public string ServiceCategory { get; init; } = string.Empty;
+    public string PostalCode { get; init; } = string.Empty;
+    public string City { get; init; } = string.Empty;
+    public string StatusNote { get; init; } = string.Empty;
+    public string InternalNotes { get; init; } = string.Empty;
+    public DateTime? LastContactAt { get; init; }
+}
+
+public sealed class AdminKanbanTelegramLinkTouchRequest
+{
+    public DateTime? HumanHandoffStartedAt { get; init; }
+    public DateTime? LastTelegramMessageSyncedAt { get; init; }
+    public DateTime? LastChatwootMessageSyncedAt { get; init; }
+}
+
+public sealed record class AdminKanbanTelegramLeadUpsertResult
+{
+    public int LeadId { get; init; }
+    public bool Created { get; init; }
+    public int StageId { get; init; }
+    public string BoardType { get; init; } = string.Empty;
+    public Guid ChatbotConversationId { get; init; }
+}
+
+public sealed class AdminKanbanTelegramDeliveryQueueEnqueueRequest
+{
+    public int LeadId { get; init; }
+    public string Direction { get; init; } = string.Empty;
+    public string DeliveryKey { get; init; } = string.Empty;
+    public string PayloadJson { get; init; } = string.Empty;
+    public long? ChatwootConversationId { get; init; }
+    public long? TelegramChatId { get; init; }
+    public DateTime NextAttemptAt { get; init; }
+    public int MaxAttempts { get; init; }
+    public string? LastError { get; init; }
+}
+
+public sealed class AdminKanbanTelegramDeliveryQueueFinalizeRequest
+{
+    public int QueueItemId { get; init; }
+    public string FinalStatus { get; init; } = string.Empty;
+    public DateTime FinalizedAt { get; init; }
+    public DateTime? NextAttemptAt { get; init; }
+    public string? LastError { get; init; }
+    public bool ClearLastError { get; init; }
+    public string WorkerInstance { get; init; } = string.Empty;
+}
+
+public sealed record class AdminKanbanTelegramDeliveryQueueItemRecord
+{
+    public int Id { get; init; }
+    public int LeadId { get; init; }
+    public string Direction { get; init; } = string.Empty;
+    public string DeliveryKey { get; init; } = string.Empty;
+    public string PayloadJson { get; init; } = string.Empty;
+    public long? ChatwootConversationId { get; init; }
+    public long? TelegramChatId { get; init; }
+    public string Status { get; init; } = string.Empty;
+    public int AttemptCount { get; init; }
+    public int MaxAttempts { get; init; }
+    public DateTime NextAttemptAt { get; init; }
+    public DateTime? LastAttemptAt { get; init; }
+    public string LastError { get; init; } = string.Empty;
+    public string WorkerInstance { get; init; } = string.Empty;
+    public DateTime CreatedAt { get; init; }
+    public DateTime UpdatedAt { get; init; }
+    public DateTime? ProcessedAt { get; init; }
+    public DateTime? DeadLetterAt { get; init; }
+    public bool IsDuplicate { get; init; }
+}
+
+public sealed record class AdminKanbanTelegramSyncIssueRecord
+{
+    public int QueueItemId { get; init; }
+    public int LeadId { get; init; }
+    public string BoardType { get; init; } = string.Empty;
+    public string StageName { get; init; } = string.Empty;
+    public string LeadName { get; init; } = string.Empty;
+    public string Direction { get; init; } = string.Empty;
+    public string Status { get; init; } = string.Empty;
+    public int AttemptCount { get; init; }
+    public int MaxAttempts { get; init; }
+    public DateTime? LastAttemptAt { get; init; }
+    public string LastError { get; init; } = string.Empty;
+    public long? ChatwootConversationId { get; init; }
+    public long? TelegramChatId { get; init; }
+}
+
+public sealed record class AdminKanbanTelegramQueueDiagnosticRecord
+{
+    public int QueueItemId { get; init; }
+    public int LeadId { get; init; }
+    public string BoardType { get; init; } = string.Empty;
+    public string StageName { get; init; } = string.Empty;
+    public string LeadName { get; init; } = string.Empty;
+    public string Direction { get; init; } = string.Empty;
+    public string Status { get; init; } = string.Empty;
+    public int AttemptCount { get; init; }
+    public int MaxAttempts { get; init; }
+    public DateTime NextAttemptAt { get; init; }
+    public DateTime? LastAttemptAt { get; init; }
+    public string LastError { get; init; } = string.Empty;
+    public long? ChatwootConversationId { get; init; }
+    public long? TelegramChatId { get; init; }
+}
+
+public sealed record class AdminKanbanTelegramDiagnosticsSnapshot
+{
+    public string ScopeBoardType { get; init; } = string.Empty;
+    public int TotalTelegramLeads { get; init; }
+    public int LeadsWithInboundMirror { get; init; }
+    public int LeadsWithOutboundMirror { get; init; }
+    public int HumanHandoffCount { get; init; }
+    public int ActiveQueueCount { get; init; }
+    public int DeadLetterCount { get; init; }
+    public IReadOnlyList<AdminKanbanTelegramSyncIssueRecord> RecentIssues { get; init; } = [];
+    public IReadOnlyList<AdminKanbanTelegramQueueDiagnosticRecord> RecentQueueItems { get; init; } = [];
 }
 
 public sealed class AdminKanbanBoardOrderUpdateRequest

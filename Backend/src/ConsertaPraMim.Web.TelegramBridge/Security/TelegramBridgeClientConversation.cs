@@ -5,10 +5,15 @@ namespace ConsertaPraMim.Web.TelegramBridge.Security;
 
 public static class TelegramBridgeClientConversation
 {
+    public static bool TryGetAuthenticatedUserId(ClaimsPrincipal user, out Guid userId)
+    {
+        var rawUserId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+        return Guid.TryParse(rawUserId, out userId);
+    }
+
     public static bool TryGetClientId(ClaimsPrincipal user, out Guid clientId)
     {
-        var rawClientId = user.FindFirstValue(ClaimTypes.NameIdentifier);
-        return Guid.TryParse(rawClientId, out clientId);
+        return TryGetAuthenticatedUserId(user, out clientId);
     }
 
     public static long BuildChatId(Guid clientId)

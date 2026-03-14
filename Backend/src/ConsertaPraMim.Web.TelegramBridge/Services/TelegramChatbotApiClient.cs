@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Globalization;
 using System.Text.Json;
 using ConsertaPraMim.Web.TelegramBridge.Models;
+using ConsertaPraMim.Web.TelegramBridge.Security;
 
 namespace ConsertaPraMim.Web.TelegramBridge.Services;
 
@@ -519,7 +520,7 @@ public sealed class TelegramChatbotApiClient : ITelegramChatbotApiClient
                     "Falha ao consultar chatbot na API. Path: {Path}. Status: {StatusCode}. Body: {Body}",
                     relativePath,
                     (int)response.StatusCode,
-                    content);
+                    TelegramSecuritySanitizer.SanitizeMessage(content, 500));
                 return default;
             }
 
@@ -558,7 +559,7 @@ public sealed class TelegramChatbotApiClient : ITelegramChatbotApiClient
                     "Falha ao sincronizar chatbot na API. Path: {Path}. Status: {StatusCode}. Body: {Body}",
                     relativePath,
                     (int)response.StatusCode,
-                    content);
+                    TelegramSecuritySanitizer.SanitizeMessage(content, 500));
                 return default;
             }
 
@@ -601,7 +602,7 @@ public sealed class TelegramChatbotApiClient : ITelegramChatbotApiClient
                     "Falha ao sincronizar estado chatbot na API. Path: {Path}. Status: {StatusCode}. Body: {Body}",
                     relativePath,
                     (int)response.StatusCode,
-                    content);
+                    TelegramSecuritySanitizer.SanitizeMessage(content, 500));
                 return default;
             }
 

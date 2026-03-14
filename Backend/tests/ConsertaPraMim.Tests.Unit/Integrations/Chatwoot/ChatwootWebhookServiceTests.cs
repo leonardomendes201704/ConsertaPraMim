@@ -253,7 +253,102 @@ public sealed class ChatwootWebhookServiceTests
         kanbanService.VerifyAll();
     }
 
-    private static ChatwootWebhookService CreateSut(IAdminKanbanService kanbanService, string? allowedWebhookIps = null)
+    [Fact(DisplayName = "Deve enfileirar mensagem humana do Chatwoot para Telegram quando o lead for desse canal")]
+    public async Task DeveEnfileirarMensagemHumanaDoChatwootParaTelegram()
+    {
+        var kanbanService = new Mock<IAdminKanbanService>();
+        var telegramMessageAutomationService = new Mock<ITelegramMessageAutomationService>();
+        var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
+        var rawPayload = Encoding.UTF8.GetBytes("""
+{
+  "event": "message_created",
+  "id": 555,
+  "content": "Vou assumir seu atendimento por aqui.",
+  "message_type": "outgoing",
+  "private": false,
+  "created_at": "2026-03-14T14:20:00Z",
+  "conversation": { "id": 202 },
+  "sender": { "type": "user", "name": "Atendente CPM" }
+}
+""");
+
+        kanbanService
+            .Setup(service => service.CreateOrGetChatwootWebhookEvent(It.IsAny<AdminKanbanChatwootWebhookEventUpsertRequest>()))
+            .Returns(new AdminKanbanChatwootWebhookEventRecord
+            {
+                Id = 905,
+                ProviderEventId = "delivery-human-outbound",
+                EventType = "message_created",
+                ConversationId = 202,
+                ProcessStatus = "received",
+                ReceivedAt = DateTime.UtcNow
+            });
+        kanbanService
+            .Setup(service => service.FindLeadIdByChatwootConversationId(202))
+            .Returns(45);
+        kanbanService
+            .Setup(service => service.ApplyChatwootWebhookLeadUpdate(
+                45,
+                It.Is<AdminKanbanLeadWebhookUpdateRequest>(request =>
+                    request.HistoryEventType == "chatwoot_resposta_enviada" &&
+                    request.HistoryDescription.Contains("Resumo: Vou assumir seu atendimento por aqui.", StringComparison.Ordinal))))
+            .Returns(true);
+        kanbanService
+            .Setup(service => service.GetLeadDetails(45))
+            .Returns(new AdminKanbanLeadDetailsRecord
+            {
+                Id = 45,
+                StageId = 1,
+                StageName = "Novo lead",
+                BoardType = AdminKanbanBoardTypes.Clients,
+                Name = "Ricardo Almeida",
+                Source = "Telegram",
+                Chatwoot = new AdminKanbanLeadChatwootSyncRecord
+                {
+                    ConversationId = 202,
+                    ContactId = 10,
+                    InboxId = 1,
+                    SyncStatus = ChatwootSyncStatuses.Synced
+                },
+                Telegram = new AdminKanbanLeadTelegramLinkRecord
+                {
+                    TelegramChatId = 5513997114422
+                },
+                History = []
+            });
+        telegramMessageAutomationService
+            .Setup(service => service.TryEnqueueOutboundMessageFromChatwootAsync(
+                It.Is<AdminKanbanLeadDetailsRecord>(lead => lead.Id == 45),
+                555,
+                "Vou assumir seu atendimento por aqui.",
+                "Atendente CPM",
+                It.IsAny<DateTime>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        kanbanService
+            .Setup(service => service.CompleteChatwootWebhookEvent(905, "processed", null))
+            .Returns(true);
+
+        var sut = CreateSut(kanbanService.Object, telegramMessageAutomationService.Object);
+
+        var result = await sut.HandleAsync(new ChatwootWebhookRequest
+        {
+            RawBody = rawPayload,
+            Timestamp = timestamp,
+            Signature = ComputeSignature("secret-webhook", timestamp, rawPayload),
+            DeliveryId = "delivery-human-outbound"
+        });
+
+        Assert.True(result.Accepted);
+        Assert.Equal("processed", result.ProcessStatus);
+        telegramMessageAutomationService.VerifyAll();
+        kanbanService.VerifyAll();
+    }
+
+    private static ChatwootWebhookService CreateSut(
+        IAdminKanbanService kanbanService,
+        ITelegramMessageAutomationService? telegramMessageAutomationService = null,
+        string? allowedWebhookIps = null)
     {
         var options = Options.Create(new ChatwootOptions
         {
@@ -271,6 +366,7 @@ public sealed class ChatwootWebhookServiceTests
 
         return new ChatwootWebhookService(
             kanbanService,
+            telegramMessageAutomationService ?? Mock.Of<ITelegramMessageAutomationService>(),
             options,
             NullLogger<ChatwootWebhookService>.Instance);
     }

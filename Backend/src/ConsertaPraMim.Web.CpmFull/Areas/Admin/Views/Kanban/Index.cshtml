@@ -70,6 +70,9 @@
         <a class="btn btn-outline-secondary" href="@Model.AlternateBoardUrl">
             @Model.AlternateBoardLabel
         </a>
+        <button type="button" class="btn btn-outline-dark" data-bs-toggle="offcanvas" data-bs-target="#telegramDiagnosticsDrawer" aria-controls="telegramDiagnosticsDrawer">
+            Diagnostico Telegram
+        </button>
         <button type="button" class="btn btn-outline-dark" data-bs-toggle="offcanvas" data-bs-target="#chatwootDiagnosticsDrawer" aria-controls="chatwootDiagnosticsDrawer">
             Diagnostico Chatwoot
         </button>
@@ -181,6 +184,21 @@
                     <div class="col-12 col-md-6"><strong>CEP / Cidade:</strong> <span id="detailsAddress"></span></div>
                     <div class="col-12 col-md-6"><strong>Fonte:</strong> <span id="detailsSource"></span></div>
                     <div class="col-12 col-md-6"><strong>Prioridade:</strong> <span id="detailsPriority"></span></div>
+                    <div class="col-12"><hr class="my-1" /></div>
+                    <div class="col-12"><h6 class="fw-bold mb-0">Vinculo Telegram</h6></div>
+                    <div class="col-12 col-md-6"><strong>Origem automatizada:</strong> <span id="detailsTelegramOrigin"></span></div>
+                    <div class="col-12 col-md-6"><strong>Ultima atualizacao do vinculo:</strong> <span id="detailsTelegramUpdatedAt"></span></div>
+                    <div class="col-12 col-md-6"><strong>Conversa bot Telegram:</strong> <span id="detailsTelegramChatbotConversationId"></span></div>
+                    <div class="col-12 col-md-6"><strong>Conversa do canal:</strong> <span id="detailsTelegramChannelConversationId"></span></div>
+                    <div class="col-12 col-md-6"><strong>Chat ID Telegram (mascarado):</strong> <span id="detailsTelegramChatId"></span></div>
+                    <div class="col-12 col-md-6"><strong>Cliente vinculado:</strong> <span id="detailsTelegramClientId"></span></div>
+                    <div class="col-12 col-md-6"><strong>E-mail autenticado (mascarado):</strong> <span id="detailsTelegramClientEmail"></span></div>
+                    <div class="col-12 col-md-6"><strong>Pedido vinculado:</strong> <span id="detailsTelegramServiceRequestId"></span></div>
+                    <div class="col-12 col-md-6"><strong>Handoff humano iniciado:</strong> <span id="detailsTelegramHumanHandoffStartedAt"></span></div>
+                    <div class="col-12 col-md-6"><strong>Ultima msg Telegram sincronizada:</strong> <span id="detailsTelegramLastMessageSyncedAt"></span></div>
+                    <div class="col-12 col-md-6"><strong>Ultima msg Chatwoot sincronizada:</strong> <span id="detailsTelegramLastChatwootMessageSyncedAt"></span></div>
+                    <div class="col-12"><hr class="my-1" /></div>
+                    <div class="col-12"><h6 class="fw-bold mb-0">Integracao Chatwoot</h6></div>
                     <div class="col-12 col-md-4"><strong>Contato Chatwoot:</strong> <span id="detailsChatwootContactId"></span></div>
                     <div class="col-12 col-md-4"><strong>Conversa Chatwoot:</strong> <span id="detailsChatwootConversationId"></span></div>
                     <div class="col-12 col-md-4"><strong>Inbox Chatwoot:</strong> <span id="detailsChatwootInboxId"></span></div>
@@ -420,6 +438,127 @@
     </div>
 </div>
 
+<div class="offcanvas offcanvas-end" tabindex="-1" id="telegramDiagnosticsDrawer" aria-labelledby="telegramDiagnosticsDrawerLabel">
+    <div class="offcanvas-header">
+        <div>
+            <h5 class="offcanvas-title fw-bold" id="telegramDiagnosticsDrawerLabel">Diagnostico Telegram</h5>
+            <div class="small text-secondary">Visao operacional da automacao Telegram, da fila bidirecional e do Telegram Bridge.</div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Fechar"></button>
+    </div>
+    <div class="offcanvas-body d-flex flex-column gap-3">
+        <div class="border rounded-3 p-3 bg-light">
+            <div class="row g-3">
+                <div class="col-12">
+                    <label for="telegramDiagnosticsBoardScope" class="form-label">Escopo</label>
+                    <select id="telegramDiagnosticsBoardScope" class="form-select">
+                        <option value="">Clientes e prestadores</option>
+                        @if (Model.BoardType == "clientes")
+                        {
+                            <option value="clientes" selected>Funil de clientes</option>
+                        }
+                        else
+                        {
+                            <option value="clientes">Funil de clientes</option>
+                        }
+                        @if (Model.BoardType == "prestadores")
+                        {
+                            <option value="prestadores" selected>Funil de prestadores</option>
+                        }
+                        else
+                        {
+                            <option value="prestadores">Funil de prestadores</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-12">
+                    <label for="telegramDiagnosticsLimit" class="form-label">Limite por lista</label>
+                    <input id="telegramDiagnosticsLimit" type="number" min="1" max="50" class="form-control" value="10" />
+                </div>
+            </div>
+            <div class="d-flex flex-wrap gap-2 mt-3">
+                <button type="button" id="applyTelegramDiagnosticsFiltersBtn" class="btn btn-primary">Aplicar filtros</button>
+                <button type="button" id="resetTelegramDiagnosticsFiltersBtn" class="btn btn-outline-secondary">Limpar filtros</button>
+            </div>
+        </div>
+
+        <div id="telegramDiagnosticsAlert" class="alert alert-secondary mb-0 d-none"></div>
+
+        <section>
+            <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+                <h6 class="fw-bold mb-0">Resumo operacional</h6>
+                <button type="button" id="refreshTelegramDiagnosticsBtn" class="btn btn-sm btn-outline-secondary">Atualizar</button>
+            </div>
+            <div id="telegramDiagnosticsSummaryCards" class="cpm-chatwoot-diagnostics-grid"></div>
+        </section>
+
+        <section>
+            <h6 class="fw-bold mb-2">Metricas do Telegram Bridge</h6>
+            <div id="telegramBridgeDiagnosticsSummaryCards" class="cpm-chatwoot-diagnostics-grid"></div>
+        </section>
+
+        <section>
+            <h6 class="fw-bold mb-2">Falhas recentes</h6>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Lead</th>
+                            <th>Direcao</th>
+                            <th>Status</th>
+                            <th>Erro</th>
+                            <th class="text-end">Acoes</th>
+                        </tr>
+                    </thead>
+                    <tbody id="telegramDiagnosticsIssueRows">
+                        <tr><td colspan="5" class="text-secondary">Nenhuma falha recente carregada.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section>
+            <h6 class="fw-bold mb-2">Fila e dead-letter</h6>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Lead</th>
+                            <th>Direcao</th>
+                            <th>Status</th>
+                            <th>Tentativas</th>
+                            <th>Proxima</th>
+                            <th class="text-end">Acoes</th>
+                        </tr>
+                    </thead>
+                    <tbody id="telegramDiagnosticsQueueRows">
+                        <tr><td colspan="6" class="text-secondary">Nenhum item de fila carregado.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section>
+            <h6 class="fw-bold mb-2">Incidentes recentes do bot</h6>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Horario</th>
+                            <th>Etapa</th>
+                            <th>Erro</th>
+                            <th>Correlation ID</th>
+                        </tr>
+                    </thead>
+                    <tbody id="telegramDiagnosticsIncidentRows">
+                        <tr><td colspan="4" class="text-secondary">Nenhum incidente recente carregado.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+</div>
+
 @section Head {
     <style>
         .cpm-kanban-wrap { overflow-x: auto; padding-bottom: 0.5rem; }
@@ -487,12 +626,16 @@
             const createModalEl = document.getElementById("createLeadModal");
             const editModalEl = document.getElementById("editLeadModal");
             const backfillModalEl = document.getElementById("chatwootBackfillModal");
+            const telegramDiagnosticsDrawerEl = document.getElementById("telegramDiagnosticsDrawer");
             const diagnosticsDrawerEl = document.getElementById("chatwootDiagnosticsDrawer");
             const detailsModal = detailsModalEl ? new bootstrap.Modal(detailsModalEl) : null;
             const createModal = createModalEl ? new bootstrap.Modal(createModalEl) : null;
             const editModal = editModalEl ? new bootstrap.Modal(editModalEl) : null;
             const backfillModal = backfillModalEl ? new bootstrap.Modal(backfillModalEl) : null;
+            const telegramDiagnosticsDrawer = telegramDiagnosticsDrawerEl ? new bootstrap.Offcanvas(telegramDiagnosticsDrawerEl) : null;
             const diagnosticsDrawer = diagnosticsDrawerEl ? new bootstrap.Offcanvas(diagnosticsDrawerEl) : null;
+            const defaultTelegramDiagnosticsBoardScope = boardType;
+            const defaultTelegramDiagnosticsLimit = 10;
             const defaultDiagnosticsBoardScope = boardType;
             const defaultDiagnosticsLimit = 10;
 
@@ -507,7 +650,9 @@
                 order: "/admin/funil/lead/ordem",
                 note: "/admin/funil/lead/nota",
                 backfill: "/admin/funil/chatwoot/backfill",
-                diagnostics: "/admin/funil/chatwoot/diagnostico/json"
+                diagnostics: "/admin/funil/chatwoot/diagnostico/json",
+                telegramDiagnostics: "/admin/funil/telegram/diagnostico/json",
+                telegramRetryQueue: (queueItemId) => `/admin/funil/telegram/fila/${queueItemId}/retentativa`
             };
 
             const postJson = async (url, payload) => {
@@ -740,7 +885,7 @@
                     <tr>
                         <td>
                             <div class="fw-semibold">${escapeHtml(item.leadName || "-")}</div>
-                            <div class="small text-secondary">#${escapeHtml(String(item.leadId || "-"))} • ${escapeHtml(item.boardLabel || "-")} • ${escapeHtml(item.stageName || "-")}</div>
+                            <div class="small text-secondary">#${escapeHtml(String(item.leadId || "-"))} | ${escapeHtml(item.boardLabel || "-")} | ${escapeHtml(item.stageName || "-")}</div>
                             <div class="small text-secondary">Ultima sync: ${escapeHtml(item.lastSyncAt || "-")}</div>
                         </td>
                         <td><span class="badge ${escapeHtml(getChatwootStatusMeta(item.syncStatus).className)}">${escapeHtml(item.syncStatusLabel || "-")}</span></td>
@@ -773,7 +918,7 @@
                     <tr>
                         <td>
                             <div class="fw-semibold">${escapeHtml(item.leadName || "-")}</div>
-                            <div class="small text-secondary">#${escapeHtml(String(item.leadId || "-"))} • ${escapeHtml(item.boardLabel || "-")} • ${escapeHtml(item.stageName || "-")}</div>
+                            <div class="small text-secondary">#${escapeHtml(String(item.leadId || "-"))} | ${escapeHtml(item.boardLabel || "-")} | ${escapeHtml(item.stageName || "-")}</div>
                         </td>
                         <td class="small">${escapeHtml(item.operationLabel || "-")}</td>
                         <td><span class="badge text-bg-secondary">${escapeHtml(item.statusLabel || "-")}</span></td>
@@ -825,6 +970,238 @@
                         ? `Escopo atual: ${data.scope?.boardLabel || "Clientes e prestadores"}.`
                         : "Integracao com Chatwoot desabilitada neste ambiente. Os dados exibidos refletem apenas o estado local salvo.",
                     data.enabled ? "secondary" : "warning");
+
+                return data;
+            };
+
+            const getTelegramDiagnosticsFilters = () => ({
+                boardType: document.getElementById("telegramDiagnosticsBoardScope")?.value || "",
+                limit: Number(document.getElementById("telegramDiagnosticsLimit")?.value || String(defaultTelegramDiagnosticsLimit))
+            });
+
+            const setTelegramDiagnosticsAlert = (message, level = "secondary") => {
+                const alert = document.getElementById("telegramDiagnosticsAlert");
+                if (!alert) {
+                    return;
+                }
+
+                if (!message) {
+                    alert.className = "alert alert-secondary mb-0 d-none";
+                    alert.textContent = "";
+                    return;
+                }
+
+                alert.className = `alert alert-${level} mb-0`;
+                alert.textContent = message;
+            };
+
+            const resetTelegramDiagnosticsTables = () => {
+                const summary = document.getElementById("telegramDiagnosticsSummaryCards");
+                const bridgeSummary = document.getElementById("telegramBridgeDiagnosticsSummaryCards");
+                const issues = document.getElementById("telegramDiagnosticsIssueRows");
+                const queue = document.getElementById("telegramDiagnosticsQueueRows");
+                const incidents = document.getElementById("telegramDiagnosticsIncidentRows");
+                setTelegramDiagnosticsAlert("");
+
+                if (summary) {
+                    summary.innerHTML = "";
+                }
+
+                if (bridgeSummary) {
+                    bridgeSummary.innerHTML = "";
+                }
+
+                if (issues) {
+                    issues.innerHTML = "<tr><td colspan='5' class='text-secondary'>Nenhuma falha recente carregada.</td></tr>";
+                }
+
+                if (queue) {
+                    queue.innerHTML = "<tr><td colspan='6' class='text-secondary'>Nenhum item de fila carregado.</td></tr>";
+                }
+
+                if (incidents) {
+                    incidents.innerHTML = "<tr><td colspan='4' class='text-secondary'>Nenhum incidente recente carregado.</td></tr>";
+                }
+            };
+
+            const renderTelegramDiagnosticsSummary = (summary) => {
+                const container = document.getElementById("telegramDiagnosticsSummaryCards");
+                if (!container) {
+                    return;
+                }
+
+                const items = [
+                    { value: summary?.totalTelegramLeads ?? 0, label: "Leads Telegram" },
+                    { value: summary?.leadsWithInboundMirror ?? 0, label: "Inbound espelhado" },
+                    { value: summary?.leadsWithOutboundMirror ?? 0, label: "Outbound espelhado" },
+                    { value: summary?.humanHandoffCount ?? 0, label: "Handoffs humanos" },
+                    { value: summary?.activeQueueCount ?? 0, label: "Fila ativa" },
+                    { value: summary?.deadLetterCount ?? 0, label: "Dead-letter" }
+                ];
+
+                container.innerHTML = items.map((item) => `
+                    <article class="cpm-chatwoot-summary-card">
+                        <strong>${escapeHtml(String(item.value))}</strong>
+                        <span>${escapeHtml(item.label)}</span>
+                    </article>
+                `).join("");
+            };
+
+            const renderTelegramBridgeSummary = (bridge) => {
+                const container = document.getElementById("telegramBridgeDiagnosticsSummaryCards");
+                if (!container) {
+                    return;
+                }
+
+                const items = [
+                    { value: bridge?.traffic?.inboundMessages ?? 0, label: "Msgs recebidas" },
+                    { value: bridge?.traffic?.outboundMessages ?? 0, label: "Msgs enviadas" },
+                    { value: bridge?.traffic?.messagesWithAttachments ?? 0, label: "Com anexos" },
+                    { value: bridge?.ai?.humanHandoffs ?? 0, label: "Handoffs no bot" },
+                    { value: bridge?.ai?.failures ?? 0, label: "Falhas de IA" },
+                    { value: Math.round(Number(bridge?.ai?.p95LatencyMs ?? 0)), label: "P95 IA (ms)" }
+                ];
+
+                container.innerHTML = items.map((item) => `
+                    <article class="cpm-chatwoot-summary-card">
+                        <strong>${escapeHtml(String(item.value))}</strong>
+                        <span>${escapeHtml(item.label)}</span>
+                    </article>
+                `).join("");
+            };
+
+            const renderTelegramDiagnosticsIssues = (issues) => {
+                const rows = document.getElementById("telegramDiagnosticsIssueRows");
+                if (!rows) {
+                    return;
+                }
+
+                if (!Array.isArray(issues) || !issues.length) {
+                    rows.innerHTML = "<tr><td colspan='5' class='text-secondary'>Nenhuma falha recente para o filtro selecionado.</td></tr>";
+                    return;
+                }
+
+                rows.innerHTML = issues.map((item) => `
+                    <tr>
+                        <td>
+                            <div class="fw-semibold">${escapeHtml(item.leadName || "-")}</div>
+                            <div class="small text-secondary">#${escapeHtml(String(item.leadId || "-"))} | ${escapeHtml(item.boardLabel || "-")} | ${escapeHtml(item.stageName || "-")}</div>
+                            <div class="small text-secondary">Ultima tentativa: ${escapeHtml(item.lastAttemptAt || "-")}</div>
+                        </td>
+                        <td class="small">${escapeHtml(item.directionLabel || "-")}</td>
+                        <td><span class="badge text-bg-secondary">${escapeHtml(item.statusLabel || "-")}</span></td>
+                        <td class="small">${escapeHtml(item.lastError || "-")}</td>
+                        <td class="text-end">
+                            <div class="d-flex flex-wrap justify-content-end gap-2">
+                                <button type="button" class="btn btn-sm btn-outline-primary" data-telegram-open-lead="${escapeHtml(String(item.leadId || 0))}">Ver lead</button>
+                                <button type="button" class="btn btn-sm btn-outline-warning" data-telegram-retry-queue="${escapeHtml(String(item.queueItemId || 0))}">Reprocessar</button>
+                                ${item.conversationUrl
+                                    ? `<a class="btn btn-sm btn-outline-secondary" href="${escapeHtml(item.conversationUrl)}" target="_blank" rel="noopener noreferrer">Abrir no Chatwoot</a>`
+                                    : ""}
+                            </div>
+                        </td>
+                    </tr>
+                `).join("");
+            };
+
+            const renderTelegramDiagnosticsQueue = (queueItems) => {
+                const rows = document.getElementById("telegramDiagnosticsQueueRows");
+                if (!rows) {
+                    return;
+                }
+
+                if (!Array.isArray(queueItems) || !queueItems.length) {
+                    rows.innerHTML = "<tr><td colspan='6' class='text-secondary'>Nenhum item ativo ou esgotado para o filtro selecionado.</td></tr>";
+                    return;
+                }
+
+                rows.innerHTML = queueItems.map((item) => `
+                    <tr>
+                        <td>
+                            <div class="fw-semibold">${escapeHtml(item.leadName || "-")}</div>
+                            <div class="small text-secondary">#${escapeHtml(String(item.leadId || "-"))} | ${escapeHtml(item.boardLabel || "-")} | ${escapeHtml(item.stageName || "-")}</div>
+                        </td>
+                        <td class="small">${escapeHtml(item.directionLabel || "-")}</td>
+                        <td><span class="badge text-bg-secondary">${escapeHtml(item.statusLabel || "-")}</span></td>
+                        <td class="small">${escapeHtml(String(item.attemptCount || 0))} / ${escapeHtml(String(item.maxAttempts || 0))}</td>
+                        <td class="small">${escapeHtml(item.nextAttemptAt || "-")}</td>
+                        <td class="text-end">
+                            <div class="d-flex flex-wrap justify-content-end gap-2">
+                                <button type="button" class="btn btn-sm btn-outline-primary" data-telegram-open-lead="${escapeHtml(String(item.leadId || 0))}">Ver lead</button>
+                                <button type="button" class="btn btn-sm btn-outline-warning" data-telegram-retry-queue="${escapeHtml(String(item.queueItemId || 0))}">Reprocessar</button>
+                                ${item.conversationUrl
+                                    ? `<a class="btn btn-sm btn-outline-secondary" href="${escapeHtml(item.conversationUrl)}" target="_blank" rel="noopener noreferrer">Abrir no Chatwoot</a>`
+                                    : ""}
+                            </div>
+                        </td>
+                    </tr>
+                `).join("");
+            };
+
+            const renderTelegramDiagnosticsIncidents = (incidents) => {
+                const rows = document.getElementById("telegramDiagnosticsIncidentRows");
+                if (!rows) {
+                    return;
+                }
+
+                if (!Array.isArray(incidents) || !incidents.length) {
+                    rows.innerHTML = "<tr><td colspan='4' class='text-secondary'>Nenhum incidente recente retornado pelo Telegram Bridge.</td></tr>";
+                    return;
+                }
+
+                rows.innerHTML = incidents.map((item) => `
+                    <tr>
+                        <td class="small">${escapeHtml(item.occurredAt || "-")}</td>
+                        <td class="small">${escapeHtml(item.stage || "-")}</td>
+                        <td class="small">
+                            <div class="fw-semibold">${escapeHtml(item.errorCode || "-")}</div>
+                            <div>${escapeHtml(item.message || "-")}</div>
+                        </td>
+                        <td class="small"><code>${escapeHtml(item.correlationId || "-")}</code></td>
+                    </tr>
+                `).join("");
+            };
+
+            const loadTelegramDiagnostics = async (showLoadingMessage = false) => {
+                const { boardType: diagnosticsBoardType, limit } = getTelegramDiagnosticsFilters();
+                const safeLimit = Number.isFinite(limit) ? Math.min(Math.max(limit, 1), 50) : defaultTelegramDiagnosticsLimit;
+                const query = new URLSearchParams();
+                if (diagnosticsBoardType) {
+                    query.set("boardType", diagnosticsBoardType);
+                }
+
+                query.set("issueLimit", String(safeLimit));
+                query.set("queueLimit", String(safeLimit));
+
+                if (showLoadingMessage) {
+                    setTelegramDiagnosticsAlert("Carregando diagnostico do Telegram...", "secondary");
+                }
+
+                const response = await fetch(`${endpoint.telegramDiagnostics}?${query.toString()}`, {
+                    headers: { Accept: "application/json" }
+                });
+
+                let data = null;
+                try { data = await response.json(); } catch { }
+                if (!response.ok || !data?.success) {
+                    throw new Error(data?.message || "Nao foi possivel carregar o diagnostico do Telegram.");
+                }
+
+                renderTelegramDiagnosticsSummary(data.summary || {});
+                renderTelegramBridgeSummary(data.bridge || {});
+                renderTelegramDiagnosticsIssues(data.recentIssues || []);
+                renderTelegramDiagnosticsQueue(data.recentQueueItems || []);
+                renderTelegramDiagnosticsIncidents(data.bridge?.recentIncidents || []);
+
+                if (!data.enabled) {
+                    setTelegramDiagnosticsAlert("Automacao Telegram desabilitada neste ambiente. Os dados exibidos refletem apenas o estado local salvo.", "warning");
+                } else if (!data.mirrorMessagesEnabled) {
+                    setTelegramDiagnosticsAlert("Automacao Telegram ativa, mas o espelhamento bidirecional ainda esta desabilitado neste ambiente.", "warning");
+                } else if (data.bridge?.available) {
+                    setTelegramDiagnosticsAlert(`Escopo atual: ${data.scope?.boardLabel || "Clientes e prestadores"}. Snapshot do Bridge em ${data.bridge.generatedAt || "-"}.`, "secondary");
+                } else {
+                    setTelegramDiagnosticsAlert(data.bridge?.message || "Diagnostico local carregado sem resposta do Telegram Bridge.", "warning");
+                }
 
                 return data;
             };
@@ -913,6 +1290,7 @@
             };
 
             const fillDetails = (lead) => {
+                const telegram = lead.telegram || {};
                 const chatwoot = lead.chatwoot || {};
                 const conversationLink = document.getElementById("openLeadChatwootConversationBtn");
                 document.getElementById("detailsName").textContent = lead.name || "-";
@@ -925,6 +1303,17 @@
                 document.getElementById("detailsAddress").textContent = [lead.postalCode, lead.city].filter(Boolean).join(" / ") || "-";
                 document.getElementById("detailsSource").textContent = lead.source || "-";
                 document.getElementById("detailsPriority").textContent = lead.priority || "-";
+                document.getElementById("detailsTelegramOrigin").textContent = telegram.originLabel || (lead.source || "-");
+                document.getElementById("detailsTelegramUpdatedAt").textContent = telegram.updatedAt || "-";
+                document.getElementById("detailsTelegramChatbotConversationId").textContent = telegram.chatbotConversationId || "-";
+                document.getElementById("detailsTelegramChannelConversationId").textContent = telegram.channelConversationId || "-";
+                document.getElementById("detailsTelegramChatId").textContent = telegram.telegramChatId || "-";
+                document.getElementById("detailsTelegramClientId").textContent = telegram.clientId || "-";
+                document.getElementById("detailsTelegramClientEmail").textContent = telegram.clientEmail || "-";
+                document.getElementById("detailsTelegramServiceRequestId").textContent = telegram.serviceRequestId || "-";
+                document.getElementById("detailsTelegramHumanHandoffStartedAt").textContent = telegram.humanHandoffStartedAt || "-";
+                document.getElementById("detailsTelegramLastMessageSyncedAt").textContent = telegram.lastTelegramMessageSyncedAt || "-";
+                document.getElementById("detailsTelegramLastChatwootMessageSyncedAt").textContent = telegram.lastChatwootMessageSyncedAt || "-";
                 document.getElementById("detailsChatwootContactId").textContent = chatwoot.contactId || "-";
                 document.getElementById("detailsChatwootConversationId").textContent = chatwoot.conversationId || "-";
                 document.getElementById("detailsChatwootInboxId").textContent = chatwoot.inboxId || "-";
@@ -1293,6 +1682,94 @@
                         detailsModal?.show();
                     } catch (error) {
                         setDiagnosticsAlert(error.message || "Nao foi possivel carregar o lead selecionado.", "danger");
+                    }
+                }
+            });
+
+            telegramDiagnosticsDrawerEl?.addEventListener("show.bs.offcanvas", async () => {
+                resetTelegramDiagnosticsTables();
+                try {
+                    await loadTelegramDiagnostics(true);
+                } catch (error) {
+                    setTelegramDiagnosticsAlert(error.message || "Nao foi possivel carregar o diagnostico do Telegram.", "danger");
+                }
+            });
+
+            document.getElementById("applyTelegramDiagnosticsFiltersBtn")?.addEventListener("click", async () => {
+                try {
+                    await loadTelegramDiagnostics(true);
+                } catch (error) {
+                    setTelegramDiagnosticsAlert(error.message || "Nao foi possivel aplicar os filtros do diagnostico Telegram.", "danger");
+                }
+            });
+
+            document.getElementById("resetTelegramDiagnosticsFiltersBtn")?.addEventListener("click", async () => {
+                const boardScopeInput = document.getElementById("telegramDiagnosticsBoardScope");
+                const limitInput = document.getElementById("telegramDiagnosticsLimit");
+                if (boardScopeInput) {
+                    boardScopeInput.value = defaultTelegramDiagnosticsBoardScope;
+                }
+
+                if (limitInput) {
+                    limitInput.value = String(defaultTelegramDiagnosticsLimit);
+                }
+
+                try {
+                    await loadTelegramDiagnostics(true);
+                } catch (error) {
+                    setTelegramDiagnosticsAlert(error.message || "Nao foi possivel limpar os filtros do diagnostico Telegram.", "danger");
+                }
+            });
+
+            document.getElementById("refreshTelegramDiagnosticsBtn")?.addEventListener("click", async () => {
+                try {
+                    await loadTelegramDiagnostics(true);
+                } catch (error) {
+                    setTelegramDiagnosticsAlert(error.message || "Nao foi possivel atualizar o diagnostico do Telegram.", "danger");
+                }
+            });
+
+            telegramDiagnosticsDrawerEl?.addEventListener("click", async (event) => {
+                const retryButton = event.target.closest("[data-telegram-retry-queue]");
+                if (retryButton) {
+                    const queueItemId = Number(retryButton.getAttribute("data-telegram-retry-queue") || "0");
+                    if (!queueItemId) {
+                        return;
+                    }
+
+                    retryButton.setAttribute("disabled", "disabled");
+                    try {
+                        const response = await postJson(endpoint.telegramRetryQueue(queueItemId), {});
+                        setTelegramDiagnosticsAlert(response.message || "Retentativa Telegram enfileirada.", "success");
+                        if (currentLead?.id === response.leadId) {
+                            currentLead = await loadLeadDetails(response.leadId);
+                            fillDetails(currentLead);
+                        }
+
+                        await loadTelegramDiagnostics();
+                    } catch (error) {
+                        setTelegramDiagnosticsAlert(error.message || "Nao foi possivel enfileirar a retentativa Telegram.", "danger");
+                    } finally {
+                        retryButton.removeAttribute("disabled");
+                    }
+
+                    return;
+                }
+
+                const openLeadButton = event.target.closest("[data-telegram-open-lead]");
+                if (openLeadButton) {
+                    const leadId = Number(openLeadButton.getAttribute("data-telegram-open-lead") || "0");
+                    if (!leadId) {
+                        return;
+                    }
+
+                    try {
+                        currentLead = await loadLeadDetails(leadId);
+                        fillDetails(currentLead);
+                        telegramDiagnosticsDrawer?.hide();
+                        detailsModal?.show();
+                    } catch (error) {
+                        setTelegramDiagnosticsAlert(error.message || "Nao foi possivel carregar o lead selecionado.", "danger");
                     }
                 }
             });

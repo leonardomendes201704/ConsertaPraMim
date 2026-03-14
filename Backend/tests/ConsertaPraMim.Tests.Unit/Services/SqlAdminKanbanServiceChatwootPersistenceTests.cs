@@ -182,6 +182,43 @@ WHERE object_id = OBJECT_ID('dbo.cpm_web_chatwoot_backfill_checkpoints')
 """;
 
         Assert.Equal(1, Convert.ToInt32(backfillIndexCommand.ExecuteScalar()));
+
+        using var telegramColumnsCommand = connection.CreateCommand();
+        telegramColumnsCommand.CommandText = """
+SELECT c.name
+FROM sys.columns c
+INNER JOIN sys.objects o ON o.object_id = c.object_id
+WHERE o.type = 'U' AND o.name = 'cpm_web_telegram_funil_links'
+ORDER BY c.column_id;
+""";
+
+        var telegramColumnNames = new List<string>();
+        using (var reader = telegramColumnsCommand.ExecuteReader())
+        {
+            while (reader.Read())
+            {
+                telegramColumnNames.Add(reader.GetString(0));
+            }
+        }
+
+        Assert.Contains("ChatbotConversationId", telegramColumnNames);
+        Assert.Contains("LeadId", telegramColumnNames);
+        Assert.Contains("BoardType", telegramColumnNames);
+        Assert.Contains("ChannelConversationId", telegramColumnNames);
+        Assert.Contains("TelegramChatId", telegramColumnNames);
+        Assert.Contains("ClientId", telegramColumnNames);
+        Assert.Contains("ClientEmail", telegramColumnNames);
+        Assert.Contains("ServiceRequestId", telegramColumnNames);
+
+        using var telegramUniqueIndexCommand = connection.CreateCommand();
+        telegramUniqueIndexCommand.CommandText = """
+SELECT COUNT(1)
+FROM sys.indexes
+WHERE object_id = OBJECT_ID('dbo.cpm_web_telegram_funil_links')
+  AND name = 'UX_cpm_web_telegram_funil_links_conversation';
+""";
+
+        Assert.Equal(1, Convert.ToInt32(telegramUniqueIndexCommand.ExecuteScalar()));
     }
 
     [Fact(DisplayName = "UpdateLeadChatwootSync deve persistir e ler vinculo do Chatwoot no lead")]
@@ -262,6 +299,177 @@ WHERE Id = @leadId;
         Assert.Equal("failed", reader.GetString(3));
         Assert.Equal(secondSyncAt, reader.GetDateTime(4));
         Assert.True(reader.IsDBNull(5));
+    }
+
+    [Fact(DisplayName = "UpsertTelegramLead deve persistir e expor vinculo Telegram no detalhe do lead")]
+    public void UpsertTelegramLead_DevePersistirEExporVinculoTelegramNoDetalhe()
+    {
+        using var database = new LocalDbKanbanDatabaseScope();
+        if (!database.IsAvailable)
+        {
+            return;
+        }
+
+        var service = CreateService(database.ConnectionString);
+        var chatbotConversationId = Guid.Parse("7d46e080-26f0-4a78-ae9c-50f75951ed88");
+        var clientId = Guid.Parse("9c7cbf35-0b16-4f3b-a68b-697b7b66c5d3");
+        var serviceRequestId = Guid.Parse("84eec1a7-e7dc-4f8f-a0c6-b0f6a3fec3fb");
+
+        var result = service.UpsertTelegramLead(new AdminKanbanTelegramLeadUpsertRequest
+        {
+            BoardType = AdminKanbanBoardTypes.Clients,
+            ChatbotConversationId = chatbotConversationId,
+            ChannelConversationId = "telegram-client-001",
+            TelegramChatId = 5513997114422,
+            ClientId = clientId,
+            ClientName = "Ricardo Almeida",
+            ClientEmail = "ricardo@email.com",
+            ServiceRequestId = serviceRequestId,
+            ServiceCategory = "Eletricista",
+            PostalCode = "11701-200",
+            City = "Praia Grande",
+            StatusNote = "Lead criado pelo bot Telegram para clientes.",
+            InternalNotes = "Contexto inicial da conversa Telegram.",
+            LastContactAt = new DateTime(2026, 3, 14, 12, 30, 0, DateTimeKind.Utc)
+        });
+
+        Assert.True(result.Created);
+
+        var synced = service.UpdateLeadChatwootSync(result.LeadId, new AdminKanbanLeadChatwootSyncUpdateRequest
+        {
+            ChatwootContactId = 901,
+            ChatwootConversationId = 902,
+            ChatwootInboxId = 1,
+            ChatwootSyncStatus = "synced",
+            ChatwootLastSyncAt = new DateTime(2026, 3, 14, 12, 35, 0, DateTimeKind.Utc)
+        });
+
+        Assert.True(synced);
+
+        var details = service.GetLeadDetails(result.LeadId);
+
+        Assert.NotNull(details);
+        Assert.Equal("Telegram", details!.Source);
+        Assert.Equal(chatbotConversationId, details.Telegram.ChatbotConversationId);
+        Assert.Equal("telegram-client-001", details.Telegram.ChannelConversationId);
+        Assert.Equal(5513997114422, details.Telegram.TelegramChatId);
+        Assert.Equal(clientId, details.Telegram.ClientId);
+        Assert.Equal("ricardo@email.com", details.Telegram.ClientEmail);
+        Assert.Equal(serviceRequestId, details.Telegram.ServiceRequestId);
+        Assert.True(details.Telegram.UpdatedAt.HasValue);
+        Assert.Equal(902, details.Chatwoot.ConversationId);
+        Assert.Contains(details.History, item => item.EventType == "telegram_lead_criado");
+
+        using var connection = new SqlConnection(database.ConnectionString);
+        connection.Open();
+
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+SELECT ChatbotConversationId, ChannelConversationId, TelegramChatId, ClientId, ClientEmail, ServiceRequestId
+FROM dbo.cpm_web_telegram_funil_links
+WHERE LeadId = @leadId;
+""";
+        command.Parameters.Add(new SqlParameter("@leadId", SqlDbType.Int) { Value = result.LeadId });
+
+        using var reader = command.ExecuteReader();
+        Assert.True(reader.Read());
+        Assert.Equal(chatbotConversationId, reader.GetGuid(0));
+        Assert.Equal("telegram-client-001", reader.GetString(1));
+        Assert.Equal(5513997114422L, reader.GetInt64(2));
+        Assert.Equal(clientId, reader.GetGuid(3));
+        Assert.Equal("ricardo@email.com", reader.GetString(4));
+        Assert.Equal(serviceRequestId, reader.GetGuid(5));
+    }
+
+    [Fact(DisplayName = "Diagnostico Telegram deve resumir fila e permitir retentativa manual")]
+    public void TelegramDiagnostics_DeveResumirFilaEPermitirRetentativaManual()
+    {
+        using var database = new LocalDbKanbanDatabaseScope();
+        if (!database.IsAvailable)
+        {
+            return;
+        }
+
+        var service = CreateService(database.ConnectionString);
+        var chatbotConversationId = Guid.Parse("b90f7527-b32c-4387-b8c2-a689d0f6edc9");
+        var clientId = Guid.Parse("c5e77036-6175-4cc4-8d6f-93fe0a1d3ec3");
+        var referenceUtc = new DateTime(2026, 3, 14, 16, 0, 0, DateTimeKind.Utc);
+
+        var upsert = service.UpsertTelegramLead(new AdminKanbanTelegramLeadUpsertRequest
+        {
+            BoardType = AdminKanbanBoardTypes.Clients,
+            ChatbotConversationId = chatbotConversationId,
+            ChannelConversationId = "telegram-client-diagnostics",
+            TelegramChatId = 5513997000001,
+            ClientId = clientId,
+            ClientName = "Lead Diagnostico Telegram",
+            ClientEmail = "diagnostico.telegram@teste.com",
+            ServiceCategory = "Eletricista",
+            City = "Praia Grande",
+            StatusNote = "Lead criado para validar diagnostico Telegram.",
+            LastContactAt = referenceUtc
+        });
+
+        var touched = service.TouchTelegramLeadLink(upsert.LeadId, new AdminKanbanTelegramLinkTouchRequest
+        {
+            HumanHandoffStartedAt = referenceUtc.AddMinutes(3),
+            LastTelegramMessageSyncedAt = referenceUtc.AddMinutes(1),
+            LastChatwootMessageSyncedAt = referenceUtc.AddMinutes(2)
+        });
+
+        Assert.True(touched);
+
+        var queued = service.EnqueueTelegramDeliveryQueueItem(new AdminKanbanTelegramDeliveryQueueEnqueueRequest
+        {
+            LeadId = upsert.LeadId,
+            Direction = TelegramDeliveryDirections.TelegramToChatwoot,
+            DeliveryKey = "telegram-diagnostics-001",
+            PayloadJson = """{"message":"teste"}""",
+            ChatwootConversationId = 902,
+            TelegramChatId = 5513997000001,
+            NextAttemptAt = referenceUtc,
+            MaxAttempts = 5,
+            LastError = "Falha inicial de teste"
+        });
+
+        var acquired = service.AcquireDueTelegramDeliveryQueueItems(10, referenceUtc.AddMinutes(1), "worker-telegram-1");
+        Assert.Single(acquired);
+        Assert.Equal(queued.Id, acquired[0].Id);
+
+        var deadLetter = service.FinalizeTelegramDeliveryQueueItem(new AdminKanbanTelegramDeliveryQueueFinalizeRequest
+        {
+            QueueItemId = queued.Id,
+            FinalStatus = TelegramDeliveryQueueStatuses.DeadLetter,
+            FinalizedAt = referenceUtc.AddMinutes(2),
+            LastError = "Falha definitiva de teste",
+            WorkerInstance = "worker-telegram-1"
+        });
+
+        Assert.NotNull(deadLetter);
+        Assert.Equal(TelegramDeliveryQueueStatuses.DeadLetter, deadLetter!.Status);
+
+        var diagnostics = service.GetTelegramDiagnostics(AdminKanbanBoardTypes.Clients, 10, 10);
+
+        Assert.Equal(1, diagnostics.TotalTelegramLeads);
+        Assert.Equal(1, diagnostics.LeadsWithInboundMirror);
+        Assert.Equal(1, diagnostics.LeadsWithOutboundMirror);
+        Assert.Equal(1, diagnostics.HumanHandoffCount);
+        Assert.Equal(0, diagnostics.ActiveQueueCount);
+        Assert.Equal(1, diagnostics.DeadLetterCount);
+        Assert.Contains(diagnostics.RecentIssues, item => item.QueueItemId == queued.Id && item.Status == TelegramDeliveryQueueStatuses.DeadLetter);
+        Assert.Contains(diagnostics.RecentQueueItems, item => item.QueueItemId == queued.Id && item.Status == TelegramDeliveryQueueStatuses.DeadLetter);
+
+        var requeued = service.RequeueTelegramDeliveryQueueItem(queued.Id, referenceUtc.AddMinutes(5), "admin-manual");
+
+        Assert.NotNull(requeued);
+        Assert.Equal(TelegramDeliveryQueueStatuses.Retrying, requeued!.Status);
+        Assert.Equal("admin-manual", requeued.WorkerInstance);
+        Assert.Equal(referenceUtc.AddMinutes(5), requeued.NextAttemptAt);
+
+        var diagnosticsAfterRetry = service.GetTelegramDiagnostics(AdminKanbanBoardTypes.Clients, 10, 10);
+        Assert.Equal(1, diagnosticsAfterRetry.ActiveQueueCount);
+        Assert.Equal(0, diagnosticsAfterRetry.DeadLetterCount);
+        Assert.Contains(diagnosticsAfterRetry.RecentQueueItems, item => item.QueueItemId == queued.Id && item.Status == TelegramDeliveryQueueStatuses.Retrying);
     }
 
     [Fact(DisplayName = "Fila de sincronizacao Chatwoot deve enfileirar, adquirir e finalizar item")]
@@ -548,6 +756,102 @@ WHERE ScopeKey = @scopeKey;
         Assert.Equal("completed", reader.GetString(2));
     }
 
+    [Fact(DisplayName = "UpsertTelegramLead deve criar lead cliente e reaproveitar o vinculo da conversa")]
+    public void UpsertTelegramLead_DeveCriarEAtualizarLeadComIdempotenciaPorConversa()
+    {
+        using var database = new LocalDbKanbanDatabaseScope();
+        if (!database.IsAvailable)
+        {
+            return;
+        }
+
+        var service = CreateService(database.ConnectionString);
+        var chatbotConversationId = Guid.NewGuid();
+        var clientId = Guid.NewGuid();
+        var serviceRequestId = Guid.NewGuid();
+
+        var created = service.UpsertTelegramLead(new AdminKanbanTelegramLeadUpsertRequest
+        {
+            BoardType = AdminKanbanBoardTypes.Clients,
+            ChatbotConversationId = chatbotConversationId,
+            ChannelConversationId = "telegram-chat-001",
+            TelegramChatId = 778899,
+            ClientId = clientId,
+            ClientName = "Ricardo Telegram",
+            ClientEmail = "ricardo.telegram@teste.com",
+            ServiceRequestId = serviceRequestId,
+            ServiceCategory = "Eletricista",
+            PostalCode = "11701-200",
+            City = "Praia Grande",
+            StatusNote = "Lead criado pelo bot Telegram.",
+            InternalNotes = "Origem automatica do bot Telegram.",
+            LastContactAt = new DateTime(2026, 3, 14, 1, 10, 0, DateTimeKind.Utc)
+        });
+
+        Assert.True(created.Created);
+
+        var updated = service.UpsertTelegramLead(new AdminKanbanTelegramLeadUpsertRequest
+        {
+            BoardType = AdminKanbanBoardTypes.Clients,
+            ChatbotConversationId = chatbotConversationId,
+            ChannelConversationId = "telegram-chat-001",
+            TelegramChatId = 778899,
+            ClientId = clientId,
+            ClientName = "Ricardo Telegram Atualizado",
+            ClientEmail = "ricardo.telegram@teste.com",
+            ServiceRequestId = serviceRequestId,
+            ServiceCategory = "Eletricista residencial",
+            PostalCode = "11701-200",
+            City = "Praia Grande",
+            StatusNote = "Lead atualizado automaticamente pelo bot Telegram.",
+            InternalNotes = "Reentrada da conversa Telegram.",
+            LastContactAt = new DateTime(2026, 3, 14, 1, 20, 0, DateTimeKind.Utc)
+        });
+
+        Assert.False(updated.Created);
+        Assert.Equal(created.LeadId, updated.LeadId);
+
+        var details = service.GetLeadDetails(created.LeadId);
+        Assert.NotNull(details);
+        Assert.Equal("Ricardo Telegram Atualizado", details!.Name);
+        Assert.Equal("ricardo.telegram@teste.com", details.Email);
+        Assert.Equal("Eletricista residencial", details.ServiceCategory);
+        Assert.Equal("Praia Grande", details.City);
+        Assert.Equal("Telegram", details.Source);
+        Assert.Contains(details.History, item => item.EventType == "telegram_lead_criado");
+        Assert.Contains(details.History, item => item.EventType == "telegram_lead_atualizado");
+
+        using var connection = new SqlConnection(database.ConnectionString);
+        connection.Open();
+
+        using var countCommand = connection.CreateCommand();
+        countCommand.CommandText = """
+SELECT COUNT(1)
+FROM dbo.cpm_web_telegram_funil_links
+WHERE ChatbotConversationId = @chatbotConversationId;
+""";
+        countCommand.Parameters.Add(new SqlParameter("@chatbotConversationId", SqlDbType.UniqueIdentifier) { Value = chatbotConversationId });
+        Assert.Equal(1, Convert.ToInt32(countCommand.ExecuteScalar()));
+
+        using var linkCommand = connection.CreateCommand();
+        linkCommand.CommandText = """
+SELECT LeadId, BoardType, ChannelConversationId, TelegramChatId, ClientId, ClientEmail, ServiceRequestId
+FROM dbo.cpm_web_telegram_funil_links
+WHERE ChatbotConversationId = @chatbotConversationId;
+""";
+        linkCommand.Parameters.Add(new SqlParameter("@chatbotConversationId", SqlDbType.UniqueIdentifier) { Value = chatbotConversationId });
+
+        using var reader = linkCommand.ExecuteReader();
+        Assert.True(reader.Read());
+        Assert.Equal(created.LeadId, reader.GetInt32(0));
+        Assert.Equal(AdminKanbanBoardTypes.Clients, reader.GetString(1));
+        Assert.Equal("telegram-chat-001", reader.GetString(2));
+        Assert.Equal(778899L, reader.GetInt64(3));
+        Assert.Equal(clientId, reader.GetGuid(4));
+        Assert.Equal("ricardo.telegram@teste.com", reader.GetString(5));
+        Assert.Equal(serviceRequestId, reader.GetGuid(6));
+    }
+
     [Fact(DisplayName = "Diagnostico Chatwoot deve resumir status, erros recentes e fila operacional")]
     public void ChatwootDiagnostics_DeveRetornarResumoErrosEFila()
     {
@@ -759,6 +1063,110 @@ WHERE ScopeKey = @scopeKey;
         Assert.Contains("telefone", reader.GetString(1), StringComparison.OrdinalIgnoreCase);
         Assert.Equal("sha256=assinatura-recente", reader.GetString(2));
         Assert.True(reader.IsDBNull(3));
+    }
+
+    [Fact(DisplayName = "PurgeTelegramDeliveryPayloads deve expurgar payloads antigos processados")]
+    public void PurgeTelegramDeliveryPayloads_DeveExpurgarPayloadsAntigosProcessados()
+    {
+        using var database = new LocalDbKanbanDatabaseScope();
+        if (!database.IsAvailable)
+        {
+            return;
+        }
+
+        var service = CreateService(database.ConnectionString);
+        var leadId = service.CreateLead(new AdminKanbanLeadUpsertRequest
+        {
+            BoardType = AdminKanbanBoardTypes.Clients,
+            StageId = 0,
+            Name = "Ricardo Almeida",
+            Source = "Telegram"
+        });
+
+        var oldQueueItem = service.EnqueueTelegramDeliveryQueueItem(new AdminKanbanTelegramDeliveryQueueEnqueueRequest
+        {
+            LeadId = leadId,
+            Direction = TelegramDeliveryDirections.TelegramToChatwoot,
+            DeliveryKey = "telegram:old",
+            PayloadJson = """{"message":"telefone 13997114422"}""",
+            TelegramChatId = 5513997114422,
+            NextAttemptAt = new DateTime(2026, 3, 1, 12, 0, 0, DateTimeKind.Utc),
+            MaxAttempts = 5,
+            LastError = "Erro ao entregar para o chat 5513997114422."
+        });
+        _ = service.FinalizeTelegramDeliveryQueueItem(new AdminKanbanTelegramDeliveryQueueFinalizeRequest
+        {
+            QueueItemId = oldQueueItem.Id,
+            FinalStatus = TelegramDeliveryQueueStatuses.Processed,
+            FinalizedAt = new DateTime(2026, 3, 1, 12, 5, 0, DateTimeKind.Utc),
+            ClearLastError = false,
+            WorkerInstance = "test"
+        });
+
+        var newQueueItem = service.EnqueueTelegramDeliveryQueueItem(new AdminKanbanTelegramDeliveryQueueEnqueueRequest
+        {
+            LeadId = leadId,
+            Direction = TelegramDeliveryDirections.ChatwootToTelegram,
+            DeliveryKey = "chatwoot:new",
+            PayloadJson = """{"message":"telefone 13997114422"}""",
+            TelegramChatId = 5513997114422,
+            NextAttemptAt = new DateTime(2026, 3, 13, 12, 0, 0, DateTimeKind.Utc),
+            MaxAttempts = 5,
+            LastError = "Erro recente"
+        });
+        _ = service.FinalizeTelegramDeliveryQueueItem(new AdminKanbanTelegramDeliveryQueueFinalizeRequest
+        {
+            QueueItemId = newQueueItem.Id,
+            FinalStatus = TelegramDeliveryQueueStatuses.Processed,
+            FinalizedAt = new DateTime(2026, 3, 13, 12, 5, 0, DateTimeKind.Utc),
+            ClearLastError = false,
+            WorkerInstance = "test"
+        });
+
+        using (var seedConnection = new SqlConnection(database.ConnectionString))
+        {
+            seedConnection.Open();
+            using var seedCommand = seedConnection.CreateCommand();
+            seedCommand.CommandText = """
+UPDATE dbo.cpm_web_telegram_delivery_queue
+SET CreatedAt = CASE
+        WHEN Id = @oldQueueItemId THEN @oldCreatedAt
+        WHEN Id = @newQueueItemId THEN @newCreatedAt
+        ELSE CreatedAt
+    END
+WHERE Id IN (@oldQueueItemId, @newQueueItemId);
+""";
+            seedCommand.Parameters.AddRange(
+            [
+                new SqlParameter("@oldQueueItemId", SqlDbType.Int) { Value = oldQueueItem.Id },
+                new SqlParameter("@newQueueItemId", SqlDbType.Int) { Value = newQueueItem.Id },
+                new SqlParameter("@oldCreatedAt", SqlDbType.DateTime2) { Value = new DateTime(2026, 3, 1, 12, 0, 0, DateTimeKind.Utc) },
+                new SqlParameter("@newCreatedAt", SqlDbType.DateTime2) { Value = new DateTime(2026, 3, 13, 12, 0, 0, DateTimeKind.Utc) }
+            ]);
+            _ = seedCommand.ExecuteNonQuery();
+        }
+
+        var affectedRows = service.PurgeTelegramDeliveryPayloads(
+            new DateTime(2026, 3, 10, 0, 0, 0, DateTimeKind.Utc),
+            new DateTime(2026, 3, 14, 0, 0, 0, DateTimeKind.Utc));
+
+        Assert.Equal(1, affectedRows);
+
+        using var connection = new SqlConnection(database.ConnectionString);
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT Id, PayloadJson, PayloadPurgedAt FROM dbo.cpm_web_telegram_delivery_queue ORDER BY Id;";
+
+        using var reader = command.ExecuteReader();
+        Assert.True(reader.Read());
+        Assert.Equal(oldQueueItem.Id, reader.GetInt32(0));
+        Assert.Equal("{\"redacted\":true,\"reason\":\"retention\"}", reader.GetString(1));
+        Assert.False(reader.IsDBNull(2));
+
+        Assert.True(reader.Read());
+        Assert.Equal(newQueueItem.Id, reader.GetInt32(0));
+        Assert.Contains("telefone", reader.GetString(1), StringComparison.OrdinalIgnoreCase);
+        Assert.True(reader.IsDBNull(2));
     }
 
     private static SqlAdminKanbanService CreateService(string connectionString)

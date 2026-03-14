@@ -23,10 +23,10 @@ public class TelegramChatbotControllerSqliteIntegrationTests
     /// <summary>
     /// Cenario: seguranca do endpoint de chatbot Telegram exposto na API.
     /// Passos: inspeciona atributos do controller por reflexao.
-    /// Resultado esperado: acesso restrito a usuarios com role Client.
+    /// Resultado esperado: acesso restrito a usuarios com role Client ou Provider.
     /// </summary>
-    [Fact(DisplayName = "Telegram chatbot controller sqlite integracao | Controller | Deve exigir role client")]
-    public void Controller_ShouldRequireClientRole()
+    [Fact(DisplayName = "Telegram chatbot controller sqlite integracao | Controller | Deve exigir role client ou provider")]
+    public void Controller_ShouldRequireClientOrProviderRole()
     {
         var authorize = typeof(TelegramChatbotController)
             .GetCustomAttributes(typeof(AuthorizeAttribute), inherit: true)
@@ -34,7 +34,45 @@ public class TelegramChatbotControllerSqliteIntegrationTests
             .FirstOrDefault();
 
         Assert.NotNull(authorize);
-        Assert.Equal("Client", authorize!.Roles);
+        Assert.Equal("Client,Provider", authorize!.Roles);
+    }
+
+    /// <summary>
+    /// Cenario: prestador autenticado abre sessao propria e consulta historico da conversa.
+    /// Passos: cria usuario Provider, abre sessao e consulta o historico usando o mesmo contexto autenticado.
+    /// Resultado esperado: a trilha conversacional do provider e aceita pela API sem depender do papel Client.
+    /// </summary>
+    [Fact(DisplayName = "Telegram chatbot controller sqlite integracao | Provider | Deve abrir sessao e consultar historico do proprio contexto")]
+    public async Task ProviderFlow_ShouldOpenSessionAndReadOwnHistory()
+    {
+        var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();
+        using (connection)
+        await using (context)
+        {
+            var repository = new ChatbotConversationRepository(context);
+            var service = new TelegramChatbotConversationService(repository);
+            var controller = new TelegramChatbotController(service);
+
+            var providerId = Guid.NewGuid();
+            await SeedProviderAsync(context, providerId);
+            controller.ControllerContext = BuildUserControllerContext(providerId, "Provider");
+
+            var openResult = await controller.OpenSession(new TelegramChatbotOpenSessionRequest
+            {
+                Channel = "telegram",
+                ChannelConversationId = "provider-chat-session"
+            });
+
+            var openOk = Assert.IsType<OkObjectResult>(openResult);
+            var conversation = Assert.IsType<TelegramChatbotConversationDto>(openOk.Value);
+            Assert.Equal(providerId, conversation.ClientId);
+
+            var historyResult = await controller.GetConversationHistory(conversation.Id);
+            var historyOk = Assert.IsType<OkObjectResult>(historyResult);
+            var history = Assert.IsType<TelegramChatbotConversationHistoryDto>(historyOk.Value);
+
+            Assert.Equal(providerId, history.Conversation.ClientId);
+        }
     }
 
     /// <summary>
@@ -326,6 +364,28 @@ public class TelegramChatbotControllerSqliteIntegrationTests
     }
 
     /// <summary>
+    /// Cenario: prestador tenta consumir endpoint operacional exclusivo de cliente.
+    /// Passos: autentica como Provider e consulta a carteira de pedidos do chatbot.
+    /// Resultado esperado: endpoint responde Forbidden para preservar a separacao entre os fluxos de cliente e prestador.
+    /// </summary>
+    [Fact(DisplayName = "Telegram chatbot controller sqlite integracao | Provider | Deve bloquear endpoints client-only")]
+    public async Task ClientOnlyEndpoint_ShouldReturnForbid_WhenAuthenticatedUserIsProvider()
+    {
+        var (context, connection) = InfrastructureTestDbContextFactory.CreateSqliteContext();
+        using (connection)
+        await using (context)
+        {
+            var providerId = Guid.NewGuid();
+            await SeedProviderAsync(context, providerId);
+
+            var controller = BuildControllerWithScheduling(context, providerId, "Provider");
+            var result = await controller.GetClientOrders(take: 5, skip: 0);
+
+            Assert.IsType<ForbidResult>(result);
+        }
+    }
+
+    /// <summary>
     /// Cenario: cliente agenda visita em lote e o fluxo deve sincronizar create no Google Calendar.
     /// Passos: prepara pedido/prestador elegiveis, executa endpoint batch e usa fake do Google para create.
     /// Resultado esperado: agendamento criado, fake chamado uma vez e trilha `ServiceAppointmentCalendarSync` persistida como Synced.
@@ -457,11 +517,16 @@ public class TelegramChatbotControllerSqliteIntegrationTests
 
     private static ControllerContext BuildClientControllerContext(Guid clientId)
     {
+        return BuildUserControllerContext(clientId, "Client");
+    }
+
+    private static ControllerContext BuildUserControllerContext(Guid userId, string role)
+    {
         var identity = new ClaimsIdentity(
             new[]
             {
-                new Claim(ClaimTypes.NameIdentifier, clientId.ToString()),
-                new Claim(ClaimTypes.Role, "Client")
+                new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
+                new Claim(ClaimTypes.Role, role)
             },
             authenticationType: "TestAuth");
 
@@ -501,7 +566,8 @@ public class TelegramChatbotControllerSqliteIntegrationTests
 
     private static TelegramChatbotController BuildControllerWithScheduling(
         ConsertaPraMim.Infrastructure.Data.ConsertaPraMimDbContext context,
-        Guid clientId)
+        Guid authenticatedUserId,
+        string role = "Client")
     {
         var conversationRepository = new ChatbotConversationRepository(context);
         var conversationService = new TelegramChatbotConversationService(conversationRepository);
@@ -526,7 +592,7 @@ public class TelegramChatbotControllerSqliteIntegrationTests
 
         var controller = new TelegramChatbotController(conversationService, schedulingService)
         {
-            ControllerContext = BuildClientControllerContext(clientId)
+            ControllerContext = BuildUserControllerContext(authenticatedUserId, role)
         };
 
         return controller;

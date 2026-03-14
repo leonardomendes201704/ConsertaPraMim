@@ -111,6 +111,7 @@ public sealed class ChatwootLeadSyncService : IChatwootLeadSyncService
         long? contactId = lead.Chatwoot.ContactId;
         long? conversationId = lead.Chatwoot.ConversationId;
         var createdConversation = false;
+        var isTelegramLead = IsTelegramLead(lead);
 
         try
         {
@@ -160,6 +161,16 @@ public sealed class ChatwootLeadSyncService : IChatwootLeadSyncService
                     createdConversation
                         ? $"Conversa #{conversationId.Value} criada no inbox #{inboxId} do Chatwoot."
                         : $"Conversa #{conversationId.Value} reaproveitada no inbox #{inboxId} do Chatwoot.");
+            }
+
+            if (isTelegramLead && !lead.Chatwoot.ConversationId.HasValue && conversationId.HasValue)
+            {
+                _kanbanService.AddHistoryEvent(
+                    leadId,
+                    "chatwoot_bootstrap_via_telegram",
+                    createdConversation
+                        ? $"Lead Telegram conectado ao Chatwoot com conversa #{conversationId.Value} criada no inbox #{inboxId}."
+                        : $"Lead Telegram conectado ao Chatwoot reaproveitando a conversa #{conversationId.Value} no inbox #{inboxId}.");
             }
 
             if (lead.Chatwoot.SyncStatus != ChatwootSyncStatuses.Synced)
@@ -697,6 +708,12 @@ public sealed class ChatwootLeadSyncService : IChatwootLeadSyncService
 
     private static string? NullIfWhiteSpace(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static bool IsTelegramLead(AdminKanbanLeadDetailsRecord lead)
+    {
+        var sourceMapping = ChatwootLeadSourceMappings.Resolve(lead.Source);
+        return string.Equals(sourceMapping?.Slug, "telegram", StringComparison.OrdinalIgnoreCase);
+    }
 
     private static string TrimTo(string? value, int maxLength)
     {

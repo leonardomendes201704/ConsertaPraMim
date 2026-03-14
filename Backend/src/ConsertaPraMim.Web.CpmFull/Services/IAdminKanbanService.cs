@@ -6,6 +6,16 @@ public interface IAdminKanbanService
     IReadOnlyList<AdminKanbanStageRecord> GetStages(string boardType);
     AdminKanbanLeadDetailsRecord? GetLeadDetails(int leadId);
     int CreateLead(AdminKanbanLeadUpsertRequest request);
+    AdminKanbanTelegramLeadUpsertResult UpsertTelegramLead(AdminKanbanTelegramLeadUpsertRequest request);
+    int? FindLeadIdByTelegramChatbotConversationId(Guid chatbotConversationId);
+    int? FindLeadIdByTelegramChatId(long telegramChatId);
+    bool TouchTelegramLeadLink(int leadId, AdminKanbanTelegramLinkTouchRequest request);
+    AdminKanbanTelegramDeliveryQueueItemRecord EnqueueTelegramDeliveryQueueItem(AdminKanbanTelegramDeliveryQueueEnqueueRequest request);
+    IReadOnlyList<AdminKanbanTelegramDeliveryQueueItemRecord> AcquireDueTelegramDeliveryQueueItems(int batchSize, DateTime attemptStartedAtUtc, string workerInstance);
+    AdminKanbanTelegramDeliveryQueueItemRecord? FinalizeTelegramDeliveryQueueItem(AdminKanbanTelegramDeliveryQueueFinalizeRequest request);
+    AdminKanbanTelegramDeliveryQueueItemRecord? RequeueTelegramDeliveryQueueItem(int queueItemId, DateTime nextAttemptAtUtc, string workerInstance);
+    int PurgeTelegramDeliveryPayloads(DateTime createdBeforeUtc, DateTime purgedAtUtc);
+    AdminKanbanTelegramDiagnosticsSnapshot GetTelegramDiagnostics(string? boardType, int issueLimit, int queueLimit);
     bool UpdateLead(int leadId, AdminKanbanLeadUpsertRequest request);
     bool UpdateLeadChatwootSync(int leadId, AdminKanbanLeadChatwootSyncUpdateRequest request);
     int? FindLeadIdByChatwootConversationId(long conversationId);

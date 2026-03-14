@@ -1,6 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using ConsertaPraMim.Web.TelegramBridge.Models;
 using ConsertaPraMim.Web.TelegramBridge.Options;
+using ConsertaPraMim.Web.TelegramBridge.Security;
 using Microsoft.Extensions.Options;
 
 namespace ConsertaPraMim.Web.TelegramBridge.Services;
@@ -58,7 +59,7 @@ public sealed class TelegramConversationStore : ITelegramConversationStore
 
             if (string.IsNullOrWhiteSpace(state.Title))
             {
-                state.Title = $"Chat {chatId}";
+                state.Title = TelegramSecuritySanitizer.BuildMaskedChatLabel(chatId);
             }
 
             if (state.UpdatedAtUtc == default)
@@ -77,7 +78,8 @@ public sealed class TelegramConversationStore : ITelegramConversationStore
         string senderDisplayName,
         string? text,
         DateTimeOffset sentAtUtc,
-        IReadOnlyList<ChatAttachmentDto> attachments)
+        IReadOnlyList<ChatAttachmentDto> attachments,
+        string? messageId = null)
     {
         var state = _conversations.GetOrAdd(chatId, static id => new ConversationState(id));
         lock (state.Sync)
@@ -89,11 +91,11 @@ public sealed class TelegramConversationStore : ITelegramConversationStore
 
             if (string.IsNullOrWhiteSpace(state.Title))
             {
-                state.Title = $"Chat {chatId}";
+                state.Title = TelegramSecuritySanitizer.BuildMaskedChatLabel(chatId);
             }
 
             var message = new ChatMessageDto(
-                Id: Guid.NewGuid().ToString("N"),
+                Id: string.IsNullOrWhiteSpace(messageId) ? Guid.NewGuid().ToString("N") : messageId.Trim(),
                 ChatId: chatId,
                 IsOutgoing: isOutgoing,
                 SenderDisplayName: string.IsNullOrWhiteSpace(senderDisplayName)
@@ -155,7 +157,7 @@ public sealed class TelegramConversationStore : ITelegramConversationStore
         public ConversationState(long chatId)
         {
             ChatId = chatId;
-            Title = $"Chat {chatId}";
+            Title = TelegramSecuritySanitizer.BuildMaskedChatLabel(chatId);
             LastMessagePreview = "Sem mensagens";
             UpdatedAtUtc = DateTimeOffset.UtcNow;
         }

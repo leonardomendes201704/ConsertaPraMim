@@ -1,5 +1,6 @@
 ﻿using ConsertaPraMim.Web.TelegramBridge.Models;
 using ConsertaPraMim.Web.TelegramBridge.Options;
+using ConsertaPraMim.Web.TelegramBridge.Security;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.Extensions.Options;
@@ -12,6 +13,7 @@ public sealed class TelegramAttachmentStorage : ITelegramAttachmentStorage
     private readonly ILogger<TelegramAttachmentStorage> _logger;
     private readonly FileExtensionContentTypeProvider _contentTypeProvider = new();
     private readonly string _webRootPath;
+    private readonly string _uploadsRootPath;
     private readonly long _maxAttachmentBytes;
 
     public TelegramAttachmentStorage(
@@ -26,6 +28,7 @@ public sealed class TelegramAttachmentStorage : ITelegramAttachmentStorage
         _webRootPath = string.IsNullOrWhiteSpace(hostEnvironment.WebRootPath)
             ? Path.Combine(hostEnvironment.ContentRootPath, "wwwroot")
             : hostEnvironment.WebRootPath;
+        _uploadsRootPath = Path.Combine(_webRootPath, "uploads", "telegram-bridge");
     }
 
     public async Task<IReadOnlyList<StoredLocalFile>> SavePanelFilesAsync(
@@ -150,12 +153,49 @@ public sealed class TelegramAttachmentStorage : ITelegramAttachmentStorage
                 _logger.LogWarning(
                     exception,
                     "Falha ao baixar anexo do Telegram. ChatId: {ChatId}, FileId: {FileId}",
-                    chatId,
+                    TelegramSecuritySanitizer.MaskChatId(chatId),
                     candidate.FileId);
             }
         }
 
         return results;
+    }
+
+    public int PurgeExpiredFiles(DateTime purgeBeforeUtc)
+    {
+        if (!Directory.Exists(_uploadsRootPath))
+        {
+            return 0;
+        }
+
+        var normalizedPurgeBeforeUtc = purgeBeforeUtc.Kind == DateTimeKind.Utc
+            ? purgeBeforeUtc
+            : purgeBeforeUtc.ToUniversalTime();
+        var deletedFiles = 0;
+
+        foreach (var filePath in Directory.EnumerateFiles(_uploadsRootPath, "*", SearchOption.AllDirectories))
+        {
+            try
+            {
+                if (File.GetLastWriteTimeUtc(filePath) >= normalizedPurgeBeforeUtc)
+                {
+                    continue;
+                }
+
+                File.Delete(filePath);
+                deletedFiles++;
+            }
+            catch (Exception exception)
+            {
+                _logger.LogWarning(
+                    exception,
+                    "Falha ao remover anexo Telegram expirado. File={FileName}",
+                    Path.GetFileName(filePath));
+            }
+        }
+
+        DeleteEmptyDirectories(_uploadsRootPath);
+        return deletedFiles;
     }
 
     private static List<IncomingFileCandidate> BuildCandidates(TelegramMessage message)
@@ -282,6 +322,20 @@ public sealed class TelegramAttachmentStorage : ITelegramAttachmentStorage
         }
 
         return "document";
+    }
+
+    private static void DeleteEmptyDirectories(string rootPath)
+    {
+        foreach (var directory in Directory.GetDirectories(rootPath, "*", SearchOption.AllDirectories)
+                     .OrderByDescending(path => path.Length))
+        {
+            if (Directory.EnumerateFileSystemEntries(directory).Any())
+            {
+                continue;
+            }
+
+            Directory.Delete(directory, recursive: false);
+        }
     }
 
     private sealed record IncomingFileCandidate(string FileId, string FileName, string? ContentType, string MediaKind);

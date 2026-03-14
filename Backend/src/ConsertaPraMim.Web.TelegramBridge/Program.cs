@@ -3,17 +3,24 @@ using ConsertaPraMim.Web.TelegramBridge.Options;
 using ConsertaPraMim.Web.TelegramBridge.Services;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.Configure<TelegramBridgeOptions>(
-    builder.Configuration.GetSection(TelegramBridgeOptions.SectionName));
+builder.Services.AddSingleton<IValidateOptions<TelegramBridgeOptions>, TelegramBridgeOptionsValidator>();
+builder.Services.AddOptions<TelegramBridgeOptions>()
+    .Bind(builder.Configuration.GetSection(TelegramBridgeOptions.SectionName))
+    .ValidateOnStart();
 builder.Services.Configure<TelegramBridgeAiOptions>(
     builder.Configuration.GetSection(TelegramBridgeAiOptions.SectionName));
 builder.Services.Configure<TelegramChatbotRolloutOptions>(
     builder.Configuration.GetSection(TelegramChatbotRolloutOptions.SectionName));
 builder.Services.Configure<TelegramChatbotObservabilityOptions>(
     builder.Configuration.GetSection(TelegramChatbotObservabilityOptions.SectionName));
+builder.Services.AddSingleton<IValidateOptions<TelegramAutomationOptions>, TelegramAutomationOptionsValidator>();
+builder.Services.AddOptions<TelegramAutomationOptions>()
+    .Bind(builder.Configuration.GetSection(TelegramAutomationOptions.SectionName))
+    .ValidateOnStart();
 
 builder.Services.Configure<FormOptions>(options =>
 {
@@ -21,6 +28,7 @@ builder.Services.Configure<FormOptions>(options =>
 });
 
 builder.Services.AddControllersWithViews();
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddSignalR();
 builder.Services.AddMemoryCache();
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -67,12 +75,33 @@ builder.Services.AddHttpClient("TelegramBotApi", client =>
     client.Timeout = TimeSpan.FromSeconds(100);
 });
 builder.Services.AddHttpClient();
+builder.Services.AddHttpClient<ITelegramLeadAutomationClient, TelegramLeadAutomationClient>((serviceProvider, client) =>
+{
+    var options = serviceProvider.GetRequiredService<IOptions<TelegramAutomationOptions>>().Value;
+    if (Uri.TryCreate(options.CpmFullBaseUrl, UriKind.Absolute, out var baseUri))
+    {
+        client.BaseAddress = baseUri;
+    }
+
+    client.Timeout = options.GetRequestTimeout();
+});
+builder.Services.AddHttpClient<ITelegramMessageAutomationClient, TelegramMessageAutomationClient>((serviceProvider, client) =>
+{
+    var options = serviceProvider.GetRequiredService<IOptions<TelegramAutomationOptions>>().Value;
+    if (Uri.TryCreate(options.CpmFullBaseUrl, UriKind.Absolute, out var baseUri))
+    {
+        client.BaseAddress = baseUri;
+    }
+
+    client.Timeout = options.GetRequestTimeout();
+});
 
 builder.Services.AddSingleton<ITelegramConversationStore, TelegramConversationStore>();
 builder.Services.AddSingleton<ITelegramBotApiClient, TelegramBotApiClient>();
 builder.Services.AddSingleton<ITelegramAttachmentStorage, TelegramAttachmentStorage>();
 builder.Services.AddSingleton<ITelegramChatRealtimeNotifier, TelegramChatRealtimeNotifier>();
 builder.Services.AddSingleton<ITelegramChatService, TelegramChatService>();
+builder.Services.AddSingleton<ITelegramHumanHandoffStateService, TelegramHumanHandoffStateService>();
 builder.Services.AddScoped<ITelegramBridgeAuthApiClient, TelegramBridgeAuthApiClient>();
 builder.Services.AddScoped<ITelegramChatbotApiClient, TelegramChatbotApiClient>();
 builder.Services.AddSingleton<ITelegramAiGateway, OpenAiTelegramGateway>();
@@ -82,6 +111,7 @@ builder.Services.AddSingleton<TelegramServiceRequestTriageEngine>();
 builder.Services.AddSingleton<TelegramSchedulingNaturalLanguageParser>();
 builder.Services.AddScoped<ITelegramChatbotOrchestrator, TelegramChatbotOrchestrator>();
 builder.Services.AddHostedService<TelegramLongPollingBackgroundService>();
+builder.Services.AddHostedService<TelegramAttachmentRetentionWorker>();
 
 var app = builder.Build();
 

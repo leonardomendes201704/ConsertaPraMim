@@ -72,6 +72,15 @@
 
 ### Done
 
+- [ST-087 - QA, homologacao e rollback da trilha Telegram no CPM Full](STORIES/DONE/ST-087-qa-homologacao-rollback-telegram-cpmfull.md)
+- [ST-086 - Seguranca e conformidade da trilha Telegram no CPM Full](STORIES/DONE/ST-086-seguranca-conformidade-telegram-cpmfull.md)
+- [ST-085 - Diagnostico operacional do Telegram no CPM Full](STORIES/DONE/ST-085-diagnostico-operacional-telegram-cpmfull.md)
+- [ST-084 - Handoff humano do Chatwoot volta para o Telegram](STORIES/DONE/ST-084-chatwoot-handoff-telegram.md)
+- [ST-083 - Mensagens do Telegram espelhadas para o Chatwoot](STORIES/DONE/ST-083-telegram-message-mirror-chatwoot.md)
+- [ST-082 - Lead Telegram abre Chatwoot na inbox correta do CPM Full](STORIES/DONE/ST-082-telegram-bootstrap-chatwoot-inbox-correta.md)
+- [ST-081 - Bot Telegram cria lead de prestadores no funil CPM Full](STORIES/DONE/ST-081-bot-telegram-cria-lead-prestadores-funil-cpmfull.md)
+- [ST-080 - Vinculo Telegram no detalhe do lead do CPM Full](STORIES/DONE/ST-080-vinculo-telegram-no-detalhe-do-lead-cpmfull.md)
+- [ST-079 - Bot Telegram cria lead de clientes no funil CPM Full](STORIES/DONE/ST-079-bot-telegram-cria-lead-clientes-funil-cpmfull.md)
 - [ST-078 - Diagramador ER em ReactFlow no Portal Admin](STORIES/DONE/ST-078-diagramador-er-reactflow-portal-admin.md)
 - [ST-077 - Mapa relacional das tabelas do banco no Portal Admin](STORIES/DONE/ST-077-mapa-relacional-tabelas-banco-admin.md)
 - [ST-021 - API de chamados para portal prestador](STORIES/DONE/ST-021-api-chamados-portal-prestador.md)

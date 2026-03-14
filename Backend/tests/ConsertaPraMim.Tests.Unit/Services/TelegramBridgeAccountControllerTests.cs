@@ -79,6 +79,56 @@ public class TelegramBridgeAccountControllerTests
     }
 
     /// <summary>
+    /// Cenario: prestador informa credenciais validas na tela de login do Telegram Bridge.
+    /// Passos: API de autenticacao retorna perfil Provider com token e controller executa SignInAsync.
+    /// Resultado esperado: sessao criada normalmente para o bridge, preservando o role Provider.
+    /// </summary>
+    [Fact(DisplayName = "Telegram bridge account controller | Login | Deve autenticar prestador compativel com a bridge")]
+    public async Task Login_ShouldSignInAndRedirect_WhenProviderCredentialsAreValid()
+    {
+        var authApiClientMock = new Mock<ITelegramBridgeAuthApiClient>();
+        authApiClientMock
+            .Setup(client => client.LoginAsync("prestador@teste.com", "SenhaForte123", It.IsAny<CancellationToken>()))
+            .ReturnsAsync((new TelegramBridgeLoginResponse
+            {
+                UserId = Guid.NewGuid(),
+                Token = "token-api-provider",
+                UserName = "Prestador Teste",
+                Role = "Provider",
+                Email = "prestador@teste.com"
+            }, (string?)null));
+
+        var authenticationServiceMock = new Mock<IAuthenticationService>();
+        ClaimsPrincipal? signedPrincipal = null;
+        authenticationServiceMock
+            .Setup(service => service.SignInAsync(
+                It.IsAny<HttpContext>(),
+                It.IsAny<string>(),
+                It.IsAny<ClaimsPrincipal>(),
+                It.IsAny<AuthenticationProperties?>()))
+            .Callback<HttpContext, string, ClaimsPrincipal, AuthenticationProperties?>((_, _, principal, _) =>
+            {
+                signedPrincipal = principal;
+            })
+            .Returns(Task.CompletedTask);
+
+        var controller = CreateController(authApiClientMock.Object, authenticationServiceMock.Object);
+        var model = new LoginViewModel
+        {
+            Email = "prestador@teste.com",
+            Password = "SenhaForte123"
+        };
+
+        var result = await controller.Login(model, CancellationToken.None);
+
+        var redirect = Assert.IsType<RedirectToActionResult>(result);
+        Assert.Equal("Index", redirect.ActionName);
+        Assert.Equal("Home", redirect.ControllerName);
+        Assert.NotNull(signedPrincipal);
+        Assert.Equal("Provider", signedPrincipal!.FindFirstValue(ClaimTypes.Role));
+    }
+
+    /// <summary>
     /// Cenario: cliente informa senha invalida no login da bridge.
     /// Passos: API de autenticacao retorna falha sem payload de usuario.
     /// Resultado esperado: controller retorna View com mensagem de erro e sem criar sessao.

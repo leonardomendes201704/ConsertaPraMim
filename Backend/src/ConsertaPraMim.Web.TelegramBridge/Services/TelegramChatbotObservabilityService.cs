@@ -1,4 +1,5 @@
 using ConsertaPraMim.Web.TelegramBridge.Models;
+using ConsertaPraMim.Web.TelegramBridge.Security;
 
 namespace ConsertaPraMim.Web.TelegramBridge.Services;
 
@@ -186,13 +187,16 @@ public sealed class TelegramChatbotObservabilityService : ITelegramChatbotObserv
         lock (_sync)
         {
             IncrementError(errorCode);
+            var sanitizedMessage = string.IsNullOrWhiteSpace(message)
+                ? null
+                : TelegramSecuritySanitizer.SanitizeMessage(message, 500);
 
             _recentIncidents.Enqueue(new TelegramChatbotRecentIncidentDto(
                 OccurredAtUtc: DateTime.UtcNow,
                 Stage: string.IsNullOrWhiteSpace(stage) ? "unknown" : stage,
                 ErrorCode: string.IsNullOrWhiteSpace(errorCode) ? "unknown" : errorCode,
                 CorrelationId: correlationId,
-                Message: message));
+                Message: sanitizedMessage));
 
             while (_recentIncidents.Count > IncidentSampleLimit)
             {

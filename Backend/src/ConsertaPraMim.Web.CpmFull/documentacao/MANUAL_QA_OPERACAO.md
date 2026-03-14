@@ -4,6 +4,223 @@
 
 Orientar validacao funcional e operacao basica do projeto `ConsertaPraMim.Web.CpmFull`.
 
+## Automacao Telegram -> funis clientes/prestadores -> Chatwoot
+
+### Objetivo desta etapa
+
+- Transformar a conversa qualificada do bot Telegram em lead operacional nos boards `clientes` e `prestadores` do CPM Full.
+- Reaproveitar a sincronizacao atual do Chatwoot a partir do lead criado ou atualizado no funil.
+- Espelhar mensagens Telegram para a conversa humana do Chatwoot com fila e idempotencia.
+- Permitir handoff humano do Chatwoot de volta para o Telegram com rastreabilidade no lead.
+
+### Escopo entregue nesta fatia
+
+- O `ConsertaPraMim.Web.TelegramBridge` passou a chamar uma automacao interna do CPM Full apos a qualificacao do fluxo autenticado.
+- O CPM Full cria ou atualiza lead no board `clientes` quando o usuario autenticado e `Client` e no board `prestadores` quando o usuario autenticado e `Provider`.
+- A deduplicacao desta fase e feita por `ChatbotConversationId`.
+- O lead nasce com `Source = Telegram`, contexto inicial da conversa e vinculo tecnico persistido em `dbo.cpm_web_telegram_funil_links`.
+- O detalhe do lead no Kanban agora exibe a secao `Vinculo Telegram` com `ChatbotConversationId`, `ChannelConversationId`, `TelegramChatId`, `ClientId`, `ClientEmail`, `ServiceRequestId`, `HumanHandoffStartedAt`, `LastTelegramMessageSyncedAt`, `LastChatwootMessageSyncedAt` e horario da ultima atualizacao do vinculo.
+- O Chatwoot continua sendo alimentado pela trilha ja existente do lead do Kanban, agora com bootstrap operacional dedicado para leads Telegram no inbox correto de `clientes` ou `prestadores`.
+- O `TelegramChatbotController` da API agora aceita sessao, mensagens, snapshots, actions, estado e historico para `Client` e `Provider`, mantendo pedidos/agendamentos como `client-only`.
+- Mensagens recebidas do Telegram agora podem ser espelhadas para o Chatwoot pela fila `telegram_to_chatwoot`, com deduplicacao por `ChannelMessageId`.
+- Mensagens humanas publicas do Chatwoot agora podem voltar para o Telegram pela fila `chatwoot_to_telegram`, com endpoint interno protegido no bridge e handoff humano marcado no lead.
+- O detalhe do lead e o drawer `Diagnostico Telegram` passaram a exibir `TelegramChatId`, `ClientEmail` e erros operacionais em formato mascarado, sem expor PII bruta para suporte.
+- O CPM Full agora expurga payloads antigos da fila `dbo.cpm_web_telegram_delivery_queue`, enquanto o bridge remove anexos antigos de `wwwroot/uploads/telegram-bridge` dentro da janela de retention configurada.
+- O bot publicado continua operando por long polling; nesta fase nao existe webhook publico do Telegram exposto na internet. Se a estrategia migrar para webhook no futuro, a validacao de segredo/origem passa a ser obrigatoria na borda antes de aceitar o payload.
+- O enriquecimento automatico do telefone do usuario continua pendente porque o contrato autenticado atual do bridge ainda nao expoe esse dado.
+
+### Configuracao minima
+
+No `ConsertaPraMim.Web.TelegramBridge`, configurar a secao `TelegramAutomation`:
+
+- `Enabled`
+- `ClientsAutomationEnabled`
+- `ProvidersAutomationEnabled`
+- `MirrorMessagesEnabled`
+- `RequireHumanHandoffForOutbound`
+- `CpmFullBaseUrl`
+- `SharedSecret`
+- `RequestTimeoutSeconds`
+
+No `ConsertaPraMim.Web.TelegramBridge`, configurar tambem a secao `TelegramBridge`:
+
+- `AttachmentRetentionEnabled`
+- `AttachmentRetentionDays`
+- `AttachmentRetentionIntervalMinutes`
+
+No `ConsertaPraMim.Web.CpmFull`, configurar a secao `TelegramAutomation`:
+
+- `Enabled`
+- `ClientsAutomationEnabled`
+- `ProvidersAutomationEnabled`
+- `MirrorMessagesEnabled`
+- `RequireHumanHandoffForOutbound`
+- `TelegramBridgeBaseUrl`
+- `SharedSecret`
+- `RequestTimeoutSeconds`
+- `DeliveryWorkerEnabled`
+- `DeliveryWorkerIntervalSeconds`
+- `DeliveryWorkerBatchSize`
+- `DeliveryQueueMaxAttempts`
+- `DeliveryPayloadCleanupEnabled`
+- `DeliveryPayloadRetentionDays`
+- `DeliveryPayloadCleanupIntervalMinutes`
+
+### Comportamento esperado
+
+- Com `TelegramAutomation:Enabled=false`, o bot continua operando normalmente e apenas o pedido e criado na API principal.
+- Com `TelegramAutomation:Enabled=true`, a trilha do bot deve:
+- abrir ou reaproveitar `service request` apenas para `Client`;
+- chamar `POST /api/integrations/telegram/automation/lead` no CPM Full;
+- criar ou atualizar lead no board correto (`clientes` ou `prestadores`);
+- sincronizar o lead com o Chatwoot via `ChatwootLeadSyncService`;
+- criar ou reaproveitar conversa no inbox correto do Chatwoot para o board atual;
+- registrar historico `Bootstrap Telegram no Chatwoot` quando o lead ainda nao possuía conversa vinculada.
+- A mesma `ChatbotConversationId` deve reaproveitar o mesmo lead no CPM Full.
+- O lead deve exibir `Source = Telegram` e historico do tipo `Lead criado via bot Telegram` / `Lead atualizado via bot Telegram`.
+- Fluxos autenticados como `Provider` nao devem abrir pedido de cliente nem consultar carteira/agendamentos do cliente.
+- Com `MirrorMessagesEnabled=true` nos dois lados, cada mensagem nova do Telegram deve ser enfileirada no CPM Full e entregue como mensagem `incoming` na conversa correta do Chatwoot.
+- A mesma mensagem do Telegram nao deve duplicar entrega quando o mesmo `ChannelMessageId` voltar a ser processado.
+- Quando um operador humano responder publicamente no Chatwoot em conversa originada do Telegram, o webhook do Chatwoot deve enfileirar a entrega para o Telegram.
+- O primeiro outbound humano deve marcar `HumanHandoffStartedAt` no vinculo do lead e registrar historico `Handoff humano iniciado`.
+- O bridge deve aceitar o envio humano apenas pelo endpoint interno `POST /api/internal/telegram/messages/send`, protegido por `X-Telegram-Automation-Key`.
+- Quando o handoff humano estiver ativo, a trilha web do bridge que passa pelo `ChatApiController` deve deixar de emitir nova resposta automatica para o `chatId` marcado.
+- O modal `Vinculo Telegram` e o drawer `Diagnostico Telegram` devem exibir `Chat ID Telegram`, `E-mail autenticado` e mensagens de erro apenas em formato mascarado.
+- O runtime atual do bot continua usando long polling; por isso nao existe webhook publico do Telegram para validar nesta fase. Os endpoints internos bridge <-> CPM Full continuam exigindo o mesmo `SharedSecret`.
+- Itens `processed` ou `dead_letter` antigos da fila `dbo.cpm_web_telegram_delivery_queue` devem ter `PayloadJson` redigido automaticamente pelo worker de retention, e anexos antigos do bridge devem ser removidos da pasta `uploads/telegram-bridge`.
+
+### Checklist de QA
+
+1. Configurar `TelegramAutomation` no bridge e no CPM Full com o mesmo `SharedSecret`.
+2. Subir `ConsertaPraMim.Web.CpmFull` e confirmar `GET /health`.
+3. Subir `ConsertaPraMim.Web.TelegramBridge`.
+4. Logar como cliente no bridge.
+5. Enviar mensagem de triagem suficiente para o bot abrir um pedido.
+6. Confirmar que o bot responde com a mensagem normal de `service_request_created`, sem regressao conversacional.
+7. Acessar `/admin/funil/clientes` no CPM Full.
+8. Confirmar a criacao do lead com `Source = Telegram`.
+9. Abrir o detalhe do lead e validar historico com `Lead criado via bot Telegram`.
+10. Confirmar que o modal exibe a secao `Vinculo Telegram` com `Origem automatizada = Telegram`.
+11. Validar no modal os campos `Conversa bot Telegram`, `Conversa do canal`, `Chat ID Telegram (mascarado)`, `Cliente vinculado`, `E-mail autenticado (mascarado)` e `Pedido vinculado`.
+12. Confirmar que o lead recebeu `StatusNote` e `InternalNotes` descrevendo a origem automatica.
+13. Validar que `Sync Chatwoot` foi atualizado pela trilha atual do Chatwoot.
+14. Abrir o Chatwoot e confirmar que a conversa foi criada ou reaproveitada no inbox `CPM Clientes`.
+15. Validar na conversa e no contato os atributos `CPM Canal de Origem = Telegram` e `CPM Canal de Origem Slug = telegram`.
+16. Reabrir o detalhe do lead e confirmar historico `Bootstrap Telegram no Chatwoot`.
+17. Reenviar mensagem na mesma conversa do bot, mantendo o contexto do pedido ja criado.
+18. Confirmar que o mesmo lead foi reaproveitado e recebeu historico `Lead atualizado via bot Telegram`.
+19. Consultar `dbo.cpm_web_telegram_funil_links` e validar um unico registro por `ChatbotConversationId`.
+20. Fazer logout e logar como prestador no bridge.
+21. Enviar mensagem com intencao de cadastro/reativacao, por exemplo `Sou eletricista em Praia Grande e quero entrar na plataforma`.
+22. Confirmar que o bridge nao tenta abrir pedido de cliente nem consultar agenda/pedidos do cliente.
+23. Acessar `/admin/funil/prestadores` no CPM Full.
+24. Confirmar a criacao ou atualizacao do lead com `Source = Telegram`.
+25. Validar no Chatwoot que a conversa foi aberta ou reaproveitada no inbox `CPM Prestadores`.
+26. Abrir o detalhe do lead e validar que o vinculo Telegram reaproveitou a mesma `ChatbotConversationId` e registrou o `ClientId`/`ClientEmail` autenticados do prestador por compatibilidade tecnica.
+27. Confirmar historico `Bootstrap Telegram no Chatwoot` tambem para o fluxo de prestadores quando o lead ainda nao tinha conversa vinculada.
+
+### Checklist complementar para espelhamento e handoff
+
+1. Habilitar `MirrorMessagesEnabled=true` no bridge e no CPM Full.
+2. Garantir que o lead Telegram ja possua conversa humana valida no Chatwoot.
+3. Enviar uma nova mensagem real no mesmo chat do Telegram apos a conversa humana ja existir.
+4. Confirmar no Chatwoot o recebimento de uma nova mensagem `incoming` correspondente ao texto enviado no Telegram.
+5. Reabrir o detalhe do lead e validar historico `Mensagem Telegram sincronizada para Chatwoot`.
+6. Validar no modal `Ultima msg Telegram sincronizada` preenchida.
+7. Reprocessar a mesma entrega pelo mesmo `ChannelMessageId` apenas em teste tecnico e confirmar ausencia de duplicidade na conversa do Chatwoot.
+8. No Chatwoot, enviar uma resposta humana publica para a conversa originada do Telegram.
+9. Confirmar que a mensagem chega no chat do Telegram do usuario.
+10. Reabrir o detalhe do lead e validar historico `Handoff humano iniciado` no primeiro outbound e `Mensagem humana sincronizada para Telegram`.
+11. Validar no modal `Handoff humano iniciado` e `Ultima msg Chatwoot sincronizada` preenchidos.
+
+### Troubleshooting
+
+- `401` na automacao interna: validar se bridge e CPM Full usam exatamente o mesmo `TelegramAutomation:SharedSecret`.
+- `409` com automacao desabilitada: conferir `TelegramAutomation:Enabled` e a flag correta (`ClientsAutomationEnabled` ou `ProvidersAutomationEnabled`) nos dois projetos.
+- Pedido criado, mas sem lead no CPM Full: revisar `TelegramAutomation:CpmFullBaseUrl`, reachability HTTP e logs do `TelegramLeadAutomationClient`.
+- Lead duplicado: validar se a mesma conversa esta preservando o mesmo `ChatbotConversationId` na trilha do chatbot.
+- Modal sem `Vinculo Telegram`: validar se existe registro em `dbo.cpm_web_telegram_funil_links` para o `LeadId` e se o detalhe do lead foi recarregado apos a automacao.
+- Lead Telegram caiu no inbox errado do Chatwoot: revisar `BoardType` do lead, `ClientsInboxId`, `ProvidersInboxId` e se o board atual no CPM Full esta coerente com o papel autenticado.
+- Lead Telegram sem historico `Bootstrap Telegram no Chatwoot`: validar se o lead ja possuia `ChatwootConversationId`; o evento so aparece quando o bootstrap precisa criar ou reaproveitar a conversa humana a partir do funil.
+- Lead sem telefone: comportamento esperado nesta fase; o contrato atual do bridge autenticado ainda nao expoe telefone do usuario para a automacao.
+- Prestador recebendo resposta de pedido/agendamento: validar se a publicacao contem a trilha `Provider` do `TelegramChatbotOrchestrator` e se o login do bridge carregou a claim `Role = Provider`.
+- Mensagem nova do Telegram nao apareceu no Chatwoot: validar `MirrorMessagesEnabled=true` nos dois projetos, o worker `TelegramDeliveryWorker`, a tabela `dbo.cpm_web_telegram_delivery_queue` e se o lead ja possui vinculo Telegram ativo.
+- Mensagem humana do Chatwoot nao voltou ao Telegram: validar se a mensagem no Chatwoot e publica, se o lead possui `TelegramChatId`, se o webhook inbound do Chatwoot esta saudavel e se o bridge aceita `POST /api/internal/telegram/messages/send`.
+- Fila presa em retentativa: revisar `LastError`, `AttemptCount`, `NextAttemptAt`, reachability entre CPM Full e bridge, e se `DeliveryQueueMaxAttempts` nao ja levou o item para `dead_letter`.
+- Bot continuou respondendo apos handoff humano: validar se `RequireHumanHandoffForOutbound=true`, se o primeiro outbound humano chegou a ativar o handoff e se a conversa esta passando pela trilha web controlada pelo `ChatApiController`.
+
+### Checklist complementar para diagnostico operacional
+
+1. Com `TelegramAutomation:Enabled=true`, acessar `/admin/funil/clientes` ou `/admin/funil/prestadores`.
+2. Abrir o drawer `Diagnostico Telegram`.
+3. Confirmar exibicao do resumo operacional com `Leads Telegram`, `Inbound espelhado`, `Outbound espelhado`, `Handoffs humanos`, `Fila ativa` e `Dead-letter`.
+4. Confirmar exibicao das metricas do Telegram Bridge com volume e latencia (`Msgs recebidas`, `Msgs enviadas`, `Com anexos`, `Handoffs no bot`, `Falhas de IA`, `P95 IA`).
+5. Validar que o drawer mostra incidentes recentes do bot com `Correlation ID`.
+6. Gerar uma falha controlada na entrega Telegram -> Chatwoot ou Chatwoot -> Telegram.
+7. Confirmar que a falha aparece em `Falhas recentes` e tambem em `Fila e dead-letter`.
+8. Acionar `Reprocessar` diretamente no item de fila.
+9. Confirmar retorno visual de sucesso e nova carga do drawer.
+10. Reabrir o detalhe do lead e validar historico `Entrega Telegram enfileirada` apos a retentativa manual.
+
+### Checklist complementar para seguranca e conformidade
+
+1. Forcar uma falha operacional na trilha Telegram contendo e-mail, telefone, token ou `chatId` no texto bruto.
+2. Abrir o drawer `Diagnostico Telegram` e confirmar que `Falhas recentes`, `Fila e dead-letter` e incidentes do bridge exibem apenas valores mascarados.
+3. Abrir o detalhe do lead e confirmar que `Chat ID Telegram (mascarado)` e `E-mail autenticado (mascarado)` nao expoem o valor bruto.
+4. Configurar `TelegramAutomation:DeliveryPayloadCleanupEnabled=true` no CPM Full com retention curta em ambiente local/QA.
+5. Inserir item antigo em `dbo.cpm_web_telegram_delivery_queue` com `Status = processed` ou `dead_letter`.
+6. Aguardar o worker de retention ou executa-lo manualmente reiniciando a aplicacao com a janela reduzida.
+7. Confirmar que `PayloadJson` virou `{\"redacted\":true,\"reason\":\"retention\"}` e `PayloadPurgedAt` foi preenchido em UTC.
+8. Configurar `TelegramBridge:AttachmentRetentionEnabled=true` com janela curta no bridge e criar um anexo antigo em `wwwroot/uploads/telegram-bridge`.
+9. Confirmar que o worker do bridge remove o arquivo fora da janela e limpa diretorios vazios.
+10. Validar que os endpoints internos `POST /api/integrations/telegram/automation/lead`, `POST /api/integrations/telegram/automation/message`, `POST /api/internal/telegram/messages/send` e `GET /api/internal/telegram/observability/dashboard` continuam recusando chamadas sem `X-Telegram-Automation-Key` valido.
+
+### Runbook de rotacao do token e segredo do bot
+
+1. Gerar novo token do bot no `@BotFather`, sem invalidar o antigo antes de preparar os dois lados da publicacao.
+2. Atualizar `TelegramBridge__BotToken` no ambiente do `ConsertaPraMim.Web.TelegramBridge`.
+3. Revisar e, se necessario, rotacionar tambem `TelegramAutomation__SharedSecret` no bridge e no CPM Full no mesmo change set.
+4. Reiniciar bridge e CPM Full em janela controlada.
+5. Validar login, conversa, criacao de lead, bootstrap Chatwoot, espelhamento inbound e outbound humano.
+6. Se houver migracao futura para webhook publico do Telegram, registrar o novo segredo/origem na borda e revalidar o fluxo antes de invalidar o token antigo.
+
+### Troubleshooting complementar do diagnostico e seguranca
+
+- Drawer sem metricas do Bridge: validar `TelegramAutomation:TelegramBridgeBaseUrl`, `TelegramAutomation:SharedSecret` e se o bridge publicou `GET /api/internal/telegram/observability/dashboard`.
+- Drawer com metricas locais mas sem snapshot do bridge: comportamento degradado esperado quando o bridge estiver indisponivel; revisar reachability HTTP entre CPM Full e bridge.
+- Reprocessar nao encontra o item: validar se o `queueItemId` ainda existe em `dbo.cpm_web_telegram_delivery_queue` e se o item nao foi limpo por reprocessamento concorrente.
+- `Correlation ID` vazio no diagnostico do bridge: validar se as chamadas do bridge para o CPM Full e do CPM Full para o bridge estao trafegando com `X-Correlation-ID` apos a publicacao da US-08.
+- Payload antigo nao foi redigido: validar `TelegramAutomation:DeliveryPayloadCleanupEnabled`, janela de retention, status do item (`processed`/`dead_letter`) e se `PayloadPurgedAt` ainda esta `NULL`.
+- Anexo antigo continua em disco no bridge: validar `TelegramBridge:AttachmentRetentionEnabled`, path `wwwroot/uploads/telegram-bridge`, horario UTC do arquivo e execucao do `TelegramAttachmentRetentionWorker`.
+- Endpoint interno aceitou chamada sem segredo: validar reverse proxy, se o header `X-Telegram-Automation-Key` esta sendo exigido pela aplicacao e se nao existe reescrita indevida na borda.
+
+### Checklist final de homologacao do epic Telegram
+
+1. Publicar `ConsertaPraMim.Web.CpmFull`, `ConsertaPraMim.Web.TelegramBridge` e API na branch alvo.
+2. Confirmar `TelegramAutomation:Enabled=true` nos dois lados e `Chatwoot:Enabled=true` no CPM Full.
+3. Validar fluxo `clientes`: abrir conversa autenticada, gerar lead, confirmar bootstrap no `CPM Clientes`, espelhar mensagem inbound e receber resposta humana.
+4. Validar fluxo `prestadores`: abrir conversa autenticada, gerar lead, confirmar bootstrap no `CPM Prestadores`, espelhar mensagem inbound e receber resposta humana.
+5. Reabrir o lead nos dois boards e confirmar `Vinculo Telegram`, `Sync Chatwoot`, `Ultima msg Telegram sincronizada`, `Ultima msg Chatwoot sincronizada` e `Handoff humano iniciado`.
+6. Abrir o drawer `Diagnostico Telegram` e confirmar metricas locais + snapshot do bridge, fila ativa, dead-letter e incidentes recentes.
+7. Simular indisponibilidade externa controlada no bridge ou no Chatwoot e confirmar item em `retrying`/`dead_letter` com reprocessamento manual funcionando.
+8. Confirmar mascaramento de `chatId`, e-mail e erros sensiveis no modal e no drawer.
+9. Confirmar retention de payloads e anexos em ambiente de QA com janela reduzida.
+10. Validar smoke final em producao/homologacao: criacao de lead, bootstrap Chatwoot, mensagem inbound, handoff humano e drawer de diagnostico.
+
+### Plano de rollback da trilha Telegram
+
+1. Se a falha afetar apenas criacao de lead automatica, desligar seletivamente:
+   - `TelegramAutomation:ClientsAutomationEnabled=false`
+   - `TelegramAutomation:ProvidersAutomationEnabled=false`
+2. Se a falha afetar espelhamento bidirecional, desligar seletivamente:
+   - `TelegramAutomation:MirrorMessagesEnabled=false` no bridge
+   - `TelegramAutomation:MirrorMessagesEnabled=false` no CPM Full
+3. Se a falha afetar apenas outbound humano, manter espelhamento inbound e desligar:
+   - `TelegramAutomation:RequireHumanHandoffForOutbound=false` para impedir takeover automatico
+   - ou `MirrorMessagesEnabled=false` quando precisar congelar toda a trilha bidirecional
+4. Em rollback parcial, o bot continua operando com a trilha conversacional propria e, para `Client`, o fluxo principal de `service request` segue funcional.
+5. Apos rollback, validar imediatamente login, envio/recebimento no bridge, abertura de pedido do cliente e ausencia de erros novos no drawer `Diagnostico Telegram`.
+
 ## Home - botao flutuante de WhatsApp
 
 ### Comportamento esperado
@@ -590,10 +807,12 @@ Equivalentes no deploy VPS:
 
 ### Limitacao atual conhecida
 
-- O `ConsertaPraMim.Web.TelegramBridge` ainda nao alimenta automaticamente os funis `clientes`/`prestadores` do CPM Full nem as inboxes do Chatwoot.
-- O bridge continua registrando a trilha conversacional propria (`ChatbotConversations`, `ChatbotMessages`, `ChatbotContextSnapshots`, `ChatbotActionLogs`) e, quando aplicavel, cria `service requests` pela API.
+- O `ConsertaPraMim.Web.TelegramBridge` ja alimenta automaticamente os funis `clientes` e `prestadores` do CPM Full, preservando a trilha conversacional propria (`ChatbotConversations`, `ChatbotMessages`, `ChatbotContextSnapshots`, `ChatbotActionLogs`) como origem tecnica da conversa.
+- O bot publicado ainda opera por long polling; nao existe webhook publico do Telegram exposto nesta fase.
+- O enriquecimento automatico de telefone do usuario continua pendente porque o contrato autenticado atual do bridge ainda nao expoe esse dado.
 
 ### Proxima evolucao documentada
 
-- A automacao Telegram -> CPM Full -> Chatwoot passa a ser tratada pelo documento `EPIC-TELEGRAM-001 - Automacao do Bot Telegram com Funis CPM e Chatwoot`.
-- O objetivo dessa nova trilha e criar/atualizar lead no funil a partir do bot, marcar `Source = Telegram`, abrir a conversa humana na inbox correta e preservar vinculo entre sessao do bot, lead e Chatwoot.
+- A automacao Telegram -> CPM Full -> Chatwoot continua sendo tratada pelo documento `EPIC-TELEGRAM-001 - Automacao do Bot Telegram com Funis CPM e Chatwoot`.
+- A base ja cobre configuracao, lead automatico de `clientes`, lead automatico de `prestadores`, vinculo tecnico visivel no admin, bootstrap Chatwoot, espelhamento bidirecional de mensagens, handoff humano e observabilidade ampliada.
+- O epic Telegram foi encerrado com a `US-10`, consolidando cobertura automatizada, checklist final de homologacao e plano de rollback por feature flags.

@@ -9,17 +9,21 @@ using Microsoft.AspNetCore.Mvc;
 namespace ConsertaPraMim.API.Controllers;
 
 /// <summary>
-/// Endpoints do chatbot Telegram autenticado para clientes.
+/// Endpoints do chatbot Telegram autenticado para clientes e prestadores.
 /// </summary>
 /// <remarks>
 /// Este controlador centraliza o contrato da conversa natural mediada por IA:
 /// abertura da sessao, registro de mensagens/eventos/contexto e consulta de historico.
+/// Os fluxos de sessao e trilha conversacional aceitam `Client` e `Provider`;
+/// consultas operacionais de pedidos/agenda continuam restritas a `Client`.
 /// </remarks>
-[Authorize(Roles = "Client")]
+[Authorize(Roles = "Client,Provider")]
 [ApiController]
 [Route("api/telegram-chatbot")]
 public class TelegramChatbotController : ControllerBase
 {
+    private const string ClientRole = "Client";
+
     private readonly ITelegramChatbotConversationService _telegramChatbotConversationService;
     private readonly ITelegramChatbotSchedulingService _telegramChatbotSchedulingService;
 
@@ -32,13 +36,13 @@ public class TelegramChatbotController : ControllerBase
     }
 
     /// <summary>
-    /// Abre ou retoma a sessao conversacional do cliente no canal Telegram.
+    /// Abre ou retoma a sessao conversacional do usuario autenticado no canal Telegram.
     /// </summary>
     /// <param name="request">Dados de sessao e contexto inicial da conversa.</param>
     /// <response code="200">Sessao criada ou retomada com sucesso.</response>
     /// <response code="400">Payload invalido ou regra de negocio nao atendida.</response>
     /// <response code="401">Token ausente/invalido.</response>
-    /// <response code="403">Usuario autenticado sem role Client.</response>
+    /// <response code="403">Usuario autenticado sem role `Client` ou `Provider`.</response>
     [HttpPost("session")]
     [ProducesResponseType(typeof(TelegramChatbotConversationDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -46,21 +50,16 @@ public class TelegramChatbotController : ControllerBase
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> OpenSession([FromBody] TelegramChatbotOpenSessionRequest request)
     {
-        var clientId = TryGetAuthenticatedClientId();
-        if (!clientId.HasValue)
+        if (!TryResolveAuthenticatedUser(out var authenticatedUserId, out var invalidUserResult))
         {
-            return Unauthorized(new
-            {
-                errorCode = "telegram_chatbot_invalid_client_claim",
-                message = "Nao foi possivel identificar o cliente autenticado."
-            });
+            return invalidUserResult!;
         }
 
         try
         {
             var session = await _telegramChatbotConversationService.OpenOrResumeConversationAsync(
                 new TelegramChatbotOpenConversationRequestDto(
-                    ClientId: clientId.Value,
+                    ClientId: authenticatedUserId,
                     Channel: request.Channel,
                     ChannelConversationId: request.ChannelConversationId,
                     Status: ChatbotConversationStatus.Active,
@@ -99,17 +98,12 @@ public class TelegramChatbotController : ControllerBase
         [FromRoute] Guid serviceRequestId,
         [FromQuery] int take = 5)
     {
-        var clientId = TryGetAuthenticatedClientId();
-        if (!clientId.HasValue)
+        if (!TryResolveAuthenticatedClient(out var clientId, out var invalidClientResult))
         {
-            return Unauthorized(new
-            {
-                errorCode = "telegram_chatbot_invalid_client_claim",
-                message = "Nao foi possivel identificar o cliente autenticado."
-            });
+            return invalidClientResult!;
         }
 
-        var result = await _telegramChatbotSchedulingService.GetEligibleProvidersAsync(clientId.Value, serviceRequestId, take);
+        var result = await _telegramChatbotSchedulingService.GetEligibleProvidersAsync(clientId, serviceRequestId, take);
         if (result.Success)
         {
             return Ok(result);
@@ -141,18 +135,13 @@ public class TelegramChatbotController : ControllerBase
         [FromRoute] Guid serviceRequestId,
         [FromBody] TelegramChatbotBatchScheduleVisitsRequest request)
     {
-        var clientId = TryGetAuthenticatedClientId();
-        if (!clientId.HasValue)
+        if (!TryResolveAuthenticatedClient(out var clientId, out var invalidClientResult))
         {
-            return Unauthorized(new
-            {
-                errorCode = "telegram_chatbot_invalid_client_claim",
-                message = "Nao foi possivel identificar o cliente autenticado."
-            });
+            return invalidClientResult!;
         }
 
         var batchRequest = new TelegramChatbotBatchScheduleRequestDto(
-            ClientId: clientId.Value,
+            ClientId: clientId,
             ServiceRequestId: serviceRequestId,
             Visits: request.Visits
                 .Select(visit => new TelegramChatbotBatchScheduleVisitRequestDto(
@@ -188,17 +177,12 @@ public class TelegramChatbotController : ControllerBase
         [FromQuery] int take = 5,
         [FromQuery] int skip = 0)
     {
-        var clientId = TryGetAuthenticatedClientId();
-        if (!clientId.HasValue)
+        if (!TryResolveAuthenticatedClient(out var clientId, out var invalidClientResult))
         {
-            return Unauthorized(new
-            {
-                errorCode = "telegram_chatbot_invalid_client_claim",
-                message = "Nao foi possivel identificar o cliente autenticado."
-            });
+            return invalidClientResult!;
         }
 
-        var result = await _telegramChatbotSchedulingService.GetClientOrdersAsync(clientId.Value, skip, take);
+        var result = await _telegramChatbotSchedulingService.GetClientOrdersAsync(clientId, skip, take);
         return result.Success
             ? Ok(result)
             : BadRequest(new { errorCode = result.ErrorCode, message = result.ErrorMessage });
@@ -219,17 +203,12 @@ public class TelegramChatbotController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetOrderStatus([FromRoute] Guid serviceRequestId)
     {
-        var clientId = TryGetAuthenticatedClientId();
-        if (!clientId.HasValue)
+        if (!TryResolveAuthenticatedClient(out var clientId, out var invalidClientResult))
         {
-            return Unauthorized(new
-            {
-                errorCode = "telegram_chatbot_invalid_client_claim",
-                message = "Nao foi possivel identificar o cliente autenticado."
-            });
+            return invalidClientResult!;
         }
 
-        var result = await _telegramChatbotSchedulingService.GetOrderStatusAsync(clientId.Value, serviceRequestId);
+        var result = await _telegramChatbotSchedulingService.GetOrderStatusAsync(clientId, serviceRequestId);
         if (result.Success)
         {
             return Ok(result);
@@ -258,17 +237,12 @@ public class TelegramChatbotController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetOrderDetails([FromRoute] Guid serviceRequestId)
     {
-        var clientId = TryGetAuthenticatedClientId();
-        if (!clientId.HasValue)
+        if (!TryResolveAuthenticatedClient(out var clientId, out var invalidClientResult))
         {
-            return Unauthorized(new
-            {
-                errorCode = "telegram_chatbot_invalid_client_claim",
-                message = "Nao foi possivel identificar o cliente autenticado."
-            });
+            return invalidClientResult!;
         }
 
-        var result = await _telegramChatbotSchedulingService.GetOrderDetailsAsync(clientId.Value, serviceRequestId);
+        var result = await _telegramChatbotSchedulingService.GetOrderDetailsAsync(clientId, serviceRequestId);
         if (result.Success)
         {
             return Ok(result);
@@ -302,18 +276,13 @@ public class TelegramChatbotController : ControllerBase
         [FromQuery] int take = 5,
         [FromQuery] int skip = 0)
     {
-        var clientId = TryGetAuthenticatedClientId();
-        if (!clientId.HasValue)
+        if (!TryResolveAuthenticatedClient(out var clientId, out var invalidClientResult))
         {
-            return Unauthorized(new
-            {
-                errorCode = "telegram_chatbot_invalid_client_claim",
-                message = "Nao foi possivel identificar o cliente autenticado."
-            });
+            return invalidClientResult!;
         }
 
         var result = await _telegramChatbotSchedulingService.GetClientAppointmentsAsync(
-            clientId.Value,
+            clientId,
             fromUtc,
             toUtc,
             skip,
@@ -331,8 +300,8 @@ public class TelegramChatbotController : ControllerBase
     /// <response code="200">Mensagem persistida com sucesso.</response>
     /// <response code="400">Payload invalido.</response>
     /// <response code="401">Token ausente/invalido.</response>
-    /// <response code="403">Usuario autenticado sem role Client.</response>
-    /// <response code="404">Conversa nao encontrada para o cliente autenticado.</response>
+    /// <response code="403">Usuario autenticado sem role `Client` ou `Provider`.</response>
+    /// <response code="404">Conversa nao encontrada para o usuario autenticado.</response>
     [HttpPost("messages")]
     [ProducesResponseType(typeof(TelegramChatbotMessageDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -341,14 +310,9 @@ public class TelegramChatbotController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> RegisterMessage([FromBody] TelegramChatbotRegisterMessageRequest request)
     {
-        var clientId = TryGetAuthenticatedClientId();
-        if (!clientId.HasValue)
+        if (!TryResolveAuthenticatedUser(out var authenticatedUserId, out var invalidUserResult))
         {
-            return Unauthorized(new
-            {
-                errorCode = "telegram_chatbot_invalid_client_claim",
-                message = "Nao foi possivel identificar o cliente autenticado."
-            });
+            return invalidUserResult!;
         }
 
         if (!Enum.IsDefined(typeof(ChatbotMessageDirection), request.Direction))
@@ -365,7 +329,7 @@ public class TelegramChatbotController : ControllerBase
             var message = await _telegramChatbotConversationService.RegisterMessageAsync(
                 new TelegramChatbotRegisterMessageRequestDto(
                     ConversationId: request.ConversationId,
-                    ClientId: clientId.Value,
+                    ClientId: authenticatedUserId,
                     Direction: request.Direction,
                     Source: request.Source,
                     ChannelMessageId: request.ChannelMessageId,
@@ -384,7 +348,7 @@ public class TelegramChatbotController : ControllerBase
                 return NotFound(new
                 {
                     errorCode = "telegram_chatbot_conversation_not_found",
-                    message = "Conversa nao encontrada para o cliente autenticado."
+                    message = "Conversa nao encontrada para o usuario autenticado."
                 });
             }
 
@@ -407,8 +371,8 @@ public class TelegramChatbotController : ControllerBase
     /// <response code="200">Snapshot persistido com sucesso.</response>
     /// <response code="400">Payload invalido.</response>
     /// <response code="401">Token ausente/invalido.</response>
-    /// <response code="403">Usuario autenticado sem role Client.</response>
-    /// <response code="404">Conversa nao encontrada para o cliente autenticado.</response>
+    /// <response code="403">Usuario autenticado sem role `Client` ou `Provider`.</response>
+    /// <response code="404">Conversa nao encontrada para o usuario autenticado.</response>
     [HttpPost("context-snapshots")]
     [ProducesResponseType(typeof(TelegramChatbotContextSnapshotDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -417,14 +381,9 @@ public class TelegramChatbotController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> RegisterContextSnapshot([FromBody] TelegramChatbotRegisterContextSnapshotRequest request)
     {
-        var clientId = TryGetAuthenticatedClientId();
-        if (!clientId.HasValue)
+        if (!TryResolveAuthenticatedUser(out var authenticatedUserId, out var invalidUserResult))
         {
-            return Unauthorized(new
-            {
-                errorCode = "telegram_chatbot_invalid_client_claim",
-                message = "Nao foi possivel identificar o cliente autenticado."
-            });
+            return invalidUserResult!;
         }
 
         try
@@ -432,7 +391,7 @@ public class TelegramChatbotController : ControllerBase
             var contextSnapshot = await _telegramChatbotConversationService.RegisterContextSnapshotAsync(
                 new TelegramChatbotRegisterContextSnapshotRequestDto(
                     ConversationId: request.ConversationId,
-                    ClientId: clientId.Value,
+                    ClientId: authenticatedUserId,
                     SnapshotType: request.SnapshotType,
                     ContextJson: request.ContextJson,
                     PromptVersion: request.PromptVersion,
@@ -449,7 +408,7 @@ public class TelegramChatbotController : ControllerBase
                 return NotFound(new
                 {
                     errorCode = "telegram_chatbot_conversation_not_found",
-                    message = "Conversa nao encontrada para o cliente autenticado."
+                    message = "Conversa nao encontrada para o usuario autenticado."
                 });
             }
 
@@ -472,8 +431,8 @@ public class TelegramChatbotController : ControllerBase
     /// <response code="200">Acao registrada com sucesso.</response>
     /// <response code="400">Payload invalido.</response>
     /// <response code="401">Token ausente/invalido.</response>
-    /// <response code="403">Usuario autenticado sem role Client.</response>
-    /// <response code="404">Conversa nao encontrada para o cliente autenticado.</response>
+    /// <response code="403">Usuario autenticado sem role `Client` ou `Provider`.</response>
+    /// <response code="404">Conversa nao encontrada para o usuario autenticado.</response>
     [HttpPost("actions")]
     [ProducesResponseType(typeof(TelegramChatbotActionLogDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -482,14 +441,9 @@ public class TelegramChatbotController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> RegisterAction([FromBody] TelegramChatbotRegisterActionRequest request)
     {
-        var clientId = TryGetAuthenticatedClientId();
-        if (!clientId.HasValue)
+        if (!TryResolveAuthenticatedUser(out var authenticatedUserId, out var invalidUserResult))
         {
-            return Unauthorized(new
-            {
-                errorCode = "telegram_chatbot_invalid_client_claim",
-                message = "Nao foi possivel identificar o cliente autenticado."
-            });
+            return invalidUserResult!;
         }
 
         if (!Enum.IsDefined(typeof(ChatbotActionStatus), request.Status))
@@ -506,7 +460,7 @@ public class TelegramChatbotController : ControllerBase
             var actionLog = await _telegramChatbotConversationService.RegisterActionLogAsync(
                 new TelegramChatbotRegisterActionLogRequestDto(
                     ConversationId: request.ConversationId,
-                    ClientId: clientId.Value,
+                    ClientId: authenticatedUserId,
                     ActionType: request.ActionType,
                     Status: request.Status,
                     IntentName: request.IntentName,
@@ -525,7 +479,7 @@ public class TelegramChatbotController : ControllerBase
                 return NotFound(new
                 {
                     errorCode = "telegram_chatbot_conversation_not_found",
-                    message = "Conversa nao encontrada para o cliente autenticado."
+                    message = "Conversa nao encontrada para o usuario autenticado."
                 });
             }
 
@@ -549,8 +503,8 @@ public class TelegramChatbotController : ControllerBase
     /// <response code="200">Estado da conversa atualizado com sucesso.</response>
     /// <response code="400">Payload invalido.</response>
     /// <response code="401">Token ausente/invalido.</response>
-    /// <response code="403">Usuario autenticado sem role Client.</response>
-    /// <response code="404">Conversa nao encontrada para o cliente autenticado.</response>
+    /// <response code="403">Usuario autenticado sem role `Client` ou `Provider`.</response>
+    /// <response code="404">Conversa nao encontrada para o usuario autenticado.</response>
     [HttpPatch("conversations/{conversationId:guid}/state")]
     [ProducesResponseType(typeof(TelegramChatbotConversationDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -561,14 +515,9 @@ public class TelegramChatbotController : ControllerBase
         [FromRoute] Guid conversationId,
         [FromBody] TelegramChatbotUpdateConversationStateRequest request)
     {
-        var clientId = TryGetAuthenticatedClientId();
-        if (!clientId.HasValue)
+        if (!TryResolveAuthenticatedUser(out var authenticatedUserId, out var invalidUserResult))
         {
-            return Unauthorized(new
-            {
-                errorCode = "telegram_chatbot_invalid_client_claim",
-                message = "Nao foi possivel identificar o cliente autenticado."
-            });
+            return invalidUserResult!;
         }
 
         if (request.Status.HasValue && !Enum.IsDefined(typeof(ChatbotConversationStatus), request.Status.Value))
@@ -585,7 +534,7 @@ public class TelegramChatbotController : ControllerBase
             var conversation = await _telegramChatbotConversationService.UpdateConversationStateAsync(
                 new TelegramChatbotUpdateConversationStateRequestDto(
                     ConversationId: conversationId,
-                    ClientId: clientId.Value,
+                    ClientId: authenticatedUserId,
                     Status: request.Status,
                     LastIntent: request.LastIntent,
                     LastStep: request.LastStep,
@@ -597,7 +546,7 @@ public class TelegramChatbotController : ControllerBase
                 return NotFound(new
                 {
                     errorCode = "telegram_chatbot_conversation_not_found",
-                    message = "Conversa nao encontrada para o cliente autenticado."
+                    message = "Conversa nao encontrada para o usuario autenticado."
                 });
             }
 
@@ -622,8 +571,8 @@ public class TelegramChatbotController : ControllerBase
     /// <param name="actionTake">Limite de logs de acao para retorno.</param>
     /// <response code="200">Historico retornado com sucesso.</response>
     /// <response code="401">Token ausente/invalido.</response>
-    /// <response code="403">Usuario autenticado sem role Client.</response>
-    /// <response code="404">Conversa nao encontrada para o cliente autenticado.</response>
+    /// <response code="403">Usuario autenticado sem role `Client` ou `Provider`.</response>
+    /// <response code="404">Conversa nao encontrada para o usuario autenticado.</response>
     [HttpGet("conversations/{conversationId:guid}/history")]
     [ProducesResponseType(typeof(TelegramChatbotConversationHistoryDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -635,19 +584,14 @@ public class TelegramChatbotController : ControllerBase
         [FromQuery] int snapshotTake = 20,
         [FromQuery] int actionTake = 20)
     {
-        var clientId = TryGetAuthenticatedClientId();
-        if (!clientId.HasValue)
+        if (!TryResolveAuthenticatedUser(out var authenticatedUserId, out var invalidUserResult))
         {
-            return Unauthorized(new
-            {
-                errorCode = "telegram_chatbot_invalid_client_claim",
-                message = "Nao foi possivel identificar o cliente autenticado."
-            });
+            return invalidUserResult!;
         }
 
         var history = await _telegramChatbotConversationService.GetConversationHistoryAsync(
             conversationId,
-            clientId.Value,
+            authenticatedUserId,
             messageTake,
             snapshotTake,
             actionTake);
@@ -657,19 +601,48 @@ public class TelegramChatbotController : ControllerBase
             return NotFound(new
             {
                 errorCode = "telegram_chatbot_conversation_not_found",
-                message = "Conversa nao encontrada para o cliente autenticado."
+                message = "Conversa nao encontrada para o usuario autenticado."
             });
         }
 
         return Ok(history);
     }
 
-    private Guid? TryGetAuthenticatedClientId()
+    private bool TryResolveAuthenticatedUser(out Guid userId, out IActionResult? errorResult)
     {
         var claimValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        return Guid.TryParse(claimValue, out var clientId)
-            ? clientId
-            : null;
+        if (Guid.TryParse(claimValue, out userId))
+        {
+            errorResult = null;
+            return true;
+        }
+
+        userId = default;
+        errorResult = Unauthorized(new
+        {
+            errorCode = "telegram_chatbot_invalid_user_claim",
+            message = "Nao foi possivel identificar o usuario autenticado."
+        });
+
+        return false;
+    }
+
+    private bool TryResolveAuthenticatedClient(out Guid clientId, out IActionResult? errorResult)
+    {
+        if (!TryResolveAuthenticatedUser(out clientId, out errorResult))
+        {
+            return false;
+        }
+
+        if (User.IsInRole(ClientRole))
+        {
+            errorResult = null;
+            return true;
+        }
+
+        clientId = default;
+        errorResult = Forbid();
+        return false;
     }
 
     private sealed class NullTelegramChatbotSchedulingService : ITelegramChatbotSchedulingService

@@ -1,4 +1,5 @@
 ﻿using ConsertaPraMim.Web.TelegramBridge.Models;
+using ConsertaPraMim.Web.TelegramBridge.Security;
 using Microsoft.AspNetCore.Http;
 
 namespace ConsertaPraMim.Web.TelegramBridge.Services;
@@ -155,7 +156,8 @@ public sealed class TelegramChatService : ITelegramChatService
             senderDisplayName: senderName,
             text: safeText,
             sentAtUtc: sentAtUtc,
-            attachments: storedIncomingFiles.Select(MapAttachment).ToList());
+            attachments: storedIncomingFiles.Select(MapAttachment).ToList(),
+            messageId: BuildInboundTelegramMessageId(chatId, message.MessageId));
 
         await _realtimeNotifier.BroadcastConversationMessageAsync(result.Summary, result.Message, cancellationToken);
         return result.Message;
@@ -199,7 +201,7 @@ public sealed class TelegramChatService : ITelegramChatService
             return $"@{chat.Username.Trim()}";
         }
 
-        return $"Chat {chat.Id}";
+        return TelegramSecuritySanitizer.BuildMaskedChatLabel(chat.Id);
     }
 
     private static string ResolveSenderName(TelegramMessage message)
@@ -227,7 +229,7 @@ public sealed class TelegramChatService : ITelegramChatService
             return $"@{message.From.Username.Trim()}";
         }
 
-        return $"Telegram {message.From.Id}";
+        return $"Telegram {TelegramSecuritySanitizer.MaskChatId(message.From.Id)}";
     }
 
     private static string? NormalizeOptionalText(string? value)
@@ -238,5 +240,15 @@ public sealed class TelegramChatService : ITelegramChatService
         }
 
         return value.Trim();
+    }
+
+    private static string? BuildInboundTelegramMessageId(long chatId, long messageId)
+    {
+        if (chatId <= 0 || messageId <= 0)
+        {
+            return null;
+        }
+
+        return $"telegram:{chatId}:{messageId}";
     }
 }
