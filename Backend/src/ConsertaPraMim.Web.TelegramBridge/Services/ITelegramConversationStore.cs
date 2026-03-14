@@ -17,7 +17,8 @@ public interface ITelegramConversationStore
         string senderDisplayName,
         string? text,
         DateTimeOffset sentAtUtc,
-        IReadOnlyList<ChatAttachmentDto> attachments);
+        IReadOnlyList<ChatAttachmentDto> attachments,
+        string? messageId = null);
 }
 
 public sealed record StoreAppendResult(ChatConversationSummaryDto Summary, ChatMessageDto Message);

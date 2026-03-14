@@ -123,7 +123,15 @@
 - `ProvidersAutomationEnabled`
 - `MirrorMessagesEnabled`
 - `RequireHumanHandoffForOutbound`
+- `TelegramBridgeBaseUrl`
+- `CpmFullBaseUrl`
 - `AllowedBotSources`
+- `SharedSecret`
+- `RequestTimeoutSeconds`
+- `DeliveryWorkerEnabled`
+- `DeliveryWorkerIntervalSeconds`
+- `DeliveryWorkerBatchSize`
+- `DeliveryQueueMaxAttempts`
 - `WebhookSecret` (quando o bot usar webhook)
 
 ## 7. Historias e tasks detalhadas
@@ -262,6 +270,9 @@ Como atendente, quero que o lead originado no Telegram abra a conversa humana no
 ### Descricao
 Como operacao, quero que mensagens relevantes do Telegram aparecam na conversa humana do Chatwoot sem copiar e colar manualmente.
 
+### Status
+- Concluida em `2026-03-14` com fila dedicada `telegram_to_chatwoot`, idempotencia por `ChannelMessageId` e historico operacional no funil.
+
 ### Criterios de aceite
 1. Mensagem do Telegram elegivel vira nota/mensagem na conversa correta do Chatwoot.
 2. Eventos duplicados nao geram mensagens repetidas.
@@ -274,9 +285,19 @@ Como operacao, quero que mensagens relevantes do Telegram aparecam na conversa h
 - `TASK-06.04` Registrar historico `telegram_message_synced_to_chatwoot`.
 - `TASK-06.05` Cobrir falha externa sem quebrar o bot.
 
+### Entrega aplicada
+1. O `ConsertaPraMim.Web.TelegramBridge` passou a espelhar mensagens reais recebidas do Telegram para o CPM Full por `POST /api/integrations/telegram/automation/message`, preservando `ChatbotConversationId`, `ChannelConversationId`, `TelegramChatId` e `ChannelMessageId`.
+2. O CPM Full ganhou a fila `telegram_to_chatwoot` em `dbo.cpm_web_telegram_delivery_queue`, com deduplicacao por `Direction + DeliveryKey`, historico `telegram_entrega_enfileirada` e reprocessamento pelo worker dedicado.
+3. A entrega efetiva ao Chatwoot passou a criar mensagem `incoming` na conversa humana correta, reaproveitando o bootstrap existente quando o lead ainda nao possuia `ChatwootConversationId`.
+4. O vinculo Telegram do lead agora registra `LastTelegramMessageSyncedAt`, e o historico funcional registra `telegram_message_synced_to_chatwoot` quando a entrega conclui com sucesso.
+5. Falhas externas nao quebram o bot: a mensagem fica enfileirada para retentativa e o erro operacional fica rastreavel na fila local do CPM Full.
+
 ## US-07 - Espelhar handoff e mensagens humanas do Chatwoot -> Telegram
 ### Descricao
 Como usuario final, quero continuar no Telegram mesmo quando um humano assumir o atendimento no Chatwoot.
+
+### Status
+- Concluida em `2026-03-14` com fila `chatwoot_to_telegram`, handoff humano rastreado no lead e entrega outbound pelo bridge interno protegido.
 
 ### Criterios de aceite
 1. O sistema consegue identificar quando a resposta humana deve voltar ao Telegram.
@@ -289,6 +310,13 @@ Como usuario final, quero continuar no Telegram mesmo quando um humano assumir o
 - `TASK-07.03` Implementar fila de entrega `chatwoot_to_telegram`.
 - `TASK-07.04` Registrar historico `chatwoot_message_synced_to_telegram`.
 - `TASK-07.05` Tratar janelas em que o bot deve silenciar respostas automaticas.
+
+### Entrega aplicada
+1. O webhook inbound do Chatwoot passou a identificar mensagens humanas publicas elegiveis e a enfileirar entregas `chatwoot_to_telegram` usando `message_id` como chave principal de idempotencia.
+2. O CPM Full agora chama o bridge por `POST /api/internal/telegram/messages/send`, protegido por `X-Telegram-Automation-Key`, para entregar a resposta humana ao chat correto no Telegram.
+3. O primeiro outbound humano da conversa passa a registrar `HumanHandoffStartedAt` no vinculo Telegram do lead, alem de `LastChatwootMessageSyncedAt`.
+4. O historico funcional do lead passou a registrar `chatwoot_handoff_humano_iniciado` e `chatwoot_message_synced_to_telegram`, mantendo rastreabilidade do takeover humano no CPM Full.
+5. O bridge ganhou estado local de handoff por `chatId`; quando esse estado esta ativo e a trilha web passa pelo `ChatApiController`, respostas automaticas do assistente deixam de ser emitidas para aquele chat.
 
 ## US-08 - Observabilidade, fila e diagnostico operacional
 ### Descricao

@@ -1,9 +1,11 @@
 using ConsertaPraMim.Web.TelegramBridge.Models;
+using ConsertaPraMim.Web.TelegramBridge.Options;
 using ConsertaPraMim.Web.TelegramBridge.Security;
 using ConsertaPraMim.Web.TelegramBridge.Services;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 namespace ConsertaPraMim.Web.TelegramBridge.Controllers;
 
@@ -19,17 +21,23 @@ public sealed class ChatApiController : ControllerBase
     private readonly ITelegramChatbotApiClient _telegramChatbotApiClient;
     private readonly ITelegramChatbotOrchestrator _telegramChatbotOrchestrator;
     private readonly ITelegramChatbotObservabilityService _observabilityService;
+    private readonly ITelegramHumanHandoffStateService _humanHandoffStateService;
+    private readonly TelegramAutomationOptions _telegramAutomationOptions;
 
     public ChatApiController(
         ITelegramChatService telegramChatService,
         ITelegramChatbotApiClient telegramChatbotApiClient,
         ITelegramChatbotOrchestrator telegramChatbotOrchestrator,
-        ITelegramChatbotObservabilityService? observabilityService = null)
+        ITelegramChatbotObservabilityService? observabilityService = null,
+        ITelegramHumanHandoffStateService? humanHandoffStateService = null,
+        IOptions<TelegramAutomationOptions>? telegramAutomationOptions = null)
     {
         _telegramChatService = telegramChatService;
         _telegramChatbotApiClient = telegramChatbotApiClient;
         _telegramChatbotOrchestrator = telegramChatbotOrchestrator;
         _observabilityService = observabilityService ?? NullTelegramChatbotObservabilityService.Instance;
+        _humanHandoffStateService = humanHandoffStateService ?? NullTelegramHumanHandoffStateService.Instance;
+        _telegramAutomationOptions = telegramAutomationOptions?.Value ?? new TelegramAutomationOptions();
     }
 
     [HttpGet]
@@ -121,6 +129,13 @@ public sealed class ChatApiController : ControllerBase
             await EnsureClientConversationAsync(clientChatId, title, apiToken!, cancellationToken);
             var message = await _telegramChatService.SendFromClientAsync(clientChatId, text, list, cancellationToken);
             await _telegramChatbotApiClient.RegisterIncomingMessageAsync(apiToken!, clientChatId, message, cancellationToken);
+
+            if (_telegramAutomationOptions.RequireHumanHandoffForOutbound && _humanHandoffStateService.IsActive(clientChatId))
+            {
+                _observabilityService.RecordBusinessEvent("human_handoff_bot_silenciado", success: true);
+                return Ok(message);
+            }
+
             TelegramBridgeClientConversation.TryGetAuthenticatedUserId(User, out var resolvedUserId);
             var assistantReply = await _telegramChatbotOrchestrator.GenerateAssistantReplyAsync(
                 apiToken!,
@@ -254,5 +269,16 @@ public sealed class ChatApiController : ControllerBase
                 TopErrors: [],
                 RecentIncidents: []);
         }
+    }
+
+    private sealed class NullTelegramHumanHandoffStateService : ITelegramHumanHandoffStateService
+    {
+        public static readonly NullTelegramHumanHandoffStateService Instance = new();
+
+        public void Activate(long chatId, DateTime activatedAtUtc)
+        {
+        }
+
+        public bool IsActive(long chatId) => false;
     }
 }

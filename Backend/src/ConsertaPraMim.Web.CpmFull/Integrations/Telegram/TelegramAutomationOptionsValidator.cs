@@ -18,6 +18,35 @@ public sealed class TelegramAutomationOptionsValidator : IValidateOptions<Telegr
             failures.Add("TelegramAutomation:SharedSecret e obrigatorio quando TelegramAutomation:Enabled=true.");
         }
 
+        if (options.MirrorMessagesEnabled)
+        {
+            if (!Uri.TryCreate(options.TelegramBridgeBaseUrl, UriKind.Absolute, out var bridgeUri) ||
+                (bridgeUri.Scheme != Uri.UriSchemeHttp && bridgeUri.Scheme != Uri.UriSchemeHttps))
+            {
+                failures.Add("TelegramAutomation:TelegramBridgeBaseUrl deve ser uma URL absoluta HTTP/HTTPS valida quando TelegramAutomation:MirrorMessagesEnabled=true.");
+            }
+
+            if (options.RequestTimeoutSeconds <= 0)
+            {
+                failures.Add("TelegramAutomation:RequestTimeoutSeconds deve ser maior que zero.");
+            }
+
+            if (options.DeliveryWorkerIntervalSeconds <= 0)
+            {
+                failures.Add("TelegramAutomation:DeliveryWorkerIntervalSeconds deve ser maior que zero.");
+            }
+
+            if (options.DeliveryWorkerBatchSize <= 0)
+            {
+                failures.Add("TelegramAutomation:DeliveryWorkerBatchSize deve ser maior que zero.");
+            }
+
+            if (options.DeliveryQueueMaxAttempts <= 0)
+            {
+                failures.Add("TelegramAutomation:DeliveryQueueMaxAttempts deve ser maior que zero.");
+            }
+        }
+
         if (!options.ClientsAutomationEnabled &&
             !options.ProvidersAutomationEnabled &&
             !options.MirrorMessagesEnabled)

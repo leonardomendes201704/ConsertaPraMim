@@ -77,7 +77,8 @@ public sealed class TelegramConversationStore : ITelegramConversationStore
         string senderDisplayName,
         string? text,
         DateTimeOffset sentAtUtc,
-        IReadOnlyList<ChatAttachmentDto> attachments)
+        IReadOnlyList<ChatAttachmentDto> attachments,
+        string? messageId = null)
     {
         var state = _conversations.GetOrAdd(chatId, static id => new ConversationState(id));
         lock (state.Sync)
@@ -93,7 +94,7 @@ public sealed class TelegramConversationStore : ITelegramConversationStore
             }
 
             var message = new ChatMessageDto(
-                Id: Guid.NewGuid().ToString("N"),
+                Id: string.IsNullOrWhiteSpace(messageId) ? Guid.NewGuid().ToString("N") : messageId.Trim(),
                 ChatId: chatId,
                 IsOutgoing: isOutgoing,
                 SenderDisplayName: string.IsNullOrWhiteSpace(senderDisplayName)

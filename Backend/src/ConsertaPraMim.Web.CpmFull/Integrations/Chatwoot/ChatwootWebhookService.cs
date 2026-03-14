@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using AppMobileCPM.Integrations.Telegram;
 using AppMobileCPM.Observability;
 using AppMobileCPM.Services;
 using Microsoft.Extensions.Options;
@@ -23,20 +24,23 @@ public sealed class ChatwootWebhookService : IChatwootWebhookService
     };
 
     private readonly IAdminKanbanService _kanbanService;
+    private readonly ITelegramMessageAutomationService _telegramMessageAutomationService;
     private readonly ChatwootOptions _options;
     private readonly ILogger<ChatwootWebhookService> _logger;
 
     public ChatwootWebhookService(
         IAdminKanbanService kanbanService,
+        ITelegramMessageAutomationService telegramMessageAutomationService,
         IOptions<ChatwootOptions> options,
         ILogger<ChatwootWebhookService> logger)
     {
         _kanbanService = kanbanService;
+        _telegramMessageAutomationService = telegramMessageAutomationService;
         _options = options.Value;
         _logger = logger;
     }
 
-    public Task<ChatwootWebhookProcessResult> HandleAsync(ChatwootWebhookRequest request, CancellationToken cancellationToken = default)
+    public async Task<ChatwootWebhookProcessResult> HandleAsync(ChatwootWebhookRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
         using var correlationScope = ChatwootCorrelationContext.Push(ChatwootCorrelationContext.Current ?? ChatwootCorrelationContext.Create($"chatwoot-webhook-{request.DeliveryId ?? "event"}"));
@@ -57,30 +61,30 @@ public sealed class ChatwootWebhookService : IChatwootWebhookService
 
         if (!_options.Enabled || string.IsNullOrWhiteSpace(_options.WebhookSecret))
         {
-            return Task.FromResult(BuildAcceptedResult(
+            return BuildAcceptedResult(
                 processStatus: "ignored",
-                message: "Webhook do Chatwoot ignorado porque a integracao esta desabilitada neste ambiente."));
+                message: "Webhook do Chatwoot ignorado porque a integracao esta desabilitada neste ambiente.");
         }
 
         if (request.RawBody.Length == 0)
         {
-            return Task.FromResult(BuildRejectedResult(400, "Payload vazio no webhook do Chatwoot."));
+            return BuildRejectedResult(400, "Payload vazio no webhook do Chatwoot.");
         }
 
         if (!TryValidateAllowedSourceIp(request, out var ipAllowlistError))
         {
-            return Task.FromResult(BuildRejectedResult(403, ipAllowlistError));
+            return BuildRejectedResult(403, ipAllowlistError);
         }
 
         if (!TryValidateSignedRequest(request, out var signatureError))
         {
-            return Task.FromResult(BuildRejectedResult(401, signatureError));
+            return BuildRejectedResult(401, signatureError);
         }
 
         var payloadJson = Encoding.UTF8.GetString(request.RawBody);
         if (!TryParsePayload(request.RawBody, out var payload, out var parseError))
         {
-            return Task.FromResult(BuildRejectedResult(400, parseError));
+            return BuildRejectedResult(400, parseError);
         }
 
         var normalizedSignature = NormalizeSignature(request.Signature);
@@ -103,12 +107,12 @@ public sealed class ChatwootWebhookService : IChatwootWebhookService
                 payload.EventType,
                 payload.ConversationId,
                 webhookEvent.Id);
-            return Task.FromResult(BuildAcceptedResult(
+            return BuildAcceptedResult(
                 processStatus: "duplicate",
                 message: "Evento duplicado do Chatwoot ignorado por idempotencia.",
                 payload,
                 webhookEventId: webhookEvent.Id,
-                isDuplicate: true));
+                isDuplicate: true);
         }
 
         try
@@ -116,44 +120,44 @@ public sealed class ChatwootWebhookService : IChatwootWebhookService
             if (!SupportedEvents.Contains(payload.EventType))
             {
                 CompleteEvent(webhookEvent.Id, "ignored", $"Evento '{payload.EventType}' nao esta mapeado nesta etapa da integracao.");
-                return Task.FromResult(BuildAcceptedResult(
+                return BuildAcceptedResult(
                     processStatus: "ignored",
                     message: $"Evento '{payload.EventType}' ignorado nesta etapa da integracao.",
                     payload,
-                    webhookEventId: webhookEvent.Id));
+                    webhookEventId: webhookEvent.Id);
             }
 
             if (!payload.ConversationId.HasValue)
             {
                 CompleteEvent(webhookEvent.Id, "ignored", "Nao foi possivel identificar a conversa do webhook do Chatwoot.");
-                return Task.FromResult(BuildAcceptedResult(
+                return BuildAcceptedResult(
                     processStatus: "ignored",
                     message: "Evento do Chatwoot sem conversa identificavel.",
                     payload,
-                    webhookEventId: webhookEvent.Id));
+                    webhookEventId: webhookEvent.Id);
             }
 
             var leadId = _kanbanService.FindLeadIdByChatwootConversationId(payload.ConversationId.Value);
             if (!leadId.HasValue)
             {
                 CompleteEvent(webhookEvent.Id, "ignored", $"Nenhum lead ativo encontrado para a conversa #{payload.ConversationId.Value}.");
-                return Task.FromResult(BuildAcceptedResult(
+                return BuildAcceptedResult(
                     processStatus: "ignored",
                     message: $"Nenhum lead ativo encontrado para a conversa #{payload.ConversationId.Value}.",
                     payload,
-                    webhookEventId: webhookEvent.Id));
+                    webhookEventId: webhookEvent.Id);
             }
 
             var leadUpdate = BuildLeadUpdate(payload);
             if (leadUpdate is null)
             {
                 CompleteEvent(webhookEvent.Id, "ignored", "Evento do Chatwoot nao gerou atualizacao funcional no funil.");
-                return Task.FromResult(BuildAcceptedResult(
+                return BuildAcceptedResult(
                     processStatus: "ignored",
                     message: "Evento do Chatwoot recebido, mas sem impacto funcional no funil.",
                     payload,
                     leadId,
-                    webhookEventId: webhookEvent.Id));
+                    webhookEventId: webhookEvent.Id);
             }
 
             var applied = _kanbanService.ApplyChatwootWebhookLeadUpdate(leadId.Value, leadUpdate);
@@ -168,7 +172,7 @@ public sealed class ChatwootWebhookService : IChatwootWebhookService
                     payload.ConversationId,
                     webhookEvent.Id);
                 CompleteEvent(webhookEvent.Id, "failed", errorMessage);
-                return Task.FromResult(new ChatwootWebhookProcessResult
+                return new ChatwootWebhookProcessResult
                 {
                     HttpStatusCode = 500,
                     Accepted = false,
@@ -178,7 +182,22 @@ public sealed class ChatwootWebhookService : IChatwootWebhookService
                     ConversationId = payload.ConversationId,
                     LeadId = leadId,
                     WebhookEventId = webhookEvent.Id
-                });
+                };
+            }
+
+            if (string.Equals(payload.EventType, "message_created", StringComparison.OrdinalIgnoreCase))
+            {
+                var lead = _kanbanService.GetLeadDetails(leadId.Value);
+                if (lead is not null && ShouldMirrorChatwootMessageToTelegram(payload, lead))
+                {
+                    await _telegramMessageAutomationService.TryEnqueueOutboundMessageFromChatwootAsync(
+                        lead,
+                        payload.MessageId,
+                        payload.MessageContent,
+                        payload.SenderName,
+                        payload.OccurredAt ?? DateTime.UtcNow,
+                        cancellationToken);
+                }
             }
 
             CompleteEvent(webhookEvent.Id, "processed", null);
@@ -189,12 +208,12 @@ public sealed class ChatwootWebhookService : IChatwootWebhookService
                 payload.EventType,
                 payload.ConversationId,
                 webhookEvent.Id);
-            return Task.FromResult(BuildAcceptedResult(
+            return BuildAcceptedResult(
                 processStatus: "processed",
                 message: "Webhook do Chatwoot processado com sucesso.",
                 payload,
                 leadId,
-                webhookEventId: webhookEvent.Id));
+                webhookEventId: webhookEvent.Id);
         }
         catch (Exception ex)
         {
@@ -208,7 +227,7 @@ public sealed class ChatwootWebhookService : IChatwootWebhookService
             var sanitizedError = ChatwootSecuritySanitizer.SanitizeMessage(BuildUserFacingError(ex), 500);
             CompleteEvent(webhookEvent.Id, "failed", sanitizedError);
 
-            return Task.FromResult(new ChatwootWebhookProcessResult
+            return new ChatwootWebhookProcessResult
             {
                 HttpStatusCode = 500,
                 Accepted = false,
@@ -217,7 +236,7 @@ public sealed class ChatwootWebhookService : IChatwootWebhookService
                 EventType = payload.EventType,
                 ConversationId = payload.ConversationId,
                 WebhookEventId = webhookEvent.Id
-            });
+            };
         }
     }
 
@@ -332,6 +351,7 @@ public sealed class ChatwootWebhookService : IChatwootWebhookService
             {
                 EventType = eventType.Trim(),
                 ConversationId = ExtractConversationId(root, eventType),
+                MessageId = ExtractMessageId(root, eventType),
                 OccurredAt = ExtractOccurredAt(root),
                 MessageType = ExtractMessageType(root),
                 MessageKind = ExtractMessageKind(root),
@@ -371,6 +391,18 @@ public sealed class ChatwootWebhookService : IChatwootWebhookService
         }
 
         return null;
+    }
+
+    private static long? ExtractMessageId(JsonElement root, string eventType)
+    {
+        if (!string.Equals(eventType, "message_created", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        return TryGetInt64(root, "id", out var messageId)
+            ? messageId
+            : null;
     }
 
     private static DateTime? ExtractOccurredAt(JsonElement root)
@@ -648,6 +680,22 @@ public sealed class ChatwootWebhookService : IChatwootWebhookService
             _ => ex.Message
         };
 
+    private static bool ShouldMirrorChatwootMessageToTelegram(
+        ParsedChatwootWebhookPayload payload,
+        AdminKanbanLeadDetailsRecord lead)
+    {
+        if (payload.IsPrivate ||
+            !lead.Telegram.TelegramChatId.HasValue ||
+            !string.Equals(lead.Source, "Telegram", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var messageKind = NormalizeMessageKind(payload);
+        return string.Equals(messageKind, "outgoing", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(messageKind, "template", StringComparison.OrdinalIgnoreCase);
+    }
+
     private bool CompleteEvent(int webhookEventId, string processStatus, string? errorMessage)
     {
         return _kanbanService.CompleteChatwootWebhookEvent(webhookEventId, processStatus, errorMessage);
@@ -824,6 +872,7 @@ public sealed class ChatwootWebhookService : IChatwootWebhookService
     {
         public string EventType { get; init; }
         public long? ConversationId { get; init; }
+        public long? MessageId { get; init; }
         public DateTime? OccurredAt { get; init; }
         public int? MessageType { get; init; }
         public string MessageKind { get; init; }

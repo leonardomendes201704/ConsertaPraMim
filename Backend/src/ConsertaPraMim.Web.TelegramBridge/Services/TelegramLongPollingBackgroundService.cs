@@ -10,12 +10,16 @@ public sealed class TelegramLongPollingBackgroundService : BackgroundService
     private readonly ITelegramChatService _telegramChatService;
     private readonly ILogger<TelegramLongPollingBackgroundService> _logger;
     private readonly TelegramBridgeOptions _options;
+    private readonly TelegramAutomationOptions _automationOptions;
+    private readonly ITelegramMessageAutomationClient _telegramMessageAutomationClient;
     private readonly ITelegramChatbotObservabilityService _observabilityService;
 
     public TelegramLongPollingBackgroundService(
         ITelegramBotApiClient telegramBotApiClient,
         ITelegramChatService telegramChatService,
         IOptions<TelegramBridgeOptions> options,
+        IOptions<TelegramAutomationOptions> automationOptions,
+        ITelegramMessageAutomationClient telegramMessageAutomationClient,
         ILogger<TelegramLongPollingBackgroundService> logger,
         ITelegramChatbotObservabilityService? observabilityService = null)
     {
@@ -23,6 +27,8 @@ public sealed class TelegramLongPollingBackgroundService : BackgroundService
         _telegramChatService = telegramChatService;
         _logger = logger;
         _options = options.Value;
+        _automationOptions = automationOptions.Value;
+        _telegramMessageAutomationClient = telegramMessageAutomationClient;
         _observabilityService = observabilityService ?? NullTelegramChatbotObservabilityService.Instance;
     }
 
@@ -70,7 +76,8 @@ public sealed class TelegramLongPollingBackgroundService : BackgroundService
                             + (update.Message.Video is null ? 0 : 1);
                         _observabilityService.RecordInboundMessage(attachmentCount);
 
-                        await _telegramChatService.ReceiveFromTelegramAsync(update.Message, stoppingToken);
+                        var storedMessage = await _telegramChatService.ReceiveFromTelegramAsync(update.Message, stoppingToken);
+                        await TryMirrorInboundMessageAsync(update.Message, storedMessage, stoppingToken);
                     }
                     catch (Exception exception)
                     {
@@ -100,6 +107,54 @@ public sealed class TelegramLongPollingBackgroundService : BackgroundService
                 _logger.LogError(exception, "Falha no polling de updates do Telegram.");
                 await Task.Delay(TimeSpan.FromSeconds(3), stoppingToken);
             }
+        }
+    }
+
+    private async Task TryMirrorInboundMessageAsync(
+        TelegramMessage updateMessage,
+        ChatMessageDto? storedMessage,
+        CancellationToken cancellationToken)
+    {
+        if (!_automationOptions.Enabled || !_automationOptions.MirrorMessagesEnabled || storedMessage is null)
+        {
+            return;
+        }
+
+        var chatId = updateMessage.Chat?.Id ?? 0;
+        if (chatId <= 0 || string.IsNullOrWhiteSpace(storedMessage.Id))
+        {
+            return;
+        }
+
+        try
+        {
+            await _telegramMessageAutomationClient.MirrorInboundMessageAsync(
+                new TelegramInboundMessageAutomationRequest
+                {
+                    ChannelConversationId = chatId.ToString(),
+                    ChannelMessageId = storedMessage.Id,
+                    TelegramChatId = chatId,
+                    SenderDisplayName = storedMessage.SenderDisplayName,
+                    MessageText = storedMessage.Text ?? string.Empty,
+                    SentAtUtc = storedMessage.SentAtUtc.UtcDateTime,
+                    Attachments = storedMessage.Attachments
+                        .Select(attachment => new TelegramInboundAttachmentDto
+                        {
+                            FileName = attachment.FileName,
+                            MediaKind = attachment.MediaKind,
+                            Url = attachment.Url
+                        })
+                        .ToList()
+                },
+                cancellationToken);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogWarning(
+                exception,
+                "Falha ao espelhar mensagem Telegram para o CPM Full. ChatId={ChatId} MessageId={MessageId}",
+                chatId,
+                storedMessage.Id);
         }
     }
 

@@ -60,9 +60,33 @@ public sealed class TelegramAutomationOptionsValidatorTests
         {
             Enabled = true,
             ClientsAutomationEnabled = true,
-            SharedSecret = "segredo-compartilhado"
+            MirrorMessagesEnabled = true,
+            SharedSecret = "segredo-compartilhado",
+            TelegramBridgeBaseUrl = "https://telegram-bridge.exemplo.com",
+            RequestTimeoutSeconds = 15,
+            DeliveryWorkerEnabled = true,
+            DeliveryWorkerIntervalSeconds = 20,
+            DeliveryWorkerBatchSize = 10,
+            DeliveryQueueMaxAttempts = 5
         });
 
         Assert.True(result.Succeeded);
+    }
+
+    [Fact(DisplayName = "Telegram Automation Options | CPM Full | Deve falhar sem URL do bridge quando espelhamento estiver habilitado")]
+    public void CpmFullValidator_DeveFalharSemUrlDoBridgeQuandoMirrorHabilitado()
+    {
+        var validator = new CpmFullTelegramOptionsValidator();
+        var result = validator.Validate(Options.DefaultName, new CpmFullTelegramOptions
+        {
+            Enabled = true,
+            ClientsAutomationEnabled = true,
+            MirrorMessagesEnabled = true,
+            SharedSecret = "segredo-compartilhado",
+            TelegramBridgeBaseUrl = ""
+        });
+
+        Assert.True(result.Failed);
+        Assert.Contains(result.Failures!, failure => failure.Contains("TelegramBridgeBaseUrl", StringComparison.Ordinal));
     }
 }

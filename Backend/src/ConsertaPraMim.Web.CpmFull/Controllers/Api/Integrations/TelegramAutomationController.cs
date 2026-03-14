@@ -10,10 +10,14 @@ namespace AppMobileCPM.Controllers.Api.Integrations;
 public sealed class TelegramAutomationController : ControllerBase
 {
     private readonly ITelegramLeadAutomationService _telegramLeadAutomationService;
+    private readonly ITelegramMessageAutomationService _telegramMessageAutomationService;
 
-    public TelegramAutomationController(ITelegramLeadAutomationService telegramLeadAutomationService)
+    public TelegramAutomationController(
+        ITelegramLeadAutomationService telegramLeadAutomationService,
+        ITelegramMessageAutomationService telegramMessageAutomationService)
     {
         _telegramLeadAutomationService = telegramLeadAutomationService;
+        _telegramMessageAutomationService = telegramMessageAutomationService;
     }
 
     [HttpPost("lead")]
@@ -50,6 +54,35 @@ public sealed class TelegramAutomationController : ControllerBase
                 conversationId = result.Payload.ChatwootConversationId,
                 inboxId = result.Payload.ChatwootInboxId
             }
+        });
+    }
+
+    [HttpPost("message")]
+    public async Task<IActionResult> MirrorMessage(
+        [FromBody] TelegramInboundMessageAutomationRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await _telegramMessageAutomationService.EnqueueInboundMessageAsync(
+            request,
+            Request.Headers[TelegramLeadAutomationService.SharedSecretHeaderName].ToString(),
+            cancellationToken);
+
+        if (!result.Success)
+        {
+            return StatusCode(result.HttpStatusCode, new
+            {
+                success = false,
+                message = result.Message
+            });
+        }
+
+        return StatusCode(result.HttpStatusCode, new
+        {
+            success = true,
+            leadId = result.Payload!.LeadId,
+            queueStatus = result.Payload.QueueStatus,
+            duplicate = result.Payload.Duplicate,
+            message = result.Payload.Message
         });
     }
 }

@@ -1,5 +1,6 @@
 using System.Data;
 using AppMobileCPM.Integrations.Chatwoot;
+using AppMobileCPM.Integrations.Telegram;
 using Microsoft.Data.SqlClient;
 
 namespace AppMobileCPM.Services;
@@ -249,6 +250,9 @@ SELECT TOP (1)
     ClientId,
     ClientEmail,
     ServiceRequestId,
+    HumanHandoffStartedAt,
+    LastTelegramMessageSyncedAt,
+    LastChatwootMessageSyncedAt,
     UpdatedAt
 FROM dbo.{TablePrefix}telegram_funil_links
 WHERE LeadId = @leadId
@@ -267,7 +271,10 @@ ORDER BY UpdatedAt DESC, Id DESC;
                     ClientId = reader.IsDBNull(3) ? null : reader.GetGuid(3),
                     ClientEmail = reader.IsDBNull(4) ? string.Empty : reader.GetString(4),
                     ServiceRequestId = reader.IsDBNull(5) ? null : reader.GetGuid(5),
-                    UpdatedAt = reader.IsDBNull(6) ? null : reader.GetDateTime(6)
+                    HumanHandoffStartedAt = reader.IsDBNull(6) ? null : reader.GetDateTime(6),
+                    LastTelegramMessageSyncedAt = reader.IsDBNull(7) ? null : reader.GetDateTime(7),
+                    LastChatwootMessageSyncedAt = reader.IsDBNull(8) ? null : reader.GetDateTime(8),
+                    UpdatedAt = reader.IsDBNull(9) ? null : reader.GetDateTime(9)
                 };
             }
         }
@@ -450,6 +457,265 @@ ORDER BY link.Id;
             BoardType = normalizedBoardType,
             ChatbotConversationId = request.ChatbotConversationId
         };
+    }
+
+    public int? FindLeadIdByTelegramChatbotConversationId(Guid chatbotConversationId)
+    {
+        EnsureInitialized();
+
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = $"""
+SELECT TOP (1) link.LeadId
+FROM dbo.{TablePrefix}telegram_funil_links link
+INNER JOIN dbo.{TablePrefix}kanban_leads lead ON lead.Id = link.LeadId
+WHERE link.ChatbotConversationId = @chatbotConversationId
+  AND lead.IsActive = 1
+ORDER BY link.UpdatedAt DESC, link.Id DESC;
+""";
+        command.Parameters.Add(new SqlParameter("@chatbotConversationId", SqlDbType.UniqueIdentifier) { Value = chatbotConversationId });
+
+        var result = command.ExecuteScalar();
+        return result is null ? null : Convert.ToInt32(result);
+    }
+
+    public int? FindLeadIdByTelegramChatId(long telegramChatId)
+    {
+        EnsureInitialized();
+
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = $"""
+SELECT TOP (1) link.LeadId
+FROM dbo.{TablePrefix}telegram_funil_links link
+INNER JOIN dbo.{TablePrefix}kanban_leads lead ON lead.Id = link.LeadId
+WHERE link.TelegramChatId = @telegramChatId
+  AND lead.IsActive = 1
+ORDER BY link.UpdatedAt DESC, link.Id DESC;
+""";
+        command.Parameters.Add(new SqlParameter("@telegramChatId", SqlDbType.BigInt) { Value = telegramChatId });
+
+        var result = command.ExecuteScalar();
+        return result is null ? null : Convert.ToInt32(result);
+    }
+
+    public bool TouchTelegramLeadLink(int leadId, AdminKanbanTelegramLinkTouchRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        EnsureInitialized();
+
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = $"""
+UPDATE dbo.{TablePrefix}telegram_funil_links
+SET HumanHandoffStartedAt = CASE
+        WHEN @humanHandoffStartedAt IS NOT NULL AND HumanHandoffStartedAt IS NULL THEN @humanHandoffStartedAt
+        ELSE HumanHandoffStartedAt
+    END,
+    LastTelegramMessageSyncedAt = CASE
+        WHEN @lastTelegramMessageSyncedAt IS NOT NULL
+             AND (LastTelegramMessageSyncedAt IS NULL OR @lastTelegramMessageSyncedAt > LastTelegramMessageSyncedAt)
+        THEN @lastTelegramMessageSyncedAt
+        ELSE LastTelegramMessageSyncedAt
+    END,
+    LastChatwootMessageSyncedAt = CASE
+        WHEN @lastChatwootMessageSyncedAt IS NOT NULL
+             AND (LastChatwootMessageSyncedAt IS NULL OR @lastChatwootMessageSyncedAt > LastChatwootMessageSyncedAt)
+        THEN @lastChatwootMessageSyncedAt
+        ELSE LastChatwootMessageSyncedAt
+    END,
+    UpdatedAt = SYSUTCDATETIME()
+WHERE LeadId = @leadId;
+""";
+        command.Parameters.AddRange(
+        [
+            new SqlParameter("@humanHandoffStartedAt", SqlDbType.DateTime2) { Value = request.HumanHandoffStartedAt.HasValue ? request.HumanHandoffStartedAt.Value : DBNull.Value },
+            new SqlParameter("@lastTelegramMessageSyncedAt", SqlDbType.DateTime2) { Value = request.LastTelegramMessageSyncedAt.HasValue ? request.LastTelegramMessageSyncedAt.Value : DBNull.Value },
+            new SqlParameter("@lastChatwootMessageSyncedAt", SqlDbType.DateTime2) { Value = request.LastChatwootMessageSyncedAt.HasValue ? request.LastChatwootMessageSyncedAt.Value : DBNull.Value },
+            new SqlParameter("@leadId", SqlDbType.Int) { Value = leadId }
+        ]);
+
+        return command.ExecuteNonQuery() > 0;
+    }
+
+    public AdminKanbanTelegramDeliveryQueueItemRecord EnqueueTelegramDeliveryQueueItem(AdminKanbanTelegramDeliveryQueueEnqueueRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        EnsureInitialized();
+
+        var direction = NormalizeTelegramDeliveryDirection(request.Direction);
+        var deliveryKey = TrimTo(request.DeliveryKey, 180);
+        if (string.IsNullOrWhiteSpace(deliveryKey))
+        {
+            throw new InvalidOperationException("DeliveryKey da fila Telegram e obrigatorio.");
+        }
+
+        var nextAttemptAt = request.NextAttemptAt.Kind == DateTimeKind.Utc
+            ? request.NextAttemptAt
+            : request.NextAttemptAt.ToUniversalTime();
+        var maxAttempts = request.MaxAttempts > 0 ? request.MaxAttempts : 10;
+        var sanitizedLastError = string.IsNullOrWhiteSpace(request.LastError)
+            ? null
+            : ChatwootSecuritySanitizer.SanitizeMessage(request.LastError, 1000);
+
+        using var connection = OpenConnection();
+        if (TryGetTelegramDeliveryQueueItemByDirectionAndKey(connection, direction, deliveryKey, out var existingItem))
+        {
+            return existingItem with { IsDuplicate = true };
+        }
+
+        using var insertCommand = connection.CreateCommand();
+        insertCommand.CommandText = $"""
+INSERT INTO dbo.{TablePrefix}telegram_delivery_queue
+(LeadId, Direction, DeliveryKey, PayloadJson, ChatwootConversationId, TelegramChatId, Status, AttemptCount, MaxAttempts, NextAttemptAt, LastAttemptAt, LastError, WorkerInstance, CreatedAt, UpdatedAt, ProcessedAt, DeadLetterAt)
+VALUES
+(@leadId, @direction, @deliveryKey, @payloadJson, @chatwootConversationId, @telegramChatId, 'queued', 0, @maxAttempts, @nextAttemptAt, NULL, @lastError, NULL, SYSUTCDATETIME(), SYSUTCDATETIME(), NULL, NULL);
+SELECT CAST(SCOPE_IDENTITY() AS INT);
+""";
+        insertCommand.Parameters.AddRange(
+        [
+            new SqlParameter("@leadId", SqlDbType.Int) { Value = request.LeadId },
+            new SqlParameter("@direction", SqlDbType.NVarChar, 40) { Value = direction },
+            new SqlParameter("@deliveryKey", SqlDbType.NVarChar, 180) { Value = deliveryKey },
+            new SqlParameter("@payloadJson", SqlDbType.NVarChar, -1) { Value = request.PayloadJson },
+            new SqlParameter("@chatwootConversationId", SqlDbType.BigInt) { Value = request.ChatwootConversationId.HasValue ? request.ChatwootConversationId.Value : DBNull.Value },
+            new SqlParameter("@telegramChatId", SqlDbType.BigInt) { Value = request.TelegramChatId.HasValue ? request.TelegramChatId.Value : DBNull.Value },
+            new SqlParameter("@maxAttempts", SqlDbType.Int) { Value = maxAttempts },
+            new SqlParameter("@nextAttemptAt", SqlDbType.DateTime2) { Value = nextAttemptAt },
+            new SqlParameter("@lastError", SqlDbType.NVarChar, -1) { Value = ToDbValue(sanitizedLastError) }
+        ]);
+
+        try
+        {
+            var queueItemId = Convert.ToInt32(insertCommand.ExecuteScalar());
+            return TryGetTelegramDeliveryQueueItemById(connection, queueItemId, out var insertedItem)
+                ? insertedItem
+                : throw new InvalidOperationException("Nao foi possivel recarregar o item da fila Telegram apos o insert.");
+        }
+        catch (SqlException ex) when (IsUniqueKeyViolation(ex) && TryGetTelegramDeliveryQueueItemByDirectionAndKey(connection, direction, deliveryKey, out existingItem))
+        {
+            return existingItem with { IsDuplicate = true };
+        }
+    }
+
+    public IReadOnlyList<AdminKanbanTelegramDeliveryQueueItemRecord> AcquireDueTelegramDeliveryQueueItems(int batchSize, DateTime attemptStartedAtUtc, string workerInstance)
+    {
+        EnsureInitialized();
+
+        var utcNow = attemptStartedAtUtc.Kind == DateTimeKind.Utc
+            ? attemptStartedAtUtc
+            : attemptStartedAtUtc.ToUniversalTime();
+        var normalizedBatchSize = Math.Clamp(batchSize, 1, 500);
+
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = $"""
+;WITH due_items AS (
+    SELECT TOP (@batchSize) Id
+    FROM dbo.{TablePrefix}telegram_delivery_queue WITH (READPAST, UPDLOCK, ROWLOCK)
+    WHERE Status IN ('queued', 'retrying')
+      AND NextAttemptAt <= @attemptStartedAtUtc
+    ORDER BY NextAttemptAt, Id
+)
+UPDATE q
+SET Status = @processingStatus,
+    AttemptCount = AttemptCount + 1,
+    LastAttemptAt = @attemptStartedAtUtc,
+    WorkerInstance = @workerInstance,
+    UpdatedAt = SYSUTCDATETIME()
+OUTPUT
+    inserted.Id,
+    inserted.LeadId,
+    inserted.Direction,
+    inserted.DeliveryKey,
+    inserted.PayloadJson,
+    inserted.ChatwootConversationId,
+    inserted.TelegramChatId,
+    inserted.Status,
+    inserted.AttemptCount,
+    inserted.MaxAttempts,
+    inserted.NextAttemptAt,
+    inserted.LastAttemptAt,
+    inserted.LastError,
+    inserted.WorkerInstance,
+    inserted.CreatedAt,
+    inserted.UpdatedAt,
+    inserted.ProcessedAt,
+    inserted.DeadLetterAt
+FROM dbo.{TablePrefix}telegram_delivery_queue q
+INNER JOIN due_items d ON d.Id = q.Id;
+""";
+        command.Parameters.AddRange(
+        [
+            new SqlParameter("@batchSize", SqlDbType.Int) { Value = normalizedBatchSize },
+            new SqlParameter("@attemptStartedAtUtc", SqlDbType.DateTime2) { Value = utcNow },
+            new SqlParameter("@workerInstance", SqlDbType.NVarChar, 120) { Value = TrimTo(workerInstance, 120) },
+            new SqlParameter("@processingStatus", SqlDbType.NVarChar, 30) { Value = TelegramDeliveryQueueStatuses.Processing }
+        ]);
+
+        var items = new List<AdminKanbanTelegramDeliveryQueueItemRecord>();
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            items.Add(ReadTelegramDeliveryQueueItem(reader));
+        }
+
+        return items;
+    }
+
+    public AdminKanbanTelegramDeliveryQueueItemRecord? FinalizeTelegramDeliveryQueueItem(AdminKanbanTelegramDeliveryQueueFinalizeRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        EnsureInitialized();
+        var sanitizedLastError = string.IsNullOrWhiteSpace(request.LastError)
+            ? null
+            : ChatwootSecuritySanitizer.SanitizeMessage(request.LastError, 1000);
+
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = $"""
+UPDATE dbo.{TablePrefix}telegram_delivery_queue
+SET Status = @finalStatus,
+    NextAttemptAt = COALESCE(@nextAttemptAt, NextAttemptAt),
+    LastError = CASE
+        WHEN @clearLastError = 1 THEN NULL
+        WHEN @lastError IS NOT NULL THEN @lastError
+        ELSE LastError
+    END,
+    WorkerInstance = @workerInstance,
+    UpdatedAt = @finalizedAt,
+    ProcessedAt = CASE
+        WHEN @finalStatus IN ('processed', 'dead_letter') THEN @finalizedAt
+        ELSE NULL
+    END,
+    DeadLetterAt = CASE
+        WHEN @finalStatus = 'dead_letter' THEN @finalizedAt
+        ELSE NULL
+    END
+WHERE Id = @queueItemId;
+""";
+        command.Parameters.AddRange(
+        [
+            new SqlParameter("@finalStatus", SqlDbType.NVarChar, 30) { Value = NormalizeTelegramDeliveryQueueStatus(request.FinalStatus) },
+            new SqlParameter("@nextAttemptAt", SqlDbType.DateTime2) { Value = request.NextAttemptAt.HasValue ? request.NextAttemptAt.Value : DBNull.Value },
+            new SqlParameter("@lastError", SqlDbType.NVarChar, -1) { Value = ToDbValue(sanitizedLastError) },
+            new SqlParameter("@clearLastError", SqlDbType.Bit) { Value = request.ClearLastError },
+            new SqlParameter("@workerInstance", SqlDbType.NVarChar, 120) { Value = ToDbValue(TrimTo(request.WorkerInstance, 120)) },
+            new SqlParameter("@finalizedAt", SqlDbType.DateTime2) { Value = request.FinalizedAt.Kind == DateTimeKind.Utc ? request.FinalizedAt : request.FinalizedAt.ToUniversalTime() },
+            new SqlParameter("@queueItemId", SqlDbType.Int) { Value = request.QueueItemId }
+        ]);
+
+        if (command.ExecuteNonQuery() <= 0)
+        {
+            return null;
+        }
+
+        return TryGetTelegramDeliveryQueueItemById(connection, request.QueueItemId, out var queueItem)
+            ? queueItem
+            : null;
     }
 
     public bool UpdateLead(int leadId, AdminKanbanLeadUpsertRequest request)
@@ -1579,8 +1845,34 @@ CREATE TABLE dbo.{TablePrefix}telegram_funil_links
     ClientId UNIQUEIDENTIFIER NULL,
     ClientEmail NVARCHAR(180) NULL,
     ServiceRequestId UNIQUEIDENTIFIER NULL,
+    HumanHandoffStartedAt DATETIME2 NULL,
+    LastTelegramMessageSyncedAt DATETIME2 NULL,
+    LastChatwootMessageSyncedAt DATETIME2 NULL,
     CreatedAt DATETIME2 NOT NULL DEFAULT(SYSUTCDATETIME()),
     UpdatedAt DATETIME2 NOT NULL DEFAULT(SYSUTCDATETIME())
+);
+
+IF OBJECT_ID('dbo.{TablePrefix}telegram_delivery_queue', 'U') IS NULL
+CREATE TABLE dbo.{TablePrefix}telegram_delivery_queue
+(
+    Id INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    LeadId INT NOT NULL,
+    Direction NVARCHAR(40) NOT NULL,
+    DeliveryKey NVARCHAR(180) NOT NULL,
+    PayloadJson NVARCHAR(MAX) NOT NULL,
+    ChatwootConversationId BIGINT NULL,
+    TelegramChatId BIGINT NULL,
+    Status NVARCHAR(30) NOT NULL DEFAULT('queued'),
+    AttemptCount INT NOT NULL DEFAULT(0),
+    MaxAttempts INT NOT NULL DEFAULT(10),
+    NextAttemptAt DATETIME2 NOT NULL DEFAULT(SYSUTCDATETIME()),
+    LastAttemptAt DATETIME2 NULL,
+    LastError NVARCHAR(MAX) NULL,
+    WorkerInstance NVARCHAR(120) NULL,
+    CreatedAt DATETIME2 NOT NULL DEFAULT(SYSUTCDATETIME()),
+    UpdatedAt DATETIME2 NOT NULL DEFAULT(SYSUTCDATETIME()),
+    ProcessedAt DATETIME2 NULL,
+    DeadLetterAt DATETIME2 NULL
 );
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID('dbo.{TablePrefix}kanban_stages') AND name = 'IX_{TablePrefix}kanban_stages_board')
@@ -1652,6 +1944,27 @@ CREATE UNIQUE INDEX UX_{TablePrefix}telegram_funil_links_conversation
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID('dbo.{TablePrefix}telegram_funil_links') AND name = 'IX_{TablePrefix}telegram_funil_links_lead')
 CREATE INDEX IX_{TablePrefix}telegram_funil_links_lead
     ON dbo.{TablePrefix}telegram_funil_links(LeadId, UpdatedAt DESC, Id DESC);
+
+IF COL_LENGTH('dbo.{TablePrefix}telegram_funil_links', 'HumanHandoffStartedAt') IS NULL
+ALTER TABLE dbo.{TablePrefix}telegram_funil_links ADD HumanHandoffStartedAt DATETIME2 NULL;
+
+IF COL_LENGTH('dbo.{TablePrefix}telegram_funil_links', 'LastTelegramMessageSyncedAt') IS NULL
+ALTER TABLE dbo.{TablePrefix}telegram_funil_links ADD LastTelegramMessageSyncedAt DATETIME2 NULL;
+
+IF COL_LENGTH('dbo.{TablePrefix}telegram_funil_links', 'LastChatwootMessageSyncedAt') IS NULL
+ALTER TABLE dbo.{TablePrefix}telegram_funil_links ADD LastChatwootMessageSyncedAt DATETIME2 NULL;
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID('dbo.{TablePrefix}telegram_funil_links') AND name = 'IX_{TablePrefix}telegram_funil_links_chat')
+CREATE INDEX IX_{TablePrefix}telegram_funil_links_chat
+    ON dbo.{TablePrefix}telegram_funil_links(TelegramChatId, UpdatedAt DESC, Id DESC);
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID('dbo.{TablePrefix}telegram_delivery_queue') AND name = 'UX_{TablePrefix}telegram_delivery_queue_key')
+CREATE UNIQUE INDEX UX_{TablePrefix}telegram_delivery_queue_key
+    ON dbo.{TablePrefix}telegram_delivery_queue(Direction, DeliveryKey);
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID('dbo.{TablePrefix}telegram_delivery_queue') AND name = 'IX_{TablePrefix}telegram_delivery_queue_due')
+CREATE INDEX IX_{TablePrefix}telegram_delivery_queue_due
+    ON dbo.{TablePrefix}telegram_delivery_queue(Status, NextAttemptAt, Id);
 """;
                 command.ExecuteNonQuery();
             }
@@ -2589,7 +2902,148 @@ WHERE Id = @queueItemId;
             DeadLetterAt = reader.IsDBNull(13) ? null : reader.GetDateTime(13)
         };
 
+    private static bool TryGetTelegramDeliveryQueueItemByDirectionAndKey(
+        SqlConnection connection,
+        string direction,
+        string deliveryKey,
+        out AdminKanbanTelegramDeliveryQueueItemRecord queueItem)
+    {
+        queueItem = null!;
+
+        using var command = connection.CreateCommand();
+        command.CommandText = $"""
+SELECT TOP (1)
+    Id,
+    LeadId,
+    Direction,
+    DeliveryKey,
+    PayloadJson,
+    ChatwootConversationId,
+    TelegramChatId,
+    Status,
+    AttemptCount,
+    MaxAttempts,
+    NextAttemptAt,
+    LastAttemptAt,
+    LastError,
+    WorkerInstance,
+    CreatedAt,
+    UpdatedAt,
+    ProcessedAt,
+    DeadLetterAt
+FROM dbo.{TablePrefix}telegram_delivery_queue
+WHERE Direction = @direction
+  AND DeliveryKey = @deliveryKey
+ORDER BY Id DESC;
+""";
+        command.Parameters.AddRange(
+        [
+            new SqlParameter("@direction", SqlDbType.NVarChar, 40) { Value = direction },
+            new SqlParameter("@deliveryKey", SqlDbType.NVarChar, 180) { Value = deliveryKey }
+        ]);
+
+        using var reader = command.ExecuteReader();
+        if (!reader.Read())
+        {
+            return false;
+        }
+
+        queueItem = ReadTelegramDeliveryQueueItem(reader);
+        return true;
+    }
+
+    private static bool TryGetTelegramDeliveryQueueItemById(
+        SqlConnection connection,
+        int queueItemId,
+        out AdminKanbanTelegramDeliveryQueueItemRecord queueItem)
+    {
+        queueItem = null!;
+
+        using var command = connection.CreateCommand();
+        command.CommandText = $"""
+SELECT TOP (1)
+    Id,
+    LeadId,
+    Direction,
+    DeliveryKey,
+    PayloadJson,
+    ChatwootConversationId,
+    TelegramChatId,
+    Status,
+    AttemptCount,
+    MaxAttempts,
+    NextAttemptAt,
+    LastAttemptAt,
+    LastError,
+    WorkerInstance,
+    CreatedAt,
+    UpdatedAt,
+    ProcessedAt,
+    DeadLetterAt
+FROM dbo.{TablePrefix}telegram_delivery_queue
+WHERE Id = @queueItemId;
+""";
+        command.Parameters.Add(new SqlParameter("@queueItemId", SqlDbType.Int) { Value = queueItemId });
+
+        using var reader = command.ExecuteReader();
+        if (!reader.Read())
+        {
+            return false;
+        }
+
+        queueItem = ReadTelegramDeliveryQueueItem(reader);
+        return true;
+    }
+
+    private static AdminKanbanTelegramDeliveryQueueItemRecord ReadTelegramDeliveryQueueItem(SqlDataReader reader) =>
+        new()
+        {
+            Id = reader.GetInt32(0),
+            LeadId = reader.GetInt32(1),
+            Direction = reader.IsDBNull(2) ? string.Empty : reader.GetString(2),
+            DeliveryKey = reader.IsDBNull(3) ? string.Empty : reader.GetString(3),
+            PayloadJson = reader.IsDBNull(4) ? string.Empty : reader.GetString(4),
+            ChatwootConversationId = ReadNullableInt64(reader, 5),
+            TelegramChatId = ReadNullableInt64(reader, 6),
+            Status = reader.IsDBNull(7) ? string.Empty : reader.GetString(7),
+            AttemptCount = reader.GetInt32(8),
+            MaxAttempts = reader.GetInt32(9),
+            NextAttemptAt = reader.GetDateTime(10),
+            LastAttemptAt = reader.IsDBNull(11) ? null : reader.GetDateTime(11),
+            LastError = reader.IsDBNull(12) ? string.Empty : reader.GetString(12),
+            WorkerInstance = reader.IsDBNull(13) ? string.Empty : reader.GetString(13),
+            CreatedAt = reader.GetDateTime(14),
+            UpdatedAt = reader.GetDateTime(15),
+            ProcessedAt = reader.IsDBNull(16) ? null : reader.GetDateTime(16),
+            DeadLetterAt = reader.IsDBNull(17) ? null : reader.GetDateTime(17)
+        };
+
     private static bool IsUniqueKeyViolation(SqlException ex) => ex.Number is 2601 or 2627;
+
+    private static string NormalizeTelegramDeliveryDirection(string? direction)
+    {
+        var normalized = (direction ?? string.Empty).Trim().ToLowerInvariant();
+        return normalized switch
+        {
+            TelegramDeliveryDirections.TelegramToChatwoot => TelegramDeliveryDirections.TelegramToChatwoot,
+            TelegramDeliveryDirections.ChatwootToTelegram => TelegramDeliveryDirections.ChatwootToTelegram,
+            _ => throw new InvalidOperationException($"Direcao da fila Telegram nao suportada: '{direction}'.")
+        };
+    }
+
+    private static string NormalizeTelegramDeliveryQueueStatus(string? status)
+    {
+        var normalized = (status ?? string.Empty).Trim().ToLowerInvariant();
+        return normalized switch
+        {
+            TelegramDeliveryQueueStatuses.Queued => TelegramDeliveryQueueStatuses.Queued,
+            TelegramDeliveryQueueStatuses.Processing => TelegramDeliveryQueueStatuses.Processing,
+            TelegramDeliveryQueueStatuses.Retrying => TelegramDeliveryQueueStatuses.Retrying,
+            TelegramDeliveryQueueStatuses.Processed => TelegramDeliveryQueueStatuses.Processed,
+            TelegramDeliveryQueueStatuses.DeadLetter => TelegramDeliveryQueueStatuses.DeadLetter,
+            _ => throw new InvalidOperationException($"Status da fila Telegram nao suportado: '{status}'.")
+        };
+    }
 
     private static string NormalizePriority(string? priority)
     {

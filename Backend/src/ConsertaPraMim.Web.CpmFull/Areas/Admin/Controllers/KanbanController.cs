@@ -81,6 +81,9 @@ public sealed class KanbanController : Controller
                 clientId = lead.Telegram.ClientId?.ToString() ?? string.Empty,
                 clientEmail = lead.Telegram.ClientEmail,
                 serviceRequestId = lead.Telegram.ServiceRequestId?.ToString() ?? string.Empty,
+                humanHandoffStartedAt = lead.Telegram.HumanHandoffStartedAt?.ToString("dd/MM/yyyy HH:mm") ?? "-",
+                lastTelegramMessageSyncedAt = lead.Telegram.LastTelegramMessageSyncedAt?.ToString("dd/MM/yyyy HH:mm") ?? "-",
+                lastChatwootMessageSyncedAt = lead.Telegram.LastChatwootMessageSyncedAt?.ToString("dd/MM/yyyy HH:mm") ?? "-",
                 updatedAt = lead.Telegram.UpdatedAt?.ToString("dd/MM/yyyy HH:mm") ?? "-"
             },
             chatwoot = new
@@ -559,6 +562,11 @@ public sealed class KanbanController : Controller
             "seed" => "Carga inicial",
             "telegram_lead_criado" => "Lead criado via bot Telegram",
             "telegram_lead_atualizado" => "Lead atualizado via bot Telegram",
+            "telegram_entrega_enfileirada" => "Entrega Telegram enfileirada",
+            "telegram_message_synced_to_chatwoot" => "Mensagem Telegram espelhada no Chatwoot",
+            "chatwoot_handoff_humano_iniciado" => "Handoff humano iniciado no Chatwoot",
+            "chatwoot_message_synced_to_telegram" => "Mensagem humana enviada ao Telegram",
+            "telegram_dead_letter" => "Entrega Telegram esgotada",
             "chatwoot_bootstrap_via_telegram" => "Bootstrap Telegram no Chatwoot",
             "chatwoot_contato_sincronizado" => "Contato sincronizado no Chatwoot",
             "chatwoot_conversa_criada" => "Conversa criada no Chatwoot",

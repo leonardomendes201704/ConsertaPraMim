@@ -191,6 +191,9 @@
                     <div class="col-12 col-md-6"><strong>Cliente vinculado:</strong> <span id="detailsTelegramClientId"></span></div>
                     <div class="col-12 col-md-6"><strong>E-mail autenticado:</strong> <span id="detailsTelegramClientEmail"></span></div>
                     <div class="col-12 col-md-6"><strong>Pedido vinculado:</strong> <span id="detailsTelegramServiceRequestId"></span></div>
+                    <div class="col-12 col-md-6"><strong>Handoff humano iniciado:</strong> <span id="detailsTelegramHumanHandoffStartedAt"></span></div>
+                    <div class="col-12 col-md-6"><strong>Ultima msg Telegram sincronizada:</strong> <span id="detailsTelegramLastMessageSyncedAt"></span></div>
+                    <div class="col-12 col-md-6"><strong>Ultima msg Chatwoot sincronizada:</strong> <span id="detailsTelegramLastChatwootMessageSyncedAt"></span></div>
                     <div class="col-12"><hr class="my-1" /></div>
                     <div class="col-12"><h6 class="fw-bold mb-0">Integracao Chatwoot</h6></div>
                     <div class="col-12 col-md-4"><strong>Contato Chatwoot:</strong> <span id="detailsChatwootContactId"></span></div>
@@ -946,6 +949,9 @@
                 document.getElementById("detailsTelegramClientId").textContent = telegram.clientId || "-";
                 document.getElementById("detailsTelegramClientEmail").textContent = telegram.clientEmail || "-";
                 document.getElementById("detailsTelegramServiceRequestId").textContent = telegram.serviceRequestId || "-";
+                document.getElementById("detailsTelegramHumanHandoffStartedAt").textContent = telegram.humanHandoffStartedAt || "-";
+                document.getElementById("detailsTelegramLastMessageSyncedAt").textContent = telegram.lastTelegramMessageSyncedAt || "-";
+                document.getElementById("detailsTelegramLastChatwootMessageSyncedAt").textContent = telegram.lastChatwootMessageSyncedAt || "-";
                 document.getElementById("detailsChatwootContactId").textContent = chatwoot.contactId || "-";
                 document.getElementById("detailsChatwootConversationId").textContent = chatwoot.conversationId || "-";
                 document.getElementById("detailsChatwootInboxId").textContent = chatwoot.inboxId || "-";

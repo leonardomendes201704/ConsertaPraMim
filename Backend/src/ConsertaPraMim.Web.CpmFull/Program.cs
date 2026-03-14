@@ -36,8 +36,11 @@ builder.Services.AddScoped<IChatwootLeadSyncService, ChatwootLeadSyncService>();
 builder.Services.AddScoped<IChatwootBackfillService, ChatwootBackfillService>();
 builder.Services.AddScoped<IChatwootWebhookService, ChatwootWebhookService>();
 builder.Services.AddScoped<ITelegramLeadAutomationService, TelegramLeadAutomationService>();
+builder.Services.AddScoped<ITelegramDeliveryQueueService, TelegramDeliveryQueueService>();
+builder.Services.AddScoped<ITelegramMessageAutomationService, TelegramMessageAutomationService>();
 builder.Services.AddHostedService<ChatwootSyncRetryWorker>();
 builder.Services.AddHostedService<ChatwootWebhookRetentionWorker>();
+builder.Services.AddHostedService<TelegramDeliveryWorker>();
 builder.Services.AddSingleton<IValidateOptions<ChatwootOptions>, ChatwootOptionsValidator>();
 builder.Services.AddSingleton<IValidateOptions<TelegramAutomationOptions>, TelegramAutomationOptionsValidator>();
 builder.Services.AddOptions<ChatwootOptions>()
@@ -54,6 +57,18 @@ builder.Services.AddHttpClient<IChatwootApiClient, ChatwootApiClient>((servicePr
         client.BaseAddress = baseUri;
     }
 
+    client.DefaultRequestHeaders.TryAddWithoutValidation("Accept", "application/json");
+    client.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", "ConsertaPraMim.Web.CpmFull/1.0");
+});
+builder.Services.AddHttpClient<ITelegramBridgeDeliveryClient, TelegramBridgeDeliveryClient>((serviceProvider, client) =>
+{
+    var telegramOptions = serviceProvider.GetRequiredService<IOptions<TelegramAutomationOptions>>().Value;
+    if (Uri.TryCreate(telegramOptions.TelegramBridgeBaseUrl, UriKind.Absolute, out var baseUri))
+    {
+        client.BaseAddress = baseUri;
+    }
+
+    client.Timeout = telegramOptions.GetRequestTimeout();
     client.DefaultRequestHeaders.TryAddWithoutValidation("Accept", "application/json");
     client.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", "ConsertaPraMim.Web.CpmFull/1.0");
 });

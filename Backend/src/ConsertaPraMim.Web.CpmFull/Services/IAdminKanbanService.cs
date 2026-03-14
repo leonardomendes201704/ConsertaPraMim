@@ -7,6 +7,12 @@ public interface IAdminKanbanService
     AdminKanbanLeadDetailsRecord? GetLeadDetails(int leadId);
     int CreateLead(AdminKanbanLeadUpsertRequest request);
     AdminKanbanTelegramLeadUpsertResult UpsertTelegramLead(AdminKanbanTelegramLeadUpsertRequest request);
+    int? FindLeadIdByTelegramChatbotConversationId(Guid chatbotConversationId);
+    int? FindLeadIdByTelegramChatId(long telegramChatId);
+    bool TouchTelegramLeadLink(int leadId, AdminKanbanTelegramLinkTouchRequest request);
+    AdminKanbanTelegramDeliveryQueueItemRecord EnqueueTelegramDeliveryQueueItem(AdminKanbanTelegramDeliveryQueueEnqueueRequest request);
+    IReadOnlyList<AdminKanbanTelegramDeliveryQueueItemRecord> AcquireDueTelegramDeliveryQueueItems(int batchSize, DateTime attemptStartedAtUtc, string workerInstance);
+    AdminKanbanTelegramDeliveryQueueItemRecord? FinalizeTelegramDeliveryQueueItem(AdminKanbanTelegramDeliveryQueueFinalizeRequest request);
     bool UpdateLead(int leadId, AdminKanbanLeadUpsertRequest request);
     bool UpdateLeadChatwootSync(int leadId, AdminKanbanLeadChatwootSyncUpdateRequest request);
     int? FindLeadIdByChatwootConversationId(long conversationId);

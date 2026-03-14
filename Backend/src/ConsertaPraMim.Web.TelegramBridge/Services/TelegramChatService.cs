@@ -155,7 +155,8 @@ public sealed class TelegramChatService : ITelegramChatService
             senderDisplayName: senderName,
             text: safeText,
             sentAtUtc: sentAtUtc,
-            attachments: storedIncomingFiles.Select(MapAttachment).ToList());
+            attachments: storedIncomingFiles.Select(MapAttachment).ToList(),
+            messageId: BuildInboundTelegramMessageId(chatId, message.MessageId));
 
         await _realtimeNotifier.BroadcastConversationMessageAsync(result.Summary, result.Message, cancellationToken);
         return result.Message;
@@ -238,5 +239,15 @@ public sealed class TelegramChatService : ITelegramChatService
         }
 
         return value.Trim();
+    }
+
+    private static string? BuildInboundTelegramMessageId(long chatId, long messageId)
+    {
+        if (chatId <= 0 || messageId <= 0)
+        {
+            return null;
+        }
+
+        return $"telegram:{chatId}:{messageId}";
     }
 }

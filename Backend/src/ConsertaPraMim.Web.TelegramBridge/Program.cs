@@ -82,12 +82,23 @@ builder.Services.AddHttpClient<ITelegramLeadAutomationClient, TelegramLeadAutoma
 
     client.Timeout = options.GetRequestTimeout();
 });
+builder.Services.AddHttpClient<ITelegramMessageAutomationClient, TelegramMessageAutomationClient>((serviceProvider, client) =>
+{
+    var options = serviceProvider.GetRequiredService<IOptions<TelegramAutomationOptions>>().Value;
+    if (Uri.TryCreate(options.CpmFullBaseUrl, UriKind.Absolute, out var baseUri))
+    {
+        client.BaseAddress = baseUri;
+    }
+
+    client.Timeout = options.GetRequestTimeout();
+});
 
 builder.Services.AddSingleton<ITelegramConversationStore, TelegramConversationStore>();
 builder.Services.AddSingleton<ITelegramBotApiClient, TelegramBotApiClient>();
 builder.Services.AddSingleton<ITelegramAttachmentStorage, TelegramAttachmentStorage>();
 builder.Services.AddSingleton<ITelegramChatRealtimeNotifier, TelegramChatRealtimeNotifier>();
 builder.Services.AddSingleton<ITelegramChatService, TelegramChatService>();
+builder.Services.AddSingleton<ITelegramHumanHandoffStateService, TelegramHumanHandoffStateService>();
 builder.Services.AddScoped<ITelegramBridgeAuthApiClient, TelegramBridgeAuthApiClient>();
 builder.Services.AddScoped<ITelegramChatbotApiClient, TelegramChatbotApiClient>();
 builder.Services.AddSingleton<ITelegramAiGateway, OpenAiTelegramGateway>();
