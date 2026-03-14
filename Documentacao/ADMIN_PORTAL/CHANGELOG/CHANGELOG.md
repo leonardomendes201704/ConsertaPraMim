@@ -12,6 +12,12 @@
 
 ## Released
 
+- [2026-03-14] [CPMFULL-031][TELEGRAM-POST-EPIC-VPS-PUBLISH] Publicacao do TelegramBridge na pipeline VPS com healthcheck e URL publica dedicados
+- Tipo: feat
+- Resumo: o `ConsertaPraMim.Web.TelegramBridge` passou a ser publicado como servico proprio do workflow `deploy-vps`, com `Dockerfile`/compose dedicados, suporte de scripts `vps-deploy`, healthcheck `GET /health`, propagacao de `PUBLIC_TELEGRAM_BRIDGE_URL` e secrets `TELEGRAM_BRIDGE_*` / `TELEGRAM_AUTOMATION_*` no `Backend/.env.vps`, alem de suporte a `ForwardedHeaders` para operar o webhook seguro atras do Nginx sem redirect indevido.
+- Arquivos principais: `.github/workflows/deploy-vps.yml`, `Backend/docker-compose.vps.web-telegrambridge.yml`, `Backend/docker/vps/Dockerfile.web.telegrambridge`, `Backend/docker-compose.vps.yml`, `scripts/deploy/vps-deploy-service.sh`, `scripts/deploy/vps-deploy.sh`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Program.cs`, `Backend/DEPLOY_VPS.md`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/README.md`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/MANUAL_QA_OPERACAO.md`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/EPIC_TELEGRAM_AUTOMACAO_FUNIL_CPM.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-089-publicacao-telegram-bridge-vps-webhook.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: alto
+
 - [2026-03-14] [CPMFULL-030][TELEGRAM-POST-EPIC-WEBHOOK-TRANSPORT] Transporte webhook seguro no TelegramBridge com fallback explicito para long polling
 - Tipo: feat
 - Resumo: o `ConsertaPraMim.Web.TelegramBridge` passou a suportar `TelegramBridge:UpdateTransport=LongPolling|Webhook`, com validacao forte de `WebhookPublicBaseUrl`, `WebhookPath` e `WebhookSecretToken`, bootstrap automatico de `setWebhook/deleteWebhook` na Bot API e endpoint tecnico `POST /api/integrations/telegram/webhook` protegido por `X-Telegram-Bot-Api-Secret-Token`. O processamento inbound foi unificado para que webhook e polling reaproveitem a mesma trilha de persistencia local, observabilidade e espelhamento para o CPM Full/Chatwoot.

@@ -10,6 +10,7 @@ SERVICES=(
   "web-admin"
   "web-client"
   "web-provider"
+  "web-telegrambridge"
   "mobile-webview-client"
   "mobile-webview-provider"
   "mobile-webview-admin"

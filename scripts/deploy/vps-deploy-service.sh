@@ -16,8 +16,8 @@ elif [[ $# -eq 2 ]]; then
 fi
 
 if [[ -z "$TARGET_SERVICE" ]]; then
-  echo "Uso: $0 [repo_dir] <api|web-cpmfull|web-admin|web-client|web-provider|mobile-webview-client|mobile-webview-provider|mobile-webview-admin>"
-  echo "Ou:  $0 <api|web-cpmfull|web-admin|web-client|web-provider|mobile-webview-client|mobile-webview-provider|mobile-webview-admin>"
+  echo "Uso: $0 [repo_dir] <api|web-cpmfull|web-admin|web-client|web-provider|web-telegrambridge|mobile-webview-client|mobile-webview-provider|mobile-webview-admin>"
+  echo "Ou:  $0 <api|web-cpmfull|web-admin|web-client|web-provider|web-telegrambridge|mobile-webview-client|mobile-webview-provider|mobile-webview-admin>"
   exit 1
 fi
 
@@ -27,6 +27,7 @@ declare -A COMPOSE_FILES=(
   [web-admin]="Backend/docker-compose.vps.web-admin.yml"
   [web-client]="Backend/docker-compose.vps.web-client.yml"
   [web-provider]="Backend/docker-compose.vps.web-provider.yml"
+  [web-telegrambridge]="Backend/docker-compose.vps.web-telegrambridge.yml"
   [mobile-webview-client]="Backend/docker-compose.vps.mobile-webview-client.yml"
   [mobile-webview-provider]="Backend/docker-compose.vps.mobile-webview-provider.yml"
   [mobile-webview-admin]="Backend/docker-compose.vps.mobile-webview-admin.yml"
@@ -38,6 +39,7 @@ declare -A CONTAINER_SUFFIXES=(
   [web-admin]="admin"
   [web-client]="cliente"
   [web-provider]="prestador"
+  [web-telegrambridge]="telegrambridge"
   [mobile-webview-client]="app-cliente"
   [mobile-webview-provider]="app-prestador"
   [mobile-webview-admin]="app-admin"
@@ -49,6 +51,7 @@ declare -A PROJECT_SUFFIXES=(
   [web-admin]="admin"
   [web-client]="cliente"
   [web-provider]="prestador"
+  [web-telegrambridge]="telegrambridge"
   [mobile-webview-client]="app-cliente"
   [mobile-webview-provider]="app-prestador"
   [mobile-webview-admin]="app-admin"
@@ -60,6 +63,7 @@ declare -A LEGACY_CONTAINER_SUFFIXES=(
   [web-admin]="web-admin"
   [web-client]="web-client"
   [web-provider]="web-provider"
+  [web-telegrambridge]="telegrambridge"
   [mobile-webview-client]="mobile-webview-client"
   [mobile-webview-provider]="mobile-webview-provider"
   [mobile-webview-admin]="mobile-webview-admin"
@@ -67,7 +71,7 @@ declare -A LEGACY_CONTAINER_SUFFIXES=(
 
 if [[ -z "${COMPOSE_FILES[$TARGET_SERVICE]+x}" ]]; then
   echo "Servico invalido: '$TARGET_SERVICE'."
-  echo "Servicos suportados: api, web-cpmfull, web-admin, web-client, web-provider, mobile-webview-client, mobile-webview-provider, mobile-webview-admin"
+  echo "Servicos suportados: api, web-cpmfull, web-admin, web-client, web-provider, web-telegrambridge, mobile-webview-client, mobile-webview-provider, mobile-webview-admin"
   exit 1
 fi
 

@@ -16,6 +16,7 @@ env:
   ADMIN_PORT: ${{ github.ref_name == 'dev-local' && '6151' || '5151' }}
   CLIENT_PORT: ${{ github.ref_name == 'dev-local' && '6069' || '5069' }}
   PROVIDER_PORT: ${{ github.ref_name == 'dev-local' && '6140' || '5140' }}
+  TELEGRAM_BRIDGE_PORT: ${{ github.ref_name == 'dev-local' && '6175' || '5175' }}
   MOBILE_CLIENT_WEBVIEW_PORT: ${{ github.ref_name == 'dev-local' && '6181' || '5181' }}
   MOBILE_PROVIDER_WEBVIEW_PORT: ${{ github.ref_name == 'dev-local' && '6182' || '5182' }}
   MOBILE_ADMIN_WEBVIEW_PORT: ${{ github.ref_name == 'dev-local' && '6183' || '5183' }}
@@ -40,6 +41,7 @@ jobs:
       deploy_web_admin: ${{ steps.targets.outputs.deploy_web_admin }}
       deploy_web_client: ${{ steps.targets.outputs.deploy_web_client }}
       deploy_web_provider: ${{ steps.targets.outputs.deploy_web_provider }}
+      deploy_web_telegrambridge: ${{ steps.targets.outputs.deploy_web_telegrambridge }}
       deploy_mobile_webview_client: ${{ steps.targets.outputs.deploy_mobile_webview_client }}
       deploy_mobile_webview_provider: ${{ steps.targets.outputs.deploy_mobile_webview_provider }}
       deploy_mobile_webview_admin: ${{ steps.targets.outputs.deploy_mobile_webview_admin }}
@@ -83,6 +85,8 @@ jobs:
               - 'Backend/docker-compose.vps.web-admin.yml'
               - 'Backend/docker-compose.vps.web-client.yml'
               - 'Backend/docker-compose.vps.web-provider.yml'
+              - 'Backend/docker-compose.vps.web-telegrambridge.yml'
+              - 'Backend/docker/vps/Dockerfile.web.telegrambridge'
             api:
               - 'Backend/src/ConsertaPraMim.API/**'
               - 'Backend/src/ConsertaPraMim.Application/**'
@@ -108,6 +112,10 @@ jobs:
               - 'Backend/src/ConsertaPraMim.Application/**'
               - 'Backend/src/ConsertaPraMim.Domain/**'
               - 'Backend/docker/vps/Dockerfile.web.provider'
+            web_telegrambridge:
+              - 'Backend/src/ConsertaPraMim.Web.TelegramBridge/**'
+              - 'Backend/docker/vps/Dockerfile.web.telegrambridge'
+              - 'Backend/docker-compose.vps.web-telegrambridge.yml'
             mobile_webview_shared:
               - '.github/workflows/deploy-vps.yml'
               - 'Backend/docker-compose.vps.mobile-webview-client.yml'
@@ -142,6 +150,7 @@ jobs:
           deploy_web_admin="${{ steps.changes.outputs.web_admin }}"
           deploy_web_client="${{ steps.changes.outputs.web_client }}"
           deploy_web_provider="${{ steps.changes.outputs.web_provider }}"
+          deploy_web_telegrambridge="${{ steps.changes.outputs.web_telegrambridge }}"
           deploy_mobile_webview_client="${{ steps.changes.outputs.mobile_webview_client }}"
           deploy_mobile_webview_provider="${{ steps.changes.outputs.mobile_webview_provider }}"
           deploy_mobile_webview_admin="${{ steps.changes.outputs.mobile_webview_admin }}"
@@ -158,6 +167,7 @@ jobs:
             deploy_web_admin="true"
             deploy_web_client="true"
             deploy_web_provider="true"
+            deploy_web_telegrambridge="true"
             deploy_mobile_webview_client="true"
             deploy_mobile_webview_provider="true"
             deploy_mobile_webview_admin="true"
@@ -169,13 +179,14 @@ jobs:
             deploy_web_admin="true"
             deploy_web_client="true"
             deploy_web_provider="true"
+            deploy_web_telegrambridge="true"
             deploy_mobile_webview_client="true"
             deploy_mobile_webview_provider="true"
             deploy_mobile_webview_admin="true"
           fi
 
           any="false"
-          if [[ "$deploy_api" == "true" || "$deploy_web_cpmfull" == "true" || "$deploy_web_admin" == "true" || "$deploy_web_client" == "true" || "$deploy_web_provider" == "true" || "$deploy_mobile_webview_client" == "true" || "$deploy_mobile_webview_provider" == "true" || "$deploy_mobile_webview_admin" == "true" ]]; then
+          if [[ "$deploy_api" == "true" || "$deploy_web_cpmfull" == "true" || "$deploy_web_admin" == "true" || "$deploy_web_client" == "true" || "$deploy_web_provider" == "true" || "$deploy_web_telegrambridge" == "true" || "$deploy_mobile_webview_client" == "true" || "$deploy_mobile_webview_provider" == "true" || "$deploy_mobile_webview_admin" == "true" ]]; then
             any="true"
           fi
 
@@ -184,6 +195,7 @@ jobs:
           echo "deploy_web_admin=$deploy_web_admin" >> "$GITHUB_OUTPUT"
           echo "deploy_web_client=$deploy_web_client" >> "$GITHUB_OUTPUT"
           echo "deploy_web_provider=$deploy_web_provider" >> "$GITHUB_OUTPUT"
+          echo "deploy_web_telegrambridge=$deploy_web_telegrambridge" >> "$GITHUB_OUTPUT"
           echo "deploy_mobile_webview_client=$deploy_mobile_webview_client" >> "$GITHUB_OUTPUT"
           echo "deploy_mobile_webview_provider=$deploy_mobile_webview_provider" >> "$GITHUB_OUTPUT"
           echo "deploy_mobile_webview_admin=$deploy_mobile_webview_admin" >> "$GITHUB_OUTPUT"
@@ -328,6 +340,9 @@ jobs:
           deploy_web_provider="${{ steps.targets.outputs.deploy_web_provider }}"
           health_web_provider="$deploy_web_provider"
 
+          deploy_web_telegrambridge="${{ steps.targets.outputs.deploy_web_telegrambridge }}"
+          health_web_telegrambridge="$deploy_web_telegrambridge"
+
           deploy_mobile_webview_client="${{ steps.targets.outputs.deploy_mobile_webview_client }}"
           health_mobile_webview_client="$deploy_mobile_webview_client"
 
@@ -358,7 +373,7 @@ jobs:
             echo ""
             echo "- Profile: \`${{ env.DEPLOY_PROFILE }}\`"
             echo "- Host binding: \`${{ env.BIND_HOST }}\`"
-            echo "- Ports: API=${{ env.API_PORT }}, Site raiz=${{ env.LANDING_PORT }}, Admin=${{ env.ADMIN_PORT }}, Cliente=${{ env.CLIENT_PORT }}, Prestador=${{ env.PROVIDER_PORT }}"
+            echo "- Ports: API=${{ env.API_PORT }}, Site raiz=${{ env.LANDING_PORT }}, Admin=${{ env.ADMIN_PORT }}, Cliente=${{ env.CLIENT_PORT }}, Prestador=${{ env.PROVIDER_PORT }}, TelegramBridge=${{ env.TELEGRAM_BRIDGE_PORT }}"
             echo ""
             echo "| No | Executa? |"
             echo "|---|---|"
@@ -373,6 +388,8 @@ jobs:
             echo "| Healthcheck Web Client | $(bool_icon "$health_web_client") |"
             echo "| Deploy Web Provider | $(bool_icon "$deploy_web_provider") |"
             echo "| Healthcheck Web Provider | $(bool_icon "$health_web_provider") |"
+            echo "| Deploy Web TelegramBridge | $(bool_icon "$deploy_web_telegrambridge") |"
+            echo "| Healthcheck Web TelegramBridge | $(bool_icon "$health_web_telegrambridge") |"
             echo "| Deploy Mobile WebView Client | $(bool_icon "$deploy_mobile_webview_client") |"
             echo "| Healthcheck Mobile WebView Client | $(bool_icon "$health_mobile_webview_client") |"
             echo "| Deploy Mobile WebView Provider | $(bool_icon "$deploy_mobile_webview_provider") |"
@@ -1407,6 +1424,195 @@ jobs:
           docker logs --tail 200 "${CONTAINER_PREFIX}-prestador" || true
           echo "::endgroup::"
 
+  deploy-web-telegrambridge:
+    name: Deploy Web TelegramBridge
+    needs: targets
+    if: needs.targets.outputs.deploy_web_telegrambridge == 'true'
+    runs-on: [self-hosted, Linux, X64]
+    environment: ${{ github.ref_name == 'dev-local' && 'development' || 'production' }}
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Write VPS env file
+        shell: bash
+        run: |
+          APP_ENVIRONMENT_VALUE="${{ secrets.VPS_APP_ENVIRONMENT }}"
+          if [[ -z "$APP_ENVIRONMENT_VALUE" ]]; then
+            if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+              APP_ENVIRONMENT_VALUE="Development"
+            else
+              APP_ENVIRONMENT_VALUE="Production"
+            fi
+          fi
+
+          VPS_PUBLIC_HOST_VALUE="${{ secrets.VPS_PUBLIC_HOST }}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE#http://}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE#https://}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE%%/*}"
+          VPS_PUBLIC_HOST_VALUE="${VPS_PUBLIC_HOST_VALUE%%:*}"
+          PUBLIC_API_URL_VALUE="${{ secrets.PUBLIC_API_URL }}"
+          PUBLIC_LANDING_URL_VALUE="${{ secrets.PUBLIC_LANDING_URL }}"
+          PUBLIC_TELEGRAM_BRIDGE_URL_VALUE="${{ secrets.PUBLIC_TELEGRAM_BRIDGE_URL }}"
+
+          if [[ -z "$PUBLIC_API_URL_VALUE" ]]; then
+            PUBLIC_API_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.API_PORT }}"
+          fi
+          if [[ -z "$PUBLIC_LANDING_URL_VALUE" ]]; then
+            PUBLIC_LANDING_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.LANDING_PORT }}"
+          fi
+          if [[ -z "$PUBLIC_TELEGRAM_BRIDGE_URL_VALUE" ]]; then
+            PUBLIC_TELEGRAM_BRIDGE_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.TELEGRAM_BRIDGE_PORT }}"
+          fi
+
+          TELEGRAM_BRIDGE_WEBHOOK_PUBLIC_BASE_URL_VALUE="${{ secrets.TELEGRAM_BRIDGE_WEBHOOK_PUBLIC_BASE_URL }}"
+          TELEGRAM_BRIDGE_WEBHOOK_PATH_VALUE="${{ secrets.TELEGRAM_BRIDGE_WEBHOOK_PATH }}"
+          TELEGRAM_BRIDGE_WEBHOOK_SECRET_TOKEN_VALUE="${{ secrets.TELEGRAM_BRIDGE_WEBHOOK_SECRET_TOKEN }}"
+          TELEGRAM_AUTOMATION_CPMFULL_BASE_URL_VALUE="${{ secrets.TELEGRAM_AUTOMATION_CPMFULL_BASE_URL }}"
+          TELEGRAM_AUTOMATION_SHARED_SECRET_VALUE="${{ secrets.TELEGRAM_AUTOMATION_SHARED_SECRET }}"
+
+          if [[ -z "$TELEGRAM_BRIDGE_WEBHOOK_PUBLIC_BASE_URL_VALUE" ]]; then
+            TELEGRAM_BRIDGE_WEBHOOK_PUBLIC_BASE_URL_VALUE="$PUBLIC_TELEGRAM_BRIDGE_URL_VALUE"
+          fi
+          if [[ -z "$TELEGRAM_BRIDGE_WEBHOOK_PATH_VALUE" ]]; then
+            TELEGRAM_BRIDGE_WEBHOOK_PATH_VALUE="/api/integrations/telegram/webhook"
+          fi
+          if [[ -z "$TELEGRAM_AUTOMATION_CPMFULL_BASE_URL_VALUE" ]]; then
+            TELEGRAM_AUTOMATION_CPMFULL_BASE_URL_VALUE="http://${{ env.CONTAINER_PREFIX }}-cpmfull:${{ env.LANDING_PORT }}"
+          fi
+
+          cat > Backend/.env.vps <<EOF
+          APP_ENVIRONMENT=$APP_ENVIRONMENT_VALUE
+          DEPLOY_PROFILE=${{ env.DEPLOY_PROFILE }}
+          BIND_HOST=${{ env.BIND_HOST }}
+          CONTAINER_PREFIX=${{ env.CONTAINER_PREFIX }}
+          VOLUME_PREFIX=${{ env.VOLUME_PREFIX }}
+          INTERNAL_API_URL=http://${{ env.CONTAINER_PREFIX }}-api:8080
+          VPS_PUBLIC_HOST=$VPS_PUBLIC_HOST_VALUE
+          PUBLIC_API_URL=$PUBLIC_API_URL_VALUE
+          PUBLIC_LANDING_URL=$PUBLIC_LANDING_URL_VALUE
+          PUBLIC_TELEGRAM_BRIDGE_URL=$PUBLIC_TELEGRAM_BRIDGE_URL_VALUE
+          API_PORT=${{ env.API_PORT }}
+          LANDING_PORT=${{ env.LANDING_PORT }}
+          TELEGRAM_BRIDGE_PORT=${{ env.TELEGRAM_BRIDGE_PORT }}
+          DB_NAME=${{ env.DB_NAME }}
+          DB_USER=sa
+          DB_PASSWORD=${{ secrets.VPS_DB_PASSWORD }}
+          DB_HOST=${{ secrets.VPS_DB_HOST }}
+          JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
+          SEED_DEFAULT_PASSWORD=${{ secrets.SEED_DEFAULT_PASSWORD }}
+          FIREBASE_SERVICE_ACCOUNT_PATH=${{ secrets.FIREBASE_SERVICE_ACCOUNT_PATH }}
+          APK_RELEASE_PUSH_TOKEN=${{ secrets.APK_RELEASE_PUSH_TOKEN }}
+          TELEGRAM_BRIDGE_BOT_TOKEN=${{ secrets.TELEGRAM_BRIDGE_BOT_TOKEN }}
+          TELEGRAM_BRIDGE_UPDATE_TRANSPORT=${{ secrets.TELEGRAM_BRIDGE_UPDATE_TRANSPORT }}
+          TELEGRAM_BRIDGE_POLLING_TIMEOUT_SECONDS=${{ secrets.TELEGRAM_BRIDGE_POLLING_TIMEOUT_SECONDS }}
+          TELEGRAM_BRIDGE_IDLE_DELAY_MILLISECONDS=${{ secrets.TELEGRAM_BRIDGE_IDLE_DELAY_MILLISECONDS }}
+          TELEGRAM_BRIDGE_WEBHOOK_PUBLIC_BASE_URL=$TELEGRAM_BRIDGE_WEBHOOK_PUBLIC_BASE_URL_VALUE
+          TELEGRAM_BRIDGE_WEBHOOK_PATH=$TELEGRAM_BRIDGE_WEBHOOK_PATH_VALUE
+          TELEGRAM_BRIDGE_WEBHOOK_SECRET_TOKEN=$TELEGRAM_BRIDGE_WEBHOOK_SECRET_TOKEN_VALUE
+          TELEGRAM_BRIDGE_WEBHOOK_DROP_PENDING_UPDATES=${{ secrets.TELEGRAM_BRIDGE_WEBHOOK_DROP_PENDING_UPDATES }}
+          TELEGRAM_BRIDGE_MAX_ATTACHMENT_BYTES=${{ secrets.TELEGRAM_BRIDGE_MAX_ATTACHMENT_BYTES }}
+          TELEGRAM_BRIDGE_MAX_MESSAGES_PER_CONVERSATION=${{ secrets.TELEGRAM_BRIDGE_MAX_MESSAGES_PER_CONVERSATION }}
+          TELEGRAM_BRIDGE_ATTACHMENT_RETENTION_ENABLED=${{ secrets.TELEGRAM_BRIDGE_ATTACHMENT_RETENTION_ENABLED }}
+          TELEGRAM_BRIDGE_ATTACHMENT_RETENTION_DAYS=${{ secrets.TELEGRAM_BRIDGE_ATTACHMENT_RETENTION_DAYS }}
+          TELEGRAM_BRIDGE_ATTACHMENT_RETENTION_INTERVAL_MINUTES=${{ secrets.TELEGRAM_BRIDGE_ATTACHMENT_RETENTION_INTERVAL_MINUTES }}
+          TELEGRAM_BRIDGE_AI_ENABLED=${{ secrets.TELEGRAM_BRIDGE_AI_ENABLED }}
+          TELEGRAM_BRIDGE_AI_PROVIDER=${{ secrets.TELEGRAM_BRIDGE_AI_PROVIDER }}
+          TELEGRAM_BRIDGE_AI_MODEL=${{ secrets.TELEGRAM_BRIDGE_AI_MODEL }}
+          TELEGRAM_BRIDGE_AI_API_KEY=${{ secrets.TELEGRAM_BRIDGE_AI_API_KEY }}
+          TELEGRAM_AUTOMATION_ENABLED=${{ secrets.TELEGRAM_AUTOMATION_ENABLED }}
+          TELEGRAM_AUTOMATION_CLIENTS_ENABLED=${{ secrets.TELEGRAM_AUTOMATION_CLIENTS_ENABLED }}
+          TELEGRAM_AUTOMATION_PROVIDERS_ENABLED=${{ secrets.TELEGRAM_AUTOMATION_PROVIDERS_ENABLED }}
+          TELEGRAM_AUTOMATION_MIRROR_MESSAGES_ENABLED=${{ secrets.TELEGRAM_AUTOMATION_MIRROR_MESSAGES_ENABLED }}
+          TELEGRAM_AUTOMATION_REQUIRE_HANDOFF_FOR_OUTBOUND=${{ secrets.TELEGRAM_AUTOMATION_REQUIRE_HANDOFF_FOR_OUTBOUND }}
+          TELEGRAM_AUTOMATION_CPMFULL_BASE_URL=$TELEGRAM_AUTOMATION_CPMFULL_BASE_URL_VALUE
+          TELEGRAM_AUTOMATION_ALLOWED_BOT_SOURCES=${{ secrets.TELEGRAM_AUTOMATION_ALLOWED_BOT_SOURCES }}
+          TELEGRAM_AUTOMATION_SHARED_SECRET=$TELEGRAM_AUTOMATION_SHARED_SECRET_VALUE
+          TELEGRAM_AUTOMATION_REQUEST_TIMEOUT_SECONDS=${{ secrets.TELEGRAM_AUTOMATION_REQUEST_TIMEOUT_SECONDS }}
+          EOF
+
+      - name: Deploy Web TelegramBridge
+        shell: bash
+        run: |
+          echo "::group::Deploy Web TelegramBridge"
+          chmod +x scripts/deploy/vps-deploy-service.sh
+          export MSSQL_CONTAINER_NAME="${{ secrets.VPS_MSSQL_CONTAINER_NAME }}"
+          export MSSQL_HOST_ALIAS="${{ secrets.VPS_MSSQL_HOST_ALIAS }}"
+          export SKIP_GIT_PULL=1
+          ./scripts/deploy/vps-deploy-service.sh "$GITHUB_WORKSPACE" web-telegrambridge
+          echo "::endgroup::"
+
+  health-web-telegrambridge:
+    name: Healthcheck Web TelegramBridge
+    needs: [targets, deploy-web-telegrambridge]
+    if: always() && needs.targets.outputs.deploy_web_telegrambridge == 'true' && needs.deploy-web-telegrambridge.result == 'success'
+    runs-on: [self-hosted, Linux, X64]
+    environment: ${{ github.ref_name == 'dev-local' && 'development' || 'production' }}
+    timeout-minutes: 8
+    outputs:
+      endpoint: ${{ steps.health.outputs.endpoint }}
+      http_code: ${{ steps.health.outputs.http_code }}
+    steps:
+      - name: Check Web TelegramBridge health endpoint
+        id: health
+        shell: bash
+        run: |
+          endpoint=""
+          if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
+            public_bridge_url="${{ secrets.PUBLIC_TELEGRAM_BRIDGE_URL }}"
+            public_bridge_url="${public_bridge_url%/}"
+            if [[ -n "$public_bridge_url" ]]; then
+              endpoint="${public_bridge_url}/health"
+            else
+              host="${{ secrets.VPS_PUBLIC_HOST }}"
+              host="${host#http://}"
+              host="${host#https://}"
+              host="${host%%/*}"
+              host="${host%%:*}"
+              endpoint="http://${host}:${{ env.TELEGRAM_BRIDGE_PORT }}/health"
+            fi
+          else
+            endpoint="http://127.0.0.1:${{ env.TELEGRAM_BRIDGE_PORT }}/health"
+          fi
+          echo "endpoint=$endpoint" >> "$GITHUB_OUTPUT"
+
+          attempts=12
+          sleep_seconds=5
+          code="000"
+          for ((i=1; i<=attempts; i++)); do
+            code="$(curl -k -sS -o /dev/null -w "%{http_code}" "$endpoint" || true)"
+            echo "Attempt $i/$attempts -> HTTP $code"
+            if [[ "$code" =~ ^2[0-9][0-9]$ || "$code" =~ ^3[0-9][0-9]$ ]]; then
+              echo "http_code=$code" >> "$GITHUB_OUTPUT"
+              {
+                echo "### Web TelegramBridge Healthcheck"
+                echo "- Endpoint: $endpoint"
+                echo "- HTTP: $code"
+              } >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep "$sleep_seconds"
+          done
+
+          echo "http_code=$code" >> "$GITHUB_OUTPUT"
+          echo "::error::Web TelegramBridge healthcheck failed at $endpoint (last HTTP $code)"
+          exit 1
+
+      - name: Diagnostics Web TelegramBridge on failure
+        if: failure()
+        shell: bash
+        run: |
+          echo "::group::docker ps -a"
+          docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' || true
+          echo "::endgroup::"
+
+          echo "::group::docker logs ${CONTAINER_PREFIX}-telegrambridge"
+          docker logs --tail 200 "${CONTAINER_PREFIX}-telegrambridge" || true
+          echo "::endgroup::"
+
   deploy-mobile-webview-client:
     name: Deploy Mobile WebView Client
     needs:
@@ -1982,6 +2188,8 @@ jobs:
       - health-web-client
       - deploy-web-provider
       - health-web-provider
+      - deploy-web-telegrambridge
+      - health-web-telegrambridge
     if: |
       always() &&
       needs.targets.outputs.build_apk_client == 'true' &&
@@ -2160,6 +2368,8 @@ jobs:
       - health-web-client
       - deploy-web-provider
       - health-web-provider
+      - deploy-web-telegrambridge
+      - health-web-telegrambridge
     if: |
       always() &&
       needs.targets.outputs.build_apk_provider == 'true' &&
@@ -2386,6 +2596,8 @@ jobs:
       - health-web-client
       - deploy-web-provider
       - health-web-provider
+      - deploy-web-telegrambridge
+      - health-web-telegrambridge
     if: |
       always() &&
       needs.targets.outputs.build_apk_admin == 'true' &&
@@ -2581,6 +2793,8 @@ jobs:
       - health-web-client
       - deploy-web-provider
       - health-web-provider
+      - deploy-web-telegrambridge
+      - health-web-telegrambridge
       - deploy-mobile-webview-client
       - health-mobile-webview-client
       - deploy-mobile-webview-provider
@@ -2622,6 +2836,8 @@ jobs:
           client_health_result="${{ needs.health-web-client.result }}"
           provider_deploy_result="${{ needs.deploy-web-provider.result }}"
           provider_health_result="${{ needs.health-web-provider.result }}"
+          telegrambridge_deploy_result="${{ needs.deploy-web-telegrambridge.result }}"
+          telegrambridge_health_result="${{ needs.health-web-telegrambridge.result }}"
           mobile_webview_client_deploy_result="${{ needs.deploy-mobile-webview-client.result }}"
           mobile_webview_client_health_result="${{ needs.health-mobile-webview-client.result }}"
           mobile_webview_provider_deploy_result="${{ needs.deploy-mobile-webview-provider.result }}"
@@ -2645,6 +2861,7 @@ jobs:
             echo "| Web Admin | ${{ needs.targets.outputs.deploy_web_admin }} | $(result_icon "$admin_deploy_result") $admin_deploy_result | $(result_icon "$admin_health_result") $admin_health_result | ${{ needs.health-web-admin.outputs.endpoint }} | ${{ needs.health-web-admin.outputs.http_code }} |"
             echo "| Web Client | ${{ needs.targets.outputs.deploy_web_client }} | $(result_icon "$client_deploy_result") $client_deploy_result | $(result_icon "$client_health_result") $client_health_result | ${{ needs.health-web-client.outputs.endpoint }} | ${{ needs.health-web-client.outputs.http_code }} |"
             echo "| Web Provider | ${{ needs.targets.outputs.deploy_web_provider }} | $(result_icon "$provider_deploy_result") $provider_deploy_result | $(result_icon "$provider_health_result") $provider_health_result | ${{ needs.health-web-provider.outputs.endpoint }} | ${{ needs.health-web-provider.outputs.http_code }} |"
+            echo "| Web TelegramBridge | ${{ needs.targets.outputs.deploy_web_telegrambridge }} | $(result_icon "$telegrambridge_deploy_result") $telegrambridge_deploy_result | $(result_icon "$telegrambridge_health_result") $telegrambridge_health_result | ${{ needs.health-web-telegrambridge.outputs.endpoint }} | ${{ needs.health-web-telegrambridge.outputs.http_code }} |"
             echo "| Mobile WebView Client | ${{ needs.targets.outputs.deploy_mobile_webview_client }} | $(result_icon "$mobile_webview_client_deploy_result") $mobile_webview_client_deploy_result | $(result_icon "$mobile_webview_client_health_result") $mobile_webview_client_health_result | ${{ needs.health-mobile-webview-client.outputs.endpoint }} | ${{ needs.health-mobile-webview-client.outputs.http_code }} |"
             echo "| Mobile WebView Provider | ${{ needs.targets.outputs.deploy_mobile_webview_provider }} | $(result_icon "$mobile_webview_provider_deploy_result") $mobile_webview_provider_deploy_result | $(result_icon "$mobile_webview_provider_health_result") $mobile_webview_provider_health_result | ${{ needs.health-mobile-webview-provider.outputs.endpoint }} | ${{ needs.health-mobile-webview-provider.outputs.http_code }} |"
             echo "| Mobile WebView Admin | ${{ needs.targets.outputs.deploy_mobile_webview_admin }} | $(result_icon "$mobile_webview_admin_deploy_result") $mobile_webview_admin_deploy_result | $(result_icon "$mobile_webview_admin_health_result") $mobile_webview_admin_health_result | ${{ needs.health-mobile-webview-admin.outputs.endpoint }} | ${{ needs.health-mobile-webview-admin.outputs.http_code }} |"
@@ -2668,6 +2885,8 @@ jobs:
             echo "- Cliente: http://${{ secrets.VPS_PUBLIC_HOST }}:${{ env.MOBILE_CLIENT_WEBVIEW_PORT }}/"
             echo "- Prestador: http://${{ secrets.VPS_PUBLIC_HOST }}:${{ env.MOBILE_PROVIDER_WEBVIEW_PORT }}/"
             echo "- Admin: http://${{ secrets.VPS_PUBLIC_HOST }}:${{ env.MOBILE_ADMIN_WEBVIEW_PORT }}/"
+            echo "Telegram Bridge:"
+            echo "- Bridge: ${{ needs.health-web-telegrambridge.outputs.endpoint }}"
             echo "Commit: \`${{ github.sha }}\`"
             echo "Workflow: \`${{ github.workflow }}\`"
             echo "Run ID: \`${{ github.run_id }}\`"
@@ -2705,6 +2924,8 @@ jobs:
           client_health_result="${{ needs.health-web-client.result }}"
           provider_deploy_result="${{ needs.deploy-web-provider.result }}"
           provider_health_result="${{ needs.health-web-provider.result }}"
+          telegrambridge_deploy_result="${{ needs.deploy-web-telegrambridge.result }}"
+          telegrambridge_health_result="${{ needs.health-web-telegrambridge.result }}"
           mobile_webview_client_deploy_result="${{ needs.deploy-mobile-webview-client.result }}"
           mobile_webview_client_health_result="${{ needs.health-mobile-webview-client.result }}"
           mobile_webview_provider_deploy_result="${{ needs.deploy-mobile-webview-provider.result }}"
@@ -2725,6 +2946,7 @@ jobs:
             "$admin_deploy_result" "$admin_health_result" \
             "$client_deploy_result" "$client_health_result" \
             "$provider_deploy_result" "$provider_health_result" \
+            "$telegrambridge_deploy_result" "$telegrambridge_health_result" \
             "$mobile_webview_client_deploy_result" "$mobile_webview_client_health_result" \
             "$mobile_webview_provider_deploy_result" "$mobile_webview_provider_health_result" \
             "$mobile_webview_admin_deploy_result" "$mobile_webview_admin_health_result" \
@@ -2742,7 +2964,7 @@ jobs:
           done
 
           title="Deploy VPS finalizado (${overall_status})"
-          summary="Run #${{ github.run_number }} - status: ${overall_status}. API deploy/health: ${api_deploy_result}/${api_health_result}. Web CPM Full: ${cpmfull_deploy_result}/${cpmfull_health_result}. Web Admin: ${admin_deploy_result}/${admin_health_result}. Web Client: ${client_deploy_result}/${client_health_result}. Web Provider: ${provider_deploy_result}/${provider_health_result}. Mobile WebView Client: ${mobile_webview_client_deploy_result}/${mobile_webview_client_health_result}. Mobile WebView Provider: ${mobile_webview_provider_deploy_result}/${mobile_webview_provider_health_result}. Mobile WebView Admin: ${mobile_webview_admin_deploy_result}/${mobile_webview_admin_health_result}. APK Client build/upload: ${apk_client_build_result}/${apk_client_upload_result}. APK Provider build/upload: ${apk_provider_build_result}/${apk_provider_upload_result}. APK Admin build/upload: ${apk_admin_build_result}/${apk_admin_upload_result}. Commit: ${{ github.sha }}."
+          summary="Run #${{ github.run_number }} - status: ${overall_status}. API deploy/health: ${api_deploy_result}/${api_health_result}. Web CPM Full: ${cpmfull_deploy_result}/${cpmfull_health_result}. Web Admin: ${admin_deploy_result}/${admin_health_result}. Web Client: ${client_deploy_result}/${client_health_result}. Web Provider: ${provider_deploy_result}/${provider_health_result}. Web TelegramBridge: ${telegrambridge_deploy_result}/${telegrambridge_health_result}. Mobile WebView Client: ${mobile_webview_client_deploy_result}/${mobile_webview_client_health_result}. Mobile WebView Provider: ${mobile_webview_provider_deploy_result}/${mobile_webview_provider_health_result}. Mobile WebView Admin: ${mobile_webview_admin_deploy_result}/${mobile_webview_admin_health_result}. APK Client build/upload: ${apk_client_build_result}/${apk_client_upload_result}. APK Provider build/upload: ${apk_provider_build_result}/${apk_provider_upload_result}. APK Admin build/upload: ${apk_admin_build_result}/${apk_admin_upload_result}. Commit: ${{ github.sha }}."
 
           title_escaped="${title//\"/\\\"}"
           summary_escaped="${summary//\"/\\\"}"

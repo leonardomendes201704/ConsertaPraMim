@@ -1,0 +1,11 @@
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+WORKDIR /src
+COPY src/ ./src/
+WORKDIR /src/src/ConsertaPraMim.Web.TelegramBridge
+RUN dotnet publish ConsertaPraMim.Web.TelegramBridge.csproj -c Release -o /out/web-telegrambridge /p:UseAppHost=false
+
+FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
+WORKDIR /app
+EXPOSE 8080
+COPY --from=build /out/web-telegrambridge ./
+ENTRYPOINT ["dotnet", "ConsertaPraMim.Web.TelegramBridge.dll"]
