@@ -12,6 +12,12 @@
 
 ## Released
 
+- [2026-03-14] [CPMFULL-020][CHATWOOT-EPIC-CLOSURE-TELEGRAM-EPIC-OPEN] Encerramento documental do epic Chatwoot e abertura do epic de automacao Telegram
+- Tipo: docs
+- Resumo: o epic `EPIC-CHATWOOT-001` do `ConsertaPraMim.Web.CpmFull` foi encerrado formalmente com consolidacao da `US-11`, homologacao publicada e status final `Completed`. Em paralelo, foi aberto o novo epic `EPIC-TELEGRAM-001` para planejar a automacao do bot Telegram alimentando os funis `clientes`/`prestadores` do CPM Full e as inboxes correspondentes do Chatwoot, com atualizacao do indice central e do manual operacional.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/EPIC_CHATWOOT_FUNIS_CPM.md`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/EPIC_TELEGRAM_AUTOMACAO_FUNIL_CPM.md`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/MANUAL_QA_OPERACAO.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: baixo
+
 - [2026-03-14] [CPMFULL-019][CHATWOOT-US-10-SEGURANCA-CONFORMIDADE] Endurecimento de seguranca e retention operacional do Chatwoot no CPM Full
 - Tipo: feat
 - Resumo: o `ConsertaPraMim.Web.CpmFull` passou a mascarar telefone, e-mail, token e segredo em erros tecnicos, persistencia SQL e diagnostico admin do Chatwoot, adicionar allowlist opcional de IP/faixa para o webhook, expurgar payload bruto e assinatura antigos de `cpm_web_chatwoot_webhook_events` com `PayloadPurgedAt`, e propagar os novos controles de seguranca na configuracao publicada da VPS.

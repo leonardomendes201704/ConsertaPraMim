@@ -5,7 +5,7 @@
 - Produto: `AppMobileCPM`
 - Data de criacao: `2026-03-13`
 - Prioridade: `Alta`
-- Status inicial: `Planned`
+- Status atual: `Completed`
 - Time alvo: `Backend`, `Frontend/Admin`, `Dados`, `DevOps`, `QA`
 - Objetivo macro: integrar Chatwoot ao funil de `clientes` e `prestadores` sem perder o controle de funil do CPM.
 
@@ -223,9 +223,8 @@ Como atendente, quero receber uma conversa ja aberta no inbox certo para cada le
 Como operacao, quero que mover card no Kanban reflita no status/labels da conversa no Chatwoot.
 
 ### Status
-- Em andamento. Entrega inicial concluida em 2026-03-13 no `ConsertaPraMim.Web.CpmFull`, com sincronizacao direta de status/labels/custom attributes no drag-and-drop.
-- Refinamento operacional entregue em 2026-03-13 com espelhamento da etapa tambem no contato, nota privada por mudanca de etapa e atalho direto do modal do lead para a conversa no Chatwoot.
-- A fila de retentativa da falha externa permanece na `US-07`.
+- Concluida em 2026-03-13 no `ConsertaPraMim.Web.CpmFull`, com sincronizacao direta de status/labels/custom attributes no drag-and-drop, espelhamento da etapa tambem no contato, nota privada por mudanca de etapa e atalho direto do modal do lead para a conversa no Chatwoot.
+- As falhas externas passaram a ser tratadas pela fila de retentativa entregue na `US-07`, sem reabrir pendencia funcional nesta story.
 
 ### Criterios de aceite
 1. Cada mudanca de etapa atualiza status da conversa no Chatwoot conforme mapa.
@@ -253,6 +252,7 @@ Como operacao, quero que mover card no Kanban reflita no status/labels da conver
 ### Descricao
 Como sistema, quero receber eventos do Chatwoot para enriquecer historico e ultimo contato do lead.
 
+### Status
 - Concluida em 2026-03-13 no `ConsertaPraMim.Web.CpmFull`, com endpoint autenticado por HMAC, persistencia bruta de eventos, idempotencia por `X-Chatwoot-Delivery` com fallback para fingerprint assinado, atualizacao de `LastContactAt` e historico PT-BR no funil.
 
 ### Criterios de aceite
@@ -369,10 +369,19 @@ Como time de seguranca, queremos garantir protecao de credenciais e dados pessoa
 ### Descricao
 Como QA, queremos cobertura de testes para garantir estabilidade da integracao.
 
+### Status
+- Concluida em 2026-03-14 no `ConsertaPraMim.Web.CpmFull`, com suite focada em `Chatwoot*` executada em Windows com output temporario, deploy publicado em `main` validado por health checks e smoke operacional real no dominio `https://www.consertapramim.com`.
+
 ### Criterios de aceite
 1. Casos felizes e de falha validados.
 2. Testes de regressao do Kanban aprovados.
 3. Plano de rollback definido.
+
+### Entrega realizada
+1. Os fluxos de criar lead, sincronizar contato/conversa, mover etapa, receber webhook, retentar e executar backfill ficaram cobertos por testes automatizados direcionados na solution.
+2. O deploy publicado em `main` passou a responder `GET /health` e `GET /internal/health/chatwoot` com status `Healthy`, confirmando ambiente e integracao ativos.
+3. A operacao validou smoke funcional real no Chatwoot publicado, incluindo criacao de contato, conversa, atualizacao de etapa e enriquecimento do historico.
+4. O rollback operacional ficou definido via `Chatwoot:Enabled=false` e preservacao do Kanban do CPM como sistema de verdade, sem bloquear o fluxo local em caso de incidente externo.
 
 ### Tasks
 - `TASK-11.01` Criar suite de testes de integracao com Chatwoot mockado.
@@ -430,4 +439,9 @@ Como QA, queremos cobertura de testes para garantir estabilidade da integracao.
 4. Falhas de sincronizacao ficam visiveis e reprocessaveis.
 5. Documentacao tecnica e operacional publicada para time de suporte.
 6. Homologacao aprovada por produto e operacao.
+
+## 12. Encerramento da EPIC
+1. EPIC encerrada em `2026-03-14` com `US-01` a `US-11` entregues, versionadas e publicadas no `ConsertaPraMim.Web.CpmFull`.
+2. A operacao publicada ficou consolidada em `https://www.consertapramim.com`, com Chatwoot ativo e health checks operacionais verdes.
+3. A evolucao de automacao do bot Telegram para alimentar funis `clientes`/`prestadores` e inboxes do Chatwoot segue agora no documento `EPIC-TELEGRAM-001`.
 

@@ -32,6 +32,12 @@
 - [EPIC-028 - Analytics comportamental da landing no Portal Admin](EPICS/EPIC-028-analytics-comportamental-da-landing-no-admin.md)
 - [EPIC-029 - Analytics avancado da landing no Portal Admin](EPICS/EPIC-029-analytics-avancado-da-landing-no-admin.md)
 - [EPIC-030 - Dashboard Fire TV da landing no ecossistema Admin](EPICS/EPIC-030-dashboard-fire-tv-landing-admin.md)
+- [EPIC-031 - Deploy dual stack dev/prod na mesma VPS](EPICS/EPIC-031-deploy-dual-stack-dev-prod-na-mesma-vps.md)
+
+## CPM Full
+
+- [EPIC-CHATWOOT-001 - Integracao Chatwoot com Funis CPM](../../Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/EPIC_CHATWOOT_FUNIS_CPM.md)
+- [EPIC-TELEGRAM-001 - Automacao do Bot Telegram com Funis CPM e Chatwoot](../../Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/EPIC_TELEGRAM_AUTOMACAO_FUNIL_CPM.md)
 
 ## Stories
 
