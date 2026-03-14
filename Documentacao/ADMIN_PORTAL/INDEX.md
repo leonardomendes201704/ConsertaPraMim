@@ -66,6 +66,8 @@
 
 ### Done
 
+- [ST-078 - Diagramador ER em ReactFlow no Portal Admin](STORIES/DONE/ST-078-diagramador-er-reactflow-portal-admin.md)
+- [ST-077 - Mapa relacional das tabelas do banco no Portal Admin](STORIES/DONE/ST-077-mapa-relacional-tabelas-banco-admin.md)
 - [ST-021 - API de chamados para portal prestador](STORIES/DONE/ST-021-api-chamados-portal-prestador.md)
 - [ST-020 - Modelo de dominio e persistencia dos chamados](STORIES/DONE/ST-020-modelo-dominio-persistencia-chamados.md)
 - [ST-019 - Monitoramento E2E da API com telemetria, agregacao e dashboard admin](STORIES/DONE/ST-019-monitoramento-e2e-api-observabilidade-admin.md)
@@ -114,6 +116,7 @@
 
 ## Runbooks
 
+- [RUNBOOK GOV-005 - Importacao do projeto CPM Full para a solution](RUNBOOKS/RUNBOOK_IMPORTACAO_CPM_FULL_GOV-005.md)
 - [RUNBOOK ST-046 - Operacao e Contestacao de No-show/Cancelamento](RUNBOOKS/RUNBOOK_NO_SHOW_CANCELAMENTO_ST-046.md)
 - [RUNBOOK ST-050 - Melhoria Operacional por Baixa Avaliacao](RUNBOOKS/RUNBOOK_MELHORIA_BAIXA_AVALIACAO_ST-050.md)
 - [RUNBOOK ST-066 - Build e instalacao do dashboard Fire TV](RUNBOOKS/RUNBOOK_FIRE_TV_DASHBOARD_ST-066.md)

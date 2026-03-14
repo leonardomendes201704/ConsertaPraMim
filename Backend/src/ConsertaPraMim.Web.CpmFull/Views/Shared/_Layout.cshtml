@@ -1,0 +1,219 @@
+@using System.Text.Json
+@{
+    string C(string key, string fallback) => SiteContent.Get(key, fallback);
+
+    var siteName = C("branding.site_name", "ConsertaPraMim");
+    var defaultDescription = C("branding.default_description", "ConsertaPraMim conecta voce a profissionais para servicos de eletrica, hidraulica, reformas, pintura e manutencao residencial.");
+    var defaultKeywords = C("branding.default_keywords", "conserto residencial, manutencao casa, eletricista, encanador, pedreiro, pintor, reformas");
+    var defaultRobots = C("branding.default_robots", "index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1");
+    var authorName = C("branding.author", siteName);
+    var themeColor = C("branding.theme_color", "#ff7a00");
+    var logoUrl = C("branding.logo_url", Url.Content("~/images/logo-top-bar-consertapramim.png"));
+    var logoAlt = C("branding.logo_alt", siteName);
+    var faviconUrl = C("branding.favicon_url", logoUrl);
+
+    var title = ViewData["Title"]?.ToString();
+    var seoTitle = ViewData["SeoTitle"]?.ToString();
+    var displayTitle = string.IsNullOrWhiteSpace(seoTitle)
+        ? (string.IsNullOrWhiteSpace(title) ? siteName : title)
+        : seoTitle;
+    var fullTitle = displayTitle.Contains(siteName, StringComparison.OrdinalIgnoreCase)
+        ? displayTitle
+        : $"{displayTitle} | {siteName}";
+
+    var metaDescription = ViewData["MetaDescription"]?.ToString();
+    if (string.IsNullOrWhiteSpace(metaDescription))
+    {
+        metaDescription = defaultDescription;
+    }
+
+    var metaKeywords = ViewData["MetaKeywords"]?.ToString();
+    if (string.IsNullOrWhiteSpace(metaKeywords))
+    {
+        metaKeywords = defaultKeywords;
+    }
+
+    var robots = ViewData["Robots"]?.ToString();
+    if (string.IsNullOrWhiteSpace(robots))
+    {
+        robots = defaultRobots;
+    }
+
+    var canonicalPath = ViewData["CanonicalPath"]?.ToString();
+    if (string.IsNullOrWhiteSpace(canonicalPath))
+    {
+        canonicalPath = Context.Request.Path.HasValue ? Context.Request.Path.Value! : "/";
+    }
+
+    if (!canonicalPath.StartsWith('/'))
+    {
+        canonicalPath = $"/{canonicalPath}";
+    }
+
+    var baseUrl = $"{Context.Request.Scheme}://{Context.Request.Host}{Context.Request.PathBase}";
+    var canonicalUrl = $"{baseUrl}{canonicalPath}";
+
+    var ogImageInput = ViewData["OgImage"]?.ToString();
+    if (string.IsNullOrWhiteSpace(ogImageInput))
+    {
+        ogImageInput = C("branding.og_image_url", Url.Content("~/images/7237a130-fa5b-4e98-9118-ed5b0d465fa6.png"));
+    }
+
+    var ogImageUrl = ogImageInput.StartsWith("http", StringComparison.OrdinalIgnoreCase)
+        ? ogImageInput
+        : $"{baseUrl}{ogImageInput}";
+    var ogImageAlt = C("branding.og_image_alt", siteName);
+
+    var organizationSchema = new Dictionary<string, object?>
+    {
+        ["@context"] = "https://schema.org",
+        ["@type"] = "LocalBusiness",
+        ["name"] = siteName,
+        ["url"] = baseUrl,
+        ["logo"] = logoUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase) ? logoUrl : $"{baseUrl}{logoUrl}",
+        ["image"] = ogImageUrl,
+        ["description"] = defaultDescription,
+        ["areaServed"] = C("layout.schema.area_served", "Brasil"),
+        ["serviceType"] = C("layout.schema.service_type", "Intermediacao de servicos residenciais")
+    };
+
+    var websiteSchema = new Dictionary<string, object?>
+    {
+        ["@context"] = "https://schema.org",
+        ["@type"] = "WebSite",
+        ["name"] = siteName,
+        ["url"] = baseUrl,
+        ["inLanguage"] = "pt-BR",
+        ["potentialAction"] = new Dictionary<string, object?>
+        {
+            ["@type"] = "SearchAction",
+            ["target"] = $"{baseUrl}/profissionais?searchTerm={{search_term_string}}",
+            ["query-input"] = "required name=search_term_string"
+        }
+    };
+
+    var globalStructuredDataJson = JsonSerializer.Serialize(new object[] { organizationSchema, websiteSchema });
+    var footerCopyright = C("layout.footer.copyright", "{year} {siteName}. Todos os direitos reservados.")
+        .Replace("{year}", DateTime.Now.Year.ToString(), StringComparison.OrdinalIgnoreCase)
+        .Replace("{siteName}", siteName, StringComparison.OrdinalIgnoreCase);
+}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@fullTitle</title>
+    <meta name="description" content="@metaDescription" />
+    <meta name="keywords" content="@metaKeywords" />
+    <meta name="robots" content="@robots" />
+    <meta name="author" content="@authorName" />
+    <meta name="theme-color" content="@themeColor" />
+    <link rel="canonical" href="@canonicalUrl" />
+    <link rel="alternate" hreflang="pt-BR" href="@canonicalUrl" />
+    <link rel="alternate" hreflang="x-default" href="@canonicalUrl" />
+    <meta property="og:locale" content="pt_BR" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="@siteName" />
+    <meta property="og:title" content="@fullTitle" />
+    <meta property="og:description" content="@metaDescription" />
+    <meta property="og:url" content="@canonicalUrl" />
+    <meta property="og:image" content="@ogImageUrl" />
+    <meta property="og:image:alt" content="@ogImageAlt" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="@fullTitle" />
+    <meta name="twitter:description" content="@metaDescription" />
+    <meta name="twitter:image" content="@ogImageUrl" />
+    <link rel="icon" type="image/png" href="@faviconUrl" />
+    <link rel="apple-touch-icon" href="@faviconUrl" />
+    <link rel="sitemap" type="application/xml" href="~/sitemap.xml" />
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/lib/bootstrap-icons/font/bootstrap-icons.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    @RenderSection("Head", required: false)
+    <script type="application/ld+json">@Html.Raw(globalStructuredDataJson)</script>
+</head>
+<body class="cpm-body">
+    <header class="sticky-top cpm-header">
+        <nav class="navbar navbar-expand-lg">
+            <div class="container-lg">
+                <a class="navbar-brand" asp-controller="Home" asp-action="Index">
+                    <img src="@logoUrl" alt="@logoAlt" class="cpm-logo" />
+                </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#cpmNav" aria-controls="cpmNav" aria-expanded="false" aria-label="@C("layout.nav.toggle_aria_label", "Alternar menu")">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="cpmNav">
+                    <ul class="navbar-nav ms-auto align-items-lg-center gap-lg-3">
+                        <li class="nav-item">
+                            <a class="nav-link" asp-controller="Home" asp-action="Index">@C("layout.nav.home", "Como funciona")</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" asp-controller="Home" asp-action="Professionals">@C("layout.nav.professionals", "Profissionais")</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" asp-controller="Home" asp-action="Support">@C("layout.nav.support", "Suporte")</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="btn btn-outline-primary cpm-btn-outline" asp-controller="Home" asp-action="RegisterProfessional">@C("layout.nav.professional_cta", "Sou Profissional")</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <main role="main" class="cpm-main">
+        @RenderBody()
+    </main>
+
+    <footer class="cpm-footer">
+        <div class="container-lg py-5">
+            <div class="row g-4">
+                <div class="col-12 col-md-4">
+                    <a asp-controller="Home" asp-action="Index" class="d-inline-block mb-3">
+                        <img src="@logoUrl" alt="@logoAlt" class="cpm-logo-footer" />
+                    </a>
+                    <p class="mb-0 text-light-emphasis">
+                        @C("layout.footer.about", "Conectando clientes a profissionais verificados para resolver problemas da casa de forma rapida e segura.")
+                    </p>
+                </div>
+                <div class="col-6 col-md-2">
+                    <h6>@C("layout.footer.platform.title", "Plataforma")</h6>
+                    <ul class="list-unstyled">
+                        <li><a asp-controller="Home" asp-action="Index">@C("layout.footer.platform.about", "Sobre")</a></li>
+                        <li><a asp-controller="Home" asp-action="Index">@C("layout.footer.platform.how_it_works", "Como funciona")</a></li>
+                        <li><a asp-controller="Home" asp-action="Professionals">@C("layout.footer.platform.professionals", "Profissionais")</a></li>
+                    </ul>
+                </div>
+                <div class="col-6 col-md-3">
+                    <h6>@C("layout.footer.professionals.title", "Profissionais")</h6>
+                    <ul class="list-unstyled">
+                        <li><a asp-controller="Home" asp-action="RegisterProfessional">@C("layout.footer.professionals.register", "Cadastre-se")</a></li>
+                        <li><a asp-controller="Home" asp-action="RegisterProfessional">@C("layout.footer.professionals.plans", "Planos")</a></li>
+                    </ul>
+                </div>
+                <div class="col-12 col-md-3">
+                    <h6>@C("layout.footer.contact.title", "Contato")</h6>
+                    <ul class="list-unstyled mb-0">
+                        <li><a asp-controller="Home" asp-action="Support">@C("layout.footer.contact.help_center", "Central de ajuda")</a></li>
+                        <li><a asp-controller="Home" asp-action="Support">@C("layout.footer.contact.support", "Falar com suporte")</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="cpm-footer-bottom mt-4 pt-3 d-flex flex-column flex-md-row justify-content-between gap-2">
+                <span>@footerCopyright</span>
+                <span>
+                    <a asp-controller="Home" asp-action="ProfessionalTerms">@C("layout.footer.terms", "Termos de uso")</a> |
+                    <a asp-controller="Home" asp-action="Privacy">@C("layout.footer.privacy", "Privacidade")</a>
+                </span>
+            </div>
+        </div>
+    </footer>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/cep-resolver.js" asp-append-version="true"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

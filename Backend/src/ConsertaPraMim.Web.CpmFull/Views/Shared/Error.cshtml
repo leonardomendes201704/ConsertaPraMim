@@ -1,0 +1,32 @@
+@model ErrorViewModel
+@{
+    string C(string key, string fallback) => SiteContent.Get(key, fallback);
+
+    ViewData["Title"] = C("error.meta.title", "Erro");
+    ViewData["MetaDescription"] = C("error.meta.description", "Ocorreu um erro ao processar sua solicitacao no ConsertaPraMim.");
+    ViewData["CanonicalPath"] = "/Home/Error";
+    ViewData["Robots"] = "noindex,nofollow,noarchive";
+}
+
+<section class="cpm-section">
+    <div class="container-lg cpm-form-wrap">
+        <div class="cpm-card cpm-form-card p-4 p-md-5 bg-white">
+            <h1 class="text-danger fw-bold mb-3">@C("error.page.title", "Erro ao processar a solicitacao")</h1>
+            <p class="text-secondary-emphasis mb-4">
+                @C("error.page.subtitle", "Tente novamente em alguns instantes. Se o problema persistir, entre em contato com o suporte.")
+            </p>
+
+            @if (Model.ShowRequestId)
+            {
+                <p>
+                    <strong>@C("error.page.request_id_label", "Request ID:")</strong> <code>@Model.RequestId</code>
+                </p>
+            }
+
+            <div class="d-flex gap-2 flex-wrap">
+                <a class="btn cpm-btn-primary" asp-controller="Home" asp-action="Index">@C("error.page.home_button", "Voltar para a pagina inicial")</a>
+                <a class="btn btn-outline-secondary" asp-controller="Home" asp-action="Support">@C("error.page.support_button", "Falar com suporte")</a>
+            </div>
+        </div>
+    </div>
+</section>

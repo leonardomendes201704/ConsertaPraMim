@@ -1,0 +1,309 @@
+@model ProfessionalsPageViewModel
+@{
+    string C(string key, string fallback) => SiteContent.Get(key, fallback);
+
+    var pageTitle = C("professionals.meta.title", "Profissionais");
+    ViewData["Title"] = pageTitle;
+    ViewData["SeoTitle"] = C("professionals.meta.seo_title", "Profissionais de servicos residenciais");
+    ViewData["MetaDescription"] = C("professionals.meta.description", "Busque profissionais por nome ou profissao e encontre especialistas para eletrica, hidraulica, reformas e manutencao residencial.");
+    ViewData["MetaKeywords"] = C("professionals.meta.keywords", "profissionais, eletricista, encanador, pedreiro, pintor, servicos residenciais");
+    ViewData["CanonicalPath"] = "/profissionais";
+    ViewData["OgImage"] = C("professionals.meta.og_image_url", C("branding.og_image_url", Url.Content("~/images/7237a130-fa5b-4e98-9118-ed5b0d465fa6.png")));
+}
+
+<section class="cpm-section">
+    <div class="container-lg">
+        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-end gap-3 mb-4">
+            <div>
+                <h1 class="fw-bold mb-1">@C("professionals.page.title", "Profissionais disponiveis")</h1>
+                <p class="text-secondary-emphasis mb-0">@C("professionals.page.subtitle", "Encontre o especialista ideal para o seu problema.")</p>
+            </div>
+            <form class="w-100" style="max-width: 420px;" asp-controller="Home" asp-action="Professionals" method="get">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" class="form-control" name="searchTerm" value="@Model.SearchTerm" placeholder="@C("professionals.search.placeholder", "Buscar por nome ou profissao")" />
+                    <button type="submit" class="btn cpm-btn-primary">@C("professionals.search.button", "Buscar")</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="row g-4">
+            @if (!Model.Professionals.Any())
+            {
+                <div class="col-12">
+                    <div class="alert alert-warning mb-0">@C("professionals.empty", "Nenhum profissional encontrado para sua busca.")</div>
+                </div>
+            }
+            else
+            {
+                foreach (var pro in Model.Professionals)
+                {
+                    <div class="col-12 col-md-6 col-lg-3">
+                        <div class="cpm-card h-100 d-flex flex-column">
+                            <div class="p-4 flex-grow-1">
+                                <div class="d-flex gap-3">
+                                    <img src="@pro.ImageUrl" referrerpolicy="no-referrer" alt="@pro.Name" class="rounded-circle" style="width: 68px; height: 68px; object-fit: cover;" />
+                                    <div>
+                                        <h5 class="mb-1 fw-bold">
+                                            @pro.Name
+                                            @if (pro.Verified)
+                                            {
+                                                <i class="bi bi-check-circle-fill cpm-verified"></i>
+                                            }
+                                        </h5>
+                                        <div class="text-primary fw-semibold">@pro.Profession</div>
+                                        <div class="small text-secondary-emphasis d-flex align-items-center gap-1">
+                                            <i class="bi bi-star-fill text-warning"></i>
+                                            <strong class="text-dark">@pro.Rating.ToString("0.0")</strong>
+                                            <span>(@pro.Reviews)</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mt-4 small text-secondary-emphasis d-flex align-items-center gap-2 mb-3">
+                                    <i class="bi bi-geo-alt"></i>
+                                    <span>@C("professionals.card.distance_template", "A {distance} de voce").Replace("{distance}", pro.Distance, StringComparison.OrdinalIgnoreCase)</span>
+                                </div>
+                                <p class="cpm-pro-description mb-3">@pro.Description</p>
+                                <div class="d-flex flex-wrap gap-2">
+                                    @foreach (var service in pro.Services)
+                                    {
+                                        <span class="cpm-badge">@service</span>
+                                    }
+                                </div>
+                            </div>
+                            <div class="p-3 border-top bg-light-subtle">
+                                <button
+                                    type="button"
+                                    class="btn cpm-btn-primary w-100"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#serviceGalleryModal"
+                                    data-professional-id="@pro.Id"
+                                    data-photo-index="0">
+                                    @C("professionals.card.view_services", "Ver servicos")
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+    </div>
+</section>
+
+<div class="modal fade" id="serviceGalleryModal" tabindex="-1" aria-labelledby="serviceGalleryModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="serviceGalleryModalLabel">@C("professionals.gallery.title", "Galeria de servicos")</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="@C("professionals.gallery.close", "Fechar")"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-3">
+                    <div class="col-12 col-lg-9">
+                        <div class="cpm-gallery-main-wrap">
+                            <button type="button" id="serviceGalleryPrevBtn" class="cpm-gallery-nav-btn cpm-gallery-nav-prev" aria-label="@C("professionals.gallery.previous", "Foto anterior")">
+                                <i class="bi bi-chevron-left"></i>
+                            </button>
+                            <img id="serviceGalleryMainImage" class="cpm-gallery-main-image" alt="@C("professionals.gallery.main_image_alt", "Foto do servico")" />
+                            <button type="button" id="serviceGalleryNextBtn" class="cpm-gallery-nav-btn cpm-gallery-nav-next" aria-label="@C("professionals.gallery.next", "Proxima foto")">
+                                <i class="bi bi-chevron-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-12 col-lg-3">
+                        <div id="serviceGalleryThumbs" class="cpm-gallery-thumb-list"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Head {
+    @{
+        var baseUrl = $"{Context.Request.Scheme}://{Context.Request.Host}";
+        var professionalsList = Model.Professionals
+            .Select((professional, idx) => new Dictionary<string, object?>
+            {
+                ["@type"] = "ListItem",
+                ["position"] = idx + 1,
+                ["item"] = new Dictionary<string, object?>
+                {
+                    ["@type"] = "LocalBusiness",
+                    ["name"] = professional.Name,
+                    ["description"] = professional.Description,
+                    ["image"] = professional.ImageUrl,
+                    ["serviceType"] = professional.Profession,
+                    ["aggregateRating"] = new Dictionary<string, object?>
+                    {
+                        ["@type"] = "AggregateRating",
+                        ["ratingValue"] = professional.Rating,
+                        ["reviewCount"] = professional.Reviews
+                    }
+                }
+            })
+            .ToList();
+
+        var structuredData = new object[]
+        {
+            new Dictionary<string, object?>
+            {
+                ["@context"] = "https://schema.org",
+                ["@type"] = "CollectionPage",
+                ["name"] = C("professionals.schema.collection.name", C("professionals.page.title", "Profissionais disponiveis")),
+                ["url"] = $"{baseUrl}/profissionais",
+                ["description"] = C("professionals.schema.collection.description", "Lista de profissionais disponiveis para servicos residenciais."),
+                ["inLanguage"] = "pt-BR"
+            },
+            new Dictionary<string, object?>
+            {
+                ["@context"] = "https://schema.org",
+                ["@type"] = "ItemList",
+                ["name"] = C("professionals.schema.itemlist.name", "Prestadores em destaque"),
+                ["itemListElement"] = professionalsList
+            }
+        };
+    }
+    <script type="application/ld+json">@Html.Raw(System.Text.Json.JsonSerializer.Serialize(structuredData))</script>
+}
+
+@section Scripts {
+    <script>
+        (() => {
+            const modalEl = document.getElementById("serviceGalleryModal");
+            const modalTitleEl = document.getElementById("serviceGalleryModalLabel");
+            const mainImageEl = document.getElementById("serviceGalleryMainImage");
+            const thumbsContainerEl = document.getElementById("serviceGalleryThumbs");
+            const prevBtn = document.getElementById("serviceGalleryPrevBtn");
+            const nextBtn = document.getElementById("serviceGalleryNextBtn");
+            const messages = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(new
+            {
+                galleryTitle = C("professionals.gallery.title", "Galeria de servicos"),
+                galleryTitleTemplate = C("professionals.gallery.title_template", "Galeria de servicos - {name}"),
+                noPhotosAlt = C("professionals.gallery.no_photos_alt", "Sem fotos de servico"),
+                serviceAltTemplate = C("professionals.gallery.service_alt_template", "Servico {index} de {name}"),
+                thumbAltTemplate = C("professionals.gallery.thumb_alt_template", "Miniatura {index} de {name}")
+            }));
+
+            if (!modalEl || !modalTitleEl || !mainImageEl || !thumbsContainerEl || !prevBtn || !nextBtn) {
+                return;
+            }
+
+            const galleryData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+                Model.Professionals.ToDictionary(
+                    p => p.Id.ToString(),
+                    p => new { name = p.Name, photos = p.ServicePhotoUrls }
+                )
+            ));
+
+            let activeProfessionalId = "";
+            let activePhotoIndex = 0;
+
+            const getActiveGallery = () => galleryData[activeProfessionalId];
+            const formatTemplate = (template, replacements) => {
+                let result = template || "";
+                Object.keys(replacements).forEach((key) => {
+                    result = result.replaceAll(`{${key}}`, replacements[key]);
+                });
+                return result;
+            };
+
+            const renderGallery = () => {
+                const gallery = getActiveGallery();
+                if (!gallery || !gallery.photos || gallery.photos.length === 0) {
+                    modalTitleEl.textContent = messages.galleryTitle;
+                    mainImageEl.removeAttribute("src");
+                    mainImageEl.alt = messages.noPhotosAlt;
+                    thumbsContainerEl.innerHTML = "";
+                    prevBtn.disabled = true;
+                    nextBtn.disabled = true;
+                    return;
+                }
+
+                if (activePhotoIndex < 0) {
+                    activePhotoIndex = gallery.photos.length - 1;
+                } else if (activePhotoIndex >= gallery.photos.length) {
+                    activePhotoIndex = 0;
+                }
+
+                const currentPhotoUrl = gallery.photos[activePhotoIndex];
+                modalTitleEl.textContent = formatTemplate(messages.galleryTitleTemplate, { name: gallery.name });
+                mainImageEl.src = currentPhotoUrl;
+                mainImageEl.alt = formatTemplate(messages.serviceAltTemplate, {
+                    index: (activePhotoIndex + 1).toString(),
+                    name: gallery.name
+                });
+
+                thumbsContainerEl.innerHTML = "";
+                gallery.photos.forEach((photoUrl, idx) => {
+                    const thumbButton = document.createElement("button");
+                    thumbButton.type = "button";
+                    thumbButton.className = "cpm-gallery-thumb-btn";
+                    thumbButton.dataset.photoIndex = idx.toString();
+                    if (idx === activePhotoIndex) {
+                        thumbButton.classList.add("is-active");
+                    }
+
+                    const thumbImage = document.createElement("img");
+                    thumbImage.src = photoUrl;
+                    thumbImage.alt = formatTemplate(messages.thumbAltTemplate, {
+                        index: (idx + 1).toString(),
+                        name: gallery.name
+                    });
+                    thumbImage.className = "cpm-gallery-thumb-image";
+                    thumbImage.referrerPolicy = "no-referrer";
+
+                    thumbButton.appendChild(thumbImage);
+                    thumbsContainerEl.appendChild(thumbButton);
+                });
+
+                const hasNavigation = gallery.photos.length > 1;
+                prevBtn.disabled = !hasNavigation;
+                nextBtn.disabled = !hasNavigation;
+            };
+
+            modalEl.addEventListener("show.bs.modal", (event) => {
+                const trigger = event.relatedTarget;
+                if (!trigger) {
+                    return;
+                }
+
+                activeProfessionalId = trigger.getAttribute("data-professional-id") || "";
+                activePhotoIndex = Number(trigger.getAttribute("data-photo-index") || "0");
+                renderGallery();
+            });
+
+            thumbsContainerEl.addEventListener("click", (event) => {
+                const thumbButton = event.target.closest(".cpm-gallery-thumb-btn");
+                if (!thumbButton) {
+                    return;
+                }
+
+                activePhotoIndex = Number(thumbButton.dataset.photoIndex || "0");
+                renderGallery();
+            });
+
+            prevBtn.addEventListener("click", () => {
+                activePhotoIndex -= 1;
+                renderGallery();
+            });
+
+            nextBtn.addEventListener("click", () => {
+                activePhotoIndex += 1;
+                renderGallery();
+            });
+
+            modalEl.addEventListener("keydown", (event) => {
+                if (event.key === "ArrowLeft") {
+                    event.preventDefault();
+                    activePhotoIndex -= 1;
+                    renderGallery();
+                } else if (event.key === "ArrowRight") {
+                    event.preventDefault();
+                    activePhotoIndex += 1;
+                    renderGallery();
+                }
+            });
+        })();
+    </script>
+}

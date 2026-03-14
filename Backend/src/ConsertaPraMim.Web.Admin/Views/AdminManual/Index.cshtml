@@ -1,4 +1,4 @@
-﻿@{
+@{
     ViewData["Title"] = "Manual do Portal Admin";
     var generatedAt = DateTime.UtcNow.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss");
 }
@@ -184,6 +184,8 @@
                             <tr><td>Creditos do prestador</td><td>Creditos</td><td>Saldo/extrato por prestador + relatorio consolidado por filtros em drawer</td><td>Visibilidade financeira agregada e rastreabilidade auditavel no mesmo modulo</td></tr>
                             <tr><td>Swagger API</td><td>Swagger API</td><td>Atalho para documentacao OpenAPI com narrativa de negocio/tecnica por endpoint</td><td>Swagger abre com resumo, contexto, autenticacao, respostas e exemplo cURL em todos os endpoints</td></tr>
                             <tr><td>Diagramas Mermaid</td><td>Diagramas Mermaid</td><td>Visualizacao de arquivos `.mmd` com renderizacao grafica, pan/zoom e fallback de sintaxe</td><td>QA e operacao consultam fluxos/sequencias tecnicas sem sair do portal, com navegacao visual em diagramas extensos</td></tr>
+                            <tr><td>Mapa de Dados</td><td>Mapa de Dados</td><td>Inventario das tabelas/FKs com recorte por dominio/contexto, preview tecnico do fluxo e grade detalhada de relacionamentos</td><td>Time tecnico valida a arquitetura relacional e cruza inventario, dominios e constraints sem consultar o banco manualmente</td></tr>
+                            <tr><td>Diagramar ER</td><td>Diagramar ER</td><td>Canvas ReactFlow com cards por tabela, recorte por dominio/contexto, minimapa, controles, botao de auto-layout e foco local por dependencias diretas</td><td>Leitura ER visual do schema real do EF com navegacao fluida e inspecao de tabelas por contexto de negocio</td></tr>
                             <tr><td>Roadmap</td><td>Roadmap</td><td>Visao de backlog estrategico com epics/stories por status e trilha, com filtros em drawer offcanvas</td><td>Gestao de prioridades de produto e acompanhamento de progresso sem sair do portal</td></tr>
                         </tbody>
                     </table>
@@ -377,6 +379,8 @@
                             <li>Change Logs: historico de mudancas com filtros por texto/periodo em drawer offcanvas.</li>
                             <li>Swagger API: acesso rapido aos contratos/endpoints da API em nova aba, com documentacao extrema por operacao (negocio + tecnico + exemplo cURL).</li>
                             <li>Diagramas Mermaid: preview de arquivos `.mmd` (fluxo e sequencia) com busca lateral.</li>
+                            <li>Mapa de Dados: inventario de tabelas/FKs do modelo EF com recorte por dominio/contexto, preview tecnico do fluxo e grade de relacionamentos para auditoria.</li>
+                            <li>Diagramar ER: canvas ReactFlow com cards por tabela, minimapa, controles nativos, botao `Reaplicar auto-layout`, foco por tabela e agrupamento por dominio/contexto.</li>
                             <li>Roadmap: board estrategico com epics/stories por status (`Backlog`, `In Progress`, `Done`) e filtros em drawer offcanvas.</li>
                             <li>Growth Funnel: painel dedicado de liquidez/conversao com filtros operacionais em drawer offcanvas e SLA por etapa.</li>
                             <li>Cockpit Growth: visao executiva da North Star com metas trimestrais, tendencia semanal e filtros em drawer offcanvas.</li>
@@ -428,6 +432,7 @@
             <li>Como admin, quero invalidar proposta inadequada e manter trilha de auditoria.</li>
             <li>Como admin, quero ver historico de conversa e anexos para investigar conflito entre cliente e prestador.</li>
             <li>Como admin, quero abrir diagramas Mermaid no portal para validar fluxos tecnicos durante QA e operacao.</li>
+            <li>Como admin tecnico, quero visualizar todas as tabelas e relacionamentos para entender impacto de mudancas no banco.</li>
             <li>Como admin, quero receber notificacao de nova disputa e cair direto na fila correta para triagem.</li>
             <li>Como admin, quero rastrear mensagens/anexos de disputa em trilha de auditoria para compliance.</li>
             <li>Como admin, quero registrar decisao de disputa com impacto financeiro auditavel e notificacao automatica para as partes.</li>
@@ -604,6 +609,18 @@
                         <td>Visualizador de diagramas Mermaid</td>
                         <td>Abrir `Diagramas Mermaid`, usar busca lateral, selecionar arquivos `.mmd` e operar zoom (`+/-/reset`) com arrastar no preview.</td>
                         <td>Preview renderiza corretamente; controles de pan/zoom funcionam; metadados atualizam por arquivo; fallback para codigo-fonte aparece somente em erro real de sintaxe.</td>
+                    </tr>
+                    <tr>
+                        <td>QA-ADM-073</td>
+                        <td>Mapa de Dados com diagrama relacional</td>
+                        <td>Abrir `Mapa de Dados`, validar totais de tabelas/FKs, alternar o seletor de recorte (macro/geral/dominio), alternar o estilo do preview (`Fluxo tecnico`/`ER por tabelas`), clicar em um card de tabela para gerar foco local, navegar no preview Mermaid com zoom/arraste/enquadrar e conferir tabela de relacionamentos.</td>
+                        <td>Modulo lista tabelas agrupadas por dominio/contexto com PK/FK, renderiza todos os recortes sem erro, troca o preview entre fluxo e cards ER e gera foco local com colunas+tipos, mantendo consistencia entre inventario e relacoes exibidas.</td>
+                    </tr>
+                    <tr>
+                        <td>QA-ADM-074</td>
+                        <td>Diagramar ER com ReactFlow</td>
+                        <td>Abrir `Diagramar ER`, alternar chips de dominio/contexto, clicar em uma tabela da lateral, validar foco local no canvas, usar `MiniMap`/`Controls`, acionar `Reaplicar auto-layout` e confirmar o enquadramento automatico ao trocar o recorte.</td>
+                        <td>O modulo carrega o grafo com assets locais, exibe cards por tabela com schema/colunas/tipos/flags `PK/FK/NULL`, reaplica auto-layout por dependencias sem sobreposicao visivel e mantem consistencia entre sidebar, recorte selecionado e relacionamentos desenhados.</td>
                     </tr>
                     <tr>
                         <td>QA-ADM-025</td>
@@ -951,6 +968,8 @@
                     <li>Tela `Score Liquidez` carrega ranking/historico e evidencia grupos criticos sem erro de autorizacao.</li>
                     <li>Tela `Diagramas Mermaid` abre com preview renderizado de ao menos um arquivo `.mmd`.</li>
                     <li>No modulo `Diagramas Mermaid`, validar zoom in/out/reset e arraste em um diagrama de grande porte.</li>
+                    <li>Tela `Mapa de Dados` abre com inventario de tabelas/FKs agrupado por dominio/contexto, seletor de recorte, seletor de estilo do preview e cards clicaveis para foco local.</li>
+                    <li>Tela `Diagramar ER` abre com canvas ReactFlow, minimapa, controles nativos, recorte por dominio/contexto, botao `Reaplicar auto-layout` e cards de tabela com colunas/tipos.</li>
                     <li>Tela `Roadmap` lista epics/stories com filtros e colunas de status sem erro.</li>
                     <li>Tela `Growth Funnel` permite executar rodada de reativacao e exibe feedback de cadencia/execucao sem erro.</li>
                     <li>Tela `Growth Funnel` exibe performance de campanhas com taxa de reativacao por rodada e consolidado por canal.</li>
@@ -991,6 +1010,8 @@
                     <li>Validar coerencia entre endpoint `/api/admin/growth/liquidity-score` e tela `Score Liquidez` (mesmos grupos/scores por filtro).</li>
                     <li>Revalidacao de politicas de autorizacao `AdminOnly`.</li>
                     <li>Validar fallback de codigo-fonte quando diagrama Mermaid estiver invalido.</li>
+                    <li>Validar consistencia da tela `Mapa de Dados` com tabela de relacionamentos (FK principal/dependente e cardinalidade) em todos os recortes e nos dois estilos de preview, incluindo foco por tabela com colunas/tipos.</li>
+                    <li>Validar consistencia da tela `Diagramar ER` com o inventario do schema (mesmas tabelas, colunas e relacionamentos do EF) em `Todos os dominios`, em um dominio especifico e em modo foco, incluindo reorganizacao via `Reaplicar auto-layout`.</li>
                     <li>Validar consistencia do roadmap com arquivos markdown (epic/story/status) apos atualizar o board.</li>
                 </ul>
             </div>
@@ -1106,7 +1127,47 @@
                     <tr>
                         <td>Diagrama Mermaid nao renderiza no preview</td>
                         <td>Sintaxe `.mmd` invalida, arquivo vazio ou bloqueio de script externo</td>
-                        <td>Conferir codigo-fonte exibido no painel, validar sintaxe Mermaid (labels com parenteses devem estar entre aspas), inspecionar console/rede para carga de `mermaid.min.js` e `svg-pan-zoom.min.js`.</td>
+                        <td>Conferir codigo-fonte exibido no painel, validar sintaxe Mermaid (labels com parenteses devem estar entre aspas), inspecionar console/rede para carga de `mermaid.min.js` e `~/lib/svg-pan-zoom/svg-pan-zoom.min.js`.</td>
+                    </tr>
+                    <tr>
+                        <td>Mapa de Dados sem tabelas ou relacionamentos</td>
+                        <td>Falha ao carregar modelo EF ou cache defasado no modulo</td>
+                        <td>Recarregar a pagina, revisar logs do `AdminDatabaseSchemaService` e validar se o build da solution esta atualizado com o ultimo `ConsertaPraMimDbContext`.</td>
+                    </tr>
+                    <tr>
+                        <td>Mapa de Dados com diagrama comprimido/linear</td>
+                        <td>Modo detalhado global selecionado para volume alto de tabelas</td>
+                        <td>Alternar para `Visao macro por dominios` ou para um dominio especifico no seletor, usar `Enquadrar diagrama completo` e confirmar viewport com altura adaptativa (desktop/mobile).</td>
+                    </tr>
+                    <tr>
+                        <td>Mapa de Dados abre com elementos cortados no topo</td>
+                        <td>Escala inicial fora do ponto apos troca de modo ou resize extremo</td>
+                        <td>Acionar `Resetar zoom para leitura`; se persistir, usar `Enquadrar diagrama completo` e recarregar a pagina para recalcular `fit/center` do SVG.</td>
+                    </tr>
+                    <tr>
+                        <td>Clique no card de tabela nao gera foco de diagrama</td>
+                        <td>JavaScript da tela nao inicializado, erro de render Mermaid ou card sem dataset</td>
+                        <td>Validar console para erro JS, recarregar pagina, confirmar se o card possui `data-table-full-name` e se o botao `Voltar ao modo selecionado` aparece apos clique valido.</td>
+                    </tr>
+                    <tr>
+                        <td>Foco por tabela abre com SVG pequeno no preview</td>
+                        <td>Estilo inline `max-width` aplicado pelo Mermaid no `svg` apos render</td>
+                        <td>Recarregar pagina com hard refresh e validar no DevTools se o `svg` nao possui `max-width` efetivo; em caso de cache antigo, limpar cache do browser e retestar clique no card.</td>
+                    </tr>
+                    <tr>
+                        <td>Diagramar ER fica apenas no estado de carregamento</td>
+                        <td>Erro JavaScript no bootstrap do `ReactFlow` ou asset local bloqueado/nao publicado</td>
+                        <td>Validar no DevTools se `~/lib/react/react.production.min.js`, `~/lib/react-dom/react-dom.production.min.js`, `~/lib/reactflow/reactflow.umd.js`, `~/lib/dagre/dagre.min.js` e `~/js/admin-er-diagram.js` retornam `200`; se houver erro de script, revisar console e fazer hard refresh para invalidar cache antigo.</td>
+                    </tr>
+                    <tr>
+                        <td>Botao `Reaplicar auto-layout` nao reorganiza o grafo</td>
+                        <td>Asset local do `dagre` nao carregou ou o recorte atual nao possui relacionamentos suficientes para reordenacao</td>
+                        <td>Validar carregamento de `~/lib/dagre/dagre.min.js`, conferir console para erro JS e testar o botao em um recorte com mais de uma FK; se o grafo atual nao possuir arestas, o layout base permanece inalterado.</td>
+                    </tr>
+                    <tr>
+                        <td>Tabela aparece com `0 colunas` no foco por card</td>
+                        <td>Metadado de coluna nao resolvido por schema default no catalogo EF</td>
+                        <td>Validar build atualizado do `AdminDatabaseSchemaService`; confirmar que o foco por tabela exibe linhas `coluna: tipo` e que `Total colunas` nos cards nao ficou zerado.</td>
                     </tr>
                     <tr>
                         <td>Swagger sem contexto detalhado em algum endpoint</td>
@@ -1157,7 +1218,7 @@
         <h3 class="h6 fw-semibold">Rotina continua de revisao</h3>
         <ol class="mb-0">
             <li>A cada story `DONE` do Admin, registrar revisao no bloco "Historico de revisoes".</li>
-            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`, `QA-ADM-023`, `QA-ADM-024`, `QA-ADM-026`, `QA-ADM-027`, `QA-ADM-028`, `QA-ADM-030`, `QA-ADM-031`, `QA-ADM-032`, `QA-ADM-033`, `QA-ADM-034`, `QA-ADM-035`, `QA-ADM-036`, `QA-ADM-037`, `QA-ADM-038`, `QA-ADM-039`, `QA-ADM-040`, `QA-ADM-041`, `QA-ADM-042`, `QA-ADM-043`, `QA-ADM-044`, `QA-ADM-045`, `QA-ADM-046`, `QA-ADM-047`, `QA-ADM-048`, `QA-ADM-049`, `QA-ADM-050`, `QA-ADM-051`, `QA-ADM-052`, `QA-ADM-053`, `QA-ADM-056`, `QA-ADM-057`, `QA-ADM-058`, `QA-ADM-061`, `QA-ADM-064`, `QA-ADM-065`, `QA-ADM-066`, `QA-ADM-067`, `QA-ADM-068`, `QA-ADM-069`, `QA-ADM-070`, `QA-ADM-071`, `QA-ADM-072`) apos update do manual.</li>
+            <li>Executar amostra minima de smoke (`QA-ADM-001`, `QA-ADM-002`, `QA-ADM-020`, `QA-ADM-023`, `QA-ADM-024`, `QA-ADM-026`, `QA-ADM-027`, `QA-ADM-028`, `QA-ADM-030`, `QA-ADM-031`, `QA-ADM-032`, `QA-ADM-033`, `QA-ADM-034`, `QA-ADM-035`, `QA-ADM-036`, `QA-ADM-037`, `QA-ADM-038`, `QA-ADM-039`, `QA-ADM-040`, `QA-ADM-041`, `QA-ADM-042`, `QA-ADM-043`, `QA-ADM-044`, `QA-ADM-045`, `QA-ADM-046`, `QA-ADM-047`, `QA-ADM-048`, `QA-ADM-049`, `QA-ADM-050`, `QA-ADM-051`, `QA-ADM-052`, `QA-ADM-053`, `QA-ADM-056`, `QA-ADM-057`, `QA-ADM-058`, `QA-ADM-061`, `QA-ADM-064`, `QA-ADM-065`, `QA-ADM-066`, `QA-ADM-067`, `QA-ADM-068`, `QA-ADM-069`, `QA-ADM-070`, `QA-ADM-071`, `QA-ADM-072`, `QA-ADM-073`, `QA-ADM-074`) apos update do manual.</li>
             <li>Validar links de menu/rotas e manter sincronismo com `Documentacao/ADMIN_PORTAL/INDEX.md`.</li>
         </ol>
     </div>
@@ -1182,6 +1243,66 @@
                         <td>10/03/2026</td>
                         <td>ST-076</td>
                         <td>Correcao de inferencia de subdominios HML no menu lateral do Admin para `Portal Cliente` e `Portal Prestador`, impedindo composicao incorreta de host (`cliente.admin.*`/`prestador.admin.*`) quando o acesso ocorre em `hml.admin.consertapramim.com`.</td>
+                    </tr>
+                    <tr>
+                        <td>11/03/2026</td>
+                        <td>ST-078</td>
+                        <td>`Diagramar ER` ganhou o botao `Reaplicar auto-layout`, usando `dagre` local para reorganizar o grafo atual do ReactFlow por dependencias entre tabelas.</td>
+                    </tr>
+                    <tr>
+                        <td>11/03/2026</td>
+                        <td>ST-078</td>
+                        <td>Novo modulo `Diagramar ER` no menu admin com `ReactFlow`, cards por tabela, recorte por dominio/contexto, foco local, `MiniMap`, `Controls` e caso `QA-ADM-074` para validacao funcional.</td>
+                    </tr>
+                    <tr>
+                        <td>11/03/2026</td>
+                        <td>ST-077</td>
+                        <td>Novo modulo `Mapa de Dados` no menu admin com inventario de tabelas/FKs a partir do modelo EF, diagrama ER Mermaid com pan/zoom e caso `QA-ADM-073` para validacao funcional.</td>
+                    </tr>
+                    <tr>
+                        <td>11/03/2026</td>
+                        <td>ST-077</td>
+                        <td>Hotfix de asset no portal admin: `Diagramas Mermaid` e `Mapa de Dados` passaram a carregar `~/lib/svg-pan-zoom/svg-pan-zoom.min.js` (versao local), eliminando erros de CDN/dependencia e restaurando pan/zoom.</td>
+                    </tr>
+                    <tr>
+                        <td>11/03/2026</td>
+                        <td>ST-077</td>
+                        <td>Mapa de Dados ganhou seletor de layout com `Visao macro por dominios`, `Visao geral` e recorte por dominio, alem de ajuste de zoom inicial para melhor ocupacao do canvas em grafos amplos.</td>
+                    </tr>
+                    <tr>
+                        <td>11/03/2026</td>
+                        <td>ST-077</td>
+                        <td>Preview do `Mapa de Dados` passou a usar altura adaptativa maior e escala inicial recalibrada, evitando canvas baixo/achatado em grafos largos.</td>
+                    </tr>
+                    <tr>
+                        <td>11/03/2026</td>
+                        <td>ST-077</td>
+                        <td>Correcao de clipping no topo do `Mapa de Dados`: render base do SVG voltou a ocupar integralmente o preview e a abertura passou a aplicar `fit/center` antes do zoom de leitura.</td>
+                    </tr>
+                    <tr>
+                        <td>11/03/2026</td>
+                        <td>ST-077</td>
+                        <td>Cards da lista `Tabelas mapeadas` passaram a ser clicaveis para gerar diagrama focado na tabela selecionada e seus relacionamentos diretos, com acao para retorno ao modo global.</td>
+                    </tr>
+                    <tr>
+                        <td>11/03/2026</td>
+                        <td>ST-077</td>
+                        <td>Correcao do foco por tabela para neutralizar `max-width` inline do Mermaid no `svg` e impedir preview encolhido apos clique no card.</td>
+                    </tr>
+                    <tr>
+                        <td>11/03/2026</td>
+                        <td>ST-077</td>
+                        <td>Foco por tabela do `Mapa de Dados` passou a usar layout visual de card ER, com cabecalho destacado, nome/tipo por coluna e conectores mais limpos no preview.</td>
+                    </tr>
+                    <tr>
+                        <td>11/03/2026</td>
+                        <td>ST-077</td>
+                        <td>Foco por tabela passou a exibir colunas com tipo SQL e marcadores `PK/FK/nullability`, com correcao de metadado para evitar `0 colunas` em schema default.</td>
+                    </tr>
+                    <tr>
+                        <td>11/03/2026</td>
+                        <td>ST-077</td>
+                        <td>`Mapa de Dados` passou a agrupar inventario por dominio/contexto e ganhou seletor de estilo do preview para alternar entre `Fluxo tecnico` e `ER por tabelas` nos recortes suportados.</td>
                     </tr>
                     <tr>
                         <td>08/03/2026</td>
@@ -1483,4 +1604,3 @@
         </div>
     </div>
 </section>
-

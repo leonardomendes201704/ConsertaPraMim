@@ -4,6 +4,8 @@ Backend/src/ConsertaPraMim.API/wwwroot/uploads/
 # Artefatos locais de build mobile
 apk-output/
 Backend/src/.artifacts/
+tmp/
+.tmp_pr_body_*.md
 
 # Artefatos de execucao do load test
 scripts/loadtest/output/

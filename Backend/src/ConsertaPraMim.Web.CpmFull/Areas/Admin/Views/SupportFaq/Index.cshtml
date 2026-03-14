@@ -1,0 +1,314 @@
+@model AdminSupportFaqListViewModel
+@{
+    ViewData["Title"] = "FAQ de Suporte";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h4 fw-bold mb-1">FAQ de Suporte</h1>
+        <p class="text-secondary mb-0">Gerencie perguntas e respostas exibidas na central de suporte.</p>
+    </div>
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createFaqModal">
+        Novo FAQ
+    </button>
+</div>
+
+@if (TempData["AdminErrorMessage"] is string errorMessage && !string.IsNullOrWhiteSpace(errorMessage))
+{
+    <div class="alert alert-danger" role="alert">@errorMessage</div>
+}
+
+<div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+        <table class="table align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Ordem</th>
+                    <th>Pergunta</th>
+                    <th>Resposta</th>
+                    <th>Status</th>
+                    <th class="text-end">Acoes</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (!Model.Items.Any())
+                {
+                    <tr>
+                        <td colspan="5" class="text-center text-secondary py-4">Nenhum FAQ cadastrado.</td>
+                    </tr>
+                }
+                else
+                {
+                    foreach (var item in Model.Items)
+                    {
+                        <tr>
+                            <td>@item.SortOrder</td>
+                            <td class="fw-semibold">@item.Question</td>
+                            <td class="text-break" style="max-width: 420px;">@item.AnswerPreview</td>
+                            <td>
+                                @if (item.IsActive)
+                                {
+                                    <span class="badge text-bg-success">Ativo</span>
+                                }
+                                else
+                                {
+                                    <span class="badge text-bg-secondary">Inativo</span>
+                                }
+                            </td>
+                            <td class="text-end">
+                                <div class="d-inline-flex gap-1">
+                                    <button
+                                        type="button"
+                                        class="btn btn-sm btn-outline-secondary cpm-faq-details-btn"
+                                        data-id="@item.Id"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#detailsFaqModal">
+                                        Detalhes
+                                    </button>
+                                    <button
+                                        type="button"
+                                        class="btn btn-sm btn-outline-primary cpm-faq-edit-btn"
+                                        data-id="@item.Id"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#editFaqModal">
+                                        Editar
+                                    </button>
+                                    <form asp-area="Admin" asp-controller="SupportFaq" asp-action="Delete" method="post" class="d-inline">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="id" value="@item.Id" />
+                                        <button
+                                            type="submit"
+                                            class="btn btn-sm btn-outline-danger"
+                                            onclick="return confirm('Deseja excluir este FAQ?');">
+                                            Excluir
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="detailsFaqModal" tabindex="-1" aria-labelledby="detailsFaqModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold" id="detailsFaqModalLabel">Detalhes do FAQ</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <dl class="row mb-3">
+                    <dt class="col-sm-3">Pergunta</dt>
+                    <dd class="col-sm-9" id="faqDetailsQuestion"></dd>
+
+                    <dt class="col-sm-3">Ordem</dt>
+                    <dd class="col-sm-9" id="faqDetailsSortOrder"></dd>
+
+                    <dt class="col-sm-3">Status</dt>
+                    <dd class="col-sm-9" id="faqDetailsStatus"></dd>
+                </dl>
+
+                <ul class="nav nav-tabs mb-3" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#faqDetailsPreviewTab" type="button" role="tab">Preview</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#faqDetailsHtmlTab" type="button" role="tab">HTML</button>
+                    </li>
+                </ul>
+                <div class="tab-content">
+                    <div class="tab-pane fade show active" id="faqDetailsPreviewTab" role="tabpanel">
+                        <iframe id="faqDetailsPreviewFrame" class="w-100 border rounded" style="height: 260px;" sandbox></iframe>
+                    </div>
+                    <div class="tab-pane fade" id="faqDetailsHtmlTab" role="tabpanel">
+                        <pre id="faqDetailsAnswerHtml" class="bg-light border rounded p-3 mb-0 text-break" style="white-space: pre-wrap;"></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="createFaqModal" tabindex="-1" aria-labelledby="createFaqModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <form asp-area="Admin" asp-controller="SupportFaq" asp-action="Create" method="post" novalidate>
+                @Html.AntiForgeryToken()
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold" id="createFaqModalLabel">Novo FAQ</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Pergunta</label>
+                        <input name="Question" class="form-control" maxlength="300" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Ordem</label>
+                        <input name="SortOrder" type="number" class="form-control" min="0" value="0" />
+                    </div>
+
+                    <ul class="nav nav-tabs mb-3" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#createFaqEditorTab" type="button" role="tab">Editor HTML</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#createFaqPreviewTab" type="button" role="tab">Preview</button>
+                        </li>
+                    </ul>
+                    <div class="tab-content">
+                        <div class="tab-pane fade show active" id="createFaqEditorTab" role="tabpanel">
+                            <textarea id="createFaqAnswer" name="Answer" class="form-control" rows="8" required></textarea>
+                        </div>
+                        <div class="tab-pane fade" id="createFaqPreviewTab" role="tabpanel">
+                            <iframe id="createFaqPreviewFrame" class="w-100 border rounded" style="height: 260px;" sandbox></iframe>
+                        </div>
+                    </div>
+
+                    <div class="form-check mt-3">
+                        <input class="form-check-input" type="checkbox" name="IsActive" value="true" checked />
+                        <input type="hidden" name="IsActive" value="false" />
+                        <label class="form-check-label">Ativo</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Criar FAQ</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editFaqModal" tabindex="-1" aria-labelledby="editFaqModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <form asp-area="Admin" asp-controller="SupportFaq" asp-action="Edit" method="post" novalidate>
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="Id" id="editFaqId" />
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold" id="editFaqModalLabel">Editar FAQ</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Pergunta</label>
+                        <input id="editFaqQuestion" name="Question" class="form-control" maxlength="300" required />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Ordem</label>
+                        <input id="editFaqSortOrder" name="SortOrder" type="number" class="form-control" min="0" />
+                    </div>
+
+                    <ul class="nav nav-tabs mb-3" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#editFaqEditorTab" type="button" role="tab">Editor HTML</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#editFaqPreviewTab" type="button" role="tab">Preview</button>
+                        </li>
+                    </ul>
+                    <div class="tab-content">
+                        <div class="tab-pane fade show active" id="editFaqEditorTab" role="tabpanel">
+                            <textarea id="editFaqAnswer" name="Answer" class="form-control" rows="8" required></textarea>
+                        </div>
+                        <div class="tab-pane fade" id="editFaqPreviewTab" role="tabpanel">
+                            <iframe id="editFaqPreviewFrame" class="w-100 border rounded" style="height: 260px;" sandbox></iframe>
+                        </div>
+                    </div>
+
+                    <div class="form-check mt-3">
+                        <input id="editFaqIsActive" class="form-check-input" type="checkbox" name="IsActive" value="true" />
+                        <input type="hidden" name="IsActive" value="false" />
+                        <label class="form-check-label" for="editFaqIsActive">Ativo</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar alteracoes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        (() => {
+            const setPreview = (iframe, htmlText) => {
+                if (!iframe) {
+                    return;
+                }
+
+                iframe.srcdoc = htmlText || "<p style='color:#6c757d;'>Sem conteudo para preview.</p>";
+            };
+
+            const fetchFaq = async (id) => {
+                const response = await fetch(`/admin/faq-suporte/${id}/json`, { headers: { "Accept": "application/json" } });
+                if (!response.ok) {
+                    throw new Error("fetch-failed");
+                }
+                return await response.json();
+            };
+
+            const createAnswer = document.getElementById("createFaqAnswer");
+            const createPreviewFrame = document.getElementById("createFaqPreviewFrame");
+            createAnswer?.addEventListener("input", () => setPreview(createPreviewFrame, createAnswer.value));
+            document.querySelector('button[data-bs-target="#createFaqPreviewTab"]')?.addEventListener("shown.bs.tab", () => {
+                setPreview(createPreviewFrame, createAnswer?.value || "");
+            });
+
+            const editAnswer = document.getElementById("editFaqAnswer");
+            const editPreviewFrame = document.getElementById("editFaqPreviewFrame");
+            editAnswer?.addEventListener("input", () => setPreview(editPreviewFrame, editAnswer.value));
+            document.querySelector('button[data-bs-target="#editFaqPreviewTab"]')?.addEventListener("shown.bs.tab", () => {
+                setPreview(editPreviewFrame, editAnswer?.value || "");
+            });
+
+            document.querySelectorAll(".cpm-faq-details-btn").forEach((button) => {
+                button.addEventListener("click", async () => {
+                    const id = button.getAttribute("data-id");
+                    if (!id) {
+                        return;
+                    }
+
+                    try {
+                        const faq = await fetchFaq(id);
+                        document.getElementById("faqDetailsQuestion").textContent = faq.question ?? "";
+                        document.getElementById("faqDetailsSortOrder").textContent = faq.sortOrder ?? "";
+                        document.getElementById("faqDetailsStatus").textContent = faq.isActive ? "Ativo" : "Inativo";
+                        document.getElementById("faqDetailsAnswerHtml").textContent = faq.answer ?? "";
+                        setPreview(document.getElementById("faqDetailsPreviewFrame"), faq.answer ?? "");
+                    } catch {
+                        alert("Nao foi possivel carregar os detalhes do FAQ.");
+                    }
+                });
+            });
+
+            document.querySelectorAll(".cpm-faq-edit-btn").forEach((button) => {
+                button.addEventListener("click", async () => {
+                    const id = button.getAttribute("data-id");
+                    if (!id) {
+                        return;
+                    }
+
+                    try {
+                        const faq = await fetchFaq(id);
+                        document.getElementById("editFaqId").value = faq.id ?? "";
+                        document.getElementById("editFaqQuestion").value = faq.question ?? "";
+                        document.getElementById("editFaqSortOrder").value = faq.sortOrder ?? 0;
+                        document.getElementById("editFaqAnswer").value = faq.answer ?? "";
+                        document.getElementById("editFaqIsActive").checked = !!faq.isActive;
+                        setPreview(document.getElementById("editFaqPreviewFrame"), faq.answer ?? "");
+                    } catch {
+                        alert("Nao foi possivel carregar os dados para edicao.");
+                    }
+                });
+            });
+        })();
+    </script>
+}

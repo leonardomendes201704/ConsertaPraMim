@@ -1,0 +1,469 @@
+:root {
+    --cpm-primary: #ff7a00;
+    --cpm-primary-hover: #e86800;
+    --cpm-secondary: #0d2b45;
+    --cpm-soft: #f6f8fb;
+    --cpm-text: #1f2a37;
+    --cpm-muted: #5f6b7a;
+}
+
+html {
+    font-size: 16px;
+}
+
+body.cpm-body {
+    min-height: 100vh;
+    background: var(--cpm-soft);
+    color: var(--cpm-text);
+    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.cpm-header {
+    background: rgba(255, 255, 255, 0.95);
+    border-bottom: 1px solid #edf1f5;
+    backdrop-filter: blur(8px);
+}
+
+.cpm-logo {
+    height: 40px;
+    width: auto;
+}
+
+.cpm-logo-footer {
+    height: 36px;
+    width: auto;
+}
+
+.navbar .nav-link {
+    color: #5f6b7a;
+    font-weight: 600;
+}
+
+.navbar .nav-link:hover,
+.navbar .nav-link:focus-visible {
+    color: var(--cpm-primary);
+}
+
+.cpm-btn-outline {
+    border-color: #d7dee6;
+    color: var(--cpm-secondary);
+    font-weight: 600;
+}
+
+.cpm-btn-outline:hover,
+.cpm-btn-outline:focus-visible {
+    border-color: var(--cpm-primary);
+    background: #fff5eb;
+    color: var(--cpm-primary);
+}
+
+.cpm-main {
+    min-height: 70vh;
+}
+
+.cpm-hero {
+    background: radial-gradient(circle at 0% 0%, rgba(255, 122, 0, 0.25), transparent 40%),
+        radial-gradient(circle at 100% 100%, rgba(58, 133, 255, 0.25), transparent 35%),
+        var(--cpm-secondary);
+    color: #fff;
+    padding: 5rem 0;
+}
+
+.cpm-section {
+    padding: 4.5rem 0;
+}
+
+.cpm-card {
+    border: 1px solid #eef1f5;
+    border-radius: 1rem;
+    background: #fff;
+    box-shadow: 0 10px 30px rgba(13, 43, 69, 0.05);
+}
+
+.cpm-category-card {
+    border: 1px solid #edf1f5;
+    border-radius: 1rem;
+    padding: 1.25rem;
+    display: block;
+    text-align: center;
+    background: #fff;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.cpm-top-services .cpm-category-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+}
+
+.cpm-category-card:hover {
+    transform: translateY(-2px);
+    border-color: #ffc58f;
+    box-shadow: 0 14px 26px rgba(13, 43, 69, 0.08);
+}
+
+.cpm-category-icon {
+    width: 3.5rem;
+    height: 3.5rem;
+    border-radius: 50%;
+    margin: 0 auto 0.8rem;
+    display: grid;
+    place-items: center;
+    background: #fff4e7;
+    color: var(--cpm-primary);
+    font-size: 1.5rem;
+}
+
+.cpm-step {
+    text-align: center;
+}
+
+.cpm-step-number {
+    width: 4rem;
+    height: 4rem;
+    display: inline-grid;
+    place-items: center;
+    border-radius: 50%;
+    border: 3px solid #eef1f5;
+    background: #fff;
+    color: var(--cpm-primary);
+    font-weight: 700;
+    font-size: 1.3rem;
+    margin-bottom: 1rem;
+}
+
+.cpm-trust {
+    background: var(--cpm-secondary);
+    color: #fff;
+}
+
+.cpm-trust .cpm-card {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.15);
+    color: #e6edf5;
+}
+
+.cpm-trust .bi {
+    color: var(--cpm-primary);
+    font-size: 2rem;
+}
+
+.cpm-professional-cta {
+    background: #fff3e5;
+}
+
+.cpm-footer {
+    background: var(--cpm-secondary);
+    color: #d6deea;
+}
+
+.cpm-footer h6 {
+    color: #fff;
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    letter-spacing: 0.04em;
+    margin-bottom: 0.9rem;
+}
+
+.cpm-footer ul li {
+    margin-bottom: 0.45rem;
+}
+
+.cpm-footer a {
+    color: #c4d0df;
+}
+
+.cpm-footer a:hover {
+    color: #fff;
+}
+
+.cpm-footer-bottom {
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    color: #94a2b4;
+    font-size: 0.85rem;
+}
+
+.cpm-whatsapp-fab {
+    position: fixed;
+    right: 1.5rem;
+    bottom: 1.5rem;
+    z-index: 1040;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-height: 3.75rem;
+    padding: 0.7rem 1rem 0.7rem 0.8rem;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #25d366, #128c49);
+    color: #fff;
+    box-shadow: 0 18px 38px rgba(18, 140, 73, 0.32);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+}
+
+.cpm-whatsapp-fab:hover,
+.cpm-whatsapp-fab:focus-visible {
+    color: #fff;
+    transform: translateY(-2px);
+    box-shadow: 0 22px 42px rgba(18, 140, 73, 0.4);
+    filter: saturate(1.04);
+}
+
+.cpm-whatsapp-fab-icon {
+    width: 2.4rem;
+    height: 2.4rem;
+    display: inline-grid;
+    place-items: center;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.18);
+    font-size: 1.35rem;
+}
+
+.cpm-whatsapp-fab-text {
+    font-weight: 700;
+    line-height: 1.1;
+    white-space: nowrap;
+}
+
+.cpm-btn-primary {
+    background: var(--cpm-primary);
+    border-color: var(--cpm-primary);
+    color: #fff;
+    font-weight: 600;
+}
+
+.cpm-btn-primary:hover,
+.cpm-btn-primary:focus-visible {
+    background: var(--cpm-primary-hover);
+    border-color: var(--cpm-primary-hover);
+    color: #fff;
+}
+
+.cpm-location-group .form-control {
+    border-right: 0;
+}
+
+.cpm-location-btn {
+    border: 1px solid #ced4da;
+    border-left: 0;
+    background: #fff;
+    color: var(--cpm-primary);
+}
+
+.cpm-location-btn:hover,
+.cpm-location-btn:focus-visible {
+    background: #fff4e7;
+    color: var(--cpm-primary-hover);
+}
+
+.cpm-location-btn:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+}
+
+.cpm-location-feedback {
+    text-align: left;
+    font-size: 0.8rem;
+    margin-top: 0.35rem;
+    color: rgba(255, 255, 255, 0.76);
+}
+
+.cpm-location-feedback.is-success {
+    color: #c8ffe4;
+}
+
+.cpm-location-feedback.is-warning {
+    color: #ffe6b8;
+}
+
+.cpm-location-feedback.is-error {
+    color: #ffd2cf;
+}
+
+.cpm-cep-feedback {
+    text-align: left;
+    font-size: 0.8rem;
+    margin-top: 0.35rem;
+    color: #6b7788;
+}
+
+.cpm-cep-feedback.is-success {
+    color: #198754;
+}
+
+.cpm-cep-feedback.is-warning {
+    color: #946200;
+}
+
+.cpm-cep-feedback.is-error {
+    color: #dc3545;
+}
+
+.cpm-badge {
+    border-radius: 999px;
+    font-size: 0.78rem;
+    background: #eef2f7;
+    color: #44505f;
+    padding: 0.2rem 0.55rem;
+}
+
+.cpm-pro-description {
+    color: var(--cpm-muted);
+    font-size: 0.92rem;
+    line-height: 1.45;
+}
+
+.cpm-service-thumb {
+    width: 100%;
+    height: 84px;
+    object-fit: cover;
+    border-radius: 0.5rem;
+    border: 1px solid #e8edf3;
+}
+
+.cpm-service-thumb-btn {
+    display: block;
+    width: 100%;
+    border: 0;
+    background: transparent;
+    padding: 0;
+    cursor: pointer;
+}
+
+.cpm-gallery-main-wrap {
+    position: relative;
+    min-height: 420px;
+    border-radius: 0.75rem;
+    border: 1px solid #e8edf3;
+    background: #f7f9fc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.cpm-gallery-main-image {
+    width: 100%;
+    max-height: 70vh;
+    object-fit: contain;
+}
+
+.cpm-gallery-nav-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 2.5rem;
+    height: 2.5rem;
+    border: 0;
+    border-radius: 50%;
+    background: rgba(13, 43, 69, 0.72);
+    color: #fff;
+    display: grid;
+    place-items: center;
+    z-index: 2;
+}
+
+.cpm-gallery-nav-btn:hover,
+.cpm-gallery-nav-btn:focus-visible {
+    background: rgba(13, 43, 69, 0.9);
+}
+
+.cpm-gallery-nav-btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.cpm-gallery-nav-prev {
+    left: 0.75rem;
+}
+
+.cpm-gallery-nav-next {
+    right: 0.75rem;
+}
+
+.cpm-gallery-thumb-list {
+    max-height: 70vh;
+    overflow-y: auto;
+    padding-right: 0.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.cpm-gallery-thumb-btn {
+    border: 2px solid transparent;
+    border-radius: 0.5rem;
+    background: transparent;
+    padding: 0;
+    overflow: hidden;
+}
+
+.cpm-gallery-thumb-btn.is-active {
+    border-color: var(--cpm-primary);
+}
+
+.cpm-gallery-thumb-image {
+    width: 100%;
+    height: 86px;
+    object-fit: cover;
+    display: block;
+}
+
+.cpm-verified {
+    color: #1d79d6;
+}
+
+.cpm-form-wrap {
+    max-width: 860px;
+    margin: 0 auto;
+}
+
+.cpm-form-card {
+    border: 1px solid #ebf0f5;
+    border-radius: 1rem;
+    box-shadow: 0 16px 40px rgba(13, 43, 69, 0.06);
+}
+
+.cpm-file-placeholder {
+    border: 2px dashed #d8dee8;
+    border-radius: 1rem;
+    background: #f9fbfd;
+    color: #6b7788;
+    text-align: center;
+    padding: 2.5rem 1rem;
+}
+
+.text-light-emphasis {
+    color: #b8c5d6 !important;
+}
+
+@media (max-width: 991.98px) {
+    .navbar .btn {
+        margin-top: 0.5rem;
+    }
+
+    .cpm-hero {
+        padding: 4rem 0;
+    }
+}
+
+@media (max-width: 575.98px) {
+    .cpm-whatsapp-fab {
+        right: 1rem;
+        bottom: 1rem;
+        min-width: 3.75rem;
+        padding: 0.7rem;
+        justify-content: center;
+    }
+
+    .cpm-whatsapp-fab-text {
+        display: none;
+    }
+}

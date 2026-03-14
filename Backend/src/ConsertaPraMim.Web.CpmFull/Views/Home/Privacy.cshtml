@@ -1,0 +1,42 @@
+@{
+    string C(string key, string fallback) => SiteContent.Get(key, fallback);
+
+    ViewData["Title"] = C("privacy.meta.title", "Politica de privacidade");
+    ViewData["SeoTitle"] = C("privacy.meta.seo_title", "Politica de privacidade");
+    ViewData["MetaDescription"] = C("privacy.meta.description", "Entenda como o ConsertaPraMim coleta, utiliza e protege dados pessoais de clientes e profissionais.");
+    ViewData["MetaKeywords"] = C("privacy.meta.keywords", "politica de privacidade, LGPD, dados pessoais, ConsertaPraMim");
+    ViewData["CanonicalPath"] = "/privacidade";
+    var legalHtml = ViewData["LegalHtml"]?.ToString();
+    if (string.IsNullOrWhiteSpace(legalHtml))
+    {
+        legalHtml = C("legal.privacy.html", "<p>Conteudo indisponivel no momento.</p>");
+    }
+}
+
+<section class="cpm-section">
+    <div class="container-lg cpm-form-wrap">
+        <div class="cpm-card cpm-form-card p-4 p-md-5 bg-white">
+            <h1 class="fw-bold mb-3">@C("privacy.page.title", "Politica de privacidade")</h1>
+            <div class="text-secondary-emphasis">@Html.Raw(legalHtml)</div>
+        </div>
+    </div>
+</section>
+
+@section Head {
+    @{
+        var baseUrl = $"{Context.Request.Scheme}://{Context.Request.Host}";
+        var structuredData = new object[]
+        {
+            new Dictionary<string, object?>
+            {
+                ["@context"] = "https://schema.org",
+                ["@type"] = "WebPage",
+                ["name"] = C("privacy.schema.webpage.name", C("privacy.page.title", "Politica de privacidade")),
+                ["url"] = $"{baseUrl}/privacidade",
+                ["description"] = C("privacy.schema.webpage.description", "Politica de privacidade da plataforma ConsertaPraMim."),
+                ["inLanguage"] = "pt-BR"
+            }
+        };
+    }
+    <script type="application/ld+json">@Html.Raw(System.Text.Json.JsonSerializer.Serialize(structuredData))</script>
+}

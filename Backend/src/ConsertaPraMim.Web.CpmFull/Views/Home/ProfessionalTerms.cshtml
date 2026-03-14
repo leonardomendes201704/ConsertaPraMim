@@ -1,0 +1,42 @@
+@{
+    string C(string key, string fallback) => SiteContent.Get(key, fallback);
+
+    ViewData["Title"] = C("terms.meta.title", "Termos de uso para profissionais");
+    ViewData["SeoTitle"] = C("terms.meta.seo_title", "Termos de uso para profissionais");
+    ViewData["MetaDescription"] = C("terms.meta.description", "Consulte os termos de uso para profissionais cadastrados na plataforma ConsertaPraMim.");
+    ViewData["MetaKeywords"] = C("terms.meta.keywords", "termos de uso, profissionais, plataforma, ConsertaPraMim");
+    ViewData["CanonicalPath"] = "/termos-de-uso-profissionais";
+    var legalHtml = ViewData["LegalHtml"]?.ToString();
+    if (string.IsNullOrWhiteSpace(legalHtml))
+    {
+        legalHtml = C("legal.professional.html", "<p>Conteudo indisponivel no momento.</p>");
+    }
+}
+
+<section class="cpm-section">
+    <div class="container-lg cpm-form-wrap">
+        <div class="cpm-card cpm-form-card p-4 p-md-5 bg-white">
+            <h1 class="fw-bold mb-3">@C("terms.page.title", "Termos de uso para profissionais")</h1>
+            <div class="text-secondary-emphasis">@Html.Raw(legalHtml)</div>
+        </div>
+    </div>
+</section>
+
+@section Head {
+    @{
+        var baseUrl = $"{Context.Request.Scheme}://{Context.Request.Host}";
+        var structuredData = new object[]
+        {
+            new Dictionary<string, object?>
+            {
+                ["@context"] = "https://schema.org",
+                ["@type"] = "WebPage",
+                ["name"] = C("terms.schema.webpage.name", C("terms.page.title", "Termos de uso para profissionais")),
+                ["url"] = $"{baseUrl}/termos-de-uso-profissionais",
+                ["description"] = C("terms.schema.webpage.description", "Termos de uso aplicaveis a profissionais cadastrados no ConsertaPraMim."),
+                ["inLanguage"] = "pt-BR"
+            }
+        };
+    }
+    <script type="application/ld+json">@Html.Raw(System.Text.Json.JsonSerializer.Serialize(structuredData))</script>
+}

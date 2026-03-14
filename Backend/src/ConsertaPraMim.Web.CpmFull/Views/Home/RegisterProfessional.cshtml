@@ -1,0 +1,239 @@
+@model RegisterProfessionalPageViewModel
+@{
+    string C(string key, string fallback) => SiteContent.Get(key, fallback);
+
+    var pageTitle = C("register.meta.title", "Cadastro profissional");
+    ViewData["Title"] = pageTitle;
+    ViewData["SeoTitle"] = C("register.meta.seo_title", "Cadastro de profissional");
+    ViewData["MetaDescription"] = C("register.meta.description", "Cadastre-se como profissional no ConsertaPraMim para receber pedidos de servicos residenciais na sua regiao.");
+    ViewData["MetaKeywords"] = C("register.meta.keywords", "cadastro profissional, prestador de servico, receber clientes, servicos residenciais");
+    ViewData["CanonicalPath"] = "/cadastro-profissional";
+    ViewData["OgImage"] = C("register.meta.og_image_url", C("branding.og_image_url", Url.Content("~/images/7237a130-fa5b-4e98-9118-ed5b0d465fa6.png")));
+}
+
+<section class="cpm-section">
+    <div class="container-lg cpm-form-wrap">
+        <div class="text-center mb-4">
+            <h1 class="fw-bold">@C("register.page.title", "Ganhe clientes com o ConsertaPraMim")</h1>
+            <p class="text-secondary-emphasis mb-0">@C("register.page.subtitle", "Cadastre-se gratuitamente e receba pedidos na sua regiao.")</p>
+        </div>
+
+        @if (Model.IsSubmitted)
+        {
+            <div class="alert alert-success d-flex align-items-center gap-2" role="alert">
+                <i class="bi bi-check-circle-fill"></i>
+                <span>@C("register.alert.success", "Cadastro recebido. Nossa equipe fara contato em ate 48 horas.")</span>
+            </div>
+        }
+
+        <div class="cpm-card cpm-form-card p-4 p-md-5 bg-white">
+            <form asp-controller="Home" asp-action="RegisterProfessional" method="post" novalidate>
+                @Html.AntiForgeryToken()
+                <div asp-validation-summary="ModelOnly" class="text-danger small mb-3"></div>
+
+                <div class="cpm-file-placeholder mb-4">
+                    <i class="bi bi-upload fs-2"></i>
+                    <div class="fw-semibold mt-2">@C("register.form.photo.title", "Adicionar foto de perfil")</div>
+                    <div class="small">@C("register.form.photo.subtitle", "PNG ou JPG ate 5MB")</div>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label asp-for="Form.Name" class="form-label">@C("register.form.name.label", "Nome completo")</label>
+                        <input asp-for="Form.Name" class="form-control" placeholder="@C("register.form.name.placeholder", "Seu nome")" />
+                        <span asp-validation-for="Form.Name" class="text-danger small"></span>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label asp-for="Form.Profession" class="form-label">@C("register.form.profession.label", "Profissao principal")</label>
+                        <input
+                            asp-for="Form.Profession"
+                            class="form-control"
+                            placeholder="@C("register.form.profession.placeholder", "Pesquise e selecione sua profissao")"
+                            list="professionOptions"
+                            autocomplete="off" />
+                        <datalist id="professionOptions">
+                            @foreach (var profession in Model.ProfessionOptions)
+                            {
+                                <option value="@profession"></option>
+                            }
+                        </datalist>
+                        <div class="form-text">@C("register.form.profession.help", "Digite para pesquisar na lista de profissoes.")</div>
+                        <span asp-validation-for="Form.Profession" class="text-danger small"></span>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label asp-for="Form.PostalCode" class="form-label">@C("register.form.cep.label", "CEP")</label>
+                        <input
+                            asp-for="Form.PostalCode"
+                            class="form-control"
+                            placeholder="@C("register.form.cep.placeholder", "00000-000")"
+                            inputmode="numeric"
+                            autocomplete="postal-code"
+                            maxlength="9" />
+                        <span asp-validation-for="Form.PostalCode" class="text-danger small"></span>
+                        <div id="professionalCepFeedback" class="cpm-cep-feedback d-none"></div>
+                    </div>
+                    <div class="col-12">
+                        <label asp-for="Form.Services" class="form-label">@C("register.form.services.label", "Servicos realizados")</label>
+                        <input asp-for="Form.Services" class="form-control" placeholder="@C("register.form.services.placeholder", "Ex: Instalacao eletrica, reparos gerais")" />
+                        <span asp-validation-for="Form.Services" class="text-danger small"></span>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label asp-for="Form.Phone" class="form-label">@C("register.form.phone.label", "Telefone / Celular")</label>
+                        <input
+                            asp-for="Form.Phone"
+                            class="form-control"
+                            placeholder="@C("register.form.phone.placeholder", "(00) 90000-0000")"
+                            inputmode="numeric"
+                            autocomplete="tel"
+                            maxlength="15" />
+                        <span asp-validation-for="Form.Phone" class="text-danger small"></span>
+                    </div>
+                    <div class="col-12 col-md-6 d-flex align-items-center">
+                        <div class="form-check mt-4">
+                            <input asp-for="Form.IsWhatsapp" class="form-check-input" />
+                            <label asp-for="Form.IsWhatsapp" class="form-check-label">@C("register.form.whatsapp.label", "Este numero e WhatsApp")</label>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <label asp-for="Form.Experience" class="form-label">@C("register.form.experience.label", "Resumo da experiencia")</label>
+                        <textarea asp-for="Form.Experience" class="form-control" rows="4" placeholder="@C("register.form.experience.placeholder", "Conte sobre sua experiencia e tempo de atuacao.")"></textarea>
+                        <span asp-validation-for="Form.Experience" class="text-danger small"></span>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn cpm-btn-primary w-100 mt-4">@C("register.form.submit", "Quero receber mais clientes")</button>
+                <p class="text-center text-secondary-emphasis small mt-3 mb-0">
+                    @C("register.form.terms_prefix", "Ao se cadastrar, voce concorda com os")
+                    <a
+                        class="text-decoration-underline fw-semibold"
+                        asp-controller="Home"
+                        asp-action="ProfessionalTerms"
+                        target="_blank"
+                        rel="noopener noreferrer">
+                        @C("register.form.terms_link", "termos de uso para profissionais")
+                    </a>.
+                </p>
+            </form>
+        </div>
+    </div>
+</section>
+
+@section Head {
+    @{
+        var baseUrl = $"{Context.Request.Scheme}://{Context.Request.Host}";
+        var structuredData = new object[]
+        {
+            new Dictionary<string, object?>
+            {
+                ["@context"] = "https://schema.org",
+                ["@type"] = "WebPage",
+                ["name"] = C("register.schema.webpage.name", "Cadastro de profissional"),
+                ["url"] = $"{baseUrl}/cadastro-profissional",
+                ["description"] = C("register.schema.webpage.description", "Pagina de cadastro para prestadores de servicos da plataforma ConsertaPraMim."),
+                ["inLanguage"] = "pt-BR"
+            }
+        };
+    }
+    <script type="application/ld+json">@Html.Raw(System.Text.Json.JsonSerializer.Serialize(structuredData))</script>
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        (() => {
+            const postalCodeInput = document.getElementById("Form_PostalCode");
+            const postalCodeFeedback = document.getElementById("professionalCepFeedback");
+            const phoneInput = document.getElementById("Form_Phone");
+            const professionInput = document.getElementById("Form_Profession");
+            const professionOptions = new Set(
+                Array.from(document.querySelectorAll("#professionOptions option"))
+                    .map((option) => option.value.trim().toLowerCase())
+            );
+            const messages = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(new
+            {
+                cepLoading = C("register.form.cep.loading", "Consultando CEP..."),
+                cepResolvedTemplate = C("register.form.cep.resolved_template", "Endereco encontrado: {address}"),
+                cepUnresolved = C("register.form.cep.unresolved", "Nao foi possivel resolver rua, bairro, cidade e UF. O CEP digitado sera aceito."),
+                invalidProfession = C("register.form.profession.invalid", "Selecione uma profissao valida da lista.")
+            }));
+
+            const onlyDigits = (value) => value.replace(/\D/g, "");
+            const allowOnlyNumericKeys = (input) => {
+                if (!input) {
+                    return;
+                }
+
+                input.addEventListener("keydown", (event) => {
+                    const allowedKeys = ["Backspace", "Delete", "ArrowLeft", "ArrowRight", "Tab", "Home", "End"];
+                    if (allowedKeys.includes(event.key) || event.ctrlKey || event.metaKey) {
+                        return;
+                    }
+
+                    if (!/^\d$/.test(event.key)) {
+                        event.preventDefault();
+                    }
+                });
+            };
+
+            const formatPhone = (value) => {
+                const digits = onlyDigits(value).slice(0, 11);
+                if (!digits) {
+                    return "";
+                }
+
+                if (digits.length <= 2) {
+                    return `(${digits}`;
+                }
+
+                if (digits.length <= 7) {
+                    return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+                }
+
+                return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+            };
+
+            if (postalCodeInput && postalCodeFeedback && window.CepResolver) {
+                window.CepResolver.bindCepLookup({
+                    input: postalCodeInput,
+                    feedback: postalCodeFeedback,
+                    messages: {
+                        loading: messages.cepLoading,
+                        resolved: (addressText) => messages.cepResolvedTemplate.replace("{address}", addressText),
+                        unresolved: messages.cepUnresolved
+                    }
+                });
+            }
+
+            if (phoneInput) {
+                phoneInput.addEventListener("input", () => {
+                    phoneInput.value = formatPhone(phoneInput.value);
+                });
+            }
+
+            allowOnlyNumericKeys(phoneInput);
+
+            if (professionInput) {
+                const validateProfession = () => {
+                    const selected = professionInput.value.trim();
+                    if (!selected) {
+                        professionInput.setCustomValidity("");
+                        return;
+                    }
+
+                    if (!professionOptions.has(selected.toLowerCase())) {
+                        professionInput.setCustomValidity(messages.invalidProfession);
+                        return;
+                    }
+
+                    professionInput.setCustomValidity("");
+                };
+
+                professionInput.addEventListener("input", () => {
+                    professionInput.setCustomValidity("");
+                });
+                professionInput.addEventListener("change", validateProfession);
+                professionInput.addEventListener("blur", validateProfession);
+            }
+        })();
+    </script>
+}

@@ -69,6 +69,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConsertaPraMim.LoadTest.Wpf
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConsertaPraMim.Web.Landing", "ConsertaPraMim.Web.Landing\ConsertaPraMim.Web.Landing.csproj", "{44B11B7D-45D8-4CD8-9940-60A7D48A7F2E}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConsertaPraMim.Web.CpmFull", "ConsertaPraMim.Web.CpmFull\ConsertaPraMim.Web.CpmFull.csproj", "{EC868A15-197C-4D1C-9B69-B9421AE1A718}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -211,6 +213,18 @@ Global
 		{44B11B7D-45D8-4CD8-9940-60A7D48A7F2E}.Release|x64.Build.0 = Release|Any CPU
 		{44B11B7D-45D8-4CD8-9940-60A7D48A7F2E}.Release|x86.ActiveCfg = Release|Any CPU
 		{44B11B7D-45D8-4CD8-9940-60A7D48A7F2E}.Release|x86.Build.0 = Release|Any CPU
+		{EC868A15-197C-4D1C-9B69-B9421AE1A718}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EC868A15-197C-4D1C-9B69-B9421AE1A718}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EC868A15-197C-4D1C-9B69-B9421AE1A718}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{EC868A15-197C-4D1C-9B69-B9421AE1A718}.Debug|x64.Build.0 = Debug|Any CPU
+		{EC868A15-197C-4D1C-9B69-B9421AE1A718}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{EC868A15-197C-4D1C-9B69-B9421AE1A718}.Debug|x86.Build.0 = Debug|Any CPU
+		{EC868A15-197C-4D1C-9B69-B9421AE1A718}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EC868A15-197C-4D1C-9B69-B9421AE1A718}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EC868A15-197C-4D1C-9B69-B9421AE1A718}.Release|x64.ActiveCfg = Release|Any CPU
+		{EC868A15-197C-4D1C-9B69-B9421AE1A718}.Release|x64.Build.0 = Release|Any CPU
+		{EC868A15-197C-4D1C-9B69-B9421AE1A718}.Release|x86.ActiveCfg = Release|Any CPU
+		{EC868A15-197C-4D1C-9B69-B9421AE1A718}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

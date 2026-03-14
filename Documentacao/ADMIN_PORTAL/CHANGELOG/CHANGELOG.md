@@ -12,6 +12,179 @@
 
 ## Released
 
+- [2026-03-13] [CPMFULL-015][CPMFULL-VPS-ROOT-DEPLOY-SWAP] Pipeline VPS passa a publicar o CPM Full no dominio raiz
+- Tipo: feat
+- Resumo: o workflow `deploy-vps`, os scripts de deploy e os artefatos Docker da VPS passaram a publicar o `ConsertaPraMim.Web.CpmFull` no slot raiz da infraestrutura, substituindo o antigo alvo `Web.Landing` na porta `5088/6088`. O projeto tambem passou a responder `GET /health`, interpretar `ForwardedHeaders` atras do Nginx, aceitar configuracao de Chatwoot via secrets `CPMFULL_CHATWOOT_*` no deploy e, em `dev-local`, preferir a `PUBLIC_LANDING_URL` especifica do environment `development` no healthcheck quando houver URL HML distinta.
+- Arquivos principais: `.github/workflows/deploy-vps.yml`, `scripts/deploy/vps-deploy-service.sh`, `scripts/deploy/vps-deploy.sh`, `Backend/docker/vps/Dockerfile.web.cpmfull`, `Backend/docker-compose.vps.web-cpmfull.yml`, `Backend/docker-compose.vps.yml`, `Backend/.env.vps.example`, `Backend/DEPLOY_VPS.md`, `Backend/src/ConsertaPraMim.Web.CpmFull/Program.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/MANUAL_QA_OPERACAO.md`
+- Risco/Impacto: alto
+
+- [2026-03-13] [CPMFULL-014][CHATWOOT-US-07-RETRY-QUEUE] Fila local de retentativa e webhook publicado para o dominio definitivo do CPM Full
+- Tipo: feat
+- Resumo: o `ConsertaPraMim.Web.CpmFull` passou a ter fila SQL local `cpm_web_chatwoot_sync_queue` para retentativa automatica de falhas externas com o Chatwoot, worker `ChatwootSyncRetryWorker` com backoff operacional (`1m`, `5m`, `15m`, `1h`, `6h`), limite configuravel de tentativas, limpeza de itens ativos apos sync bem-sucedida e endpoint admin `POST /admin/funil/lead/{id}/chatwoot/retentativa` com botao `Enfileirar retentativa` no modal do lead. Em paralelo, a conta publicada do Chatwoot recebeu o webhook `CPM Full Funil Webhook` apontando para `https://www.consertapramim.com/api/integrations/chatwoot/webhook`, ficando pendente apenas o deploy publico do CPM Full nesse dominio para a entrega ponta a ponta sair do `404`.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/ChatwootLeadSyncService.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/ChatwootSyncQueueService.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/ChatwootSyncRetryWorker.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/IChatwootSyncQueueService.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/ChatwootDtos.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/ChatwootOptions.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/ChatwootOptionsValidator.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Services/AdminKanbanModels.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Services/IAdminKanbanService.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Services/SqlAdminKanbanService.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Areas/Admin/Controllers/KanbanController.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Areas/Admin/Views/Kanban/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.CpmFull/Program.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/appsettings.json`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/EPIC_CHATWOOT_FUNIS_CPM.md`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/MANUAL_QA_OPERACAO.md`, `Backend/tests/ConsertaPraMim.Tests.Unit/Integrations/Chatwoot/ChatwootLeadSyncServiceTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Integrations/Chatwoot/ChatwootOptionsValidatorTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Integrations/Chatwoot/ChatwootSyncRetryWorkerTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/SqlAdminKanbanServiceChatwootPersistenceTests.cs`
+- Risco/Impacto: medio
+
+- [2026-03-13] [CPMFULL-013][CHATWOOT-US-06-WEBHOOK-INBOUND] Recepcao de webhooks do Chatwoot para historico e ultimo contato do funil
+- Tipo: feat
+- Resumo: o `ConsertaPraMim.Web.CpmFull` passou a expor o endpoint `POST /api/integrations/chatwoot/webhook`, validando assinatura HMAC do Chatwoot com `WebhookSecret`, persistindo o payload bruto em `cpm_web_chatwoot_webhook_events`, aplicando idempotencia por `X-Chatwoot-Delivery` com fallback para fingerprint assinado, e atualizando `LastContactAt` e historico PT-BR do lead para eventos `message_created`, `conversation_status_changed` e `conversation_updated`.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.CpmFull/Controllers/Api/Integrations/ChatwootWebhookController.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/ChatwootWebhookService.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/ChatwootWebhookDtos.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/IChatwootWebhookService.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Program.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Services/AdminKanbanModels.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Services/IAdminKanbanService.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Services/SqlAdminKanbanService.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Areas/Admin/Controllers/KanbanController.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Integrations/Chatwoot/ChatwootWebhookServiceTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/SqlAdminKanbanServiceChatwootPersistenceTests.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/EPIC_CHATWOOT_FUNIS_CPM.md`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/MANUAL_QA_OPERACAO.md`, `Documentacao/ADMIN_PORTAL/CHANGELOG/CHANGELOG.md`
+- Risco/Impacto: medio
+
+- [2026-03-13] [CPMFULL-012][CHATWOOT-LEAD-SOURCE-PROJECTION] Projecao do canal de origem do lead no Chatwoot
+- Tipo: feat
+- Resumo: o `ConsertaPraMim.Web.CpmFull` passou a normalizar a `Fonte` do lead para atributos estruturados do CPM no Chatwoot, espelhando `CPM Canal de Origem` e `CPM Canal de Origem Slug` tanto no contato quanto na conversa, sem perder o valor bruto original em `additional_attributes.source`. A conta publicada tambem recebeu as definicoes `cpm_lead_source` e `cpm_lead_source_slug` para `conversation_attribute` e `contact_attribute`, e o contato/conversa do Ricardo foram atualizados para validacao imediata.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/ChatwootLeadSourceMapping.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/ChatwootLeadSyncService.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Integrations/Chatwoot/ChatwootLeadSyncServiceTests.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/EPIC_CHATWOOT_FUNIS_CPM.md`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/MANUAL_QA_OPERACAO.md`, `Documentacao/ADMIN_PORTAL/CHANGELOG/CHANGELOG.md`
+- Risco/Impacto: baixo
+
+- [2026-03-13] [CPMFULL-011][CHATWOOT-LABEL-CATALOG-SEED] Provisionamento do catalogo global de labels do CPM no Chatwoot
+- Tipo: fix
+- Resumo: a conta `1` do `chatwoot.consertapramim.com` passou a ter o catalogo global das labels `cpm_clientes*` e `cpm_prestadores*`, todas com `show_on_sidebar=true`, eliminando a ausencia de labels cadastradas na conta e preparando a UI do Chatwoot para exibir as marcacoes operacionais do CPM abaixo do nome do contato e da conversa.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/MANUAL_QA_OPERACAO.md`, `Documentacao/ADMIN_PORTAL/CHANGELOG/CHANGELOG.md`
+- Risco/Impacto: baixo
+
+- [2026-03-13] [CPMFULL-010][CHATWOOT-STAGE-HISTORY-NOTES] Notas privadas de historico por mudanca de etapa no Chatwoot
+- Tipo: fix
+- Resumo: a sincronizacao de etapa do Kanban no `ConsertaPraMim.Web.CpmFull` passou a registrar uma nota privada adicional na conversa do Chatwoot sempre que o card muda de etapa, enriquecendo a aba de historico do contato com a trilha do funil sem depender apenas da nota inicial de recepcao do lead.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/ChatwootLeadSyncService.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Integrations/Chatwoot/ChatwootLeadSyncServiceTests.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/EPIC_CHATWOOT_FUNIS_CPM.md`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/MANUAL_QA_OPERACAO.md`, `Documentacao/ADMIN_PORTAL/CHANGELOG/CHANGELOG.md`
+- Risco/Impacto: baixo
+
+- [2026-03-13] [CPMFULL-009][CHATWOOT-CONTACT-PROJECTION-UX] Projecao de labels/atributos no contato e atalho direto para a conversa do Chatwoot
+- Tipo: fix
+- Resumo: o `ConsertaPraMim.Web.CpmFull` passou a espelhar a etapa atual tambem no contato do Chatwoot, sincronizando labels gerenciadas pelo prefixo `cpm_` e `custom_attributes` do contato, enquanto o modal do lead ganhou o atalho `Abrir no Chatwoot` para levar direto a conversa correta. Na conta publicada tambem foram provisionadas as definicoes `cpm_lead_id`, `cpm_board_type`, `cpm_stage_name` e `cpm_stage_slug` para `conversation_attribute` e `contact_attribute`, destravando a exibicao desses campos na UI do Chatwoot.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/ChatwootApiClient.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/ChatwootLeadSyncService.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/IChatwootApiClient.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Areas/Admin/Controllers/KanbanController.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Areas/Admin/Views/Kanban/Index.cshtml`, `Backend/tests/ConsertaPraMim.Tests.Unit/Integrations/Chatwoot/ChatwootLeadSyncServiceTests.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/EPIC_CHATWOOT_FUNIS_CPM.md`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/MANUAL_QA_OPERACAO.md`, `Documentacao/ADMIN_PORTAL/CHANGELOG/CHANGELOG.md`
+- Risco/Impacto: medio
+
+- [2026-03-13] [CPMFULL-008][CHATWOOT-STAGE-SYNC] Sincronizacao da etapa do Kanban com status, labels e atributos da conversa no Chatwoot
+- Tipo: feat
+- Resumo: o drag-and-drop do funil do `ConsertaPraMim.Web.CpmFull` passou a sincronizar a etapa atual do lead com a conversa do Chatwoot, atualizando `conversation status`, labels gerenciadas pelo prefixo `cpm_`, `custom_attributes` operacionais e historico do lead, sem bloquear a persistencia local da mudanca no Kanban.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/ChatwootApiClient.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/ChatwootLeadSyncService.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/ChatwootStageMapping.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/IChatwootApiClient.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/IChatwootLeadSyncService.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Areas/Admin/Controllers/KanbanController.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/EPIC_CHATWOOT_FUNIS_CPM.md`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/MANUAL_QA_OPERACAO.md`, `Documentacao/ADMIN_PORTAL/CHANGELOG/CHANGELOG.md`
+- Risco/Impacto: medio
+
+- [2026-03-13] [CPMFULL-007][CHATWOOT-AUTO-LEAD-SYNC] Sincronizacao automatica do lead com Chatwoot no CPM Full
+- Tipo: feat
+- Resumo: o `ConsertaPraMim.Web.CpmFull` passou a sincronizar automaticamente os leads do Kanban com o Chatwoot durante criacao/edicao, reaproveitando contato quando existente, criando `contact_inbox` quando necessario, abrindo conversa no inbox correto, registrando mensagem privada inicial e oferecendo botao manual `Sincronizar Chatwoot` para reprocessar leads antigos ou falhas operacionais.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/ChatwootApiClient.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/ChatwootDtos.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/ChatwootLeadSyncService.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/IChatwootApiClient.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/IChatwootLeadSyncService.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Areas/Admin/Controllers/KanbanController.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Areas/Admin/Views/Kanban/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.CpmFull/Program.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Services/IAdminKanbanService.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Services/SqlAdminKanbanService.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Integrations/Chatwoot/ChatwootLeadSyncServiceTests.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/EPIC_CHATWOOT_FUNIS_CPM.md`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/MANUAL_QA_OPERACAO.md`, `Documentacao/ADMIN_PORTAL/CHANGELOG/CHANGELOG.md`
+- Risco/Impacto: medio
+
+- [2026-03-13] [CPMFULL-006][CHATWOOT-US-02-LEAD-LINK-PERSISTENCE] Persistencia do vinculo Chatwoot no Kanban do CPM Full
+- Tipo: feat
+- Resumo: o funil do `ConsertaPraMim.Web.CpmFull` passou a persistir `ChatwootContactId`, `ChatwootConversationId`, `ChatwootInboxId`, `ChatwootSyncStatus`, `ChatwootLastSyncAt` e `ChatwootLastError` em `cpm_web_kanban_leads`, com DDL idempotente, indice por conversa, leitura/escrita no `SqlAdminKanbanService` e exibicao operacional desses dados no detalhe do lead do Kanban.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.CpmFull/Services/AdminKanbanModels.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Services/IAdminKanbanService.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Services/SqlAdminKanbanService.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Areas/Admin/Controllers/KanbanController.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Areas/Admin/Views/Kanban/Index.cshtml`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/SqlAdminKanbanServiceChatwootPersistenceTests.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/EPIC_CHATWOOT_FUNIS_CPM.md`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/MANUAL_QA_OPERACAO.md`, `Documentacao/ADMIN_PORTAL/CHANGELOG/CHANGELOG.md`
+- Risco/Impacto: medio
+
+- [2026-03-13] [CPMFULL-005][CHATWOOT-API-TOKEN-PROXY-FIX] Correcao do proxy para autenticar a Application API do Chatwoot
+- Tipo: fix
+- Resumo: o proxy `Nginx` da instancia `chatwoot.consertapramim.com` foi ajustado para aceitar e encaminhar o header `api_access_token`, eliminando `401 Unauthorized` nas chamadas da Application API e permitindo que o CPM Full validasse a conectividade com os inboxes configurados.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/MANUAL_QA_OPERACAO.md`, `Documentacao/ADMIN_PORTAL/CHANGELOG/CHANGELOG.md`
+- Risco/Impacto: medio
+
+- [2026-03-13] [CPMFULL-004][CHATWOOT-SIGNUP-HARDENING] Desabilitacao do signup publico apos onboarding do Chatwoot
+- Tipo: fix
+- Resumo: apos a criacao do primeiro admin no `Chatwoot` publicado em `chatwoot.consertapramim.com`, o ambiente foi endurecido com `ENABLE_ACCOUNT_SIGNUP=false` e reaplicacao da stack Docker, encerrando o fluxo de onboarding aberto ao publico.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/MANUAL_QA_OPERACAO.md`, `Documentacao/ADMIN_PORTAL/CHANGELOG/CHANGELOG.md`
+- Risco/Impacto: baixo
+
+- [2026-03-13] [CPMFULL-003][CHATWOOT-VPS-DEPLOY] Publicacao do Chatwoot na VPS do ConsertaPraMim
+- Tipo: feat
+- Resumo: a instancia self-hosted do `Chatwoot` foi publicada na VPS em `https://chatwoot.consertapramim.com`, com stack Docker isolada (`rails`, `sidekiq`, `postgres`, `redis`), proxy reverso no `Nginx`, TLS via `Let's Encrypt` e onboarding inicial pronto para criacao do primeiro admin.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/MANUAL_QA_OPERACAO.md`, `Documentacao/ADMIN_PORTAL/CHANGELOG/CHANGELOG.md`
+- Risco/Impacto: medio
+
+- [2026-03-13] [CPMFULL-002][CHATWOOT-BASE-CONFIG-HEALTHCHECK] Base inicial da integracao Chatwoot no CPM Full
+- Tipo: feat
+- Resumo: o `ConsertaPraMim.Web.CpmFull` passou a ter configuracao forte para `Chatwoot`, validacao de startup quando habilitado, cliente HTTP tipado com timeout/retentativa e endpoint interno `/internal/health/chatwoot` para diagnostico de conectividade e validacao dos inboxes configurados.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.CpmFull/Program.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/appsettings.json`, `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/ChatwootOptions.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/ChatwootOptionsValidator.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/ChatwootApiClient.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/ChatwootConnectionHealthCheck.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/README.md`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/MANUAL_QA_OPERACAO.md`, `Backend/tests/ConsertaPraMim.Tests.Unit/Integrations/Chatwoot/ChatwootOptionsValidatorTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/ConsertaPraMim.Tests.Unit.csproj`
+- Risco/Impacto: medio
+
+- [2026-03-13] [CPMFULL-001][CPMFULL-HOME-WHATSAPP-SUPPORT] Botao flutuante de WhatsApp na home do CPM Full
+- Tipo: feat
+- Resumo: a home do `ConsertaPraMim.Web.CpmFull` passou a exibir um botao flutuante de WhatsApp com CTA de suporte, abrindo conversa direta com o numero `(13) 99689-1738` e mensagem inicial pronta, sem dependencia de CDN ou asset externo adicional.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.CpmFull/Views/Home/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.CpmFull/wwwroot/css/site.css`, `Backend/src/ConsertaPraMim.Web.CpmFull/README.md`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/MANUAL_QA_OPERACAO.md`
+- Risco/Impacto: baixo
+
+- [2026-03-13] [GOV-005][SOLUTION-IMPORT-CPM-FULL] Importacao do projeto legado cpm-full para a solution
+- Tipo: feat
+- Resumo: a solution `ConsertaPraMim` passou a incluir o projeto standalone `ConsertaPraMim.Web.CpmFull` em `Backend/src`, preservando a base do `cpm-full` para migracao gradual; a importacao tambem alinhou o projeto para `net9.0`, removeu dependencia de CDN para `bootstrap-icons`/`SortableJS` e passou a suportar `appsettings.Local.json` ignorado pelo Git para uso temporario de connection string sensivel fora do versionamento.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.CpmFull/ConsertaPraMim.Web.CpmFull.csproj`, `Backend/src/ConsertaPraMim.Web.CpmFull/Program.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/appsettings.json`, `Backend/src/ConsertaPraMim.Web.CpmFull/.gitignore`, `Backend/src/ConsertaPraMim.Web.CpmFull/Views/Shared/_Layout.cshtml`, `Backend/src/ConsertaPraMim.Web.CpmFull/Areas/Admin/Views/Shared/_LayoutAdmin.cshtml`, `Backend/src/ConsertaPraMim.Web.CpmFull/Areas/Admin/Views/Kanban/Index.cshtml`, `Backend/ConsertaPraMim.sln`, `Backend/src/src.sln`, `Documentacao/ADMIN_PORTAL/RUNBOOKS/RUNBOOK_IMPORTACAO_CPM_FULL_GOV-005.md`
+- Risco/Impacto: medio
+
+- [2026-03-13] [GOV-004][GITIGNORE-TEMP-ARTIFACTS-CLEANUP] Limpeza dos artefatos temporarios locais exibidos no Git do Visual Studio
+- Tipo: fix
+- Resumo: o repositorio passou a ignorar a pasta raiz `tmp/` e arquivos `.tmp_pr_body_*.md`, eliminando a exibicao indevida de mais de 99 arquivos locais temporarios no painel Git do Visual Studio quando nao ha alteracoes reais para commit.
+- Arquivos principais: `.gitignore`, `Documentacao/ADMIN_PORTAL/CHANGELOG/CHANGELOG.md`
+- Risco/Impacto: baixo
+
+- [2026-03-11] [ST-078][ADMIN-ER-DIAGRAM-AUTO-LAYOUT] Botao de auto-layout no Diagramar ER
+- Tipo: feat
+- Resumo: a tela `Diagramar ER` passou a expor o botao `Reaplicar auto-layout`, usando `dagre` local para reorganizar automaticamente o grafo atual do `ReactFlow` conforme dependencias entre tabelas, reduzindo empilhamento manual e melhorando leitura por recorte/contexto.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminErDiagram/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/wwwroot/js/admin-er-diagram.js`, `Backend/src/ConsertaPraMim.Web.Admin/wwwroot/css/admin-er-diagram.css`, `Backend/src/ConsertaPraMim.Web.Admin/wwwroot/lib/dagre/dagre.min.js`, `Backend/src/ConsertaPraMim.Web.Admin/wwwroot/lib/dagre/LICENSE`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-078-diagramador-er-reactflow-portal-admin.md`
+- Risco/Impacto: medio
+
+- [2026-03-11] [ST-078][ADMIN-ER-DIAGRAM-REACTFLOW] Novo modulo Diagramar ER com ReactFlow
+- Tipo: feat
+- Resumo: o Portal Admin ganhou o menu `Diagramar ER`, uma tela dedicada para leitura ER real do schema via `ReactFlow`, usando tabelas e relacionamentos do `DbContext` com recorte por dominio/contexto, cards por tabela, foco local, `MiniMap`, `Controls` e assets locais compativeis com a CSP atual.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminErDiagramController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminErDiagram/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/wwwroot/js/admin-er-diagram.js`, `Backend/src/ConsertaPraMim.Web.Admin/wwwroot/css/admin-er-diagram.css`, `Backend/src/ConsertaPraMim.Web.Admin/Views/Shared/_Layout.cshtml`, `Backend/tests/ConsertaPraMim.Tests.Unit/Controllers/AdminErDiagramControllerTests.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-078-diagramador-er-reactflow-portal-admin.md`
+- Risco/Impacto: medio
+
+- [2026-03-11] [ST-077][ADMIN-DATABASE-SCHEMA-ER-DOMAIN-CONTEXT] Recorte por dominio/contexto com preview ER por tabelas
+- Tipo: feat
+- Resumo: o `Mapa de Dados` passou a agrupar o inventario por dominio/contexto e ganhou seletor de estilo do preview para alternar entre `Fluxo tecnico` e `ER por tabelas`, reaproveitando o metadata real do EF Core nos recortes geral e por dominio, sem perder o foco local por tabela.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Services/AdminDatabaseSchemaService.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Models/AdminDatabaseSchemaViewModels.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminDatabaseSchema/Index.cshtml`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminDatabaseSchemaServiceTests.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-077-mapa-relacional-tabelas-banco-admin.md`
+- Risco/Impacto: medio
+
+- [2026-03-11] [ST-077][ADMIN-DATABASE-SCHEMA-ER-CARD-STYLING] Estilizacao do foco por tabela em layout ER
+- Tipo: feat
+- Resumo: o foco por tabela do `Mapa de Dados` passou a renderizar cards visuais no estilo de diagrama ER, com cabecalho destacado, colunas alinhadas por nome/tipo, badges sutis de `PK/FK/NULL` e conectores mais limpos para leitura tecnica.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminDatabaseSchema/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-077-mapa-relacional-tabelas-banco-admin.md`
+- Risco/Impacto: baixo
+
+- [2026-03-11] [ST-077][ADMIN-DATABASE-SCHEMA-COLUMN-TYPES] Colunas e tipos exibidos no diagrama focado por tabela
+- Tipo: feat
+- Resumo: o `Mapa de Dados` passou a exibir no foco por tabela as colunas com tipo SQL e marcadores (`PK`/`FK`/nullability), em formato de diagrama tecnico; tambem foi corrigida a leitura de metadados de colunas no servico para evitar `0 colunas` em tabelas com schema default.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Services/AdminDatabaseSchemaService.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Models/AdminDatabaseSchemaViewModels.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminDatabaseSchema/Index.cshtml`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminDatabaseSchemaServiceTests.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: medio
+
+- [2026-03-11] [ST-077][ADMIN-DATABASE-SCHEMA-SVG-MAXWIDTH] Correcao de SVG pequeno no foco por tabela
+- Tipo: fix
+- Resumo: o `Mapa de Dados` passou a neutralizar `max-width` inline injetado pelo Mermaid no `svg` renderizado e a limitar zoom inicial em diagramas com poucas tabelas, evitando preview encolhido ao clicar em cards de `Tabelas mapeadas`.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminDatabaseSchema/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: baixo
+
+- [2026-03-11] [ST-077][ADMIN-DATABASE-SCHEMA-TABLE-FOCUS] Cards de tabelas mapeadas com foco de diagrama por clique
+- Tipo: feat
+- Resumo: a lista de `Tabelas mapeadas` no `Mapa de Dados` passou a ser interativa; ao clicar em um card, a tela gera um diagrama focado na tabela selecionada e nos relacionamentos diretos (vizinhanca), com destaque visual e acao para voltar ao modo global selecionado.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminDatabaseSchema/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-077-mapa-relacional-tabelas-banco-admin.md`
+- Risco/Impacto: baixo
+
+- [2026-03-11] [ST-077][ADMIN-DATABASE-SCHEMA-INITIAL-ZOOM-CLIPPING] Correcao de clipping vertical no preview do diagrama
+- Tipo: fix
+- Resumo: ajustado o render base do `svg` do `Mapa de Dados` para ocupar integralmente a area do preview e recalibrado o zoom inicial (com `fit/center` antes da leitura) para evitar abertura com diagrama cortado no topo em modo macro.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminDatabaseSchema/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: baixo
+
+- [2026-03-11] [ST-077][ADMIN-DATABASE-SCHEMA-CANVAS-HEIGHT] Ajuste de altura e escala inicial do canvas no Mapa de Dados
+- Tipo: fix
+- Resumo: o container de preview do `Mapa de Dados` passou a usar altura efetiva maior por viewport (`height` com `clamp`) e o comportamento inicial de escala foi ajustado para melhorar legibilidade em grafos largos.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminDatabaseSchema/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: baixo
+
+- [2026-03-11] [ST-077][ADMIN-DATABASE-SCHEMA-LAYOUT-MODES] Reorganizacao do diagrama do Mapa de Dados para melhor leitura
+- Tipo: feat
+- Resumo: a tela `Mapa de Dados` passou a oferecer modos de visualizacao (`Visao macro por dominios`, `Visao geral` e recortes por dominio), com zoom inicial orientado para legibilidade em grafos amplos e botao de enquadramento completo, reduzindo a percepcao de diagrama linear/comprimido no canvas.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Services/AdminDatabaseSchemaService.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminDatabaseSchema/Index.cshtml`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminDatabaseSchemaServiceTests.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-077-mapa-relacional-tabelas-banco-admin.md`
+- Risco/Impacto: medio
+
+- [2026-03-11] [ST-077][ADMIN-DIAGRAM-ASSET-HOTFIX] Correcao do carregamento de pan/zoom nos diagramas do Portal Admin
+- Tipo: fix
+- Resumo: os modulos `Diagramas Mermaid` e `Mapa de Dados` passaram a usar asset local versionado (`~/lib/svg-pan-zoom/svg-pan-zoom.min.js`) da biblioteca correta `svg-pan-zoom`, substituindo a variante CDN anterior que resultava em erro `SVG is not defined` no browser e quebrava pan/zoom.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminDiagrams/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminDatabaseSchema/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/wwwroot/lib/svg-pan-zoom/svg-pan-zoom.min.js`, `Backend/src/ConsertaPraMim.Web.Admin/wwwroot/lib/svg-pan-zoom/LICENSE`
+- Risco/Impacto: baixo
+
+- [2026-03-11] [ST-077][ADMIN-DATABASE-SCHEMA-MAP] Novo modulo Mapa de Dados com diagrama relacional no Portal Admin
+- Tipo: feat
+- Resumo: o portal admin ganhou o modulo `Mapa de Dados`, que gera automaticamente inventario de tabelas e relacionamentos (FK) a partir do modelo EF Core e renderiza diagrama ER em Mermaid com pan/zoom, alem de tabela detalhada de constraints para QA/operacao tecnica.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.Admin/Controllers/AdminDatabaseSchemaController.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Services/AdminDatabaseSchemaService.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminDatabaseSchema/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/Shared/_Layout.cshtml`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminDatabaseSchemaServiceTests.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
+- Risco/Impacto: medio
 - [2026-03-10] [ST-076][ADMIN-HML-PORTAL-LINKS] Correcao dos links de Portal Cliente/Prestador no menu admin em homologacao
 - Tipo: fix
 - Resumo: o resolvedor de URLs publicas do Admin passou a reconhecer hosts com prefixo de ambiente (`hml`, `dev`, `qa`, `stg`) e montar subdominios irmaos corretamente, eliminando geracao incorreta de links como `cliente.admin.consertapramim.com` e `prestador.admin.consertapramim.com` quando o acesso ocorre por `hml.admin.consertapramim.com`.
@@ -204,13 +377,13 @@
 
 - [2026-03-08] [ST-059][ADMIN-LANDING-RECURRING-VISITORS] KPI de visitas com recorrencia da landing
 - Tipo: feat
-- Resumo: o card `Visitas` da landing na home admin passou a detalhar, alem de `Visitantes Ãºnicos`, a quantidade de `Visitantes recorrentes`, calculada por `visitorId` estavel da landing em vez de IP bruto compartilhado; com isso, a leitura do topo de funil fica mais confiavel para retorno de visitantes no periodo filtrado.
+- Resumo: o card `Visitas` da landing na home admin passou a detalhar, alem de `Visitantes unicos`, a quantidade de `Visitantes recorrentes`, calculada por `visitorId` estavel da landing em vez de IP bruto compartilhado; com isso, a leitura do topo de funil fica mais confiavel para retorno de visitantes no periodo filtrado.
 - Arquivos principais: `Backend/src/ConsertaPraMim.Application/DTOs/AdminDashboardDTOs.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminDashboardService.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminHome/Index.cshtml`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/AdminDashboardServiceTests.cs`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `Documentacao/LANDING_PAGE/MANUAL_QA_OPERACAO_LANDING.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-059-kpis-visitas-cadastros-e-conversao-landing-dashboard.md`
 - Risco/Impacto: baixo
 
 - [2026-03-08] [ST-059][ADMIN-LANDING-KPIS] KPIs da landing na home do dashboard admin
 - Tipo: feat
-- Resumo: a landing passou a persistir cada acesso relevante (`/`, `/Cliente`, `/Prestador`) em `LandingAccessEvents` com `visitorId` estavel por navegador, e a home do portal admin passou a exibir os KPIs incrementais `Visitas`, `Cadastros Prestador`, `Cadastros Cliente` e `Taxa de ConversÃ£o`; os cards respeitam o recorte global de periodo do dashboard, `Visitas` detalha visitantes unicos e `Taxa de ConversÃ£o` detalha cadastros totais e visitantes convertidos correlacionados entre acesso e lead.
+- Resumo: a landing passou a persistir cada acesso relevante (`/`, `/Cliente`, `/Prestador`) em `LandingAccessEvents` com `visitorId` estavel por navegador, e a home do portal admin passou a exibir os KPIs incrementais `Visitas`, `Cadastros Prestador`, `Cadastros Cliente` e `Taxa de Conversao`; os cards respeitam o recorte global de periodo do dashboard, `Visitas` detalha visitantes unicos e `Taxa de Conversao` detalha cadastros totais e visitantes convertidos correlacionados entre acesso e lead.
 - Arquivos principais: `Backend/src/ConsertaPraMim.Domain/Entities/LandingAccessEvent.cs`, `Backend/src/ConsertaPraMim.Infrastructure/Migrations/20260308213916_AddLandingAccessEventsAnalytics.cs`, `Backend/src/ConsertaPraMim.Application/Services/LandingAccessEventService.cs`, `Backend/src/ConsertaPraMim.Application/Services/AdminDashboardService.cs`, `Backend/src/ConsertaPraMim.Web.Landing/Controllers/HomeController.cs`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/js/site.js`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminHome/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`, `Documentacao/LANDING_PAGE/MANUAL_QA_OPERACAO_LANDING.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-059-kpis-visitas-cadastros-e-conversao-landing-dashboard.md`
 - Risco/Impacto: medio
 
@@ -222,7 +395,7 @@
 
 - [2026-03-08] [LANDING-FOOTER-CLEANUP] Rodape da landing sem links operacionais
 - Tipo: fix
-- Resumo: o rodape da landing deixou de exibir os links `Cliente`, `Prestador`, `Admin` e `Swagger`, mantendo apenas o copyright institucional para reduzir ruÃ­do de navegaÃ§Ã£o e concentrar a jornada principal nos CTAs da home e no header.
+- Resumo: o rodape da landing deixou de exibir os links `Cliente`, `Prestador`, `Admin` e `Swagger`, mantendo apenas o copyright institucional para reduzir ruido de navegacao e concentrar a jornada principal nos CTAs da home e no header.
 - Arquivos principais: `Backend/src/ConsertaPraMim.Web.Landing/Views/Shared/_Layout.cshtml`, `Backend/tests/ConsertaPraMim.Tests.Unit/Frontend/LandingPageRegressionTests.cs`, `Documentacao/LANDING_PAGE/MANUAL_QA_OPERACAO_LANDING.md`
 - Risco/Impacto: baixo
 
@@ -268,9 +441,9 @@
 - Arquivos principais: `Backend/src/ConsertaPraMim.Web.Landing/Views/Shared/_Layout.cshtml`, `Backend/src/ConsertaPraMim.Web.Landing/Views/Home/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/js/site.js`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/css/site.css`, `Backend/tests/ConsertaPraMim.Tests.Unit/Frontend/LandingPageRegressionTests.cs`, `Documentacao/LANDING_PAGE/MANUAL_QA_OPERACAO_LANDING.md`
 - Risco/Impacto: medio
 
-- [2026-03-08] [LANDING-TESTEMUNHOS] SeÃ§Ã£o pÃºblica de testemunhos com clientes e prestadores
+- [2026-03-08] [LANDING-TESTEMUNHOS] Secao publica de testemunhos com clientes e prestadores
 - Tipo: feat
-- Resumo: a landing pÃºblica passou a exibir, logo abaixo do bloco institucional, uma seÃ§Ã£o de prova social com 20 depoimentos estÃ¡ticos em PT-BR, sendo 10 de clientes e 10 de prestadores, distribuÃ­dos em duas colunas com visual prÃ³prio para reforÃ§ar confianÃ§a e previsibilidade operacional.
+- Resumo: a landing publica passou a exibir, logo abaixo do bloco institucional, uma secao de prova social com 20 depoimentos estaticos em PT-BR, sendo 10 de clientes e 10 de prestadores, distribuidos em duas colunas com visual proprio para reforcar confianca e previsibilidade operacional.
 - Arquivos principais: `Backend/src/ConsertaPraMim.Web.Landing/Views/Home/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.Landing/wwwroot/css/site.css`, `Backend/tests/ConsertaPraMim.Tests.Unit/Frontend/LandingPageRegressionTests.cs`, `Documentacao/LANDING_PAGE/MANUAL_QA_OPERACAO_LANDING.md`
 - Risco/Impacto: baixo
 
@@ -366,7 +539,7 @@
 
 - [2026-03-03] [WEB-CLIENT][PAYMENTS] Correcao de timezone na exibicao de atualizacao de pagamento
 - Tipo: fix
-- Resumo: a tela `ServiceRequests/Details` do portal cliente passou a interpretar timestamps de pagamento como UTC de forma explicita e exibir datas/horarios no fuso de negocio `America/Sao_Paulo`, eliminando desvio de `+3h/-3h` na linha `Metodo: PIX Â· Atualizado`.
+- Resumo: a tela `ServiceRequests/Details` do portal cliente passou a interpretar timestamps de pagamento como UTC de forma explicita e exibir datas/horarios no fuso de negocio `America/Sao_Paulo`, eliminando desvio de `+3h/-3h` na linha `Metodo: PIX · Atualizado`.
 - Arquivos principais: `Backend/src/ConsertaPraMim.Web.Client/wwwroot/js/views/service-requests/details.js`, `Backend/src/ConsertaPraMim.Web.Admin/Views/AdminManual/Index.cshtml`
 - Risco/Impacto: baixo
 
@@ -986,7 +1159,7 @@
 
 - [2026-03-04] [ST-009] Orquestrador de consulta natural com contexto, auditoria e paginacao no chatbot Telegram
 - Tipo: feat
-- Resumo: concluida a ST-009 com fluxo conversacional de consulta para pedidos/status/detalhes/agenda no `TelegramChatbotOrchestrator`, incluindo deteccao contextual por protocolo/pedido atual, respostas amigaveis para casos sem dados, paginaÃ§Ã£o por continuidade ("mostrar mais"), persistencia de trilha auditavel (`query_intent_result`, `query_reference_state`, `query_*`) e cobertura automatizada unitaria/integracao das intents de consulta e autorizacao.
+- Resumo: concluida a ST-009 com fluxo conversacional de consulta para pedidos/status/detalhes/agenda no `TelegramChatbotOrchestrator`, incluindo deteccao contextual por protocolo/pedido atual, respostas amigaveis para casos sem dados, paginacao por continuidade ("mostrar mais"), persistencia de trilha auditavel (`query_intent_result`, `query_reference_state`, `query_*`) e cobertura automatizada unitaria/integracao das intents de consulta e autorizacao.
 - Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramChatbotOrchestrator.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/ITelegramChatbotApiClient.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramChatbotApiClient.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Models/TelegramServiceRequestModels.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramChatbotOrchestratorTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Integration/Controllers/TelegramChatbotControllerSqliteIntegrationTests.cs`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-009-consulta-natural-status-pedidos-agenda/fluxo-consulta-natural-status-pedidos-agenda.mmd`, `Documentacao/DIAGRAMAS/REALTIME_PRESENCA_CHAT/ST-009-consulta-natural-status-pedidos-agenda/sequencia-consulta-natural-status-pedidos-agenda.mmd`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/DONE/ST-009-consulta-natural-de-status-pedidos-e-agenda.md`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md`
 - Risco/Impacto: medio
 
@@ -1052,7 +1225,7 @@
 
 - [2026-03-03] [ST-007] Correcao da abertura automatica de pedido com CEP valido no chatbot Telegram
 - Tipo: fix
-- Resumo: corrigida incompatibilidade de contrato no payload da triagem para `POST /api/service-requests` (categoria agora enviada como enum numerico compatÃ­vel com o backend), com pre-resolucao de CEP via `GET /api/service-requests/zip-resolution` para enriquecer endereco/coordenadas e reduzir falhas falsas de "instabilidade" na abertura automatica.
+- Resumo: corrigida incompatibilidade de contrato no payload da triagem para `POST /api/service-requests` (categoria agora enviada como enum numerico compativel com o backend), com pre-resolucao de CEP via `GET /api/service-requests/zip-resolution` para enriquecer endereco/coordenadas e reduzir falhas falsas de "instabilidade" na abertura automatica.
 - Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/Models/TelegramServiceRequestModels.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramServiceRequestTriageEngine.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramChatbotApiClient.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramServiceRequestTriageEngineTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/TelegramChatbotOrchestratorTests.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/MANUAL_QA_OPERACAO_CHATBOT_TELEGRAM.md`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/DONE/ST-007-triagem-natural-e-abertura-automatica-de-pedido.md`
 - Risco/Impacto: medio
 
@@ -1140,9 +1313,9 @@
 - Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/Controllers/AccountController.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Views/Home/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/wwwroot/css/site.css`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-005-login-cliente-telegram-bridge-e-vinculo-conversa.md`
 - Risco/Impacto: baixo
 
-- [2026-03-03] [ST-005] VÃ­nculo do `ClientId` da sessÃ£o da bridge com a API do chatbot
+- [2026-03-03] [ST-005] Vinculo do `ClientId` da sessao da bridge com a API do chatbot
 - Tipo: feat
-- Resumo: `ChatApiController` passou a sincronizar abertura de sessÃ£o e mensagens de saÃ­da com `/api/telegram-chatbot/session` e `/api/telegram-chatbot/messages` usando `Bearer` token da sessÃ£o autenticada, garantindo derivaÃ§Ã£o de `ClientId` no backend.
+- Resumo: `ChatApiController` passou a sincronizar abertura de sessao e mensagens de saida com `/api/telegram-chatbot/session` e `/api/telegram-chatbot/messages` usando `Bearer` token da sessao autenticada, garantindo derivacao de `ClientId` no backend.
 - Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/Controllers/ChatApiController.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/ITelegramChatbotApiClient.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramChatbotApiClient.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Program.cs`, `Documentacao/REALTIME_PRESENCA_CHAT/STORIES/IN_PROGRESS/ST-005-login-cliente-telegram-bridge-e-vinculo-conversa.md`
 - Risco/Impacto: medio
 

@@ -16,14 +16,14 @@ elif [[ $# -eq 2 ]]; then
 fi
 
 if [[ -z "$TARGET_SERVICE" ]]; then
-  echo "Uso: $0 [repo_dir] <api|web-landing|web-admin|web-client|web-provider|mobile-webview-client|mobile-webview-provider|mobile-webview-admin>"
-  echo "Ou:  $0 <api|web-landing|web-admin|web-client|web-provider|mobile-webview-client|mobile-webview-provider|mobile-webview-admin>"
+  echo "Uso: $0 [repo_dir] <api|web-cpmfull|web-admin|web-client|web-provider|mobile-webview-client|mobile-webview-provider|mobile-webview-admin>"
+  echo "Ou:  $0 <api|web-cpmfull|web-admin|web-client|web-provider|mobile-webview-client|mobile-webview-provider|mobile-webview-admin>"
   exit 1
 fi
 
 declare -A COMPOSE_FILES=(
   [api]="Backend/docker-compose.vps.api.yml"
-  [web-landing]="Backend/docker-compose.vps.web-landing.yml"
+  [web-cpmfull]="Backend/docker-compose.vps.web-cpmfull.yml"
   [web-admin]="Backend/docker-compose.vps.web-admin.yml"
   [web-client]="Backend/docker-compose.vps.web-client.yml"
   [web-provider]="Backend/docker-compose.vps.web-provider.yml"
@@ -34,7 +34,7 @@ declare -A COMPOSE_FILES=(
 
 declare -A CONTAINER_SUFFIXES=(
   [api]="api"
-  [web-landing]="landing"
+  [web-cpmfull]="cpmfull"
   [web-admin]="admin"
   [web-client]="cliente"
   [web-provider]="prestador"
@@ -45,7 +45,7 @@ declare -A CONTAINER_SUFFIXES=(
 
 declare -A PROJECT_SUFFIXES=(
   [api]="api"
-  [web-landing]="landing"
+  [web-cpmfull]="cpmfull"
   [web-admin]="admin"
   [web-client]="cliente"
   [web-provider]="prestador"
@@ -56,7 +56,7 @@ declare -A PROJECT_SUFFIXES=(
 
 declare -A LEGACY_CONTAINER_SUFFIXES=(
   [api]="api"
-  [web-landing]="web-landing"
+  [web-cpmfull]="landing"
   [web-admin]="web-admin"
   [web-client]="web-client"
   [web-provider]="web-provider"
@@ -67,7 +67,7 @@ declare -A LEGACY_CONTAINER_SUFFIXES=(
 
 if [[ -z "${COMPOSE_FILES[$TARGET_SERVICE]+x}" ]]; then
   echo "Servico invalido: '$TARGET_SERVICE'."
-  echo "Servicos suportados: api, web-landing, web-admin, web-client, web-provider, mobile-webview-client, mobile-webview-provider, mobile-webview-admin"
+  echo "Servicos suportados: api, web-cpmfull, web-admin, web-client, web-provider, mobile-webview-client, mobile-webview-provider, mobile-webview-admin"
   exit 1
 fi
 

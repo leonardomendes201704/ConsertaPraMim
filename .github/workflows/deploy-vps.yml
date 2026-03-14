@@ -36,7 +36,7 @@ jobs:
     timeout-minutes: 10
     outputs:
       deploy_api: ${{ steps.targets.outputs.deploy_api }}
-      deploy_web_landing: ${{ steps.targets.outputs.deploy_web_landing }}
+      deploy_web_cpmfull: ${{ steps.targets.outputs.deploy_web_cpmfull }}
       deploy_web_admin: ${{ steps.targets.outputs.deploy_web_admin }}
       deploy_web_client: ${{ steps.targets.outputs.deploy_web_client }}
       deploy_web_provider: ${{ steps.targets.outputs.deploy_web_provider }}
@@ -79,7 +79,7 @@ jobs:
               - 'Backend/DEPLOY_VPS.md'
               - 'Backend/docker-compose.vps.yml'
               - 'Backend/docker-compose.vps.api.yml'
-              - 'Backend/docker-compose.vps.web-landing.yml'
+              - 'Backend/docker-compose.vps.web-cpmfull.yml'
               - 'Backend/docker-compose.vps.web-admin.yml'
               - 'Backend/docker-compose.vps.web-client.yml'
               - 'Backend/docker-compose.vps.web-provider.yml'
@@ -89,9 +89,10 @@ jobs:
               - 'Backend/src/ConsertaPraMim.Domain/**'
               - 'Backend/src/ConsertaPraMim.Infrastructure/**'
               - 'Backend/docker/vps/Dockerfile.api'
-            web_landing:
-              - 'Backend/src/ConsertaPraMim.Web.Landing/**'
-              - 'Backend/docker/vps/Dockerfile.web.landing'
+            web_cpmfull:
+              - 'Backend/src/ConsertaPraMim.Web.CpmFull/**'
+              - 'Backend/docker/vps/Dockerfile.web.cpmfull'
+              - 'Backend/docker-compose.vps.web-cpmfull.yml'
             web_admin:
               - 'Backend/src/ConsertaPraMim.Web.Admin/**'
               - 'Backend/src/ConsertaPraMim.Application/**'
@@ -137,7 +138,7 @@ jobs:
         shell: bash
         run: |
           deploy_api="${{ steps.changes.outputs.api }}"
-          deploy_web_landing="${{ steps.changes.outputs.web_landing }}"
+          deploy_web_cpmfull="${{ steps.changes.outputs.web_cpmfull }}"
           deploy_web_admin="${{ steps.changes.outputs.web_admin }}"
           deploy_web_client="${{ steps.changes.outputs.web_client }}"
           deploy_web_provider="${{ steps.changes.outputs.web_provider }}"
@@ -153,7 +154,7 @@ jobs:
 
           if [[ "${{ steps.changes.outputs.global }}" == "true" ]]; then
             deploy_api="true"
-            deploy_web_landing="true"
+            deploy_web_cpmfull="true"
             deploy_web_admin="true"
             deploy_web_client="true"
             deploy_web_provider="true"
@@ -164,7 +165,7 @@ jobs:
 
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             deploy_api="true"
-            deploy_web_landing="true"
+            deploy_web_cpmfull="true"
             deploy_web_admin="true"
             deploy_web_client="true"
             deploy_web_provider="true"
@@ -174,12 +175,12 @@ jobs:
           fi
 
           any="false"
-          if [[ "$deploy_api" == "true" || "$deploy_web_landing" == "true" || "$deploy_web_admin" == "true" || "$deploy_web_client" == "true" || "$deploy_web_provider" == "true" || "$deploy_mobile_webview_client" == "true" || "$deploy_mobile_webview_provider" == "true" || "$deploy_mobile_webview_admin" == "true" ]]; then
+          if [[ "$deploy_api" == "true" || "$deploy_web_cpmfull" == "true" || "$deploy_web_admin" == "true" || "$deploy_web_client" == "true" || "$deploy_web_provider" == "true" || "$deploy_mobile_webview_client" == "true" || "$deploy_mobile_webview_provider" == "true" || "$deploy_mobile_webview_admin" == "true" ]]; then
             any="true"
           fi
 
           echo "deploy_api=$deploy_api" >> "$GITHUB_OUTPUT"
-          echo "deploy_web_landing=$deploy_web_landing" >> "$GITHUB_OUTPUT"
+          echo "deploy_web_cpmfull=$deploy_web_cpmfull" >> "$GITHUB_OUTPUT"
           echo "deploy_web_admin=$deploy_web_admin" >> "$GITHUB_OUTPUT"
           echo "deploy_web_client=$deploy_web_client" >> "$GITHUB_OUTPUT"
           echo "deploy_web_provider=$deploy_web_provider" >> "$GITHUB_OUTPUT"
@@ -315,8 +316,8 @@ jobs:
           deploy_api="${{ steps.targets.outputs.deploy_api }}"
           health_api="$deploy_api"
 
-          deploy_web_landing="${{ steps.targets.outputs.deploy_web_landing }}"
-          health_web_landing="$deploy_web_landing"
+          deploy_web_cpmfull="${{ steps.targets.outputs.deploy_web_cpmfull }}"
+          health_web_cpmfull="$deploy_web_cpmfull"
 
           deploy_web_admin="${{ steps.targets.outputs.deploy_web_admin }}"
           health_web_admin="$deploy_web_admin"
@@ -357,15 +358,15 @@ jobs:
             echo ""
             echo "- Profile: \`${{ env.DEPLOY_PROFILE }}\`"
             echo "- Host binding: \`${{ env.BIND_HOST }}\`"
-            echo "- Ports: API=${{ env.API_PORT }}, Landing=${{ env.LANDING_PORT }}, Admin=${{ env.ADMIN_PORT }}, Cliente=${{ env.CLIENT_PORT }}, Prestador=${{ env.PROVIDER_PORT }}"
+            echo "- Ports: API=${{ env.API_PORT }}, Site raiz=${{ env.LANDING_PORT }}, Admin=${{ env.ADMIN_PORT }}, Cliente=${{ env.CLIENT_PORT }}, Prestador=${{ env.PROVIDER_PORT }}"
             echo ""
             echo "| No | Executa? |"
             echo "|---|---|"
             echo "| Resolve Deploy Targets | $(bool_icon "true") |"
             echo "| Deploy API | $(bool_icon "$deploy_api") |"
             echo "| Healthcheck API | $(bool_icon "$health_api") |"
-            echo "| Deploy Web Landing | $(bool_icon "$deploy_web_landing") |"
-            echo "| Healthcheck Web Landing | $(bool_icon "$health_web_landing") |"
+            echo "| Deploy Web CPM Full | $(bool_icon "$deploy_web_cpmfull") |"
+            echo "| Healthcheck Web CPM Full | $(bool_icon "$health_web_cpmfull") |"
             echo "| Deploy Web Admin | $(bool_icon "$deploy_web_admin") |"
             echo "| Healthcheck Web Admin | $(bool_icon "$health_web_admin") |"
             echo "| Deploy Web Client | $(bool_icon "$deploy_web_client") |"
@@ -432,6 +433,20 @@ jobs:
           PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL_VALUE="${{ secrets.PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL }}"
           PUBLIC_MOBILE_ADMIN_WEBVIEW_URL_VALUE="${{ secrets.PUBLIC_MOBILE_ADMIN_WEBVIEW_URL }}"
           ENFORCE_API_HTTPS_REDIRECTION_VALUE="${{ secrets.ENFORCE_API_HTTPS_REDIRECTION }}"
+          CPMFULL_CHATWOOT_ENABLED_VALUE="${{ secrets.CPMFULL_CHATWOOT_ENABLED }}"
+          CPMFULL_CHATWOOT_BASE_URL_VALUE="${{ secrets.CPMFULL_CHATWOOT_BASE_URL }}"
+          CPMFULL_CHATWOOT_API_ACCESS_TOKEN_VALUE="${{ secrets.CPMFULL_CHATWOOT_API_ACCESS_TOKEN }}"
+          CPMFULL_CHATWOOT_ACCOUNT_ID_VALUE="${{ secrets.CPMFULL_CHATWOOT_ACCOUNT_ID }}"
+          CPMFULL_CHATWOOT_CLIENTS_INBOX_ID_VALUE="${{ secrets.CPMFULL_CHATWOOT_CLIENTS_INBOX_ID }}"
+          CPMFULL_CHATWOOT_PROVIDERS_INBOX_ID_VALUE="${{ secrets.CPMFULL_CHATWOOT_PROVIDERS_INBOX_ID }}"
+          CPMFULL_CHATWOOT_WEBHOOK_SECRET_VALUE="${{ secrets.CPMFULL_CHATWOOT_WEBHOOK_SECRET }}"
+          CPMFULL_CHATWOOT_REQUEST_TIMEOUT_SECONDS_VALUE="${{ secrets.CPMFULL_CHATWOOT_REQUEST_TIMEOUT_SECONDS }}"
+          CPMFULL_CHATWOOT_MAX_RETRY_ATTEMPTS_VALUE="${{ secrets.CPMFULL_CHATWOOT_MAX_RETRY_ATTEMPTS }}"
+          CPMFULL_CHATWOOT_RETRY_BASE_DELAY_MS_VALUE="${{ secrets.CPMFULL_CHATWOOT_RETRY_BASE_DELAY_MS }}"
+          CPMFULL_CHATWOOT_RETRY_WORKER_ENABLED_VALUE="${{ secrets.CPMFULL_CHATWOOT_RETRY_WORKER_ENABLED }}"
+          CPMFULL_CHATWOOT_RETRY_WORKER_INTERVAL_SECONDS_VALUE="${{ secrets.CPMFULL_CHATWOOT_RETRY_WORKER_INTERVAL_SECONDS }}"
+          CPMFULL_CHATWOOT_RETRY_WORKER_BATCH_SIZE_VALUE="${{ secrets.CPMFULL_CHATWOOT_RETRY_WORKER_BATCH_SIZE }}"
+          CPMFULL_CHATWOOT_SYNC_QUEUE_MAX_ATTEMPTS_VALUE="${{ secrets.CPMFULL_CHATWOOT_SYNC_QUEUE_MAX_ATTEMPTS }}"
 
           if [[ -z "$PUBLIC_API_URL_VALUE" ]]; then
             PUBLIC_API_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.API_PORT }}"
@@ -497,6 +512,20 @@ jobs:
           DB_HOST=${{ secrets.VPS_DB_HOST }}
           JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
           SEED_DEFAULT_PASSWORD=${{ secrets.SEED_DEFAULT_PASSWORD }}
+          CPMFULL_CHATWOOT_ENABLED=${CPMFULL_CHATWOOT_ENABLED_VALUE:-false}
+          CPMFULL_CHATWOOT_BASE_URL=$CPMFULL_CHATWOOT_BASE_URL_VALUE
+          CPMFULL_CHATWOOT_API_ACCESS_TOKEN=$CPMFULL_CHATWOOT_API_ACCESS_TOKEN_VALUE
+          CPMFULL_CHATWOOT_ACCOUNT_ID=${CPMFULL_CHATWOOT_ACCOUNT_ID_VALUE:-0}
+          CPMFULL_CHATWOOT_CLIENTS_INBOX_ID=${CPMFULL_CHATWOOT_CLIENTS_INBOX_ID_VALUE:-0}
+          CPMFULL_CHATWOOT_PROVIDERS_INBOX_ID=${CPMFULL_CHATWOOT_PROVIDERS_INBOX_ID_VALUE:-0}
+          CPMFULL_CHATWOOT_WEBHOOK_SECRET=$CPMFULL_CHATWOOT_WEBHOOK_SECRET_VALUE
+          CPMFULL_CHATWOOT_REQUEST_TIMEOUT_SECONDS=${CPMFULL_CHATWOOT_REQUEST_TIMEOUT_SECONDS_VALUE:-15}
+          CPMFULL_CHATWOOT_MAX_RETRY_ATTEMPTS=${CPMFULL_CHATWOOT_MAX_RETRY_ATTEMPTS_VALUE:-3}
+          CPMFULL_CHATWOOT_RETRY_BASE_DELAY_MS=${CPMFULL_CHATWOOT_RETRY_BASE_DELAY_MS_VALUE:-500}
+          CPMFULL_CHATWOOT_RETRY_WORKER_ENABLED=${CPMFULL_CHATWOOT_RETRY_WORKER_ENABLED_VALUE:-true}
+          CPMFULL_CHATWOOT_RETRY_WORKER_INTERVAL_SECONDS=${CPMFULL_CHATWOOT_RETRY_WORKER_INTERVAL_SECONDS_VALUE:-30}
+          CPMFULL_CHATWOOT_RETRY_WORKER_BATCH_SIZE=${CPMFULL_CHATWOOT_RETRY_WORKER_BATCH_SIZE_VALUE:-20}
+          CPMFULL_CHATWOOT_SYNC_QUEUE_MAX_ATTEMPTS=${CPMFULL_CHATWOOT_SYNC_QUEUE_MAX_ATTEMPTS_VALUE:-10}
           FIREBASE_SERVICE_ACCOUNT_PATH=${{ secrets.FIREBASE_SERVICE_ACCOUNT_PATH }}
           APK_RELEASE_PUSH_TOKEN=${{ secrets.APK_RELEASE_PUSH_TOKEN }}
           EOF
@@ -573,10 +602,10 @@ jobs:
           docker logs --tail 200 "${CONTAINER_PREFIX}-api" || true
           echo "::endgroup::"
 
-  deploy-web-landing:
-    name: Deploy Web Landing
+  deploy-web-cpmfull:
+    name: Deploy Web CPM Full
     needs: targets
-    if: needs.targets.outputs.deploy_web_landing == 'true'
+    if: needs.targets.outputs.deploy_web_cpmfull == 'true'
     runs-on: [self-hosted, Linux, X64]
     environment: ${{ github.ref_name == 'dev-local' && 'development' || 'production' }}
     timeout-minutes: 20
@@ -681,21 +710,21 @@ jobs:
           APK_RELEASE_PUSH_TOKEN=${{ secrets.APK_RELEASE_PUSH_TOKEN }}
           EOF
 
-      - name: Deploy Web Landing
+      - name: Deploy Web CPM Full
         shell: bash
         run: |
-          echo "::group::Deploy Web Landing"
+          echo "::group::Deploy Web CPM Full"
           chmod +x scripts/deploy/vps-deploy-service.sh
           export MSSQL_CONTAINER_NAME="${{ secrets.VPS_MSSQL_CONTAINER_NAME }}"
           export MSSQL_HOST_ALIAS="${{ secrets.VPS_MSSQL_HOST_ALIAS }}"
           export SKIP_GIT_PULL=1
-          ./scripts/deploy/vps-deploy-service.sh "$GITHUB_WORKSPACE" web-landing
+          ./scripts/deploy/vps-deploy-service.sh "$GITHUB_WORKSPACE" web-cpmfull
           echo "::endgroup::"
 
-  health-web-landing:
-    name: Healthcheck Web Landing
-    needs: [targets, deploy-web-landing]
-    if: always() && needs.targets.outputs.deploy_web_landing == 'true' && needs.deploy-web-landing.result == 'success'
+  health-web-cpmfull:
+    name: Healthcheck Web CPM Full
+    needs: [targets, deploy-web-cpmfull]
+    if: always() && needs.targets.outputs.deploy_web_cpmfull == 'true' && needs.deploy-web-cpmfull.result == 'success'
     runs-on: [self-hosted, Linux, X64]
     environment: ${{ github.ref_name == 'dev-local' && 'development' || 'production' }}
     timeout-minutes: 8
@@ -703,20 +732,27 @@ jobs:
       endpoint: ${{ steps.health.outputs.endpoint }}
       http_code: ${{ steps.health.outputs.http_code }}
     steps:
-      - name: Check Web Landing health endpoint
+      - name: Check Web CPM Full health endpoint
         id: health
         shell: bash
         run: |
-          host="127.0.0.1"
+          endpoint=""
           if [[ "${{ env.DEPLOY_PROFILE }}" == "development" ]]; then
-            host="${{ secrets.VPS_PUBLIC_HOST }}"
-            host="${host#http://}"
-            host="${host#https://}"
-            host="${host%%/*}"
-            host="${host%%:*}"
+            public_landing_url="${{ secrets.PUBLIC_LANDING_URL }}"
+            public_landing_url="${public_landing_url%/}"
+            if [[ -n "$public_landing_url" ]]; then
+              endpoint="${public_landing_url}/health"
+            else
+              host="${{ secrets.VPS_PUBLIC_HOST }}"
+              host="${host#http://}"
+              host="${host#https://}"
+              host="${host%%/*}"
+              host="${host%%:*}"
+              endpoint="http://${host}:${{ env.LANDING_PORT }}/health"
+            fi
+          else
+            endpoint="http://127.0.0.1:${{ env.LANDING_PORT }}/health"
           fi
-
-          endpoint="http://${host}:${{ env.LANDING_PORT }}/health"
           echo "endpoint=$endpoint" >> "$GITHUB_OUTPUT"
 
           attempts=12
@@ -728,7 +764,7 @@ jobs:
             if [[ "$code" =~ ^2[0-9][0-9]$ || "$code" =~ ^3[0-9][0-9]$ ]]; then
               echo "http_code=$code" >> "$GITHUB_OUTPUT"
               {
-                echo "### Web Landing Healthcheck"
+                echo "### Web CPM Full Healthcheck"
                 echo "- Endpoint: $endpoint"
                 echo "- HTTP: $code"
               } >> "$GITHUB_STEP_SUMMARY"
@@ -738,10 +774,10 @@ jobs:
           done
 
           echo "http_code=$code" >> "$GITHUB_OUTPUT"
-          echo "::error::Web Landing healthcheck failed at $endpoint (last HTTP $code)"
+          echo "::error::Web CPM Full healthcheck failed at $endpoint (last HTTP $code)"
           exit 1
 
-      - name: Diagnostics Web Landing on failure
+      - name: Diagnostics Web CPM Full on failure
         if: failure()
         shell: bash
         run: |
@@ -749,8 +785,8 @@ jobs:
           docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' || true
           echo "::endgroup::"
 
-          echo "::group::docker logs ${CONTAINER_PREFIX}-landing"
-          docker logs --tail 200 "${CONTAINER_PREFIX}-landing" || true
+          echo "::group::docker logs ${CONTAINER_PREFIX}-cpmfull"
+          docker logs --tail 200 "${CONTAINER_PREFIX}-cpmfull" || true
           echo "::endgroup::"
 
   deploy-web-admin:
@@ -1860,8 +1896,8 @@ jobs:
       - targets
       - deploy-api
       - health-api
-      - deploy-web-landing
-      - health-web-landing
+      - deploy-web-cpmfull
+      - health-web-cpmfull
       - deploy-web-admin
       - health-web-admin
       - deploy-web-client
@@ -2038,8 +2074,8 @@ jobs:
       - targets
       - deploy-api
       - health-api
-      - deploy-web-landing
-      - health-web-landing
+      - deploy-web-cpmfull
+      - health-web-cpmfull
       - deploy-web-admin
       - health-web-admin
       - deploy-web-client
@@ -2264,8 +2300,8 @@ jobs:
       - targets
       - deploy-api
       - health-api
-      - deploy-web-landing
-      - health-web-landing
+      - deploy-web-cpmfull
+      - health-web-cpmfull
       - deploy-web-admin
       - health-web-admin
       - deploy-web-client
@@ -2459,8 +2495,8 @@ jobs:
       - targets
       - deploy-api
       - health-api
-      - deploy-web-landing
-      - health-web-landing
+      - deploy-web-cpmfull
+      - health-web-cpmfull
       - deploy-web-admin
       - health-web-admin
       - deploy-web-client
@@ -2500,8 +2536,8 @@ jobs:
 
           api_deploy_result="${{ needs.deploy-api.result }}"
           api_health_result="${{ needs.health-api.result }}"
-          landing_deploy_result="${{ needs.deploy-web-landing.result }}"
-          landing_health_result="${{ needs.health-web-landing.result }}"
+          cpmfull_deploy_result="${{ needs.deploy-web-cpmfull.result }}"
+          cpmfull_health_result="${{ needs.health-web-cpmfull.result }}"
           admin_deploy_result="${{ needs.deploy-web-admin.result }}"
           admin_health_result="${{ needs.health-web-admin.result }}"
           client_deploy_result="${{ needs.deploy-web-client.result }}"
@@ -2527,7 +2563,7 @@ jobs:
             echo "| Servico | Planejado | Deploy | Healthcheck | Endpoint | HTTP |"
             echo "|---|---|---|---|---|---|"
             echo "| API | ${{ needs.targets.outputs.deploy_api }} | $(result_icon "$api_deploy_result") $api_deploy_result | $(result_icon "$api_health_result") $api_health_result | ${{ needs.health-api.outputs.endpoint }} | ${{ needs.health-api.outputs.http_code }} |"
-            echo "| Web Landing | ${{ needs.targets.outputs.deploy_web_landing }} | $(result_icon "$landing_deploy_result") $landing_deploy_result | $(result_icon "$landing_health_result") $landing_health_result | ${{ needs.health-web-landing.outputs.endpoint }} | ${{ needs.health-web-landing.outputs.http_code }} |"
+            echo "| Web CPM Full | ${{ needs.targets.outputs.deploy_web_cpmfull }} | $(result_icon "$cpmfull_deploy_result") $cpmfull_deploy_result | $(result_icon "$cpmfull_health_result") $cpmfull_health_result | ${{ needs.health-web-cpmfull.outputs.endpoint }} | ${{ needs.health-web-cpmfull.outputs.http_code }} |"
             echo "| Web Admin | ${{ needs.targets.outputs.deploy_web_admin }} | $(result_icon "$admin_deploy_result") $admin_deploy_result | $(result_icon "$admin_health_result") $admin_health_result | ${{ needs.health-web-admin.outputs.endpoint }} | ${{ needs.health-web-admin.outputs.http_code }} |"
             echo "| Web Client | ${{ needs.targets.outputs.deploy_web_client }} | $(result_icon "$client_deploy_result") $client_deploy_result | $(result_icon "$client_health_result") $client_health_result | ${{ needs.health-web-client.outputs.endpoint }} | ${{ needs.health-web-client.outputs.http_code }} |"
             echo "| Web Provider | ${{ needs.targets.outputs.deploy_web_provider }} | $(result_icon "$provider_deploy_result") $provider_deploy_result | $(result_icon "$provider_health_result") $provider_health_result | ${{ needs.health-web-provider.outputs.endpoint }} | ${{ needs.health-web-provider.outputs.http_code }} |"
@@ -2583,8 +2619,8 @@ jobs:
 
           api_deploy_result="${{ needs.deploy-api.result }}"
           api_health_result="${{ needs.health-api.result }}"
-          landing_deploy_result="${{ needs.deploy-web-landing.result }}"
-          landing_health_result="${{ needs.health-web-landing.result }}"
+          cpmfull_deploy_result="${{ needs.deploy-web-cpmfull.result }}"
+          cpmfull_health_result="${{ needs.health-web-cpmfull.result }}"
           admin_deploy_result="${{ needs.deploy-web-admin.result }}"
           admin_health_result="${{ needs.health-web-admin.result }}"
           client_deploy_result="${{ needs.deploy-web-client.result }}"
@@ -2607,7 +2643,7 @@ jobs:
           overall_status="success"
           for result in \
             "$api_deploy_result" "$api_health_result" \
-            "$landing_deploy_result" "$landing_health_result" \
+            "$cpmfull_deploy_result" "$cpmfull_health_result" \
             "$admin_deploy_result" "$admin_health_result" \
             "$client_deploy_result" "$client_health_result" \
             "$provider_deploy_result" "$provider_health_result" \
@@ -2628,7 +2664,7 @@ jobs:
           done
 
           title="Deploy VPS finalizado (${overall_status})"
-          summary="Run #${{ github.run_number }} - status: ${overall_status}. API deploy/health: ${api_deploy_result}/${api_health_result}. Web Landing: ${landing_deploy_result}/${landing_health_result}. Web Admin: ${admin_deploy_result}/${admin_health_result}. Web Client: ${client_deploy_result}/${client_health_result}. Web Provider: ${provider_deploy_result}/${provider_health_result}. Mobile WebView Client: ${mobile_webview_client_deploy_result}/${mobile_webview_client_health_result}. Mobile WebView Provider: ${mobile_webview_provider_deploy_result}/${mobile_webview_provider_health_result}. Mobile WebView Admin: ${mobile_webview_admin_deploy_result}/${mobile_webview_admin_health_result}. APK Client build/upload: ${apk_client_build_result}/${apk_client_upload_result}. APK Provider build/upload: ${apk_provider_build_result}/${apk_provider_upload_result}. APK Admin build/upload: ${apk_admin_build_result}/${apk_admin_upload_result}. Commit: ${{ github.sha }}."
+          summary="Run #${{ github.run_number }} - status: ${overall_status}. API deploy/health: ${api_deploy_result}/${api_health_result}. Web CPM Full: ${cpmfull_deploy_result}/${cpmfull_health_result}. Web Admin: ${admin_deploy_result}/${admin_health_result}. Web Client: ${client_deploy_result}/${client_health_result}. Web Provider: ${provider_deploy_result}/${provider_health_result}. Mobile WebView Client: ${mobile_webview_client_deploy_result}/${mobile_webview_client_health_result}. Mobile WebView Provider: ${mobile_webview_provider_deploy_result}/${mobile_webview_provider_health_result}. Mobile WebView Admin: ${mobile_webview_admin_deploy_result}/${mobile_webview_admin_health_result}. APK Client build/upload: ${apk_client_build_result}/${apk_client_upload_result}. APK Provider build/upload: ${apk_provider_build_result}/${apk_provider_upload_result}. APK Admin build/upload: ${apk_admin_build_result}/${apk_admin_upload_result}. Commit: ${{ github.sha }}."
 
           title_escaped="${title//\"/\\\"}"
           summary_escaped="${summary//\"/\\\"}"

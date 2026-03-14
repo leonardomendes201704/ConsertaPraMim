@@ -1,0 +1,123 @@
+@model RequestServicePageViewModel
+@{
+    string C(string key, string fallback) => SiteContent.Get(key, fallback);
+
+    var pageTitle = C("request.meta.title", "Solicitar servico");
+    ViewData["Title"] = pageTitle;
+    ViewData["SeoTitle"] = C("request.meta.seo_title", "Solicitar servico residencial");
+    ViewData["MetaDescription"] = C("request.meta.description", "Descreva o servico desejado, informe seu CEP e receba contatos de profissionais da sua regiao.");
+    ViewData["MetaKeywords"] = C("request.meta.keywords", "solicitar servico, orcamento, manutencao residencial, CEP, profissionais");
+    ViewData["CanonicalPath"] = "/solicitar-servico";
+    ViewData["OgImage"] = C("request.meta.og_image_url", C("branding.og_image_url", Url.Content("~/images/7237a130-fa5b-4e98-9118-ed5b0d465fa6.png")));
+}
+
+<section class="cpm-section">
+    <div class="container-lg cpm-form-wrap">
+        <div class="text-center mb-4">
+            <h1 class="fw-bold">@C("request.page.title", "Solicitar servico")</h1>
+            <p class="text-secondary-emphasis mb-0">@C("request.page.subtitle", "Preencha os dados para receber contatos de profissionais da sua regiao.")</p>
+        </div>
+
+        @if (Model.IsSubmitted)
+        {
+            <div class="alert alert-success d-flex align-items-center gap-2" role="alert">
+                <i class="bi bi-check-circle-fill"></i>
+                <span>@C("request.alert.success", "Pedido enviado com sucesso. Em breve voce recebera contatos por telefone ou WhatsApp.")</span>
+            </div>
+        }
+
+        <div class="cpm-card cpm-form-card p-4 p-md-5 bg-white">
+            <form asp-controller="Home" asp-action="RequestService" method="post" novalidate>
+                @Html.AntiForgeryToken()
+                <div asp-validation-summary="ModelOnly" class="text-danger small mb-3"></div>
+
+                <div class="mb-3">
+                    <label asp-for="Form.CategoryId" class="form-label">@C("request.form.category.label", "Categoria")</label>
+                    <select id="Form_CategoryId" name="Form.CategoryId" class="form-select">
+                        <option value="">@C("request.form.category.option_select", "Selecione")</option>
+                        @foreach (var category in Model.Categories)
+                        {
+                            <option value="@category.Id" selected="@(category.Id == Model.Form.CategoryId ? "selected" : null)">
+                                @category.Name
+                            </option>
+                        }
+                    </select>
+                    <span asp-validation-for="Form.CategoryId" class="text-danger small"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Form.Description" class="form-label">@C("request.form.description.label", "Descricao do problema")</label>
+                    <textarea asp-for="Form.Description" class="form-control" rows="5" placeholder="@C("request.form.description.placeholder", "Ex: A torneira da cozinha esta vazando na base.")"></textarea>
+                    <span asp-validation-for="Form.Description" class="text-danger small"></span>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-12 col-md-6">
+                        <label asp-for="Form.Location" class="form-label">@C("request.form.location.label", "Cidade / Bairro")</label>
+                        <input asp-for="Form.Location" class="form-control" placeholder="@C("request.form.location.placeholder", "Ex: Sao Paulo - Pinheiros")" />
+                        <span asp-validation-for="Form.Location" class="text-danger small"></span>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label asp-for="Form.Name" class="form-label">@C("request.form.name.label", "Nome completo")</label>
+                        <input asp-for="Form.Name" class="form-control" placeholder="@C("request.form.name.placeholder", "Seu nome")" />
+                        <span asp-validation-for="Form.Name" class="text-danger small"></span>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label asp-for="Form.Phone" class="form-label">@C("request.form.phone.label", "Telefone / Celular")</label>
+                        <input asp-for="Form.Phone" class="form-control" placeholder="@C("request.form.phone.placeholder", "(00) 00000-0000")" />
+                        <span asp-validation-for="Form.Phone" class="text-danger small"></span>
+                    </div>
+                    <div class="col-12 col-md-6 d-flex align-items-center">
+                        <div class="form-check mt-4">
+                            <input asp-for="Form.IsWhatsapp" class="form-check-input" />
+                            <label asp-for="Form.IsWhatsapp" class="form-check-label">@C("request.form.whatsapp.label", "Este numero e WhatsApp")</label>
+                        </div>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn cpm-btn-primary w-100 mt-4">@C("request.form.submit", "Receber orcamentos")</button>
+                <p class="text-center text-secondary-emphasis small mt-3 mb-0">
+                    @C("request.form.terms_text", "Ao enviar, voce concorda com os termos de uso e politica de privacidade.")
+                </p>
+            </form>
+        </div>
+    </div>
+</section>
+
+@section Head {
+    @{
+        var baseUrl = $"{Context.Request.Scheme}://{Context.Request.Host}";
+        var serviceCatalog = Model.Categories.Select(category => category.Name).ToArray();
+        var structuredData = new object[]
+        {
+            new Dictionary<string, object?>
+            {
+                ["@context"] = "https://schema.org",
+                ["@type"] = "WebPage",
+                ["name"] = C("request.schema.webpage.name", C("request.page.title", "Solicitar servico")),
+                ["url"] = $"{baseUrl}/solicitar-servico",
+                ["description"] = C("request.schema.webpage.description", "Formulario para solicitar atendimento residencial com profissionais proximos."),
+                ["inLanguage"] = "pt-BR"
+            },
+            new Dictionary<string, object?>
+            {
+                ["@context"] = "https://schema.org",
+                ["@type"] = "Service",
+                ["name"] = C("request.schema.service.name", "Intermediacao de servicos residenciais"),
+                ["serviceType"] = serviceCatalog,
+                ["provider"] = new Dictionary<string, object?>
+                {
+                    ["@type"] = "Organization",
+                    ["name"] = C("request.schema.service.provider_name", C("branding.site_name", "ConsertaPraMim")),
+                    ["url"] = baseUrl
+                },
+                ["areaServed"] = C("request.schema.service.area_served", "Brasil")
+            }
+        };
+    }
+    <script type="application/ld+json">@Html.Raw(System.Text.Json.JsonSerializer.Serialize(structuredData))</script>
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

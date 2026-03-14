@@ -1,9 +1,9 @@
 services:
-  web-landing:
-    container_name: "${CONTAINER_PREFIX:-cpm-prd}-landing"
+  web-cpmfull:
+    container_name: "${CONTAINER_PREFIX:-cpm-prd}-cpmfull"
     build:
       context: .
-      dockerfile: docker/vps/Dockerfile.web.landing
+      dockerfile: docker/vps/Dockerfile.web.cpmfull
     restart: unless-stopped
     ports:
       - "${BIND_HOST:-127.0.0.1}:${LANDING_PORT:-5088}:${LANDING_PORT:-5088}"
@@ -15,14 +15,21 @@ services:
       DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: "false"
       LANG: "pt_BR.UTF-8"
       LC_ALL: "pt_BR.UTF-8"
-      LandingSite__CanonicalUrl: "${PUBLIC_LANDING_URL:-https://www.consertapramim.com}"
-      LandingSite__ClientPortalUrl: "${PUBLIC_CLIENT_URL:-http://${VPS_PUBLIC_HOST}:${CLIENT_PORT:-5069}}"
-      LandingSite__ProviderPortalUrl: "${PUBLIC_PROVIDER_URL:-http://${VPS_PUBLIC_HOST}:${PROVIDER_PORT:-5140}}"
-      LandingSite__AdminPortalUrl: "${PUBLIC_ADMIN_URL:-http://${VPS_PUBLIC_HOST}:${ADMIN_PORT:-5151}}"
-      LandingSite__ApiBaseUrl: "${PUBLIC_API_URL:-http://${VPS_PUBLIC_HOST}:${API_PORT:-5193}}"
-      LandingSite__ApiSwaggerUrl: "${PUBLIC_API_URL:-http://${VPS_PUBLIC_HOST}:${API_PORT:-5193}}/swagger"
-      LandingSite__InternalApiBaseUrl: "${INTERNAL_API_URL:-http://${CONTAINER_PREFIX:-cpm-prd}-api:8080}"
-      LandingSite__InternalWebhookToken: "${APK_RELEASE_PUSH_TOKEN:-}"
+      ConnectionStrings__DefaultConnection: "Server=${DB_HOST:-mssql},1433;Database=${DB_NAME};User Id=${DB_USER};Password='${DB_PASSWORD}';TrustServerCertificate=True;Encrypt=True;MultipleActiveResultSets=True;Connection Timeout=30;"
+      Chatwoot__Enabled: "${CPMFULL_CHATWOOT_ENABLED:-false}"
+      Chatwoot__BaseUrl: "${CPMFULL_CHATWOOT_BASE_URL:-}"
+      Chatwoot__ApiAccessToken: "${CPMFULL_CHATWOOT_API_ACCESS_TOKEN:-}"
+      Chatwoot__AccountId: "${CPMFULL_CHATWOOT_ACCOUNT_ID:-0}"
+      Chatwoot__ClientsInboxId: "${CPMFULL_CHATWOOT_CLIENTS_INBOX_ID:-0}"
+      Chatwoot__ProvidersInboxId: "${CPMFULL_CHATWOOT_PROVIDERS_INBOX_ID:-0}"
+      Chatwoot__WebhookSecret: "${CPMFULL_CHATWOOT_WEBHOOK_SECRET:-}"
+      Chatwoot__RequestTimeoutSeconds: "${CPMFULL_CHATWOOT_REQUEST_TIMEOUT_SECONDS:-15}"
+      Chatwoot__MaxRetryAttempts: "${CPMFULL_CHATWOOT_MAX_RETRY_ATTEMPTS:-3}"
+      Chatwoot__RetryBaseDelayMs: "${CPMFULL_CHATWOOT_RETRY_BASE_DELAY_MS:-500}"
+      Chatwoot__RetryWorkerEnabled: "${CPMFULL_CHATWOOT_RETRY_WORKER_ENABLED:-true}"
+      Chatwoot__RetryWorkerIntervalSeconds: "${CPMFULL_CHATWOOT_RETRY_WORKER_INTERVAL_SECONDS:-30}"
+      Chatwoot__RetryWorkerBatchSize: "${CPMFULL_CHATWOOT_RETRY_WORKER_BATCH_SIZE:-20}"
+      Chatwoot__SyncQueueMaxAttempts: "${CPMFULL_CHATWOOT_SYNC_QUEUE_MAX_ATTEMPTS:-10}"
     networks:
       - conserta_net
 

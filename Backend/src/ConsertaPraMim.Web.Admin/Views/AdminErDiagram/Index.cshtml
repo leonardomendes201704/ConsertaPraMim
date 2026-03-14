@@ -1,0 +1,89 @@
+@model ConsertaPraMim.Web.Admin.Models.AdminDatabaseSchemaViewModel
+@{
+    ViewData["Title"] = "Diagramar ER";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/lib/reactflow/style.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/admin-er-diagram.css" asp-append-version="true" />
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+    <div>
+        <h3 class="mb-1">Diagramar ER</h3>
+        <p class="text-muted mb-0">
+            Visualizador ER em ReactFlow a partir das tabelas e relacionamentos do DbContext, com recorte por dominio/contexto.
+        </p>
+    </div>
+    <div class="text-end small text-muted">
+        <div><strong>Total tabelas:</strong> @Model.TotalTables</div>
+        <div><strong>Total relacionamentos:</strong> @Model.TotalRelationships</div>
+        <div><strong>Atualizado:</strong> @Model.GeneratedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</div>
+    </div>
+</div>
+
+@if (Model.TotalTables == 0)
+{
+    <div class="alert alert-warning">
+        <i class="fas fa-triangle-exclamation me-2"></i>Nenhuma tabela foi encontrada no modelo atual.
+    </div>
+}
+else
+{
+    <section class="er-module-shell">
+        <div class="er-module-shell__header">
+            <div class="small text-uppercase fw-bold text-primary mb-1">Preview tecnico</div>
+            <h4 class="h5 mb-1">ER real do schema via ReactFlow</h4>
+            <div class="text-muted small">
+                Assets carregados localmente para manter compatibilidade com a CSP atual do Portal Admin.
+            </div>
+        </div>
+        <div class="er-module-shell__body">
+            <div id="erDiagramApp" class="er-react-host">
+                <div class="text-muted"><i class="fas fa-spinner fa-spin me-1"></i>Carregando diagrama ER...</div>
+            </div>
+        </div>
+    </section>
+}
+
+@section Scripts {
+    <script src="~/lib/react/react.production.min.js" asp-append-version="true"></script>
+    <script src="~/lib/react-dom/react-dom.production.min.js" asp-append-version="true"></script>
+    <script src="~/lib/reactflow/reactflow.umd.js" asp-append-version="true"></script>
+    <script src="~/lib/dagre/dagre.min.js" asp-append-version="true"></script>
+    <script>
+        window.adminErDiagramData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(new
+        {
+            totalTables = Model.TotalTables,
+            totalRelationships = Model.TotalRelationships,
+            generatedAt = Model.GeneratedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss"),
+            tables = Model.Tables.Select(table => new
+            {
+                schema = table.Schema,
+                name = table.Name,
+                fullName = table.FullName,
+                domainName = table.DomainName,
+                totalColumns = table.TotalColumns,
+                columns = table.Columns.Select(column => new
+                {
+                    name = column.Name,
+                    storeType = column.StoreType,
+                    isPrimaryKey = column.IsPrimaryKey,
+                    isForeignKey = column.IsForeignKey,
+                    isNullable = column.IsNullable
+                })
+            }),
+            relationships = Model.Relationships.Select(relationship => new
+            {
+                principalTable = relationship.PrincipalTable,
+                dependentTable = relationship.DependentTable,
+                principalColumns = relationship.PrincipalColumns,
+                dependentColumns = relationship.DependentColumns,
+                isRequired = relationship.IsRequired,
+                isUnique = relationship.IsUnique,
+                deleteBehavior = relationship.DeleteBehavior
+            })
+        }));
+    </script>
+    <script src="~/js/admin-er-diagram.js" asp-append-version="true"></script>
+}

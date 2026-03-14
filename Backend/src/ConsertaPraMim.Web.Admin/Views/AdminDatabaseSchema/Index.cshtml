@@ -1,0 +1,1288 @@
+@model ConsertaPraMim.Web.Admin.Models.AdminDatabaseSchemaViewModel
+@{
+    ViewData["Title"] = "Mapa de Dados";
+}
+
+@section Styles {
+    <style>
+        .schema-layout {
+            display: grid;
+            grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+            gap: 16px;
+            min-height: calc(100vh - 210px);
+        }
+
+        .schema-panel {
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, .06);
+            overflow: hidden;
+        }
+
+        .schema-panel-header {
+            padding: 14px 16px;
+            border-bottom: 1px solid #e5e7eb;
+            background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%);
+        }
+
+        .schema-panel-body {
+            padding: 16px;
+        }
+
+        .schema-table-list {
+            max-height: calc(100vh - 300px);
+            overflow-y: auto;
+            padding: 12px;
+        }
+
+        .schema-domain-group + .schema-domain-group {
+            margin-top: 18px;
+        }
+
+        .schema-domain-heading {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .schema-domain-title {
+            font-size: .78rem;
+            font-weight: 800;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+            color: #0f172a;
+        }
+
+        .schema-domain-count {
+            font-size: .72rem;
+            color: #64748b;
+        }
+
+        .schema-table-item {
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 10px 12px;
+            margin-bottom: 10px;
+            background: #fff;
+        }
+
+        .schema-table-item-clickable {
+            cursor: pointer;
+            transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+        }
+
+        .schema-table-item-clickable:hover {
+            border-color: #3b82f6;
+            box-shadow: 0 8px 18px rgba(59, 130, 246, .14);
+            transform: translateY(-1px);
+        }
+
+        .schema-table-item-clickable:focus-visible {
+            outline: 2px solid #2563eb;
+            outline-offset: 2px;
+        }
+
+        .schema-table-item-active {
+            border-color: #1d4ed8;
+            background: #eff6ff;
+            box-shadow: 0 10px 20px rgba(37, 99, 235, .18);
+        }
+
+        .schema-table-item-hint {
+            font-size: .72rem;
+            color: #64748b;
+        }
+
+        .schema-table-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .schema-diagram-controls {
+            display: grid;
+            grid-template-columns: minmax(220px, 320px) minmax(220px, 320px) minmax(0, 1fr);
+            gap: 12px;
+            align-items: end;
+            margin-bottom: 12px;
+        }
+
+        .schema-diagram-controls-meta {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 8px;
+        }
+
+        .schema-preview-style-hint {
+            min-height: 36px;
+        }
+
+        .schema-preview-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: flex-end;
+            margin-bottom: 10px;
+        }
+
+        .schema-preview {
+            border: 2px solid #000;
+            border-radius: 12px;
+            background: #fff;
+            height: clamp(560px, 78vh, 1100px);
+            min-height: 560px;
+            padding: 12px;
+            overflow: auto;
+            position: relative;
+        }
+
+        .schema-preview.schema-preview-er-focus {
+            background: #eef0f3;
+            padding: 18px;
+        }
+
+        .schema-preview svg {
+            display: block;
+            width: 100% !important;
+            height: 100% !important;
+            min-height: 100%;
+            max-width: none !important;
+        }
+
+        .schema-preview-pan-hint {
+            position: absolute;
+            left: 12px;
+            bottom: 12px;
+            font-size: .76rem;
+            color: #64748b;
+            background: rgba(255, 255, 255, .92);
+            border: 1px solid #e2e8f0;
+            border-radius: 999px;
+            padding: 4px 10px;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        .schema-preview.schema-preview-er-focus .node rect,
+        .schema-preview.schema-preview-er-focus .node polygon,
+        .schema-preview.schema-preview-er-focus .node path,
+        .schema-preview.schema-preview-er-focus .node ellipse,
+        .schema-preview.schema-preview-er-focus .node .basic.label-container {
+            fill: transparent !important;
+            stroke: transparent !important;
+        }
+
+        .schema-preview.schema-preview-er-focus .node .label {
+            text-align: left !important;
+        }
+
+        .schema-preview.schema-preview-er-focus foreignObject {
+            overflow: visible;
+        }
+
+        .schema-preview.schema-preview-er-focus .edgePath .path,
+        .schema-preview.schema-preview-er-focus .flowchart-link {
+            stroke: #94a3b8 !important;
+            stroke-width: 1.75px !important;
+        }
+
+        .schema-preview.schema-preview-er-focus .marker,
+        .schema-preview.schema-preview-er-focus .arrowheadPath {
+            fill: #94a3b8 !important;
+            stroke: #94a3b8 !important;
+        }
+
+        .schema-preview.schema-preview-er-focus .edgeLabel rect {
+            fill: rgba(255, 255, 255, .96) !important;
+            stroke: #d8dee6 !important;
+            stroke-width: 1px !important;
+            opacity: 1 !important;
+        }
+
+        .schema-preview.schema-preview-er-focus .edgeLabel text,
+        .schema-preview.schema-preview-er-focus .edgeLabel span,
+        .schema-preview.schema-preview-er-focus .edgeLabel p {
+            fill: #6b7280 !important;
+            color: #6b7280 !important;
+            font-size: 11px !important;
+        }
+
+        .schema-preview.schema-preview-er-focus .schema-er-card {
+            width: 290px;
+            background: #f6f7f9;
+            border: 1px solid #d8dee6;
+            box-shadow: 0 14px 28px rgba(15, 23, 42, .08);
+            overflow: hidden;
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .schema-preview.schema-preview-er-focus .schema-er-card.schema-er-card-focus {
+            border-color: #163d69;
+            box-shadow: 0 0 0 2px rgba(22, 61, 105, .18), 0 16px 32px rgba(22, 61, 105, .16);
+        }
+
+        .schema-preview.schema-preview-er-focus .schema-er-card__header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px 11px;
+            background: #2f5f93;
+            color: #fff;
+        }
+
+        .schema-preview.schema-preview-er-focus .schema-er-card-focus .schema-er-card__header {
+            background: #214a75;
+        }
+
+        .schema-preview.schema-preview-er-focus .schema-er-card__header,
+        .schema-preview.schema-preview-er-focus .schema-er-card__header span {
+            color: #fff !important;
+            fill: #fff !important;
+        }
+
+        .schema-preview.schema-preview-er-focus .schema-er-card__title {
+            font-size: 14px;
+            font-weight: 700;
+            line-height: 1.15;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .schema-preview.schema-preview-er-focus .schema-er-card__schema {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, .82) !important;
+            fill: rgba(255, 255, 255, .82) !important;
+            flex-shrink: 0;
+        }
+
+        .schema-preview.schema-preview-er-focus .schema-er-card__body {
+            background: #f6f7f9;
+        }
+
+        .schema-preview.schema-preview-er-focus .schema-er-card__row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            padding: 8px 16px;
+            border-top: 1px solid #e6eaf0;
+        }
+
+        .schema-preview.schema-preview-er-focus .schema-er-card__row:first-child {
+            border-top: 0;
+        }
+
+        .schema-preview.schema-preview-er-focus .schema-er-card__name-cell {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            min-width: 0;
+            flex: 1 1 auto;
+        }
+
+        .schema-preview.schema-preview-er-focus .schema-er-card__name {
+            color: #1f2937;
+            font-size: 12.5px;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .schema-preview.schema-preview-er-focus .schema-er-card__type {
+            color: #8b9098;
+            font-size: 11.5px;
+            font-weight: 700;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .schema-preview.schema-preview-er-focus .schema-er-card__flag {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 24px;
+            padding: 2px 6px;
+            border-radius: 999px;
+            font-size: 9px;
+            font-weight: 800;
+            line-height: 1;
+            letter-spacing: .04em;
+        }
+
+        .schema-preview.schema-preview-er-focus .schema-er-card__flag-pk {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+
+        .schema-preview.schema-preview-er-focus .schema-er-card__flag-fk {
+            background: #e2e8f0;
+            color: #475569;
+        }
+
+        .schema-preview.schema-preview-er-focus .schema-er-card__flag-null {
+            background: #f3f4f6;
+            color: #6b7280;
+        }
+
+        .schema-preview.schema-preview-er-focus .schema-er-card__empty {
+            padding: 14px 16px;
+            color: #6b7280;
+            font-size: 12px;
+        }
+
+        .schema-source {
+            background: #0f172a;
+            color: #e2e8f0;
+            border-radius: 10px;
+            padding: 12px;
+            overflow: auto;
+            font-size: .82rem;
+            line-height: 1.55;
+            max-height: 420px;
+        }
+
+        .schema-relation-table th {
+            font-size: .75rem;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            color: #64748b;
+            background: #f8fafc;
+        }
+
+        @@media (max-width: 1200px) {
+            .schema-layout {
+                grid-template-columns: 1fr;
+                min-height: auto;
+            }
+
+            .schema-table-list {
+                max-height: none;
+            }
+
+            .schema-diagram-controls {
+                grid-template-columns: 1fr;
+            }
+
+            .schema-diagram-controls-meta {
+                align-items: stretch;
+            }
+
+            .schema-preview {
+                height: clamp(420px, 70vh, 920px);
+                min-height: 420px;
+            }
+        }
+    </style>
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+    <div>
+        <h3 class="mb-1">Mapa de Dados (ER)</h3>
+        <p class="text-muted mb-0">
+            Inventario de tabelas e relacionamentos do modelo EF Core usado pelo sistema.
+        </p>
+    </div>
+    <div class="text-end small text-muted">
+        <div><strong>Total tabelas:</strong> @Model.TotalTables</div>
+        <div><strong>Total relacionamentos:</strong> @Model.TotalRelationships</div>
+        <div><strong>Atualizado:</strong> @Model.GeneratedAtUtc.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</div>
+    </div>
+</div>
+
+@if (Model.TotalTables == 0)
+{
+    <div class="alert alert-warning">
+        <i class="fas fa-triangle-exclamation me-2"></i>Nenhuma tabela foi encontrada no modelo atual.
+    </div>
+}
+else
+{
+    <div class="schema-layout mb-3">
+        <section class="schema-panel">
+            <div class="schema-panel-header">
+                <h4 class="h6 fw-semibold mb-1">Tabelas mapeadas</h4>
+                <div class="small text-muted">Schema + tabela com colunas de chave (PK/FK), agrupadas por dominio/contexto.</div>
+                <div class="small text-muted">Clique em uma tabela para abrir diagrama focado.</div>
+            </div>
+            <div class="schema-table-list">
+                @foreach (var domainGroup in Model.Tables
+                    .GroupBy(table => table.DomainName)
+                    .OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase))
+                {
+                    <section class="schema-domain-group">
+                        <div class="schema-domain-heading">
+                            <div class="schema-domain-title">@domainGroup.Key</div>
+                            <div class="schema-domain-count">@domainGroup.Count() tabela(s)</div>
+                        </div>
+                        @foreach (var table in domainGroup.OrderBy(table => table.FullName, StringComparer.OrdinalIgnoreCase))
+                        {
+                            <article class="schema-table-item schema-table-item-clickable"
+                                     data-table-full-name="@table.FullName"
+                                     tabindex="0"
+                                     role="button"
+                                     aria-label="Focar diagrama na tabela @table.FullName">
+                                <div class="fw-semibold text-break">@table.FullName</div>
+                                <div class="small text-muted mt-1">Dominio/contexto: @table.DomainName</div>
+                                <div class="small text-muted mt-1">Colunas totais: @table.TotalColumns</div>
+                                <div class="small mt-2">
+                                    <span class="badge text-bg-primary">PK: @table.PrimaryKeyColumns.Count</span>
+                                    <span class="badge text-bg-secondary">FK: @table.ForeignKeyColumns.Count</span>
+                                </div>
+                                @if (table.PrimaryKeyColumns.Count > 0)
+                                {
+                                    <div class="small text-muted mt-2 text-break"><strong>PK:</strong> @string.Join(", ", table.PrimaryKeyColumns)</div>
+                                }
+                                @if (table.ForeignKeyColumns.Count > 0)
+                                {
+                                    <div class="small text-muted mt-1 text-break"><strong>FK:</strong> @string.Join(", ", table.ForeignKeyColumns)</div>
+                                }
+                                <div class="schema-table-item-hint mt-2"><i class="fas fa-crosshairs me-1"></i>Focar diagrama nesta tabela</div>
+                            </article>
+                        }
+                    </section>
+                }
+            </div>
+        </section>
+
+        <section class="schema-panel">
+            <div class="schema-panel-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <div>
+                    <h4 class="h6 fw-semibold mb-1">Diagrama de relacionamentos</h4>
+                    <div class="small text-muted">Alternar modos para leitura macro ou detalhada do schema.</div>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-secondary" id="toggleSchemaSourceButton">
+                    <i class="fas fa-code me-1"></i>Mostrar/Ocultar fonte
+                </button>
+            </div>
+            <div class="schema-panel-body">
+                <div class="schema-diagram-controls">
+                    <div>
+                        <label class="form-label form-label-sm fw-semibold mb-1" for="schemaDiagramMode">Recorte do diagrama</label>
+                        <select class="form-select form-select-sm" id="schemaDiagramMode">
+                            @foreach (var option in Model.DiagramOptions)
+                            {
+                                <option value="@option.Key">@option.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <div>
+                        <label class="form-label form-label-sm fw-semibold mb-1" for="schemaPreviewStyle">Estilo do preview</label>
+                        <select class="form-select form-select-sm" id="schemaPreviewStyle">
+                            <option value="flow">Fluxo tecnico</option>
+                            <option value="er">ER por tabelas</option>
+                        </select>
+                        <div id="schemaPreviewStyleHint" class="small text-muted mt-2 schema-preview-style-hint">
+                            Fluxo tecnico agregado para leitura macro do modelo.
+                        </div>
+                    </div>
+                    <div class="schema-diagram-controls-meta">
+                        <div id="schemaDiagramSummary" class="small text-muted text-md-end"></div>
+                        <button type="button" class="btn btn-sm btn-outline-secondary d-none" id="schemaClearFocusButton">
+                            <i class="fas fa-rotate-left me-1"></i>Voltar ao modo selecionado
+                        </button>
+                    </div>
+                </div>
+
+                <div class="schema-preview-toolbar">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="schemaZoomOutButton" title="Reduzir zoom" aria-label="Reduzir zoom">
+                        <i class="fas fa-magnifying-glass-minus"></i>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="schemaZoomInButton" title="Aumentar zoom" aria-label="Aumentar zoom">
+                        <i class="fas fa-magnifying-glass-plus"></i>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="schemaFitButton" title="Enquadrar diagrama completo" aria-label="Enquadrar diagrama completo">
+                        <i class="fas fa-expand"></i>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="schemaZoomResetButton" title="Resetar zoom para leitura" aria-label="Resetar zoom para leitura">
+                        <i class="fas fa-arrows-to-circle"></i>
+                    </button>
+                </div>
+
+                <div id="schemaPreview" class="schema-preview mb-3">
+                    <div class="text-muted"><i class="fas fa-spinner fa-spin me-1"></i>Renderizando diagrama...</div>
+                </div>
+
+                <div id="schemaSourceContainer" class="d-none">
+                    <h5 class="h6 mb-2">Codigo Mermaid</h5>
+                    <pre class="schema-source mb-0"><code id="schemaSourceCode">@Model.MermaidSource</code></pre>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <section class="schema-panel">
+        <div class="schema-panel-header">
+            <h4 class="h6 fw-semibold mb-0">Relacionamentos (FK)</h4>
+        </div>
+        <div class="schema-panel-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm schema-relation-table mb-0">
+                    <thead>
+                        <tr>
+                            <th>Constraint</th>
+                            <th>Principal</th>
+                            <th>Dependente</th>
+                            <th>Colunas</th>
+                            <th>Regra</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var relation in Model.Relationships)
+                        {
+                            <tr>
+                                <td class="text-break">@relation.ConstraintName</td>
+                                <td class="text-break">@relation.PrincipalTable</td>
+                                <td class="text-break">@relation.DependentTable</td>
+                                <td class="text-break">
+                                    <div><strong>Dep:</strong> @string.Join(", ", relation.DependentColumns)</div>
+                                    <div><strong>Pri:</strong> @string.Join(", ", relation.PrincipalColumns)</div>
+                                </td>
+                                <td>
+                                    <div class="small">Required: @(relation.IsRequired ? "sim" : "nao")</div>
+                                    <div class="small">Unique: @(relation.IsUnique ? "sim" : "nao")</div>
+                                    <div class="small">Delete: @relation.DeleteBehavior</div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+}
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.9.1/mermaid.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="~/lib/svg-pan-zoom/svg-pan-zoom.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script>
+        (() => {
+            const previewElement = document.getElementById('schemaPreview');
+            const sourceContainerElement = document.getElementById('schemaSourceContainer');
+            const sourceCodeElement = document.getElementById('schemaSourceCode');
+            const toggleSourceButton = document.getElementById('toggleSchemaSourceButton');
+            const diagramModeSelect = document.getElementById('schemaDiagramMode');
+            const previewStyleSelect = document.getElementById('schemaPreviewStyle');
+            const previewStyleHintElement = document.getElementById('schemaPreviewStyleHint');
+            const diagramSummaryElement = document.getElementById('schemaDiagramSummary');
+            const clearFocusButton = document.getElementById('schemaClearFocusButton');
+            const zoomInButton = document.getElementById('schemaZoomInButton');
+            const zoomOutButton = document.getElementById('schemaZoomOutButton');
+            const fitButton = document.getElementById('schemaFitButton');
+            const zoomResetButton = document.getElementById('schemaZoomResetButton');
+            const tableCardElements = Array.from(document.querySelectorAll('.schema-table-item-clickable[data-table-full-name]'));
+            const diagrams = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+                Model.DiagramOptions.Select(option => new
+                {
+                    key = option.Key,
+                    name = option.Name,
+                    scopeKind = option.ScopeKind,
+                    domainName = option.DomainName,
+                    supportsErTableLayout = option.SupportsErTableLayout,
+                    totalTables = option.TotalTables,
+                    totalRelationships = option.TotalRelationships,
+                    mermaidSource = option.MermaidSource
+                })));
+            const tables = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+                Model.Tables.Select(table => new
+                {
+                    schema = table.Schema,
+                    name = table.Name,
+                    fullName = table.FullName,
+                    domainName = table.DomainName,
+                    totalColumns = table.TotalColumns,
+                    columns = table.Columns.Select(column => new
+                    {
+                        name = column.Name,
+                        storeType = column.StoreType,
+                        isPrimaryKey = column.IsPrimaryKey,
+                        isForeignKey = column.IsForeignKey,
+                        isNullable = column.IsNullable
+                    })
+                })));
+            const relationships = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+                Model.Relationships.Select(relationship => new
+                {
+                    principalTable = relationship.PrincipalTable,
+                    dependentTable = relationship.DependentTable,
+                    principalColumns = relationship.PrincipalColumns,
+                    dependentColumns = relationship.DependentColumns,
+                    isRequired = relationship.IsRequired,
+                    isUnique = relationship.IsUnique
+                })));
+
+            let panZoomInstance = null;
+            let activeDiagramKey = (diagramModeSelect && diagramModeSelect.value) || '';
+            let activePreviewStyle = (previewStyleSelect && previewStyleSelect.value) || 'flow';
+            let focusDiagram = null;
+            let focusedTableName = '';
+
+            if (toggleSourceButton && sourceContainerElement) {
+                toggleSourceButton.addEventListener('click', () => {
+                    sourceContainerElement.classList.toggle('d-none');
+                });
+            }
+
+            if (!previewElement ||
+                typeof mermaid === 'undefined' ||
+                !Array.isArray(diagrams) ||
+                diagrams.length === 0 ||
+                !Array.isArray(tables) ||
+                !Array.isArray(relationships)) {
+                return;
+            }
+
+            const normalizeSource = (source) => (source || '')
+                .replace(/^\uFEFF/, '')
+                .replace(/\r\n/g, '\n')
+                .trim();
+
+            const escapeHtml = (value) => String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+
+            const escapeMermaidText = (value) => String(value || '').replace(/"/g, '\'');
+
+            const compareText = (left, right) =>
+                String(left || '').localeCompare(String(right || ''), 'pt-BR', { sensitivity: 'base' });
+
+            const buildMermaidAlias = (tableFullName) => {
+                let alias = String(tableFullName || '')
+                    .toUpperCase()
+                    .replace(/[^A-Z0-9]/g, '_')
+                    .replace(/_+/g, '_')
+                    .replace(/^_+|_+$/g, '');
+
+                if (!alias) {
+                    alias = 'TABLE';
+                }
+
+                if (/^[0-9]/.test(alias)) {
+                    alias = `T_${alias}`;
+                }
+
+                return alias;
+            };
+
+            const buildAliasMap = (tableNames) => {
+                const aliasMap = new Map();
+                const usedAliases = new Set();
+
+                for (const tableName of tableNames) {
+                    const baseAlias = buildMermaidAlias(tableName);
+                    let candidate = baseAlias;
+                    let suffix = 2;
+
+                    while (usedAliases.has(candidate)) {
+                        candidate = `${baseAlias}_${suffix}`;
+                        suffix++;
+                    }
+
+                    usedAliases.add(candidate);
+                    aliasMap.set(tableName, candidate);
+                }
+
+                return aliasMap;
+            };
+
+            const isSameText = (left, right) =>
+                String(left || '').localeCompare(String(right || ''), 'pt-BR', { sensitivity: 'base' }) === 0;
+
+            const buildFocusRelationshipLabel = (relationship) => {
+                const dependentColumns = Array.isArray(relationship.dependentColumns)
+                    ? relationship.dependentColumns
+                    : [];
+                return dependentColumns.length === 0
+                    ? 'FK'
+                    : dependentColumns.length <= 2
+                        ? dependentColumns.join(', ')
+                        : `${dependentColumns.slice(0, 2).join(', ')}, ...`;
+            };
+
+            const normalizeStoreType = (value) => String(value || 'desconhecido').trim().toLowerCase();
+
+            const buildColumnFlagsMarkup = (column) => {
+                const parts = [];
+                if (column.isPrimaryKey) {
+                    parts.push("<span class='schema-er-card__flag schema-er-card__flag-pk'>PK</span>");
+                }
+                if (column.isForeignKey) {
+                    parts.push("<span class='schema-er-card__flag schema-er-card__flag-fk'>FK</span>");
+                }
+                if (column.isNullable) {
+                    parts.push("<span class='schema-er-card__flag schema-er-card__flag-null'>NULL</span>");
+                }
+                return parts.join('');
+            };
+
+            const buildTableCardMarkup = (table, isFocused) => {
+                const cardClass = isFocused
+                    ? 'schema-er-card schema-er-card-focus'
+                    : 'schema-er-card';
+
+                if (!Array.isArray(table.columns) || table.columns.length === 0) {
+                    return `
+<div class='${cardClass}'>
+  <div class='schema-er-card__header'>
+    <span class='schema-er-card__title'>${escapeHtml(table.name || table.fullName)}</span>
+    <span class='schema-er-card__schema'>${escapeHtml(table.schema || '')}</span>
+  </div>
+  <div class='schema-er-card__body'>
+    <div class='schema-er-card__empty'>Sem colunas mapeadas</div>
+  </div>
+</div>`;
+                }
+
+                const rows = table.columns
+                    .map((column) => `
+<div class='schema-er-card__row'>
+  <div class='schema-er-card__name-cell'>
+    ${buildColumnFlagsMarkup(column)}
+    <span class='schema-er-card__name'>${escapeHtml(column.name)}</span>
+  </div>
+  <span class='schema-er-card__type'>${escapeHtml(normalizeStoreType(column.storeType))}</span>
+</div>`)
+                    .join('');
+
+                return `
+<div class='${cardClass}'>
+  <div class='schema-er-card__header'>
+    <span class='schema-er-card__title'>${escapeHtml(table.name || table.fullName)}</span>
+    <span class='schema-er-card__schema'>${escapeHtml(table.schema || '')}</span>
+  </div>
+  <div class='schema-er-card__body'>${rows}</div>
+</div>`;
+            };
+
+            const buildErDiagramSource = (diagramTables, diagramRelationships, options = {}) => {
+                const includeDomainSubgraphs = Boolean(options.includeDomainSubgraphs);
+                const focusedTable = options.focusedTable || '';
+                const orderedTables = [...diagramTables].sort((left, right) => compareText(left.fullName, right.fullName));
+                const orderedRelationships = [...diagramRelationships].sort((left, right) =>
+                    compareText(left.dependentTable, right.dependentTable) ||
+                    compareText(left.principalTable, right.principalTable));
+                const aliasMap = buildAliasMap(orderedTables.map((table) => table.fullName));
+                const mermaidLines = [];
+
+                mermaidLines.push('flowchart LR');
+                mermaidLines.push('    classDef tableNode fill:transparent,stroke:transparent,color:#0f172a;');
+                mermaidLines.push('    classDef focusNode fill:transparent,stroke:transparent,color:#0f172a;');
+
+                if (includeDomainSubgraphs) {
+                    const groupedTables = orderedTables.reduce((groups, table) => {
+                        const domainName = table.domainName || 'Outros';
+                        if (!groups.has(domainName)) {
+                            groups.set(domainName, []);
+                        }
+
+                        groups.get(domainName).push(table);
+                        return groups;
+                    }, new Map());
+                    let domainIndex = 1;
+
+                    for (const [domainName, domainTables] of groupedTables.entries()) {
+                        mermaidLines.push(`    subgraph ER_DOMAIN_${domainIndex}["${escapeMermaidText(domainName)}"]`);
+                        for (const table of domainTables) {
+                            const alias = aliasMap.get(table.fullName);
+                            const label = buildTableCardMarkup(table, table.fullName === focusedTable);
+                            mermaidLines.push(`        ${alias}["${escapeMermaidText(label)}"]`);
+                        }
+                        mermaidLines.push('    end');
+                        domainIndex++;
+                    }
+                } else {
+                    for (const table of orderedTables) {
+                        const alias = aliasMap.get(table.fullName);
+                        const label = buildTableCardMarkup(table, table.fullName === focusedTable);
+                        mermaidLines.push(`    ${alias}["${escapeMermaidText(label)}"]`);
+                    }
+                }
+
+                for (const relationship of orderedRelationships) {
+                    const dependentAlias = aliasMap.get(relationship.dependentTable);
+                    const principalAlias = aliasMap.get(relationship.principalTable);
+                    if (!dependentAlias || !principalAlias) {
+                        continue;
+                    }
+
+                    mermaidLines.push(
+                        `    ${dependentAlias} -->|"${escapeMermaidText(buildFocusRelationshipLabel(relationship))}"| ${principalAlias}`);
+                }
+
+                const aliases = Array.from(aliasMap.values());
+                if (aliases.length > 0) {
+                    mermaidLines.push(`    class ${aliases.join(',')} tableNode;`);
+                }
+
+                const focusedAlias = aliasMap.get(focusedTable);
+                if (focusedAlias) {
+                    mermaidLines.push(`    class ${focusedAlias} focusNode;`);
+                }
+
+                return mermaidLines.join('\n');
+            };
+
+            const buildScopedErDiagram = (diagram) => {
+                if (!diagram || !diagram.supportsErTableLayout) {
+                    return null;
+                }
+
+                let scopedTables = [];
+                if (diagram.scopeKind === 'overview') {
+                    scopedTables = tables;
+                } else if (diagram.scopeKind === 'domain') {
+                    scopedTables = tables.filter((table) => isSameText(table.domainName, diagram.domainName));
+                } else {
+                    return null;
+                }
+
+                if (!Array.isArray(scopedTables) || scopedTables.length === 0) {
+                    return null;
+                }
+
+                const scopedTableNames = new Set(scopedTables.map((table) => table.fullName));
+                const scopedRelationships = relationships.filter((relationship) =>
+                    scopedTableNames.has(relationship.dependentTable) &&
+                    scopedTableNames.has(relationship.principalTable));
+
+                return {
+                    ...diagram,
+                    mermaidSource: buildErDiagramSource(scopedTables, scopedRelationships, {
+                        includeDomainSubgraphs: diagram.scopeKind === 'overview'
+                    }),
+                    isErTableLayout: true
+                };
+            };
+
+            const buildFocusedTableDiagram = (tableFullName) => {
+                const selectedTable = tables.find((table) => table.fullName === tableFullName);
+                if (!selectedTable) {
+                    return null;
+                }
+
+                const relatedRelationships = relationships
+                    .filter((relationship) =>
+                        relationship.dependentTable === tableFullName ||
+                        relationship.principalTable === tableFullName)
+                    .sort((left, right) =>
+                        compareText(left.dependentTable, right.dependentTable) ||
+                        compareText(left.principalTable, right.principalTable));
+
+                const tableNameSet = new Set([tableFullName]);
+                for (const relationship of relatedRelationships) {
+                    tableNameSet.add(relationship.dependentTable);
+                    tableNameSet.add(relationship.principalTable);
+                }
+
+                const focusedTables = tables
+                    .filter((table) => tableNameSet.has(table.fullName))
+                    .sort((left, right) => compareText(left.fullName, right.fullName));
+
+                return {
+                    key: 'table-focus',
+                    name: `Foco: ${tableFullName}`,
+                    scopeKind: 'focus',
+                    supportsErTableLayout: true,
+                    totalTables: focusedTables.length,
+                    totalRelationships: relatedRelationships.length,
+                    mermaidSource: buildErDiagramSource(focusedTables, relatedRelationships, {
+                        focusedTable: tableFullName
+                    }),
+                    isErTableLayout: true,
+                    focusTable: tableFullName
+                };
+            };
+
+            const updateFocusedTableCards = () => {
+                for (const tableCardElement of tableCardElements) {
+                    const isActive = Boolean(focusedTableName) &&
+                        tableCardElement.getAttribute('data-table-full-name') === focusedTableName;
+                    tableCardElement.classList.toggle('schema-table-item-active', isActive);
+                    tableCardElement.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+                }
+            };
+
+            const setFocusButtonVisible = (visible) => {
+                if (!clearFocusButton) {
+                    return;
+                }
+
+                clearFocusButton.classList.toggle('d-none', !visible);
+            };
+
+            const getBaseDiagram = () => {
+                if (focusDiagram) {
+                    return focusDiagram;
+                }
+
+                const selected = diagrams.find((diagram) => diagram.key === activeDiagramKey);
+                return selected || diagrams[0];
+            };
+
+            const getActiveDiagram = () => {
+                const baseDiagram = getBaseDiagram();
+                if (!baseDiagram) {
+                    return null;
+                }
+
+                if (focusDiagram) {
+                    return focusDiagram;
+                }
+
+                if (activePreviewStyle === 'er') {
+                    const erDiagram = buildScopedErDiagram(baseDiagram);
+                    if (erDiagram) {
+                        return erDiagram;
+                    }
+                }
+
+                return baseDiagram;
+            };
+
+            const setZoomButtonsEnabled = (enabled) => {
+                for (const button of [zoomInButton, zoomOutButton, fitButton, zoomResetButton]) {
+                    if (button) {
+                        button.disabled = !enabled;
+                    }
+                }
+            };
+
+            const destroyPanZoom = () => {
+                if (!panZoomInstance) {
+                    return;
+                }
+
+                try {
+                    panZoomInstance.destroy();
+                } catch (error) {
+                    console.warn('Falha ao destruir pan/zoom anterior:', error);
+                }
+
+                panZoomInstance = null;
+            };
+
+            const ensurePanHint = () => {
+                if (previewElement.querySelector('.schema-preview-pan-hint')) {
+                    return;
+                }
+
+                const hint = document.createElement('div');
+                hint.className = 'schema-preview-pan-hint';
+                hint.innerText = 'Arraste para mover | Scroll para zoom';
+                previewElement.appendChild(hint);
+            };
+
+            const fitDiagram = () => {
+                if (!panZoomInstance) {
+                    return;
+                }
+
+                panZoomInstance.fit();
+                panZoomInstance.center();
+            };
+
+            const applyReadabilityZoom = () => {
+                if (!panZoomInstance) {
+                    return;
+                }
+
+                const svgElement = previewElement.querySelector('svg');
+                if (!svgElement) {
+                    return;
+                }
+
+                const bbox = svgElement.getBBox();
+                if (!bbox || bbox.width <= 0 || bbox.height <= 0) {
+                    fitDiagram();
+                    return;
+                }
+
+                const containerRect = previewElement.getBoundingClientRect();
+                const zoomForWidth = (containerRect.width * 0.94) / bbox.width;
+                const zoomForHeight = (containerRect.height * 0.94) / bbox.height;
+                const isVeryWide = (bbox.width / bbox.height) > 1.8;
+                const baseZoom = isVeryWide
+                    ? zoomForHeight * 0.96
+                    : Math.min(zoomForWidth, zoomForHeight) * 0.98;
+                const renderedNodeCount = previewElement.querySelectorAll('.node').length;
+                const maxReadabilityZoom = renderedNodeCount <= 3 ? 2.4 : 8;
+                const clampedZoom = Math.min(Math.max(baseZoom, 0.18), maxReadabilityZoom);
+
+                panZoomInstance.resetPan();
+                panZoomInstance.zoom(clampedZoom);
+                panZoomInstance.center();
+            };
+
+            const setupPanZoom = () => {
+                destroyPanZoom();
+                setZoomButtonsEnabled(false);
+
+                if (typeof window.svgPanZoom !== 'function') {
+                    return;
+                }
+
+                const svgElement = previewElement.querySelector('svg');
+                if (!svgElement) {
+                    return;
+                }
+
+                panZoomInstance = window.svgPanZoom(svgElement, {
+                    zoomEnabled: true,
+                    controlIconsEnabled: false,
+                    fit: true,
+                    center: true,
+                    minZoom: 0.15,
+                    maxZoom: 30,
+                    dblClickZoomEnabled: true,
+                    mouseWheelZoomEnabled: true,
+                    preventMouseEventsDefault: true
+                });
+
+                panZoomInstance.resize();
+                panZoomInstance.fit();
+                panZoomInstance.center();
+                applyReadabilityZoom();
+                ensurePanHint();
+                setZoomButtonsEnabled(true);
+            };
+
+            const updateDiagramSummary = (diagram) => {
+                if (!diagramSummaryElement || !diagram) {
+                    return;
+                }
+
+                const summaryParts = [
+                    `${diagram.totalTables} tabelas`,
+                    `${diagram.totalRelationships} relacionamentos`
+                ];
+                if (diagram.focusTable) {
+                    summaryParts.push(`foco: ${diagram.focusTable}`);
+                }
+                summaryParts.push(`preview: ${diagram.isErTableLayout || diagram.focusTable ? 'ER por tabelas' : 'fluxo tecnico'}`);
+
+                diagramSummaryElement.textContent = summaryParts.join(' | ');
+            };
+
+            const updatePreviewStyleHint = (diagram) => {
+                if (!previewStyleHintElement) {
+                    return;
+                }
+
+                if (diagram?.focusTable) {
+                    previewStyleHintElement.textContent = 'Foco local em cards ER com colunas, tipos SQL e conectores para relacionamentos diretos.';
+                    return;
+                }
+
+                if (activePreviewStyle === 'er' && diagram?.isErTableLayout) {
+                    if (diagram.scopeKind === 'overview') {
+                        previewStyleHintElement.textContent = 'ER por tabelas com agrupamento visual por dominio/contexto.';
+                        return;
+                    }
+
+                    if (diagram.scopeKind === 'domain' && diagram.domainName) {
+                        previewStyleHintElement.textContent = `ER por tabelas no recorte ${diagram.domainName}.`;
+                        return;
+                    }
+                }
+
+                if (activePreviewStyle === 'er') {
+                    previewStyleHintElement.textContent = 'A visao macro por dominios permanece em fluxo resumido para preservar legibilidade.';
+                    return;
+                }
+
+                previewStyleHintElement.textContent = 'Fluxo tecnico agregado para leitura macro do modelo.';
+            };
+
+            const updateSourceCode = (source) => {
+                if (sourceCodeElement) {
+                    sourceCodeElement.textContent = source;
+                }
+            };
+
+            mermaid.initialize({
+                startOnLoad: false,
+                securityLevel: 'strict',
+                theme: 'default',
+                flowchart: {
+                    htmlLabels: true,
+                    curve: 'basis'
+                }
+            });
+
+            const renderCurrentDiagram = async () => {
+                const diagram = getActiveDiagram();
+                if (!diagram) {
+                    return;
+                }
+                const sourceForRender = normalizeSource(diagram.mermaidSource);
+                const isFocusedDiagram = Boolean(diagram.focusTable);
+                const isErLayoutDiagram = Boolean(diagram.isErTableLayout || isFocusedDiagram);
+
+                updateDiagramSummary(diagram);
+                updatePreviewStyleHint(diagram);
+                updateSourceCode(sourceForRender);
+                destroyPanZoom();
+                setZoomButtonsEnabled(false);
+                previewElement.classList.toggle('schema-preview-er-focus', isErLayoutDiagram);
+
+                if (!sourceForRender) {
+                    previewElement.innerHTML = '<div class="text-muted">Diagrama vazio.</div>';
+                    return;
+                }
+
+                previewElement.innerHTML = '<div class="text-muted"><i class="fas fa-spinner fa-spin me-1"></i>Renderizando diagrama...</div>';
+
+                try {
+                    const id = `schema-${Date.now()}-${Math.floor(Math.random() * 100000)}`;
+                    const { svg, bindFunctions } = await mermaid.render(id, sourceForRender);
+                    previewElement.innerHTML = svg;
+
+                    const renderedSvg = previewElement.querySelector('svg');
+                    if (renderedSvg) {
+                        renderedSvg.style.maxWidth = 'none';
+                        renderedSvg.style.width = '100%';
+                        renderedSvg.style.height = '100%';
+                        renderedSvg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+                    }
+
+                    if (typeof bindFunctions === 'function') {
+                        bindFunctions(previewElement);
+                    }
+
+                    setupPanZoom();
+                } catch (error) {
+                    destroyPanZoom();
+                    console.error('Falha ao renderizar diagrama do schema:', error);
+                    previewElement.innerHTML = '<div class="text-danger"><i class="fas fa-triangle-exclamation me-1"></i>Falha ao renderizar o diagrama. Verifique a fonte Mermaid.</div>';
+                    if (sourceContainerElement) {
+                        sourceContainerElement.classList.remove('d-none');
+                    }
+                }
+            };
+
+            const activateTableFocus = (tableFullName) => {
+                const tableDiagram = buildFocusedTableDiagram(tableFullName);
+                if (!tableDiagram) {
+                    return;
+                }
+
+                focusDiagram = tableDiagram;
+                focusedTableName = tableFullName;
+                updateFocusedTableCards();
+                setFocusButtonVisible(true);
+                renderCurrentDiagram();
+            };
+
+            if (diagramModeSelect) {
+                diagramModeSelect.addEventListener('change', () => {
+                    activeDiagramKey = diagramModeSelect.value;
+                    focusDiagram = null;
+                    focusedTableName = '';
+                    updateFocusedTableCards();
+                    setFocusButtonVisible(false);
+                    renderCurrentDiagram();
+                });
+            }
+
+            if (previewStyleSelect) {
+                previewStyleSelect.addEventListener('change', () => {
+                    activePreviewStyle = previewStyleSelect.value || 'flow';
+                    renderCurrentDiagram();
+                });
+            }
+
+            if (clearFocusButton) {
+                clearFocusButton.addEventListener('click', () => {
+                    focusDiagram = null;
+                    focusedTableName = '';
+                    updateFocusedTableCards();
+                    setFocusButtonVisible(false);
+                    renderCurrentDiagram();
+                });
+            }
+
+            for (const tableCardElement of tableCardElements) {
+                const tableFullName = tableCardElement.getAttribute('data-table-full-name');
+                if (!tableFullName) {
+                    continue;
+                }
+
+                tableCardElement.addEventListener('click', () => {
+                    activateTableFocus(tableFullName);
+                });
+
+                tableCardElement.addEventListener('keydown', (event) => {
+                    if (event.key !== 'Enter' && event.key !== ' ') {
+                        return;
+                    }
+
+                    event.preventDefault();
+                    activateTableFocus(tableFullName);
+                });
+            }
+
+            if (zoomInButton) {
+                zoomInButton.addEventListener('click', () => {
+                    if (panZoomInstance) {
+                        panZoomInstance.zoomIn();
+                    }
+                });
+            }
+
+            if (zoomOutButton) {
+                zoomOutButton.addEventListener('click', () => {
+                    if (panZoomInstance) {
+                        panZoomInstance.zoomOut();
+                    }
+                });
+            }
+
+            if (fitButton) {
+                fitButton.addEventListener('click', () => {
+                    fitDiagram();
+                });
+            }
+
+            if (zoomResetButton) {
+                zoomResetButton.addEventListener('click', () => {
+                    if (!panZoomInstance) {
+                        return;
+                    }
+
+                    panZoomInstance.resetPan();
+                    panZoomInstance.resetZoom();
+                    applyReadabilityZoom();
+                });
+            }
+
+            window.addEventListener('resize', () => {
+                if (!panZoomInstance) {
+                    return;
+                }
+
+                panZoomInstance.resize();
+                applyReadabilityZoom();
+            });
+
+            if (!activeDiagramKey) {
+                activeDiagramKey = diagrams[0].key;
+            }
+
+            setFocusButtonVisible(false);
+            updateFocusedTableCards();
+            renderCurrentDiagram();
+        })();
+    </script>
+}

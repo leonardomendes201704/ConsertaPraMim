@@ -1,7 +1,7 @@
 ﻿# Deploy na VPS com HTTPS
 
 Este guia publica 8 projetos Docker independentes:
-- Landing publica (`cpm-prd-landing`)
+- Site raiz CPM Full (`cpm-prd-cpmfull`)
 - API (`cpm-prd-api`)
 - Portal Admin (`cpm-prd-admin`)
 - Portal Cliente (`cpm-prd-cliente`)
@@ -11,7 +11,7 @@ Este guia publica 8 projetos Docker independentes:
 - Mobile WebView Admin (`cpm-prd-app-admin`)
 
 Arquivos compose:
-- `Backend/docker-compose.vps.web-landing.yml`
+- `Backend/docker-compose.vps.web-cpmfull.yml`
 - `Backend/docker-compose.vps.api.yml`
 - `Backend/docker-compose.vps.web-admin.yml`
 - `Backend/docker-compose.vps.web-client.yml`
@@ -26,7 +26,7 @@ Arquivos de apoio para HTTPS:
 
 ## Topologia recomendada
 
-Em `main/master` (PROD), os portais web, a landing e a API devem ficar atras de Nginx em `80/443`, com os containers publicados em `127.0.0.1`.
+Em `main/master` (PROD), os portais web, o CPM Full raiz e a API devem ficar atras de Nginx em `80/443`, com os containers publicados em `127.0.0.1`.
 
 Em `dev-local` (DEV), a mesma stack sobe na VPS com bind `0.0.0.0` e portas dedicadas para nao conflitar com producao, podendo ser exposta por subdominios HTTPS (recomendado) ou por `IP:porta` (fallback).
 
@@ -48,12 +48,13 @@ Mapeamento interno esperado:
 Observacao operacional:
 - os apps ASP.NET agora usam `ForwardedHeaders` para interpretar corretamente `X-Forwarded-Proto`, `X-Forwarded-For` e `X-Forwarded-Host` atras do Nginx;
 - a API aceita redirecionamento HTTPS controlado por `ENFORCE_API_HTTPS_REDIRECTION=true`;
-- a landing publica e independente da API, com `healthcheck` proprio em `/health`;
-- os portais web (`admin`, `cliente`, `prestador`) e a landing exibem rodape fixo de ambiente de homologacao somente quando `DEPLOY_PROFILE=development`;
+- o CPM Full publicado na raiz responde `GET /health`, interpreta proxy reverso e depende de SQL Server para operacao completa;
+- os portais web (`admin`, `cliente`, `prestador`) e o CPM Full exibem rodape fixo de ambiente de homologacao somente quando `DEPLOY_PROFILE=development`;
 - os Mobile WebViews (`:5181/:5182/:5183` em prod e `:6181/:6182/:6183` em dev) sao HTTP por padrao quando publicados por porta direta; use `PUBLIC_MOBILE_*_WEBVIEW_URL` com URL HTTPS apenas se houver proxy TLS dedicado para esses endpoints;
 - no `dev-local`, os `healthchecks` do workflow validam pelos endpoints publicados em `http://<VPS_PUBLIC_HOST>:porta`;
 - no `main/master`, os `healthchecks` continuam validando pela malha local (`127.0.0.1`) na propria VPS;
-- o deploy agora forca `docker compose -p <CONTAINER_PREFIX>-<servico>` para isolar `DEV/PROD` e evitar remocao indevida com `--remove-orphans` entre jobs paralelos.
+- o deploy agora forca `docker compose -p <CONTAINER_PREFIX>-<servico>` para isolar `DEV/PROD` e evitar remocao indevida com `--remove-orphans` entre jobs paralelos;
+- o nome `PUBLIC_LANDING_URL` foi mantido por compatibilidade no workflow e nos demais servicos, mas essa URL agora representa o dominio raiz servido pelo `ConsertaPraMim.Web.CpmFull`.
 
 ## 1) DNS na Hostinger/HostGator
 
@@ -100,6 +101,7 @@ Preencha no `Backend/.env.vps` pelo menos:
 - `DB_HOST` (normalmente `mssql`)
 - `JWT_SECRET_KEY`
 - `SEED_DEFAULT_PASSWORD`
+- opcional para Chatwoot no CPM Full: `CPMFULL_CHATWOOT_*`
 
 Exemplo minimo (PROD):
 
@@ -182,7 +184,7 @@ SEED_DEFAULT_PASSWORD=ALTERAR_AQUI
 ## 2.1) Validacao do rodape de Homologacao (HML)
 
 Com `DEPLOY_PROFILE=development`:
-- `http://<host>:6151` (admin), `:6069` (cliente), `:6140` (prestador) e `:6088` (landing) devem exibir o rodape fixo:
+- `http://<host>:6151` (admin), `:6069` (cliente), `:6140` (prestador) e `:6088` (CPM Full raiz) devem exibir o rodape fixo:
   `Ambiente de Homologacao (HML) - uso exclusivo para testes`.
 
 Com `DEPLOY_PROFILE=production`:
@@ -277,7 +279,7 @@ Deploy por servico:
 ```bash
 cd ~/ConsertaPraMimWeb
 MSSQL_CONTAINER_NAME=mssql-mssql-1 MSSQL_HOST_ALIAS=mssql scripts/deploy/vps-deploy-service.sh "$PWD" api
-MSSQL_CONTAINER_NAME=mssql-mssql-1 MSSQL_HOST_ALIAS=mssql scripts/deploy/vps-deploy-service.sh "$PWD" web-landing
+MSSQL_CONTAINER_NAME=mssql-mssql-1 MSSQL_HOST_ALIAS=mssql scripts/deploy/vps-deploy-service.sh "$PWD" web-cpmfull
 MSSQL_CONTAINER_NAME=mssql-mssql-1 MSSQL_HOST_ALIAS=mssql scripts/deploy/vps-deploy-service.sh "$PWD" web-admin
 MSSQL_CONTAINER_NAME=mssql-mssql-1 MSSQL_HOST_ALIAS=mssql scripts/deploy/vps-deploy-service.sh "$PWD" web-client
 MSSQL_CONTAINER_NAME=mssql-mssql-1 MSSQL_HOST_ALIAS=mssql scripts/deploy/vps-deploy-service.sh "$PWD" web-provider
@@ -287,13 +289,13 @@ MSSQL_CONTAINER_NAME=mssql-mssql-1 MSSQL_HOST_ALIAS=mssql scripts/deploy/vps-dep
 ```
 
 Observacao operacional:
-- o script `scripts/deploy/vps-deploy-service.sh` faz `build` antes do `up` e remove o container alvo do ambiente corrente (`<CONTAINER_PREFIX>-api`, `<CONTAINER_PREFIX>-landing`, `<CONTAINER_PREFIX>-admin`, `<CONTAINER_PREFIX>-cliente`, `<CONTAINER_PREFIX>-prestador`, `<CONTAINER_PREFIX>-app-*`) para evitar conflito de `container_name`;
+- o script `scripts/deploy/vps-deploy-service.sh` faz `build` antes do `up` e remove o container alvo do ambiente corrente (`<CONTAINER_PREFIX>-api`, `<CONTAINER_PREFIX>-cpmfull`, `<CONTAINER_PREFIX>-admin`, `<CONTAINER_PREFIX>-cliente`, `<CONTAINER_PREFIX>-prestador`, `<CONTAINER_PREFIX>-app-*`) para evitar conflito de `container_name`;
 - durante a migracao de nomenclatura, o script tambem remove automaticamente nomes legados (`cpm-*` / `cpm-dev-*` e sufixos antigos `web-*` / `mobile-webview-*`) para evitar conflito de porta no primeiro deploy com o novo padrao;
-- em `production`, `web-landing`, `api`, `web-admin`, `web-client` e `web-provider` ficam publicados em `127.0.0.1`, por isso o acesso externo precisa passar pelo Nginx;
+- em `production`, `web-cpmfull`, `api`, `web-admin`, `web-client` e `web-provider` ficam publicados em `127.0.0.1`, por isso o acesso externo precisa passar pelo Nginx;
 - em `development`, os mesmos servicos podem ser publicados por `IP:porta` (bind `0.0.0.0`) para validacao rapida;
 - os portais usam `INTERNAL_API_URL` para chamadas server-side na rede Docker e `PUBLIC_API_URL` para URLs injetadas no browser;
 - os compose files dos portais forcam `URLS` e `ASPNETCORE_URLS` para a porta do ambiente (`ADMIN_PORT`, `CLIENT_PORT`, `PROVIDER_PORT`), evitando bind interno acidental nas portas legadas de `appsettings.Development.json`;
-- a landing usa `PUBLIC_LANDING_URL`, `PUBLIC_CLIENT_URL`, `PUBLIC_PROVIDER_URL`, `PUBLIC_ADMIN_URL` e `PUBLIC_API_URL` para montar CTA, canonical e links publicos.
+- o CPM Full usa `ConnectionStrings__DefaultConnection` para SQL Server e pode receber a integracao Chatwoot por `CPMFULL_CHATWOOT_*`; `PUBLIC_LANDING_URL` continua representando a URL publica raiz para os demais servicos.
 
 ## 7) Validacao pos-deploy
 
@@ -372,10 +374,10 @@ Isolamento automatico por branch (workflow):
 Portas por ambiente:
 
 - `dev-local`:
-  API `6193`, Landing `6088`, Admin `6151`, Cliente `6069`, Prestador `6140`,
+  API `6193`, CPM Full raiz `6088`, Admin `6151`, Cliente `6069`, Prestador `6140`,
   Mobile WebViews `6181/6182/6183`
 - `main/master`:
-  API `5193`, Landing `5088`, Admin `5151`, Cliente `5069`, Prestador `5140`,
+  API `5193`, CPM Full raiz `5088`, Admin `5151`, Cliente `5069`, Prestador `5140`,
   Mobile WebViews `5181/5182/5183`
 
 Configuracao recomendada no GitHub:
@@ -403,6 +405,20 @@ Secrets opcionais:
 - `VPS_DB_HOST` (default `mssql`)
 - `VPS_MSSQL_CONTAINER_NAME` (default `mssql`)
 - `VPS_MSSQL_HOST_ALIAS` (default `mssql`)
+- `CPMFULL_CHATWOOT_ENABLED`
+- `CPMFULL_CHATWOOT_BASE_URL`
+- `CPMFULL_CHATWOOT_API_ACCESS_TOKEN`
+- `CPMFULL_CHATWOOT_ACCOUNT_ID`
+- `CPMFULL_CHATWOOT_CLIENTS_INBOX_ID`
+- `CPMFULL_CHATWOOT_PROVIDERS_INBOX_ID`
+- `CPMFULL_CHATWOOT_WEBHOOK_SECRET`
+- `CPMFULL_CHATWOOT_REQUEST_TIMEOUT_SECONDS`
+- `CPMFULL_CHATWOOT_MAX_RETRY_ATTEMPTS`
+- `CPMFULL_CHATWOOT_RETRY_BASE_DELAY_MS`
+- `CPMFULL_CHATWOOT_RETRY_WORKER_ENABLED`
+- `CPMFULL_CHATWOOT_RETRY_WORKER_INTERVAL_SECONDS`
+- `CPMFULL_CHATWOOT_RETRY_WORKER_BATCH_SIZE`
+- `CPMFULL_CHATWOOT_SYNC_QUEUE_MAX_ATTEMPTS`
 - `FIREBASE_SERVICE_ACCOUNT_PATH`
 - `PUBLIC_LANDING_URL`
 - `PUBLIC_API_URL`
@@ -418,6 +434,7 @@ Comportamento do workflow:
 - o pipeline respeita os valores de `PUBLIC_*_URL` e `PUBLIC_MOBILE_*_WEBVIEW_URL` definidos no environment (`development`/`production`);
 - se algum valor publico estiver ausente, aplica fallback para `http://<VPS_PUBLIC_HOST>:<porta-do-ambiente>`;
 - em `main/master`, os `PUBLIC_*_URL` e `PUBLIC_MOBILE_*_WEBVIEW_URL` devem apontar para os dominios/subdominios HTTPS de producao.
+- no `health-web-cpmfull`, o workflow passa a preferir `PUBLIC_LANDING_URL` quando a branch for `dev-local` e esse secret estiver preenchido; sem isso, continua o fallback para `http://<VPS_PUBLIC_HOST>:6088`.
 
 Observacoes sobre metadados de APK e push de resumo:
 - a publicacao de metadados dos APKs (`/api/internal/deploy/apk-publication`) e enviada pelo runner self-hosted para `http://127.0.0.1:<API_PORT>` na propria VPS;
@@ -437,7 +454,7 @@ Observacoes sobre metadados de APK e push de resumo:
 Status:
 
 ```bash
-docker compose -p cpm-prd-landing -f Backend/docker-compose.vps.web-landing.yml --env-file Backend/.env.vps ps
+docker compose -p cpm-prd-cpmfull -f Backend/docker-compose.vps.web-cpmfull.yml --env-file Backend/.env.vps ps
 docker compose -p cpm-prd-api -f Backend/docker-compose.vps.api.yml --env-file Backend/.env.vps ps
 docker compose -p cpm-prd-admin -f Backend/docker-compose.vps.web-admin.yml --env-file Backend/.env.vps ps
 docker compose -p cpm-prd-cliente -f Backend/docker-compose.vps.web-client.yml --env-file Backend/.env.vps ps
@@ -453,14 +470,14 @@ docker compose -p cpm-hml-api -f Backend/docker-compose.vps.api.yml --env-file B
 Parar/iniciar individual:
 
 ```bash
-docker compose -p cpm-prd-landing -f Backend/docker-compose.vps.web-landing.yml --env-file Backend/.env.vps stop
-docker compose -p cpm-prd-landing -f Backend/docker-compose.vps.web-landing.yml --env-file Backend/.env.vps start
+docker compose -p cpm-prd-cpmfull -f Backend/docker-compose.vps.web-cpmfull.yml --env-file Backend/.env.vps stop
+docker compose -p cpm-prd-cpmfull -f Backend/docker-compose.vps.web-cpmfull.yml --env-file Backend/.env.vps start
 ```
 
 Logs:
 
 ```bash
-docker logs -f cpm-prd-landing
+docker logs -f cpm-prd-cpmfull
 docker logs -f cpm-prd-api
 docker logs -f cpm-prd-admin
 docker logs -f cpm-prd-cliente
@@ -470,7 +487,7 @@ docker logs -f cpm-prd-app-prestador
 docker logs -f cpm-prd-app-admin
 
 # Stack DEV (branch dev-local)
-docker logs -f cpm-hml-landing
+docker logs -f cpm-hml-cpmfull
 docker logs -f cpm-hml-api
 docker logs -f cpm-hml-admin
 docker logs -f cpm-hml-cliente
@@ -491,7 +508,7 @@ docker compose -p cpm-hml-api -f Backend/docker-compose.vps.api.yml --env-file B
 docker compose -p cpm-hml-admin -f Backend/docker-compose.vps.web-admin.yml --env-file Backend/.env.vps ps
 docker compose -p cpm-hml-cliente -f Backend/docker-compose.vps.web-client.yml --env-file Backend/.env.vps ps
 docker compose -p cpm-hml-prestador -f Backend/docker-compose.vps.web-provider.yml --env-file Backend/.env.vps ps
-docker compose -p cpm-hml-landing -f Backend/docker-compose.vps.web-landing.yml --env-file Backend/.env.vps ps
+docker compose -p cpm-hml-cpmfull -f Backend/docker-compose.vps.web-cpmfull.yml --env-file Backend/.env.vps ps
 ```
 
 2. Validar bind de portas no host:
@@ -517,7 +534,7 @@ docker logs --tail 200 cpm-hml-api
 docker logs --tail 200 cpm-hml-admin
 docker logs --tail 200 cpm-hml-cliente
 docker logs --tail 200 cpm-hml-prestador
-docker logs --tail 200 cpm-hml-landing
+docker logs --tail 200 cpm-hml-cpmfull
 ```
 
 5. Se a API cair com `PendingModelChangesWarning` no `cpm-hml-api`:

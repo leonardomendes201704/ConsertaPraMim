@@ -450,6 +450,14 @@
                     <i class="fas fa-diagram-project"></i>
                     <span>Diagramas Mermaid</span>
                 </a>
+                <a asp-controller="AdminDatabaseSchema" asp-action="Index" class="admin-nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminDatabaseSchema" ? "active" : "")">
+                    <i class="fas fa-database"></i>
+                    <span>Mapa de Dados</span>
+                </a>
+                <a asp-controller="AdminErDiagram" asp-action="Index" class="admin-nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminErDiagram" ? "active" : "")">
+                    <i class="fas fa-table-cells-large"></i>
+                    <span>Diagramar ER</span>
+                </a>
                 <a asp-controller="AdminManual" asp-action="Index" class="admin-nav-link @(ViewContext.RouteData.Values["Controller"]?.ToString() == "AdminManual" ? "active" : "")">
                     <i class="fas fa-book-open"></i>
                     <span>Manual QA/Operacao</span>
