@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using AppMobileCPM.Observability;
 using AppMobileCPM.Services;
 using Microsoft.Extensions.Options;
 
@@ -38,6 +39,21 @@ public sealed class ChatwootWebhookService : IChatwootWebhookService
     public Task<ChatwootWebhookProcessResult> HandleAsync(ChatwootWebhookRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
+        using var correlationScope = ChatwootCorrelationContext.Push(ChatwootCorrelationContext.Current ?? ChatwootCorrelationContext.Create($"chatwoot-webhook-{request.DeliveryId ?? "event"}"));
+        var correlationId = ChatwootCorrelationContext.Current ?? ChatwootCorrelationContext.GetOrCreate("chatwoot-webhook");
+        using var loggerScope = _logger.BeginScope(new Dictionary<string, object?>
+        {
+            ["CorrelationId"] = correlationId,
+            ["DeliveryId"] = request.DeliveryId,
+            ["Timestamp"] = request.Timestamp,
+            ["Flow"] = "ChatwootWebhook"
+        });
+
+        _logger.LogInformation(
+            "Webhook do Chatwoot recebido. CorrelationId={CorrelationId} DeliveryId={DeliveryId} BodyLength={BodyLength}",
+            correlationId,
+            request.DeliveryId,
+            request.RawBody.Length);
 
         if (!_options.Enabled || string.IsNullOrWhiteSpace(_options.WebhookSecret))
         {
@@ -75,6 +91,13 @@ public sealed class ChatwootWebhookService : IChatwootWebhookService
 
         if (webhookEvent.IsDuplicate)
         {
+            _logger.LogInformation(
+                "Webhook duplicado ignorado por idempotencia. CorrelationId={CorrelationId} DeliveryId={DeliveryId} EventType={EventType} ConversationId={ConversationId} WebhookEventId={WebhookEventId}",
+                correlationId,
+                request.DeliveryId,
+                payload.EventType,
+                payload.ConversationId,
+                webhookEvent.Id);
             return Task.FromResult(BuildAcceptedResult(
                 processStatus: "duplicate",
                 message: "Evento duplicado do Chatwoot ignorado por idempotencia.",
@@ -132,6 +155,13 @@ public sealed class ChatwootWebhookService : IChatwootWebhookService
             if (!applied)
             {
                 const string errorMessage = "Nao foi possivel aplicar a atualizacao do webhook ao lead do funil.";
+                _logger.LogWarning(
+                    "Webhook nao conseguiu atualizar o lead local. CorrelationId={CorrelationId} LeadId={LeadId} EventType={EventType} ConversationId={ConversationId} WebhookEventId={WebhookEventId}",
+                    correlationId,
+                    leadId.Value,
+                    payload.EventType,
+                    payload.ConversationId,
+                    webhookEvent.Id);
                 CompleteEvent(webhookEvent.Id, "failed", errorMessage);
                 return Task.FromResult(new ChatwootWebhookProcessResult
                 {
@@ -147,6 +177,13 @@ public sealed class ChatwootWebhookService : IChatwootWebhookService
             }
 
             CompleteEvent(webhookEvent.Id, "processed", null);
+            _logger.LogInformation(
+                "Webhook do Chatwoot processado com sucesso. CorrelationId={CorrelationId} LeadId={LeadId} EventType={EventType} ConversationId={ConversationId} WebhookEventId={WebhookEventId}",
+                correlationId,
+                leadId.Value,
+                payload.EventType,
+                payload.ConversationId,
+                webhookEvent.Id);
             return Task.FromResult(BuildAcceptedResult(
                 processStatus: "processed",
                 message: "Webhook do Chatwoot processado com sucesso.",
@@ -156,7 +193,13 @@ public sealed class ChatwootWebhookService : IChatwootWebhookService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Falha ao processar webhook do Chatwoot. Evento {EventType}, conversa {ConversationId}.", payload.EventType, payload.ConversationId);
+            _logger.LogError(
+                ex,
+                "Falha ao processar webhook do Chatwoot. CorrelationId={CorrelationId} EventType={EventType} ConversationId={ConversationId} DeliveryId={DeliveryId}",
+                correlationId,
+                payload.EventType,
+                payload.ConversationId,
+                request.DeliveryId);
             var sanitizedError = TrimTo(ex.Message, 500);
             CompleteEvent(webhookEvent.Id, "failed", sanitizedError);
 

@@ -320,6 +320,9 @@ Como operacao, quero sincronizar backlog de leads existentes sem interromper uso
 ### Descricao
 Como time tecnico, queremos visibilidade completa da integracao para suporte rapido.
 
+### Status
+- Concluida em 2026-03-13 no `ConsertaPraMim.Web.CpmFull`, com correlation id por requisicao/evento, logs estruturados nos fluxos Chatwoot, resumo visual de status no Kanban e drawer admin de diagnostico com erros recentes, fila/dead-letter e acoes rapidas por lead.
+
 ### Criterios de aceite
 1. Logs estruturados com correlation id.
 2. Dashboard admin com status de sincronizacao por lead.

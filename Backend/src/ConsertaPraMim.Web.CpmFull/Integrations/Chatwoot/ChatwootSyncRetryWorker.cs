@@ -1,3 +1,4 @@
+using AppMobileCPM.Observability;
 using Microsoft.Extensions.Options;
 
 namespace AppMobileCPM.Integrations.Chatwoot;
@@ -56,6 +57,8 @@ public sealed class ChatwootSyncRetryWorker : BackgroundService
 
     public async Task<int> RunOnceAsync(CancellationToken cancellationToken = default)
     {
+        using var cycleScope = ChatwootCorrelationContext.Push(ChatwootCorrelationContext.Create("chatwoot-retry-cycle"));
+        var cycleCorrelationId = ChatwootCorrelationContext.Current ?? ChatwootCorrelationContext.GetOrCreate("chatwoot-retry-cycle");
         using var scope = _scopeFactory.CreateScope();
         var queueService = scope.ServiceProvider.GetRequiredService<IChatwootSyncQueueService>();
         var leadSyncService = scope.ServiceProvider.GetRequiredService<IChatwootLeadSyncService>();
@@ -66,6 +69,7 @@ public sealed class ChatwootSyncRetryWorker : BackgroundService
 
         if (items.Count == 0)
         {
+            _logger.LogDebug("ChatwootSyncRetryWorker sem itens pendentes nesta execucao. CorrelationId={CorrelationId}", cycleCorrelationId);
             return 0;
         }
 
@@ -76,6 +80,15 @@ public sealed class ChatwootSyncRetryWorker : BackgroundService
         foreach (var item in items)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            using var itemScope = ChatwootCorrelationContext.Push(ChatwootCorrelationContext.Create($"chatwoot-retry-{item.LeadId}"));
+            var itemCorrelationId = ChatwootCorrelationContext.Current ?? ChatwootCorrelationContext.GetOrCreate($"chatwoot-retry-{item.LeadId}");
+            _logger.LogInformation(
+                "Processando item da fila Chatwoot. CorrelationId={CorrelationId} QueueItemId={QueueItemId} LeadId={LeadId} OperationType={OperationType} AttemptCount={AttemptCount}",
+                itemCorrelationId,
+                item.Id,
+                item.LeadId,
+                item.OperationType,
+                item.AttemptCount);
 
             ChatwootLeadSyncResult result;
             switch (item.OperationType)
@@ -119,8 +132,9 @@ public sealed class ChatwootSyncRetryWorker : BackgroundService
         }
 
         _logger.LogInformation(
-            "ChatwootSyncRetryWorker processou {Total} itens. Success={Processed} RetryScheduled={Retried} DeadLetter={DeadLetters}.",
+            "ChatwootSyncRetryWorker processou {Total} itens. CorrelationId={CorrelationId} Success={Processed} RetryScheduled={Retried} DeadLetter={DeadLetters}.",
             items.Count,
+            cycleCorrelationId,
             processed,
             retried,
             deadLetters);

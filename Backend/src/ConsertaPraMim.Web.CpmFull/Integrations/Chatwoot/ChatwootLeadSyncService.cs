@@ -1,4 +1,5 @@
 using System.Globalization;
+using AppMobileCPM.Observability;
 using AppMobileCPM.Services;
 using Microsoft.Extensions.Options;
 
@@ -30,14 +31,31 @@ public sealed class ChatwootLeadSyncService : IChatwootLeadSyncService
 
     public async Task<ChatwootLeadSyncResult> SyncLeadAsync(int leadId, CancellationToken cancellationToken = default, bool queueOnFailure = true)
     {
+        using var correlationScope = ChatwootCorrelationContext.Push(ChatwootCorrelationContext.Current ?? ChatwootCorrelationContext.Create($"lead-sync-{leadId}"));
+        var correlationId = ChatwootCorrelationContext.Current ?? ChatwootCorrelationContext.GetOrCreate($"lead-sync-{leadId}");
+        using var loggerScope = _logger.BeginScope(new Dictionary<string, object?>
+        {
+            ["CorrelationId"] = correlationId,
+            ["LeadId"] = leadId,
+            ["Flow"] = "ChatwootLeadSync"
+        });
+
         var lead = _kanbanService.GetLeadDetails(leadId);
         if (lead is null)
         {
+            _logger.LogWarning("Sync do Chatwoot ignorada porque o lead nao foi encontrado. CorrelationId={CorrelationId}", correlationId);
             return ChatwootLeadSyncResult.NotFound("Lead nao encontrado para sincronizacao com Chatwoot.");
         }
 
         var inboxId = ResolveInboxId(lead.BoardType);
         var lastSyncAt = DateTime.UtcNow;
+        _logger.LogInformation(
+            "Iniciando sincronizacao do lead com Chatwoot. CorrelationId={CorrelationId} LeadId={LeadId} BoardType={BoardType} InboxId={InboxId} QueueOnFailure={QueueOnFailure}",
+            correlationId,
+            leadId,
+            lead.BoardType,
+            inboxId,
+            queueOnFailure);
 
         if (!_options.Enabled)
         {
@@ -51,6 +69,11 @@ public sealed class ChatwootLeadSyncService : IChatwootLeadSyncService
                     ClearChatwootLastError = true
                 });
 
+            _logger.LogInformation(
+                "Integracao Chatwoot desabilitada; lead marcado como disabled. CorrelationId={CorrelationId} LeadId={LeadId} InboxId={InboxId}",
+                correlationId,
+                leadId,
+                inboxId);
             return ChatwootLeadSyncResult.Disabled(
                 "Integracao com Chatwoot desabilitada no ambiente atual.",
                 lead.Chatwoot.ContactId,
@@ -71,6 +94,11 @@ public sealed class ChatwootLeadSyncService : IChatwootLeadSyncService
                     ChatwootLastError = sanitizedError
                 });
             _kanbanService.AddHistoryEvent(leadId, "chatwoot_sync_falhou", sanitizedError);
+            _logger.LogWarning(
+                "Lead bloqueado na validacao antes da chamada ao Chatwoot. CorrelationId={CorrelationId} LeadId={LeadId} ValidationError={ValidationError}",
+                correlationId,
+                leadId,
+                sanitizedError);
 
             return ChatwootLeadSyncResult.Failed(
                 sanitizedError,
@@ -145,6 +173,14 @@ public sealed class ChatwootLeadSyncService : IChatwootLeadSyncService
             TryCompleteActiveRetries(
                 leadId,
                 [ChatwootSyncOperationTypes.LeadSync, ChatwootSyncOperationTypes.StageSync]);
+            _logger.LogInformation(
+                "Lead sincronizado com Chatwoot. CorrelationId={CorrelationId} LeadId={LeadId} ContactId={ContactId} ConversationId={ConversationId} InboxId={InboxId} CreatedConversation={CreatedConversation}",
+                correlationId,
+                leadId,
+                contactId,
+                conversationId,
+                inboxId,
+                createdConversation);
 
             return ChatwootLeadSyncResult.Synced(
                 "Lead sincronizado com Chatwoot.",
@@ -154,7 +190,12 @@ public sealed class ChatwootLeadSyncService : IChatwootLeadSyncService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Falha ao sincronizar lead {LeadId} com Chatwoot.", leadId);
+            _logger.LogError(
+                ex,
+                "Falha ao sincronizar lead com Chatwoot. CorrelationId={CorrelationId} LeadId={LeadId} InboxId={InboxId}",
+                correlationId,
+                leadId,
+                inboxId);
 
             var sanitizedError = TrimTo(BuildUserFacingError(ex), 500);
             _kanbanService.UpdateLeadChatwootSync(
@@ -196,11 +237,28 @@ public sealed class ChatwootLeadSyncService : IChatwootLeadSyncService
 
     public async Task<ChatwootLeadSyncResult> SyncLeadStageAsync(int leadId, CancellationToken cancellationToken = default, bool queueOnFailure = true)
     {
+        using var correlationScope = ChatwootCorrelationContext.Push(ChatwootCorrelationContext.Current ?? ChatwootCorrelationContext.Create($"stage-sync-{leadId}"));
+        var correlationId = ChatwootCorrelationContext.Current ?? ChatwootCorrelationContext.GetOrCreate($"stage-sync-{leadId}");
+        using var loggerScope = _logger.BeginScope(new Dictionary<string, object?>
+        {
+            ["CorrelationId"] = correlationId,
+            ["LeadId"] = leadId,
+            ["Flow"] = "ChatwootStageSync"
+        });
+
         var lead = _kanbanService.GetLeadDetails(leadId);
         if (lead is null)
         {
+            _logger.LogWarning("Sync de etapa ignorada porque o lead nao foi encontrado. CorrelationId={CorrelationId}", correlationId);
             return ChatwootLeadSyncResult.NotFound("Lead nao encontrado para sincronizar etapa com o Chatwoot.");
         }
+
+        _logger.LogInformation(
+            "Iniciando sincronizacao de etapa no Chatwoot. CorrelationId={CorrelationId} LeadId={LeadId} StageName={StageName} QueueOnFailure={QueueOnFailure}",
+            correlationId,
+            leadId,
+            lead.StageName,
+            queueOnFailure);
 
         if (!lead.Chatwoot.ConversationId.HasValue)
         {
@@ -257,6 +315,12 @@ public sealed class ChatwootLeadSyncService : IChatwootLeadSyncService
             TryCompleteActiveRetries(
                 leadId,
                 [ChatwootSyncOperationTypes.StageSync, ChatwootSyncOperationTypes.LeadSync]);
+            _logger.LogInformation(
+                "Etapa sincronizada com Chatwoot. CorrelationId={CorrelationId} LeadId={LeadId} ConversationId={ConversationId} StageName={StageName}",
+                correlationId,
+                leadId,
+                lead.Chatwoot.ConversationId,
+                lead.StageName);
 
             return ChatwootLeadSyncResult.Synced(
                 $"Etapa '{lead.StageName}' sincronizada com Chatwoot.",
@@ -266,7 +330,13 @@ public sealed class ChatwootLeadSyncService : IChatwootLeadSyncService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Falha ao sincronizar etapa do lead {LeadId} com Chatwoot.", leadId);
+            _logger.LogError(
+                ex,
+                "Falha ao sincronizar etapa do lead com Chatwoot. CorrelationId={CorrelationId} LeadId={LeadId} StageName={StageName} ConversationId={ConversationId}",
+                correlationId,
+                leadId,
+                lead.StageName,
+                lead.Chatwoot.ConversationId);
 
             var sanitizedError = TrimTo(BuildUserFacingError(ex), 500);
             _kanbanService.UpdateLeadChatwootSync(

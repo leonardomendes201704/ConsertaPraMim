@@ -76,6 +76,7 @@ SELECT
     l.Source,
     l.Priority,
     l.StatusNote,
+    l.ChatwootSyncStatus,
     l.CreatedAt,
     l.UpdatedAt,
     l.LastContactAt,
@@ -108,10 +109,11 @@ ORDER BY l.StageId, l.SortOrder, l.UpdatedAt DESC, l.Id;
                     Source = reader.IsDBNull(7) ? string.Empty : reader.GetString(7),
                     Priority = reader.IsDBNull(8) ? "normal" : reader.GetString(8),
                     StatusNote = reader.IsDBNull(9) ? string.Empty : reader.GetString(9),
-                    CreatedAt = reader.GetDateTime(10),
-                    UpdatedAt = reader.IsDBNull(11) ? null : reader.GetDateTime(11),
-                    LastContactAt = reader.IsDBNull(12) ? null : reader.GetDateTime(12),
-                    StageEnteredAt = reader.GetDateTime(13)
+                    ChatwootSyncStatus = reader.IsDBNull(10) ? string.Empty : reader.GetString(10),
+                    CreatedAt = reader.GetDateTime(11),
+                    UpdatedAt = reader.IsDBNull(12) ? null : reader.GetDateTime(12),
+                    LastContactAt = reader.IsDBNull(13) ? null : reader.GetDateTime(13),
+                    StageEnteredAt = reader.GetDateTime(14)
                 };
 
                 if (leadsByStage.TryGetValue(lead.StageId, out var leads))
@@ -993,6 +995,186 @@ WHEN NOT MATCHED THEN
         return TryGetChatwootBackfillCheckpoint(connection, scopeKey, out var checkpoint)
             ? checkpoint
             : throw new InvalidOperationException("Nao foi possivel recarregar o checkpoint de backfill do Chatwoot.");
+    }
+
+    public AdminKanbanChatwootDiagnosticsSnapshot GetChatwootDiagnostics(string? boardType, int issueLimit, int queueLimit)
+    {
+        EnsureInitialized();
+
+        var normalizedBoardType = string.IsNullOrWhiteSpace(boardType)
+            ? null
+            : AdminKanbanBoardTypes.Normalize(boardType);
+        var normalizedIssueLimit = Math.Clamp(issueLimit, 1, 100);
+        var normalizedQueueLimit = Math.Clamp(queueLimit, 1, 100);
+
+        using var connection = OpenConnection();
+        var snapshot = new AdminKanbanChatwootDiagnosticsSnapshot
+        {
+            ScopeBoardType = normalizedBoardType ?? string.Empty,
+            RecentIssues = [],
+            RecentQueueItems = []
+        };
+
+        using (var summaryCommand = connection.CreateCommand())
+        {
+            summaryCommand.CommandText = $"""
+SELECT
+    COUNT(1) AS TotalLeads,
+    SUM(CASE WHEN LOWER(ISNULL(ChatwootSyncStatus, '')) = 'synced' THEN 1 ELSE 0 END) AS SyncedCount,
+    SUM(CASE WHEN LOWER(ISNULL(ChatwootSyncStatus, '')) = 'failed' THEN 1 ELSE 0 END) AS FailedCount,
+    SUM(CASE WHEN LOWER(ISNULL(ChatwootSyncStatus, '')) IN ('', 'pending', 'skipped', 'disabled', 'not_found') THEN 1 ELSE 0 END) AS PendingCount
+FROM dbo.{TablePrefix}kanban_leads
+WHERE IsActive = 1
+  AND (@boardType IS NULL OR BoardType = @boardType);
+""";
+            summaryCommand.Parameters.Add(new SqlParameter("@boardType", SqlDbType.NVarChar, 30) { Value = ToDbValue(normalizedBoardType) });
+
+            using var reader = summaryCommand.ExecuteReader();
+            if (reader.Read())
+            {
+                snapshot = snapshot with
+                {
+                    TotalLeads = reader.IsDBNull(0) ? 0 : reader.GetInt32(0),
+                    SyncedCount = reader.IsDBNull(1) ? 0 : reader.GetInt32(1),
+                    FailedCount = reader.IsDBNull(2) ? 0 : reader.GetInt32(2),
+                    PendingCount = reader.IsDBNull(3) ? 0 : reader.GetInt32(3)
+                };
+            }
+        }
+
+        using (var queueSummaryCommand = connection.CreateCommand())
+        {
+            queueSummaryCommand.CommandText = $"""
+SELECT
+    SUM(CASE WHEN q.Status IN ('queued', 'retrying', 'processing') THEN 1 ELSE 0 END) AS ActiveQueueCount,
+    SUM(CASE WHEN q.Status = 'dead_letter' THEN 1 ELSE 0 END) AS DeadLetterCount
+FROM dbo.{TablePrefix}chatwoot_sync_queue q
+INNER JOIN dbo.{TablePrefix}kanban_leads l ON l.Id = q.LeadId
+WHERE l.IsActive = 1
+  AND (@boardType IS NULL OR l.BoardType = @boardType);
+""";
+            queueSummaryCommand.Parameters.Add(new SqlParameter("@boardType", SqlDbType.NVarChar, 30) { Value = ToDbValue(normalizedBoardType) });
+
+            using var reader = queueSummaryCommand.ExecuteReader();
+            if (reader.Read())
+            {
+                snapshot = snapshot with
+                {
+                    ActiveQueueCount = reader.IsDBNull(0) ? 0 : reader.GetInt32(0),
+                    DeadLetterCount = reader.IsDBNull(1) ? 0 : reader.GetInt32(1)
+                };
+            }
+        }
+
+        var issues = new List<AdminKanbanChatwootSyncIssueRecord>();
+        using (var issuesCommand = connection.CreateCommand())
+        {
+            issuesCommand.CommandText = $"""
+SELECT TOP (@issueLimit)
+    l.Id,
+    l.BoardType,
+    s.Name,
+    l.Name,
+    l.ChatwootSyncStatus,
+    l.ChatwootLastSyncAt,
+    l.ChatwootLastError,
+    l.ChatwootContactId,
+    l.ChatwootConversationId,
+    l.ChatwootInboxId
+FROM dbo.{TablePrefix}kanban_leads l
+INNER JOIN dbo.{TablePrefix}kanban_stages s ON s.Id = l.StageId
+WHERE l.IsActive = 1
+  AND (@boardType IS NULL OR l.BoardType = @boardType)
+  AND (
+        LOWER(ISNULL(l.ChatwootSyncStatus, '')) = 'failed'
+        OR NULLIF(LTRIM(RTRIM(ISNULL(l.ChatwootLastError, ''))), '') IS NOT NULL
+      )
+ORDER BY COALESCE(l.ChatwootLastSyncAt, l.UpdatedAt, l.CreatedAt) DESC, l.Id DESC;
+""";
+            issuesCommand.Parameters.AddRange(
+            [
+                new SqlParameter("@issueLimit", SqlDbType.Int) { Value = normalizedIssueLimit },
+                new SqlParameter("@boardType", SqlDbType.NVarChar, 30) { Value = ToDbValue(normalizedBoardType) }
+            ]);
+
+            using var reader = issuesCommand.ExecuteReader();
+            while (reader.Read())
+            {
+                issues.Add(new AdminKanbanChatwootSyncIssueRecord
+                {
+                    LeadId = reader.GetInt32(0),
+                    BoardType = reader.GetString(1),
+                    StageName = reader.GetString(2),
+                    LeadName = reader.GetString(3),
+                    SyncStatus = reader.IsDBNull(4) ? string.Empty : reader.GetString(4),
+                    LastSyncAt = reader.IsDBNull(5) ? null : reader.GetDateTime(5),
+                    LastError = reader.IsDBNull(6) ? string.Empty : reader.GetString(6),
+                    ContactId = ReadNullableInt64(reader, 7),
+                    ConversationId = ReadNullableInt64(reader, 8),
+                    InboxId = ReadNullableInt64(reader, 9)
+                });
+            }
+        }
+
+        var queueItems = new List<AdminKanbanChatwootQueueDiagnosticRecord>();
+        using (var queueCommand = connection.CreateCommand())
+        {
+            queueCommand.CommandText = $"""
+SELECT TOP (@queueLimit)
+    q.Id,
+    q.LeadId,
+    l.BoardType,
+    s.Name,
+    l.Name,
+    q.OperationType,
+    q.Status,
+    q.AttemptCount,
+    q.MaxAttempts,
+    q.NextAttemptAt,
+    q.LastAttemptAt,
+    q.LastError,
+    l.ChatwootConversationId
+FROM dbo.{TablePrefix}chatwoot_sync_queue q
+INNER JOIN dbo.{TablePrefix}kanban_leads l ON l.Id = q.LeadId
+INNER JOIN dbo.{TablePrefix}kanban_stages s ON s.Id = l.StageId
+WHERE l.IsActive = 1
+  AND (@boardType IS NULL OR l.BoardType = @boardType)
+  AND q.Status IN ('queued', 'retrying', 'processing', 'dead_letter')
+ORDER BY q.UpdatedAt DESC, q.Id DESC;
+""";
+            queueCommand.Parameters.AddRange(
+            [
+                new SqlParameter("@queueLimit", SqlDbType.Int) { Value = normalizedQueueLimit },
+                new SqlParameter("@boardType", SqlDbType.NVarChar, 30) { Value = ToDbValue(normalizedBoardType) }
+            ]);
+
+            using var reader = queueCommand.ExecuteReader();
+            while (reader.Read())
+            {
+                queueItems.Add(new AdminKanbanChatwootQueueDiagnosticRecord
+                {
+                    QueueItemId = reader.GetInt32(0),
+                    LeadId = reader.GetInt32(1),
+                    BoardType = reader.GetString(2),
+                    StageName = reader.GetString(3),
+                    LeadName = reader.GetString(4),
+                    OperationType = reader.IsDBNull(5) ? string.Empty : reader.GetString(5),
+                    Status = reader.IsDBNull(6) ? string.Empty : reader.GetString(6),
+                    AttemptCount = reader.GetInt32(7),
+                    MaxAttempts = reader.GetInt32(8),
+                    NextAttemptAt = reader.GetDateTime(9),
+                    LastAttemptAt = reader.IsDBNull(10) ? null : reader.GetDateTime(10),
+                    LastError = reader.IsDBNull(11) ? string.Empty : reader.GetString(11),
+                    ConversationId = ReadNullableInt64(reader, 12)
+                });
+            }
+        }
+
+        return snapshot with
+        {
+            RecentIssues = issues,
+            RecentQueueItems = queueItems
+        };
     }
 
     public bool SaveBoardOrder(AdminKanbanBoardOrderUpdateRequest request)

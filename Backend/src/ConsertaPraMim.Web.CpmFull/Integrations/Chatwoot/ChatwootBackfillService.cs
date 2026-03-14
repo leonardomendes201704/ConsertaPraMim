@@ -1,4 +1,5 @@
 using System.Text.Json;
+using AppMobileCPM.Observability;
 using AppMobileCPM.Services;
 using Microsoft.Extensions.Options;
 
@@ -29,6 +30,8 @@ public sealed class ChatwootBackfillService : IChatwootBackfillService
     public async Task<ChatwootBackfillRunResult> RunAsync(ChatwootBackfillRunRequest request, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
+        using var correlationScope = ChatwootCorrelationContext.Push(ChatwootCorrelationContext.Current ?? ChatwootCorrelationContext.Create("chatwoot-backfill"));
+        var correlationId = ChatwootCorrelationContext.Current ?? ChatwootCorrelationContext.GetOrCreate("chatwoot-backfill");
 
         var normalizedBoardType = string.IsNullOrWhiteSpace(request.BoardType)
             ? null
@@ -39,6 +42,14 @@ public sealed class ChatwootBackfillService : IChatwootBackfillService
         var checkpoint = _kanbanService.GetChatwootBackfillCheckpoint(scopeKey);
         var effectiveStartAfterLeadId = request.StartAfterLeadId ?? checkpoint?.LastProcessedLeadId;
         var candidates = _kanbanService.ListChatwootBackfillCandidates(normalizedBoardType, effectiveStartAfterLeadId, batchSize);
+        _logger.LogInformation(
+            "Backfill Chatwoot iniciado. CorrelationId={CorrelationId} ScopeKey={ScopeKey} BatchSize={BatchSize} DryRun={DryRun} EffectiveStartAfterLeadId={EffectiveStartAfterLeadId} CandidateCount={CandidateCount}",
+            correlationId,
+            scopeKey,
+            batchSize,
+            request.DryRun,
+            effectiveStartAfterLeadId,
+            candidates.Count);
 
         if (!request.DryRun && !_options.Enabled)
         {
@@ -47,6 +58,11 @@ public sealed class ChatwootBackfillService : IChatwootBackfillService
 
         if (request.DryRun)
         {
+            _logger.LogInformation(
+                "Backfill Chatwoot executado em dry-run. CorrelationId={CorrelationId} ScopeKey={ScopeKey} CandidateCount={CandidateCount}",
+                correlationId,
+                scopeKey,
+                candidates.Count);
             return BuildDryRunResult(
                 scopeKey,
                 scopeLabel,
@@ -139,7 +155,8 @@ public sealed class ChatwootBackfillService : IChatwootBackfillService
             effectiveStartAfterLeadId: effectiveStartAfterLeadId);
 
         _logger.LogInformation(
-            "Backfill Chatwoot concluido. ScopeKey={ScopeKey} BatchSize={BatchSize} Total={Total} Success={Success} Failed={Failed} Pending={Pending} LastProcessedLeadId={LastProcessedLeadId}",
+            "Backfill Chatwoot concluido. CorrelationId={CorrelationId} ScopeKey={ScopeKey} BatchSize={BatchSize} Total={Total} Success={Success} Failed={Failed} Pending={Pending} LastProcessedLeadId={LastProcessedLeadId}",
+            correlationId,
             scopeKey,
             batchSize,
             candidates.Count,

@@ -69,6 +69,7 @@ public sealed class AdminKanbanLeadCardRecord
     public string Source { get; init; } = string.Empty;
     public string Priority { get; init; } = "normal";
     public string StatusNote { get; init; } = string.Empty;
+    public string ChatwootSyncStatus { get; init; } = string.Empty;
     public DateTime StageEnteredAt { get; init; }
     public DateTime CreatedAt { get; init; }
     public DateTime? UpdatedAt { get; init; }
@@ -252,6 +253,50 @@ public sealed record class AdminKanbanChatwootBackfillCheckpointRecord
     public string LastRunStatus { get; init; } = string.Empty;
     public string LastSummaryJson { get; init; } = string.Empty;
     public DateTime UpdatedAt { get; init; }
+}
+
+public sealed record class AdminKanbanChatwootSyncIssueRecord
+{
+    public int LeadId { get; init; }
+    public string BoardType { get; init; } = string.Empty;
+    public string StageName { get; init; } = string.Empty;
+    public string LeadName { get; init; } = string.Empty;
+    public string SyncStatus { get; init; } = string.Empty;
+    public DateTime? LastSyncAt { get; init; }
+    public string LastError { get; init; } = string.Empty;
+    public long? ContactId { get; init; }
+    public long? ConversationId { get; init; }
+    public long? InboxId { get; init; }
+}
+
+public sealed record class AdminKanbanChatwootQueueDiagnosticRecord
+{
+    public int QueueItemId { get; init; }
+    public int LeadId { get; init; }
+    public string BoardType { get; init; } = string.Empty;
+    public string StageName { get; init; } = string.Empty;
+    public string LeadName { get; init; } = string.Empty;
+    public string OperationType { get; init; } = string.Empty;
+    public string Status { get; init; } = string.Empty;
+    public int AttemptCount { get; init; }
+    public int MaxAttempts { get; init; }
+    public DateTime NextAttemptAt { get; init; }
+    public DateTime? LastAttemptAt { get; init; }
+    public string LastError { get; init; } = string.Empty;
+    public long? ConversationId { get; init; }
+}
+
+public sealed record class AdminKanbanChatwootDiagnosticsSnapshot
+{
+    public string ScopeBoardType { get; init; } = string.Empty;
+    public int TotalLeads { get; init; }
+    public int SyncedCount { get; init; }
+    public int PendingCount { get; init; }
+    public int FailedCount { get; init; }
+    public int ActiveQueueCount { get; init; }
+    public int DeadLetterCount { get; init; }
+    public IReadOnlyList<AdminKanbanChatwootSyncIssueRecord> RecentIssues { get; init; } = [];
+    public IReadOnlyList<AdminKanbanChatwootQueueDiagnosticRecord> RecentQueueItems { get; init; } = [];
 }
 
 public sealed class AdminKanbanChatwootBackfillCheckpointUpsertRequest

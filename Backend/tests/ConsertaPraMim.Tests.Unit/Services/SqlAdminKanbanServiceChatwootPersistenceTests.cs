@@ -547,6 +547,120 @@ WHERE ScopeKey = @scopeKey;
         Assert.Equal("completed", reader.GetString(2));
     }
 
+    [Fact(DisplayName = "Diagnostico Chatwoot deve resumir status, erros recentes e fila operacional")]
+    public void ChatwootDiagnostics_DeveRetornarResumoErrosEFila()
+    {
+        using var database = new LocalDbKanbanDatabaseScope();
+        if (!database.IsAvailable)
+        {
+            return;
+        }
+
+        var service = CreateService(database.ConnectionString);
+
+        var syncedLeadId = service.CreateLead(new AdminKanbanLeadUpsertRequest
+        {
+            BoardType = AdminKanbanBoardTypes.Clients,
+            StageId = 0,
+            Name = "Lead Synced",
+            Phone = "(13) 99100-1000",
+            Email = "synced@teste.com",
+            ServiceCategory = "Eletricista",
+            Source = "WhatsApp",
+            Priority = "normal"
+        });
+
+        var failedLeadId = service.CreateLead(new AdminKanbanLeadUpsertRequest
+        {
+            BoardType = AdminKanbanBoardTypes.Clients,
+            StageId = 0,
+            Name = "Lead Failed",
+            Phone = "(13) 99200-2000",
+            Email = "failed@teste.com",
+            ServiceCategory = "Encanador",
+            Source = "Instagram",
+            Priority = "alta"
+        });
+
+        var pendingLeadId = service.CreateLead(new AdminKanbanLeadUpsertRequest
+        {
+            BoardType = AdminKanbanBoardTypes.Providers,
+            StageId = 0,
+            Name = "Lead Pending",
+            Phone = "(13) 99300-3000",
+            Email = "pending@teste.com",
+            ServiceCategory = "Pintor",
+            Source = "Formulario",
+            Priority = "normal"
+        });
+
+        Assert.True(service.UpdateLeadChatwootSync(syncedLeadId, new AdminKanbanLeadChatwootSyncUpdateRequest
+        {
+            ChatwootContactId = 1101,
+            ChatwootConversationId = 2101,
+            ChatwootInboxId = 1,
+            ChatwootSyncStatus = ChatwootSyncStatuses.Synced,
+            ChatwootLastSyncAt = new DateTime(2026, 3, 13, 21, 0, 0, DateTimeKind.Utc)
+        }));
+
+        Assert.True(service.UpdateLeadChatwootSync(failedLeadId, new AdminKanbanLeadChatwootSyncUpdateRequest
+        {
+            ChatwootContactId = 1102,
+            ChatwootConversationId = 2102,
+            ChatwootInboxId = 1,
+            ChatwootSyncStatus = ChatwootSyncStatuses.Failed,
+            ChatwootLastSyncAt = new DateTime(2026, 3, 13, 21, 10, 0, DateTimeKind.Utc),
+            ChatwootLastError = "Falha ao atualizar labels no Chatwoot."
+        }));
+
+        var queuedItem = service.EnqueueChatwootSyncQueueItem(new AdminKanbanChatwootSyncQueueEnqueueRequest
+        {
+            LeadId = pendingLeadId,
+            OperationType = ChatwootSyncOperationTypes.LeadSync,
+            NextAttemptAt = new DateTime(2026, 3, 13, 21, 20, 0, DateTimeKind.Utc),
+            MaxAttempts = 10,
+            LastError = "Aguardando primeira execucao"
+        });
+
+        var deadLetterItem = service.EnqueueChatwootSyncQueueItem(new AdminKanbanChatwootSyncQueueEnqueueRequest
+        {
+            LeadId = failedLeadId,
+            OperationType = ChatwootSyncOperationTypes.StageSync,
+            NextAttemptAt = new DateTime(2026, 3, 13, 21, 21, 0, DateTimeKind.Utc),
+            MaxAttempts = 3,
+            LastError = "Falha inicial"
+        });
+
+        var finalizedDeadLetter = service.FinalizeChatwootSyncQueueItem(new AdminKanbanChatwootSyncQueueFinalizeRequest
+        {
+            QueueItemId = deadLetterItem.Id,
+            FinalStatus = ChatwootSyncQueueStatuses.DeadLetter,
+            FinalizedAt = new DateTime(2026, 3, 13, 21, 40, 0, DateTimeKind.Utc),
+            LastError = "Tentativas esgotadas"
+        });
+
+        Assert.NotNull(finalizedDeadLetter);
+
+        var diagnostics = service.GetChatwootDiagnostics(null, 10, 10);
+
+        Assert.Equal(3, diagnostics.TotalLeads);
+        Assert.Equal(1, diagnostics.SyncedCount);
+        Assert.Equal(1, diagnostics.FailedCount);
+        Assert.Equal(1, diagnostics.PendingCount);
+        Assert.Equal(1, diagnostics.ActiveQueueCount);
+        Assert.Equal(1, diagnostics.DeadLetterCount);
+        Assert.Contains(diagnostics.RecentIssues, item =>
+            item.LeadId == failedLeadId &&
+            item.SyncStatus == ChatwootSyncStatuses.Failed &&
+            item.LastError.Contains("labels", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(diagnostics.RecentQueueItems, item =>
+            item.QueueItemId == queuedItem.Id &&
+            item.Status == ChatwootSyncQueueStatuses.Queued);
+        Assert.Contains(diagnostics.RecentQueueItems, item =>
+            item.QueueItemId == deadLetterItem.Id &&
+            item.Status == ChatwootSyncQueueStatuses.DeadLetter);
+    }
+
     private static SqlAdminKanbanService CreateService(string connectionString)
     {
         var configuration = new ConfigurationBuilder()

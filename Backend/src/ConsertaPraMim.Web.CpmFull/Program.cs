@@ -1,5 +1,6 @@
 using System.Text.Json;
 using AppMobileCPM.Integrations.Chatwoot;
+using AppMobileCPM.Observability;
 using AppMobileCPM.Services;
 using System.IO.Compression;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -80,6 +81,7 @@ var app = builder.Build();
 
 // Configure the HTTP request pipeline.
 app.UseForwardedHeaders();
+app.UseMiddleware<CorrelationIdMiddleware>();
 
 if (!app.Environment.IsDevelopment())
 {
