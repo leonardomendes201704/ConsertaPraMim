@@ -138,6 +138,33 @@ public sealed class AdminKanbanLeadUpsertRequest
     public DateTime? LastContactAt { get; init; }
 }
 
+public sealed class AdminKanbanTelegramLeadUpsertRequest
+{
+    public required string BoardType { get; init; }
+    public required Guid ChatbotConversationId { get; init; }
+    public required string ChannelConversationId { get; init; }
+    public long TelegramChatId { get; init; }
+    public Guid ClientId { get; init; }
+    public required string ClientName { get; init; }
+    public string ClientEmail { get; init; } = string.Empty;
+    public Guid? ServiceRequestId { get; init; }
+    public string ServiceCategory { get; init; } = string.Empty;
+    public string PostalCode { get; init; } = string.Empty;
+    public string City { get; init; } = string.Empty;
+    public string StatusNote { get; init; } = string.Empty;
+    public string InternalNotes { get; init; } = string.Empty;
+    public DateTime? LastContactAt { get; init; }
+}
+
+public sealed record class AdminKanbanTelegramLeadUpsertResult
+{
+    public int LeadId { get; init; }
+    public bool Created { get; init; }
+    public int StageId { get; init; }
+    public string BoardType { get; init; } = string.Empty;
+    public Guid ChatbotConversationId { get; init; }
+}
+
 public sealed class AdminKanbanBoardOrderUpdateRequest
 {
     public required string BoardType { get; init; }

@@ -344,6 +344,78 @@ SELECT CAST(SCOPE_IDENTITY() AS INT);
         return leadId;
     }
 
+    public AdminKanbanTelegramLeadUpsertResult UpsertTelegramLead(AdminKanbanTelegramLeadUpsertRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        EnsureInitialized();
+        var normalizedBoardType = AdminKanbanBoardTypes.Normalize(request.BoardType);
+
+        using var connection = OpenConnection();
+        using var transaction = connection.BeginTransaction();
+
+        int? existingLeadId = null;
+        int? existingStageId = null;
+
+        using (var findLinkCommand = connection.CreateCommand())
+        {
+            findLinkCommand.Transaction = transaction;
+            findLinkCommand.CommandText = $"""
+SELECT TOP (1) link.LeadId, lead.StageId
+FROM dbo.{TablePrefix}telegram_funil_links link
+INNER JOIN dbo.{TablePrefix}kanban_leads lead
+    ON lead.Id = link.LeadId
+WHERE link.ChatbotConversationId = @chatbotConversationId
+  AND lead.IsActive = 1
+ORDER BY link.Id;
+""";
+            findLinkCommand.Parameters.AddRange(
+            [
+                new SqlParameter("@chatbotConversationId", SqlDbType.UniqueIdentifier) { Value = request.ChatbotConversationId }
+            ]);
+
+            using var reader = findLinkCommand.ExecuteReader();
+            if (reader.Read())
+            {
+                existingLeadId = reader.GetInt32(0);
+                existingStageId = reader.GetInt32(1);
+            }
+        }
+
+        var created = !existingLeadId.HasValue;
+        var stageId = created
+            ? ResolveStageId(connection, transaction, normalizedBoardType, requestedStageId: 0)
+            : existingStageId ?? ResolveStageId(connection, transaction, normalizedBoardType, requestedStageId: 0);
+        var leadId = existingLeadId ?? CreateTelegramLead(connection, transaction, normalizedBoardType, stageId, request);
+
+        if (!created)
+        {
+            UpdateTelegramLead(connection, transaction, leadId, stageId, request);
+            InsertHistory(
+                connection,
+                transaction,
+                leadId,
+                eventType: "telegram_lead_atualizado",
+                fromStageId: null,
+                toStageId: null,
+                description: "Lead atualizado automaticamente a partir da conversa do bot Telegram."
+            );
+        }
+
+        SaveTelegramLeadLink(connection, transaction, leadId, normalizedBoardType, request);
+
+        transaction.Commit();
+
+        return new AdminKanbanTelegramLeadUpsertResult
+        {
+            LeadId = leadId,
+            Created = created,
+            StageId = stageId,
+            BoardType = normalizedBoardType,
+            ChatbotConversationId = request.ChatbotConversationId
+        };
+    }
+
     public bool UpdateLead(int leadId, AdminKanbanLeadUpsertRequest request)
     {
         EnsureInitialized();
@@ -1459,6 +1531,22 @@ CREATE TABLE dbo.{TablePrefix}chatwoot_backfill_checkpoints
     UpdatedAt DATETIME2 NOT NULL DEFAULT(SYSUTCDATETIME())
 );
 
+IF OBJECT_ID('dbo.{TablePrefix}telegram_funil_links', 'U') IS NULL
+CREATE TABLE dbo.{TablePrefix}telegram_funil_links
+(
+    Id INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    ChatbotConversationId UNIQUEIDENTIFIER NOT NULL,
+    LeadId INT NOT NULL,
+    BoardType NVARCHAR(30) NOT NULL,
+    ChannelConversationId NVARCHAR(128) NOT NULL,
+    TelegramChatId BIGINT NOT NULL,
+    ClientId UNIQUEIDENTIFIER NULL,
+    ClientEmail NVARCHAR(180) NULL,
+    ServiceRequestId UNIQUEIDENTIFIER NULL,
+    CreatedAt DATETIME2 NOT NULL DEFAULT(SYSUTCDATETIME()),
+    UpdatedAt DATETIME2 NOT NULL DEFAULT(SYSUTCDATETIME())
+);
+
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID('dbo.{TablePrefix}kanban_stages') AND name = 'IX_{TablePrefix}kanban_stages_board')
 CREATE INDEX IX_{TablePrefix}kanban_stages_board
     ON dbo.{TablePrefix}kanban_stages(BoardType, SortOrder, Id);
@@ -1520,6 +1608,14 @@ CREATE UNIQUE INDEX UX_{TablePrefix}chatwoot_sync_queue_active
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID('dbo.{TablePrefix}chatwoot_backfill_checkpoints') AND name = 'UX_{TablePrefix}chatwoot_backfill_checkpoints_scope')
 CREATE UNIQUE INDEX UX_{TablePrefix}chatwoot_backfill_checkpoints_scope
     ON dbo.{TablePrefix}chatwoot_backfill_checkpoints(ScopeKey);
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID('dbo.{TablePrefix}telegram_funil_links') AND name = 'UX_{TablePrefix}telegram_funil_links_conversation')
+CREATE UNIQUE INDEX UX_{TablePrefix}telegram_funil_links_conversation
+    ON dbo.{TablePrefix}telegram_funil_links(ChatbotConversationId);
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID('dbo.{TablePrefix}telegram_funil_links') AND name = 'IX_{TablePrefix}telegram_funil_links_lead')
+CREATE INDEX IX_{TablePrefix}telegram_funil_links_lead
+    ON dbo.{TablePrefix}telegram_funil_links(LeadId, UpdatedAt DESC, Id DESC);
 """;
                 command.ExecuteNonQuery();
             }
@@ -2028,6 +2124,145 @@ WHERE BoardType = @boardType AND StageId = @stageId AND IsActive = 1;
             new SqlParameter("@stageId", SqlDbType.Int) { Value = stageId }
         ]);
         return Convert.ToInt32(command.ExecuteScalar());
+    }
+
+    private static int CreateTelegramLead(
+        SqlConnection connection,
+        SqlTransaction transaction,
+        string boardType,
+        int stageId,
+        AdminKanbanTelegramLeadUpsertRequest request)
+    {
+        var nextSortOrder = GetNextLeadSortOrder(connection, transaction, boardType, stageId);
+
+        using var insertCommand = connection.CreateCommand();
+        insertCommand.Transaction = transaction;
+        insertCommand.CommandText = $"""
+INSERT INTO dbo.{TablePrefix}kanban_leads
+(BoardType, StageId, SortOrder, Name, Phone, Email, ServiceCategory, PostalCode, City, Source, Priority, StatusNote, InternalNotes, LastContactAt, IsActive, CreatedAt, UpdatedAt)
+VALUES
+(@boardType, @stageId, @sortOrder, @name, NULL, @email, @serviceCategory, @postalCode, @city, 'Telegram', 'normal', @statusNote, @internalNotes, @lastContactAt, 1, SYSUTCDATETIME(), NULL);
+SELECT CAST(SCOPE_IDENTITY() AS INT);
+""";
+        insertCommand.Parameters.AddRange(
+        [
+            new SqlParameter("@boardType", SqlDbType.NVarChar, 30) { Value = boardType },
+            new SqlParameter("@stageId", SqlDbType.Int) { Value = stageId },
+            new SqlParameter("@sortOrder", SqlDbType.Int) { Value = nextSortOrder },
+            new SqlParameter("@name", SqlDbType.NVarChar, 140) { Value = TrimTo(request.ClientName, 140) },
+            new SqlParameter("@email", SqlDbType.NVarChar, 180) { Value = ToDbValue(request.ClientEmail) },
+            new SqlParameter("@serviceCategory", SqlDbType.NVarChar, 140) { Value = ToDbValue(request.ServiceCategory) },
+            new SqlParameter("@postalCode", SqlDbType.NVarChar, 9) { Value = ToDbValue(request.PostalCode) },
+            new SqlParameter("@city", SqlDbType.NVarChar, 120) { Value = ToDbValue(request.City) },
+            new SqlParameter("@statusNote", SqlDbType.NVarChar, 500) { Value = ToDbValue(TrimTo(request.StatusNote, 500)) },
+            new SqlParameter("@internalNotes", SqlDbType.NVarChar, -1) { Value = ToDbValue(request.InternalNotes) },
+            new SqlParameter("@lastContactAt", SqlDbType.DateTime2) { Value = request.LastContactAt.HasValue ? request.LastContactAt.Value : DBNull.Value }
+        ]);
+
+        var leadId = Convert.ToInt32(insertCommand.ExecuteScalar());
+        InsertHistory(
+            connection,
+            transaction,
+            leadId,
+            eventType: "telegram_lead_criado",
+            fromStageId: null,
+            toStageId: stageId,
+            description: "Lead criado automaticamente a partir da conversa do bot Telegram."
+        );
+
+        return leadId;
+    }
+
+    private static void UpdateTelegramLead(
+        SqlConnection connection,
+        SqlTransaction transaction,
+        int leadId,
+        int stageId,
+        AdminKanbanTelegramLeadUpsertRequest request)
+    {
+        using var updateCommand = connection.CreateCommand();
+        updateCommand.Transaction = transaction;
+        updateCommand.CommandText = $"""
+UPDATE dbo.{TablePrefix}kanban_leads
+SET StageId = @stageId,
+    Name = @name,
+    Email = @email,
+    ServiceCategory = @serviceCategory,
+    PostalCode = @postalCode,
+    City = @city,
+    Source = 'Telegram',
+    Priority = 'normal',
+    StatusNote = CASE WHEN @statusNote IS NULL THEN StatusNote ELSE @statusNote END,
+    InternalNotes = CASE WHEN @internalNotes IS NULL THEN InternalNotes ELSE @internalNotes END,
+    LastContactAt = COALESCE(@lastContactAt, LastContactAt),
+    UpdatedAt = SYSUTCDATETIME()
+WHERE Id = @leadId AND IsActive = 1;
+""";
+        updateCommand.Parameters.AddRange(
+        [
+            new SqlParameter("@stageId", SqlDbType.Int) { Value = stageId },
+            new SqlParameter("@name", SqlDbType.NVarChar, 140) { Value = TrimTo(request.ClientName, 140) },
+            new SqlParameter("@email", SqlDbType.NVarChar, 180) { Value = ToDbValue(request.ClientEmail) },
+            new SqlParameter("@serviceCategory", SqlDbType.NVarChar, 140) { Value = ToDbValue(request.ServiceCategory) },
+            new SqlParameter("@postalCode", SqlDbType.NVarChar, 9) { Value = ToDbValue(request.PostalCode) },
+            new SqlParameter("@city", SqlDbType.NVarChar, 120) { Value = ToDbValue(request.City) },
+            new SqlParameter("@statusNote", SqlDbType.NVarChar, 500) { Value = ToDbValue(TrimTo(request.StatusNote, 500)) },
+            new SqlParameter("@internalNotes", SqlDbType.NVarChar, -1) { Value = ToDbValue(request.InternalNotes) },
+            new SqlParameter("@lastContactAt", SqlDbType.DateTime2) { Value = request.LastContactAt.HasValue ? request.LastContactAt.Value : DBNull.Value },
+            new SqlParameter("@leadId", SqlDbType.Int) { Value = leadId }
+        ]);
+        updateCommand.ExecuteNonQuery();
+    }
+
+    private static void SaveTelegramLeadLink(
+        SqlConnection connection,
+        SqlTransaction transaction,
+        int leadId,
+        string boardType,
+        AdminKanbanTelegramLeadUpsertRequest request)
+    {
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = $"""
+MERGE dbo.{TablePrefix}telegram_funil_links AS target
+USING (
+    SELECT
+        @chatbotConversationId AS ChatbotConversationId,
+        @leadId AS LeadId,
+        @boardType AS BoardType,
+        @channelConversationId AS ChannelConversationId,
+        @telegramChatId AS TelegramChatId,
+        @clientId AS ClientId,
+        @clientEmail AS ClientEmail,
+        @serviceRequestId AS ServiceRequestId
+) AS source
+ON target.ChatbotConversationId = source.ChatbotConversationId
+WHEN MATCHED THEN
+    UPDATE SET
+        LeadId = source.LeadId,
+        BoardType = source.BoardType,
+        ChannelConversationId = source.ChannelConversationId,
+        TelegramChatId = source.TelegramChatId,
+        ClientId = source.ClientId,
+        ClientEmail = source.ClientEmail,
+        ServiceRequestId = source.ServiceRequestId,
+        UpdatedAt = SYSUTCDATETIME()
+WHEN NOT MATCHED THEN
+    INSERT (ChatbotConversationId, LeadId, BoardType, ChannelConversationId, TelegramChatId, ClientId, ClientEmail, ServiceRequestId, CreatedAt, UpdatedAt)
+    VALUES (source.ChatbotConversationId, source.LeadId, source.BoardType, source.ChannelConversationId, source.TelegramChatId, source.ClientId, source.ClientEmail, source.ServiceRequestId, SYSUTCDATETIME(), SYSUTCDATETIME());
+""";
+        command.Parameters.AddRange(
+        [
+            new SqlParameter("@chatbotConversationId", SqlDbType.UniqueIdentifier) { Value = request.ChatbotConversationId },
+            new SqlParameter("@leadId", SqlDbType.Int) { Value = leadId },
+            new SqlParameter("@boardType", SqlDbType.NVarChar, 30) { Value = boardType },
+            new SqlParameter("@channelConversationId", SqlDbType.NVarChar, 128) { Value = TrimTo(request.ChannelConversationId, 128) },
+            new SqlParameter("@telegramChatId", SqlDbType.BigInt) { Value = request.TelegramChatId },
+            new SqlParameter("@clientId", SqlDbType.UniqueIdentifier) { Value = request.ClientId },
+            new SqlParameter("@clientEmail", SqlDbType.NVarChar, 180) { Value = ToDbValue(request.ClientEmail) },
+            new SqlParameter("@serviceRequestId", SqlDbType.UniqueIdentifier) { Value = request.ServiceRequestId.HasValue ? request.ServiceRequestId.Value : DBNull.Value }
+        ]);
+        command.ExecuteNonQuery();
     }
 
     private static void InsertHistory(

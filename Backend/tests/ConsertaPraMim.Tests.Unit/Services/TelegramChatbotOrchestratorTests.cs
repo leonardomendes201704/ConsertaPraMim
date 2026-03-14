@@ -228,6 +228,100 @@ public class TelegramChatbotOrchestratorTests
         apiClientMock.Verify();
     }
 
+    [Fact(DisplayName = "Telegram IA orchestrator | Automacao CPM Full | Deve acionar lead do funil apos criar pedido")]
+    public async Task GenerateAssistantReplyAsync_ShouldTriggerTelegramLeadAutomation_WhenServiceRequestIsCreated()
+    {
+        var conversationId = Guid.NewGuid();
+        var createdRequestId = Guid.NewGuid();
+        var clientId = Guid.NewGuid();
+
+        var gatewayMock = new Mock<ITelegramAiGateway>();
+        gatewayMock
+            .Setup(gateway => gateway.GenerateReplyAsync(It.IsAny<TelegramAiGatewayRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TelegramAiGatewayResult(
+                Success: true,
+                OutputText: "{\"messageToClient\":\"Perfeito, vou registrar.\",\"intent\":\"open_service_request\",\"nextStep\":\"open_request\",\"confidence\":0.95,\"entities\":{\"category\":\"eletricista\",\"problemDescription\":\"Curto na cozinha\",\"zipCode\":\"11701200\",\"city\":\"Praia Grande\"}}",
+                InputTokens: 120,
+                OutputTokens: 70,
+                TotalTokens: 190,
+                AttemptCount: 1,
+                LatencyMilliseconds: 95));
+
+        var apiClientMock = BuildApiClientMock(conversationId);
+        apiClientMock
+            .Setup(client => client.CreateServiceRequestAsync(
+                It.IsAny<string>(),
+                It.IsAny<TelegramServiceRequestCreatePayload>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TelegramCreatedServiceRequestDto(createdRequestId));
+
+        var automationClientMock = new Mock<ITelegramLeadAutomationClient>();
+        automationClientMock
+            .Setup(client => client.UpsertClientLeadAsync(
+                It.Is<TelegramLeadAutomationUpsertRequest>(request =>
+                    request.BoardType == "clientes" &&
+                    request.ChatbotConversationId == conversationId &&
+                    request.ClientId == clientId &&
+                    request.ClientEmail == "cliente.telegram@teste.com" &&
+                    request.ServiceRequestId == createdRequestId &&
+                    request.ServiceCategory.Contains("eletric", StringComparison.OrdinalIgnoreCase)),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TelegramLeadAutomationUpsertResult
+            {
+                Success = true,
+                HttpStatusCode = StatusCodes.Status200OK,
+                LeadId = 42,
+                Created = true,
+                BoardType = "clientes",
+                Message = "Lead criado via automacao Telegram.",
+                ChatwootStatus = "synced",
+                ChatwootMessage = "Lead sincronizado no Chatwoot."
+            })
+            .Verifiable();
+
+        var options = Options.Create(new TelegramBridgeAiOptions
+        {
+            Enabled = true,
+            Provider = "OpenAI",
+            Model = "gpt-4.1-mini",
+            ApiKey = "test-key"
+        });
+        var automationOptions = Options.Create(new TelegramAutomationOptions
+        {
+            Enabled = true,
+            ClientsAutomationEnabled = true,
+            CpmFullBaseUrl = "https://www.consertapramim.com",
+            SharedSecret = "segredo"
+        });
+
+        using var memoryCache = new MemoryCache(new MemoryCacheOptions());
+        var orchestrator = new TelegramChatbotOrchestrator(
+            gatewayMock.Object,
+            apiClientMock.Object,
+            options,
+            memoryCache,
+            Mock.Of<ILogger<TelegramChatbotOrchestrator>>(),
+            new TelegramServiceRequestTriageEngine(),
+            new TelegramSchedulingNaturalLanguageParser(),
+            automationClientMock.Object,
+            automationOptions);
+
+        var clientMessage = BuildClientMessage(305L, "Preciso de eletricista para curto na cozinha em Praia Grande.", "m-open-automation");
+
+        var reply = await orchestrator.GenerateAssistantReplyAsync(
+            "api-token",
+            305L,
+            clientMessage,
+            "Atendimento Cliente",
+            CancellationToken.None,
+            clientId,
+            "cliente.telegram@teste.com");
+
+        Assert.NotNull(reply);
+        Assert.Equal("schedule_visits", reply!.Intent);
+        automationClientMock.Verify();
+    }
+
     [Fact(DisplayName = "Telegram IA orchestrator | Query orders | Deve listar pedidos em linguagem natural")]
     public async Task GenerateAssistantReplyAsync_ShouldListOrders_WhenClientAsksForOrders()
     {

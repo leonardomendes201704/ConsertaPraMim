@@ -9,5 +9,7 @@ public interface ITelegramChatbotOrchestrator
         long chatId,
         ChatMessageDto clientMessage,
         string conversationTitle,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        Guid? clientId = null,
+        string? clientEmail = null);
 }

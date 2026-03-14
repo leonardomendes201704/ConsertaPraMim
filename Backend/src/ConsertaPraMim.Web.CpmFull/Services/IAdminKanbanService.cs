@@ -6,6 +6,7 @@ public interface IAdminKanbanService
     IReadOnlyList<AdminKanbanStageRecord> GetStages(string boardType);
     AdminKanbanLeadDetailsRecord? GetLeadDetails(int leadId);
     int CreateLead(AdminKanbanLeadUpsertRequest request);
+    AdminKanbanTelegramLeadUpsertResult UpsertTelegramLead(AdminKanbanTelegramLeadUpsertRequest request);
     bool UpdateLead(int leadId, AdminKanbanLeadUpsertRequest request);
     bool UpdateLeadChatwootSync(int leadId, AdminKanbanLeadChatwootSyncUpdateRequest request);
     int? FindLeadIdByChatwootConversationId(long conversationId);

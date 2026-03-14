@@ -1,5 +1,6 @@
 using System.Text.Json;
 using AppMobileCPM.Integrations.Chatwoot;
+using AppMobileCPM.Integrations.Telegram;
 using AppMobileCPM.Observability;
 using AppMobileCPM.Services;
 using System.IO.Compression;
@@ -34,11 +35,16 @@ builder.Services.AddScoped<IChatwootSyncQueueService, ChatwootSyncQueueService>(
 builder.Services.AddScoped<IChatwootLeadSyncService, ChatwootLeadSyncService>();
 builder.Services.AddScoped<IChatwootBackfillService, ChatwootBackfillService>();
 builder.Services.AddScoped<IChatwootWebhookService, ChatwootWebhookService>();
+builder.Services.AddScoped<ITelegramLeadAutomationService, TelegramLeadAutomationService>();
 builder.Services.AddHostedService<ChatwootSyncRetryWorker>();
 builder.Services.AddHostedService<ChatwootWebhookRetentionWorker>();
 builder.Services.AddSingleton<IValidateOptions<ChatwootOptions>, ChatwootOptionsValidator>();
+builder.Services.AddSingleton<IValidateOptions<TelegramAutomationOptions>, TelegramAutomationOptionsValidator>();
 builder.Services.AddOptions<ChatwootOptions>()
     .Bind(builder.Configuration.GetSection(ChatwootOptions.SectionName))
+    .ValidateOnStart();
+builder.Services.AddOptions<TelegramAutomationOptions>()
+    .Bind(builder.Configuration.GetSection(TelegramAutomationOptions.SectionName))
     .ValidateOnStart();
 builder.Services.AddHttpClient<IChatwootApiClient, ChatwootApiClient>((serviceProvider, client) =>
 {

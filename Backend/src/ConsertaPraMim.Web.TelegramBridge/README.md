@@ -19,8 +19,14 @@ Painel web em ASP.NET Core (.NET 8) para conversar com usuarios do Telegram em t
    - `ApiBaseUrl` (ex.: `http://localhost:5193`)
 3. Configure a chave OpenAI por secret/env (nao versionar):
    - `TelegramBridgeAi__ApiKey`
-4. O cliente autenticado entra direto na conversa vinculada ao login e o orquestrador IA responde automaticamente.
-5. Rode o projeto:
+4. Para a automacao Telegram -> CPM Full -> Chatwoot de clientes, configure a secao `TelegramAutomation`:
+   - `TelegramAutomation__Enabled`
+   - `TelegramAutomation__ClientsAutomationEnabled`
+   - `TelegramAutomation__CpmFullBaseUrl`
+   - `TelegramAutomation__SharedSecret`
+   - `TelegramAutomation__RequestTimeoutSeconds`
+5. O cliente autenticado entra direto na conversa vinculada ao login e o orquestrador IA responde automaticamente.
+6. Rode o projeto:
 
 ```bash
 dotnet run --project Backend/src/ConsertaPraMim.Web.TelegramBridge/ConsertaPraMim.Web.TelegramBridge.csproj

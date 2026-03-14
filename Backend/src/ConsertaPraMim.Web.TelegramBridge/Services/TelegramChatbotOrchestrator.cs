@@ -26,6 +26,7 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
     private const string GetOrderDetailsIntent = "get_order_details";
     private const string ListAppointmentsIntent = "list_appointments";
     private const string HumanHandoffIntent = "human_handoff";
+    private const string ClientsBoardType = "clientes";
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private static readonly TimeZoneInfo BusinessTimeZone = ResolveBusinessTimeZone();
@@ -47,6 +48,8 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
     private readonly ILogger<TelegramChatbotOrchestrator> _logger;
     private readonly TelegramServiceRequestTriageEngine _serviceRequestTriageEngine;
     private readonly TelegramSchedulingNaturalLanguageParser _telegramSchedulingNaturalLanguageParser;
+    private readonly ITelegramLeadAutomationClient _telegramLeadAutomationClient;
+    private readonly TelegramAutomationOptions _telegramAutomationOptions;
     private readonly ITelegramChatbotFeatureFlagService _featureFlagService;
     private readonly ITelegramChatbotObservabilityService _observabilityService;
 
@@ -58,6 +61,8 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
         ILogger<TelegramChatbotOrchestrator> logger,
         TelegramServiceRequestTriageEngine serviceRequestTriageEngine,
         TelegramSchedulingNaturalLanguageParser telegramSchedulingNaturalLanguageParser,
+        ITelegramLeadAutomationClient? telegramLeadAutomationClient = null,
+        IOptions<TelegramAutomationOptions>? telegramAutomationOptions = null,
         ITelegramChatbotFeatureFlagService? featureFlagService = null,
         ITelegramChatbotObservabilityService? observabilityService = null)
     {
@@ -68,6 +73,8 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
         _logger = logger;
         _serviceRequestTriageEngine = serviceRequestTriageEngine;
         _telegramSchedulingNaturalLanguageParser = telegramSchedulingNaturalLanguageParser;
+        _telegramLeadAutomationClient = telegramLeadAutomationClient ?? NullTelegramLeadAutomationClient.Instance;
+        _telegramAutomationOptions = telegramAutomationOptions?.Value ?? new TelegramAutomationOptions();
         _featureFlagService = featureFlagService ?? NullTelegramChatbotFeatureFlagService.Instance;
         _observabilityService = observabilityService ?? NullTelegramChatbotObservabilityService.Instance;
     }
@@ -77,7 +84,9 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
         long chatId,
         ChatMessageDto clientMessage,
         string conversationTitle,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        Guid? clientId = null,
+        string? clientEmail = null)
     {
         var options = _options.Value;
         if (!options.Enabled)
@@ -254,6 +263,8 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
                 history,
                 clientMessage,
                 reply,
+                clientId,
+                clientEmail,
                 cancellationToken);
 
             reply = await ApplyNaturalQueryFlowAsync(
@@ -615,6 +626,8 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
         TelegramChatbotConversationHistoryDto? history,
         ChatMessageDto clientMessage,
         TelegramChatbotAssistantReply reply,
+        Guid? clientId,
+        string? clientEmail,
         CancellationToken cancellationToken)
     {
         var decision = _serviceRequestTriageEngine.Evaluate(history, reply, clientMessage);
@@ -646,6 +659,16 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
 
         if (decision.State.ServiceRequestId.HasValue)
         {
+            await TryAutomateTelegramClientLeadAsync(
+                apiToken,
+                conversationId,
+                clientMessage,
+                reply,
+                decision.State,
+                clientId,
+                clientEmail,
+                cancellationToken);
+
             return reply with
             {
                 Intent = OpenServiceRequestIntent,
@@ -770,12 +793,131 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
             conversationStatus: ConversationStatusActive,
             cancellationToken);
 
+        await TryAutomateTelegramClientLeadAsync(
+            apiToken,
+            conversationId,
+            clientMessage,
+            reply,
+            stateWithRequest,
+            clientId,
+            clientEmail,
+            cancellationToken);
+
         return reply with
         {
             Intent = OpenServiceRequestIntent,
             NextStep = "service_request_created",
             MessageText = _serviceRequestTriageEngine.BuildCreatedConfirmationMessage(stateWithRequest, createdRequest.Id),
             EntitiesJson = _serviceRequestTriageEngine.SerializeEntitiesFromState(stateWithRequest)
+        };
+    }
+
+    private async Task TryAutomateTelegramClientLeadAsync(
+        string apiToken,
+        Guid conversationId,
+        ChatMessageDto clientMessage,
+        TelegramChatbotAssistantReply reply,
+        TelegramServiceRequestTriageState triageState,
+        Guid? clientId,
+        string? clientEmail,
+        CancellationToken cancellationToken)
+    {
+        if (!_telegramAutomationOptions.Enabled || !_telegramAutomationOptions.ClientsAutomationEnabled)
+        {
+            return;
+        }
+
+        if (!clientId.HasValue || clientId.Value == Guid.Empty || !triageState.ServiceRequestId.HasValue)
+        {
+            return;
+        }
+
+        var automationRequest = BuildTelegramLeadAutomationRequest(
+            conversationId,
+            clientMessage,
+            triageState,
+            clientId.Value,
+            clientEmail);
+        var automationResult = await _telegramLeadAutomationClient.UpsertClientLeadAsync(automationRequest, cancellationToken);
+
+        await _telegramChatbotApiClient.RegisterActionAsync(
+            apiToken,
+            conversationId,
+            actionType: "telegram_funil_automation",
+            status: automationResult.Success ? ActionStatusSucceeded : ActionStatusFailed,
+            intentName: OpenServiceRequestIntent,
+            payloadJson: TrimToLimit(JsonSerializer.Serialize(automationRequest, JsonOptions), ContextPayloadLimit),
+            resultJson: TrimToLimit(JsonSerializer.Serialize(new
+            {
+                automationResult.Success,
+                automationResult.HttpStatusCode,
+                automationResult.LeadId,
+                automationResult.Created,
+                automationResult.BoardType,
+                automationResult.ChatwootStatus,
+                automationResult.ChatwootConversationId,
+                automationResult.ChatwootInboxId
+            }, JsonOptions), ContextPayloadLimit),
+                errorCode: automationResult.Success ? null : "telegram_funil_automation_failed",
+                errorMessage: automationResult.Success ? null : automationResult.Message,
+                correlationId: reply.CorrelationId,
+                metadataJson: TrimToLimit(JsonSerializer.Serialize(new
+                {
+                    origin = "telegram_bridge",
+                    stage = "epic_telegram_001",
+                    boardType = ClientsBoardType
+                }, JsonOptions), MetadataPayloadLimit),
+                lastStep: automationResult.Success ? "telegram_lead_synced" : "telegram_lead_sync_failed",
+                conversationStatus: ConversationStatusActive,
+                cancellationToken);
+
+        if (!automationResult.Success)
+        {
+            _observabilityService.RecordIncident(
+                stage: "telegram_funil_automation",
+                errorCode: "telegram_funil_automation_failed",
+                correlationId: reply.CorrelationId,
+                message: automationResult.Message);
+        }
+    }
+
+    private static TelegramLeadAutomationUpsertRequest BuildTelegramLeadAutomationRequest(
+        Guid chatbotConversationId,
+        ChatMessageDto clientMessage,
+        TelegramServiceRequestTriageState triageState,
+        Guid clientId,
+        string? clientEmail)
+    {
+        var protocol = triageState.ServiceRequestId?.ToString("N")[..8];
+        var description = string.IsNullOrWhiteSpace(triageState.ProblemDescription)
+            ? "Lead originado automaticamente pelo bot Telegram."
+            : $"Lead originado automaticamente pelo bot Telegram. Contexto inicial: {triageState.ProblemDescription.Trim()}";
+        var internalNotes = $"""
+Origem automatica: bot Telegram
+ChatbotConversationId: {chatbotConversationId}
+TelegramChatId: {clientMessage.ChatId}
+ServiceRequestId: {triageState.ServiceRequestId}
+Ultima mensagem do cliente: {triageState.LastClientMessage}
+""";
+
+        return new TelegramLeadAutomationUpsertRequest
+        {
+            BoardType = ClientsBoardType,
+            ChatbotConversationId = chatbotConversationId,
+            ChannelConversationId = clientMessage.ChatId.ToString(CultureInfo.InvariantCulture),
+            TelegramChatId = clientMessage.ChatId,
+            ClientId = clientId,
+            ClientName = string.IsNullOrWhiteSpace(clientMessage.SenderDisplayName) ? "Cliente Telegram" : clientMessage.SenderDisplayName.Trim(),
+            ClientEmail = clientEmail ?? string.Empty,
+            ServiceRequestId = triageState.ServiceRequestId,
+            ServiceCategory = FirstNonEmpty(triageState.CategoryRaw, triageState.CategoryEnum),
+            PostalCode = triageState.ZipCode ?? string.Empty,
+            City = triageState.City ?? string.Empty,
+            StatusNote = TrimToLimit(string.IsNullOrWhiteSpace(protocol)
+                ? description
+                : $"{description} Pedido #{protocol}.", 500) ?? "Lead originado automaticamente pelo bot Telegram.",
+            InternalNotes = TrimToLimit(internalNotes.Trim(), 4000) ?? string.Empty,
+            LastContactAtUtc = clientMessage.SentAtUtc.UtcDateTime
         };
     }
 
@@ -3323,6 +3465,16 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
         return trimmed[..maxLength];
     }
 
+    private static string FirstNonEmpty(string? first, string? second)
+    {
+        if (!string.IsNullOrWhiteSpace(first))
+        {
+            return first.Trim();
+        }
+
+        return second?.Trim() ?? string.Empty;
+    }
+
     private static string ResolveRole(int direction)
     {
         return direction switch
@@ -3343,6 +3495,19 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
                 IsEnabled: true,
                 ReasonCode: "rollout_null_service",
                 Bucket: null);
+        }
+    }
+
+    private sealed class NullTelegramLeadAutomationClient : ITelegramLeadAutomationClient
+    {
+        public static readonly NullTelegramLeadAutomationClient Instance = new();
+
+        public Task<TelegramLeadAutomationUpsertResult> UpsertClientLeadAsync(
+            TelegramLeadAutomationUpsertRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(TelegramLeadAutomationUpsertResult.Disabled(
+                "Automacao Telegram desabilitada no ambiente atual."));
         }
     }
 

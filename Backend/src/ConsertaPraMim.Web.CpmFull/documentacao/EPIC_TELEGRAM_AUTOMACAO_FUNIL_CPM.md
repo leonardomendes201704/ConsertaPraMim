@@ -5,7 +5,7 @@
 - Produto: `ConsertaPraMim`
 - Data de criacao: `2026-03-14`
 - Prioridade: `Alta`
-- Status inicial: `Planned`
+- Status atual: `In progress`
 - Time alvo: `Backend`, `API`, `Frontend/TelegramBridge`, `Dados`, `DevOps`, `QA`
 - Objetivo macro: conectar o bot Telegram ao funil do CPM Full e as inboxes `CPM Clientes` e `CPM Prestadores` do Chatwoot, mantendo o CPM como sistema de verdade do atendimento.
 
@@ -132,6 +132,9 @@
 ### Descricao
 Como equipe tecnica, queremos definir configuracao, feature flags e contrato minimo da ponte Telegram -> CPM Full -> Chatwoot.
 
+### Status
+- Concluida em `2026-03-14` na primeira fatia do epic.
+
 ### Criterios de aceite
 1. Existe secao de configuracao validada para a automacao Telegram.
 2. O bridge e a API conseguem identificar claramente quando a automacao esta habilitada ou desligada.
@@ -144,9 +147,18 @@ Como equipe tecnica, queremos definir configuracao, feature flags e contrato min
 - `TASK-01.04` Documentar variaveis de ambiente, secrets e health checks da trilha.
 - `TASK-01.05` Garantir fallback seguro quando a automacao estiver desligada.
 
+### Entrega aplicada
+1. `ConsertaPraMim.Web.TelegramBridge` e `ConsertaPraMim.Web.CpmFull` passaram a expor secao `TelegramAutomation` com `Enabled`, `ClientsAutomationEnabled`, `ProvidersAutomationEnabled`, `MirrorMessagesEnabled`, `RequireHumanHandoffForOutbound`, `AllowedBotSources` e segredo compartilhado.
+2. O bridge ganhou cliente HTTP tipado para a automacao interna do CPM Full, usando `CpmFullBaseUrl`, timeout configuravel e header `X-Telegram-Automation-Key`.
+3. O CPM Full ganhou endpoint interno `POST /api/integrations/telegram/automation/lead`, escondido do Swagger via `ApiExplorerSettings(IgnoreApi = true)` e protegido por segredo compartilhado.
+4. Quando a automacao esta desligada, o bot continua criando `service request` e respondendo ao usuario sem bloquear o fluxo principal.
+
 ## US-02 - Criar/atualizar lead de clientes a partir do bot Telegram
 ### Descricao
 Como operacao, queremos que conversas Telegram de clientes gerem lead no funil `clientes` sem cadastro manual.
+
+### Status
+- Concluida em `2026-03-14` na primeira fatia do epic.
 
 ### Criterios de aceite
 1. Conversa de cliente qualificada gera lead no board `clientes`.
@@ -159,6 +171,14 @@ Como operacao, queremos que conversas Telegram de clientes gerem lead no funil `
 - `TASK-02.03` Projetar dados minimos do bot no lead (`nome`, `telefone`, `observacao inicial`, `fonte`).
 - `TASK-02.04` Registrar historico funcional `lead_criado_via_telegram`.
 - `TASK-02.05` Cobrir cenarios de reentrada e conversa duplicada.
+
+### Entrega aplicada
+1. O `TelegramChatbotOrchestrator` passou a disparar a automacao do funil apos `service_request_created` e tambem em reentrada com `ServiceRequestId` ja existente no contexto.
+2. O CPM Full agora cria ou atualiza lead do board `clientes` via `UpsertTelegramLead`, com idempotencia por `ChatbotConversationId`.
+3. O vinculo tecnico inicial ficou persistido em `dbo.cpm_web_telegram_funil_links`, com `ChatbotConversationId`, `LeadId`, `BoardType`, `ChannelConversationId`, `TelegramChatId`, `ClientId`, `ClientEmail` e `ServiceRequestId`.
+4. O lead criado/atualizado projeta `Source = Telegram`, `StatusNote`, `InternalNotes` e `LastContactAt`, enquanto o historico registra eventos PT-BR `telegram_lead_criado` e `telegram_lead_atualizado`.
+5. A sincronizacao atual do Chatwoot foi reaproveitada logo apos o upsert do lead, sem abrir uma trilha paralela fora do funil do CPM Full.
+6. Nesta primeira fatia, o `telefone` ainda nao e preenchido automaticamente porque o contrato atual do bridge autenticado nao expõe telefone do cliente; esse enriquecimento permanece para evolucao posterior da trilha.
 
 ## US-03 - Criar/atualizar lead de prestadores a partir do bot Telegram
 ### Descricao

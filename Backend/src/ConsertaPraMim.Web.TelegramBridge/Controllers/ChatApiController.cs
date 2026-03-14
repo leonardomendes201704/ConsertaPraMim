@@ -121,12 +121,15 @@ public sealed class ChatApiController : ControllerBase
             await EnsureClientConversationAsync(clientChatId, title, apiToken!, cancellationToken);
             var message = await _telegramChatService.SendFromClientAsync(clientChatId, text, list, cancellationToken);
             await _telegramChatbotApiClient.RegisterIncomingMessageAsync(apiToken!, clientChatId, message, cancellationToken);
+            TelegramBridgeClientConversation.TryGetClientId(User, out var resolvedClientId);
             var assistantReply = await _telegramChatbotOrchestrator.GenerateAssistantReplyAsync(
                 apiToken!,
                 clientChatId,
                 message,
                 title,
-                cancellationToken);
+                cancellationToken,
+                clientId: resolvedClientId == Guid.Empty ? null : resolvedClientId,
+                clientEmail: User.FindFirstValue(ClaimTypes.Email));
 
             if (assistantReply is not null && !string.IsNullOrWhiteSpace(assistantReply.MessageText))
             {
