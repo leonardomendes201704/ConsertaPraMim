@@ -72,6 +72,7 @@ ORDER BY c.column_id;
         Assert.Contains("ConversationId", webhookColumnNames);
         Assert.Contains("PayloadJson", webhookColumnNames);
         Assert.Contains("Signature", webhookColumnNames);
+        Assert.Contains("PayloadPurgedAt", webhookColumnNames);
         Assert.Contains("ProcessStatus", webhookColumnNames);
         Assert.Contains("ProcessedAt", webhookColumnNames);
         Assert.Contains("ErrorMessage", webhookColumnNames);
@@ -659,6 +660,105 @@ WHERE ScopeKey = @scopeKey;
         Assert.Contains(diagnostics.RecentQueueItems, item =>
             item.QueueItemId == deadLetterItem.Id &&
             item.Status == ChatwootSyncQueueStatuses.DeadLetter);
+    }
+
+    [Fact(DisplayName = "UpdateLeadChatwootSync deve mascarar PII antes de persistir ultimo erro")]
+    public void UpdateLeadChatwootSync_DeveMascararPiiAntesDePersistirUltimoErro()
+    {
+        using var database = new LocalDbKanbanDatabaseScope();
+        if (!database.IsAvailable)
+        {
+            return;
+        }
+
+        var service = CreateService(database.ConnectionString);
+        var leadId = service.CreateLead(new AdminKanbanLeadUpsertRequest
+        {
+            BoardType = AdminKanbanBoardTypes.Clients,
+            StageId = 0,
+            Name = "Lead Mascara Chatwoot",
+            Phone = "(13) 99711-4422",
+            Email = "ricardo@email.com",
+            ServiceCategory = "Eletricista",
+            Source = "Teste automatizado",
+            Priority = "normal",
+            StatusNote = "Mascara de seguranca",
+            InternalNotes = string.Empty
+        });
+
+        Assert.True(service.UpdateLeadChatwootSync(leadId, new AdminKanbanLeadChatwootSyncUpdateRequest
+        {
+            ChatwootSyncStatus = ChatwootSyncStatuses.Failed,
+            ChatwootLastError = "email=ricardo@email.com phone=+5513997114422 token=segredo"
+        }));
+
+        using var connection = new SqlConnection(database.ConnectionString);
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT ChatwootLastError FROM dbo.cpm_web_kanban_leads WHERE Id = @leadId;";
+        command.Parameters.Add(new SqlParameter("@leadId", SqlDbType.Int) { Value = leadId });
+
+        var storedError = Convert.ToString(command.ExecuteScalar()) ?? string.Empty;
+        Assert.DoesNotContain("ricardo@email.com", storedError, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("997114422", storedError, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("r***o@email.com", storedError, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("[redacted]", storedError, StringComparison.Ordinal);
+    }
+
+    [Fact(DisplayName = "PurgeChatwootWebhookPayloads deve expurgar payload e assinatura antigos")]
+    public void PurgeChatwootWebhookPayloads_DeveExpurgarPayloadEAssinaturaAntigos()
+    {
+        using var database = new LocalDbKanbanDatabaseScope();
+        if (!database.IsAvailable)
+        {
+            return;
+        }
+
+        var service = CreateService(database.ConnectionString);
+        _ = service.GetStages(AdminKanbanBoardTypes.Clients);
+
+        var oldEvent = service.CreateOrGetChatwootWebhookEvent(new AdminKanbanChatwootWebhookEventUpsertRequest
+        {
+            ProviderEventId = "evt-old",
+            EventType = "message_created",
+            ConversationId = 9001,
+            PayloadJson = """{"event":"message_created","content":"telefone 13997114422"}""",
+            Signature = "sha256=assinatura-antiga",
+            ReceivedAt = new DateTime(2026, 3, 1, 12, 0, 0, DateTimeKind.Utc)
+        });
+        var newEvent = service.CreateOrGetChatwootWebhookEvent(new AdminKanbanChatwootWebhookEventUpsertRequest
+        {
+            ProviderEventId = "evt-new",
+            EventType = "message_created",
+            ConversationId = 9002,
+            PayloadJson = """{"event":"message_created","content":"telefone 13997114422"}""",
+            Signature = "sha256=assinatura-recente",
+            ReceivedAt = new DateTime(2026, 3, 13, 12, 0, 0, DateTimeKind.Utc)
+        });
+
+        var affectedRows = service.PurgeChatwootWebhookPayloads(
+            new DateTime(2026, 3, 10, 0, 0, 0, DateTimeKind.Utc),
+            new DateTime(2026, 3, 14, 0, 0, 0, DateTimeKind.Utc));
+
+        Assert.Equal(1, affectedRows);
+
+        using var connection = new SqlConnection(database.ConnectionString);
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT Id, PayloadJson, Signature, PayloadPurgedAt FROM dbo.cpm_web_chatwoot_webhook_events ORDER BY Id;";
+
+        using var reader = command.ExecuteReader();
+        Assert.True(reader.Read());
+        Assert.Equal(oldEvent.Id, reader.GetInt32(0));
+        Assert.Equal("{\"redacted\":true,\"reason\":\"retention\"}", reader.GetString(1));
+        Assert.True(reader.IsDBNull(2));
+        Assert.False(reader.IsDBNull(3));
+
+        Assert.True(reader.Read());
+        Assert.Equal(newEvent.Id, reader.GetInt32(0));
+        Assert.Contains("telefone", reader.GetString(1), StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("sha256=assinatura-recente", reader.GetString(2));
+        Assert.True(reader.IsDBNull(3));
     }
 
     private static SqlAdminKanbanService CreateService(string connectionString)

@@ -94,4 +94,64 @@ public sealed class ChatwootOptionsValidatorTests
         Assert.Contains(failures, failure => failure.Contains("RetryWorkerBatchSize", StringComparison.Ordinal));
         Assert.Contains(failures, failure => failure.Contains("SyncQueueMaxAttempts", StringComparison.Ordinal));
     }
+
+    [Fact(DisplayName = "Deve falhar quando configuracao de seguranca do webhook for invalida")]
+    public void DeveFalharQuandoConfiguracaoDeSegurancaDoWebhookForInvalida()
+    {
+        var options = new ChatwootOptions
+        {
+            Enabled = true,
+            BaseUrl = "https://chat.exemplo.com",
+            ApiAccessToken = "token-valido",
+            AccountId = 1,
+            ClientsInboxId = 10,
+            ProvidersInboxId = 11,
+            WebhookSecret = "segredo",
+            RequestTimeoutSeconds = 15,
+            MaxRetryAttempts = 3,
+            RetryBaseDelayMs = 500,
+            RetryWorkerIntervalSeconds = 30,
+            RetryWorkerBatchSize = 20,
+            SyncQueueMaxAttempts = 10,
+            AllowedWebhookIps = "10.0.0.0/33,ip-invalido",
+            WebhookPayloadRetentionDays = 0,
+            WebhookPayloadCleanupIntervalMinutes = 0
+        };
+
+        var result = _validator.Validate(Options.DefaultName, options);
+        var failures = result.Failures ?? [];
+
+        Assert.False(result.Succeeded);
+        Assert.Contains(failures, failure => failure.Contains("AllowedWebhookIps", StringComparison.Ordinal));
+        Assert.Contains(failures, failure => failure.Contains("WebhookPayloadRetentionDays", StringComparison.Ordinal));
+        Assert.Contains(failures, failure => failure.Contains("WebhookPayloadCleanupIntervalMinutes", StringComparison.Ordinal));
+    }
+
+    [Fact(DisplayName = "Deve aceitar allowlist valida no webhook")]
+    public void DeveAceitarAllowlistValidaNoWebhook()
+    {
+        var options = new ChatwootOptions
+        {
+            Enabled = true,
+            BaseUrl = "https://chat.exemplo.com",
+            ApiAccessToken = "token-valido",
+            AccountId = 1,
+            ClientsInboxId = 10,
+            ProvidersInboxId = 11,
+            WebhookSecret = "segredo",
+            RequestTimeoutSeconds = 15,
+            MaxRetryAttempts = 3,
+            RetryBaseDelayMs = 500,
+            RetryWorkerIntervalSeconds = 30,
+            RetryWorkerBatchSize = 20,
+            SyncQueueMaxAttempts = 10,
+            AllowedWebhookIps = "127.0.0.1,10.0.0.0/24",
+            WebhookPayloadRetentionDays = 14,
+            WebhookPayloadCleanupIntervalMinutes = 360
+        };
+
+        var result = _validator.Validate(Options.DefaultName, options);
+
+        Assert.True(result.Succeeded);
+    }
 }

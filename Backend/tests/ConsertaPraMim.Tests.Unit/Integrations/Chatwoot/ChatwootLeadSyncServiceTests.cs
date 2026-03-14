@@ -42,6 +42,50 @@ public sealed class ChatwootLeadSyncServiceTests
         chatwootApiClient.VerifyNoOtherCalls();
     }
 
+    [Fact(DisplayName = "Deve mascarar PII e segredos no ultimo erro persistido do Chatwoot")]
+    public async Task DeveMascararPiiESegredosNoUltimoErroPersistidoDoChatwoot()
+    {
+        var kanbanService = new Mock<IAdminKanbanService>();
+        var chatwootApiClient = new Mock<IChatwootApiClient>();
+        var queueService = new Mock<IChatwootSyncQueueService>();
+        var lead = CreateLead(18, AdminKanbanBoardTypes.Clients, phone: "(13) 99711-4422", email: "ricardo@email.com");
+
+        kanbanService
+            .Setup(service => service.GetLeadDetails(18))
+            .Returns(lead);
+        kanbanService
+            .Setup(service => service.UpdateLeadChatwootSync(
+                18,
+                It.Is<AdminKanbanLeadChatwootSyncUpdateRequest>(request =>
+                    request.ChatwootSyncStatus == ChatwootSyncStatuses.Failed &&
+                    !string.IsNullOrWhiteSpace(request.ChatwootLastError) &&
+                    !request.ChatwootLastError.Contains("ricardo@email.com", StringComparison.OrdinalIgnoreCase) &&
+                    !request.ChatwootLastError.Contains("997114422", StringComparison.OrdinalIgnoreCase) &&
+                    request.ChatwootLastError.Contains("r***o@email.com", StringComparison.OrdinalIgnoreCase) &&
+                    request.ChatwootLastError.Contains("[redacted]", StringComparison.Ordinal))))
+            .Returns(true);
+        kanbanService
+            .Setup(service => service.AddHistoryEvent(18, "chatwoot_sync_falhou", It.IsAny<string>()))
+            .Returns(true);
+
+        chatwootApiClient
+            .Setup(client => client.SearchContactsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new ChatwootApiException("Chatwoot retornou erro HTTP 422. Resposta: email=ricardo@email.com phone=+5513997114422 token=segredo", 422));
+
+        queueService
+            .Setup(service => service.EnqueueRetry(18, ChatwootSyncOperationTypes.LeadSync, It.IsAny<string>(), false));
+
+        var sut = CreateSut(kanbanService.Object, chatwootApiClient.Object, queueService.Object);
+
+        var result = await sut.SyncLeadAsync(18);
+
+        Assert.False(result.Succeeded);
+        Assert.DoesNotContain("ricardo@email.com", result.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("997114422", result.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("[redacted]", result.Message, StringComparison.Ordinal);
+        kanbanService.VerifyAll();
+    }
+
     [Fact(DisplayName = "Deve enfileirar retentativa quando Chatwoot falhar por erro externo")]
     public async Task DeveEnfileirarRetentativaQuandoChatwootFalharPorErroExterno()
     {
@@ -797,7 +841,9 @@ public sealed class ChatwootLeadSyncServiceTests
             RetryWorkerEnabled = true,
             RetryWorkerIntervalSeconds = 30,
             RetryWorkerBatchSize = 20,
-            SyncQueueMaxAttempts = 10
+            SyncQueueMaxAttempts = 10,
+            WebhookPayloadRetentionDays = 14,
+            WebhookPayloadCleanupIntervalMinutes = 360
         });
 
         return new ChatwootLeadSyncService(

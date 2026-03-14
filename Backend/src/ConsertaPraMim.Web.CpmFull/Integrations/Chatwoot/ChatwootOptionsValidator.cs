@@ -74,6 +74,24 @@ public sealed class ChatwootOptionsValidator : IValidateOptions<ChatwootOptions>
             failures.Add("Chatwoot:SyncQueueMaxAttempts deve ser maior que zero.");
         }
 
+        if (options.WebhookPayloadRetentionDays <= 0)
+        {
+            failures.Add("Chatwoot:WebhookPayloadRetentionDays deve ser maior que zero.");
+        }
+
+        if (options.WebhookPayloadCleanupIntervalMinutes <= 0)
+        {
+            failures.Add("Chatwoot:WebhookPayloadCleanupIntervalMinutes deve ser maior que zero.");
+        }
+
+        foreach (var entry in options.GetAllowedWebhookIpEntries())
+        {
+            if (!ChatwootIpAllowlist.TryValidateEntry(entry, out _))
+            {
+                failures.Add($"Chatwoot:AllowedWebhookIps contem entrada invalida: '{entry}'.");
+            }
+        }
+
         return failures.Count == 0
             ? ValidateOptionsResult.Success
             : ValidateOptionsResult.Fail(failures);

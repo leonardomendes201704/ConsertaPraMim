@@ -18,7 +18,20 @@ public sealed class ChatwootOptions
     public int RetryWorkerIntervalSeconds { get; init; } = 30;
     public int RetryWorkerBatchSize { get; init; } = 20;
     public int SyncQueueMaxAttempts { get; init; } = 10;
+    public string AllowedWebhookIps { get; init; } = string.Empty;
+    public bool WebhookPayloadCleanupEnabled { get; init; } = true;
+    public int WebhookPayloadRetentionDays { get; init; } = 14;
+    public int WebhookPayloadCleanupIntervalMinutes { get; init; } = 360;
 
     public TimeSpan GetRequestTimeout() =>
         TimeSpan.FromSeconds(RequestTimeoutSeconds <= 0 ? 15 : RequestTimeoutSeconds);
+
+    public TimeSpan GetWebhookPayloadCleanupInterval() =>
+        TimeSpan.FromMinutes(WebhookPayloadCleanupIntervalMinutes <= 0 ? 360 : WebhookPayloadCleanupIntervalMinutes);
+
+    public IReadOnlyList<string> GetAllowedWebhookIpEntries() =>
+        AllowedWebhookIps
+            .Split([',', ';', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
 }

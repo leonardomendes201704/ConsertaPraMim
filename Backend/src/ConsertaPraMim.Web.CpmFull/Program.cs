@@ -35,6 +35,7 @@ builder.Services.AddScoped<IChatwootLeadSyncService, ChatwootLeadSyncService>();
 builder.Services.AddScoped<IChatwootBackfillService, ChatwootBackfillService>();
 builder.Services.AddScoped<IChatwootWebhookService, ChatwootWebhookService>();
 builder.Services.AddHostedService<ChatwootSyncRetryWorker>();
+builder.Services.AddHostedService<ChatwootWebhookRetentionWorker>();
 builder.Services.AddSingleton<IValidateOptions<ChatwootOptions>, ChatwootOptionsValidator>();
 builder.Services.AddOptions<ChatwootOptions>()
     .Bind(builder.Configuration.GetSection(ChatwootOptions.SectionName))

@@ -83,7 +83,7 @@ public sealed class ChatwootLeadSyncService : IChatwootLeadSyncService
 
         if (!TryBuildContactRequest(lead, inboxId, out var contactRequest, out var validationError))
         {
-            var sanitizedError = TrimTo(validationError, 500);
+            var sanitizedError = ChatwootSecuritySanitizer.SanitizeMessage(validationError, 500);
             _kanbanService.UpdateLeadChatwootSync(
                 leadId,
                 new AdminKanbanLeadChatwootSyncUpdateRequest
@@ -197,7 +197,7 @@ public sealed class ChatwootLeadSyncService : IChatwootLeadSyncService
                 leadId,
                 inboxId);
 
-            var sanitizedError = TrimTo(BuildUserFacingError(ex), 500);
+            var sanitizedError = ChatwootSecuritySanitizer.SanitizeMessage(BuildUserFacingError(ex), 500);
             _kanbanService.UpdateLeadChatwootSync(
                 leadId,
                 new AdminKanbanLeadChatwootSyncUpdateRequest
@@ -338,7 +338,7 @@ public sealed class ChatwootLeadSyncService : IChatwootLeadSyncService
                 lead.StageName,
                 lead.Chatwoot.ConversationId);
 
-            var sanitizedError = TrimTo(BuildUserFacingError(ex), 500);
+            var sanitizedError = ChatwootSecuritySanitizer.SanitizeMessage(BuildUserFacingError(ex), 500);
             _kanbanService.UpdateLeadChatwootSync(
                 leadId,
                 new AdminKanbanLeadChatwootSyncUpdateRequest

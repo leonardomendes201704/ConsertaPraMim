@@ -102,11 +102,14 @@ Preencha no `Backend/.env.vps` pelo menos:
 - `JWT_SECRET_KEY`
 - `SEED_DEFAULT_PASSWORD`
 - obrigatorio para Chatwoot no CPM Full publicado: `CPMFULL_CHATWOOT_*`
+- opcional para endurecimento do Chatwoot no CPM Full publicado: `CPMFULL_CHATWOOT_ALLOWED_WEBHOOK_IPS`, `CPMFULL_CHATWOOT_WEBHOOK_PAYLOAD_CLEANUP_ENABLED`, `CPMFULL_CHATWOOT_WEBHOOK_PAYLOAD_RETENTION_DAYS`, `CPMFULL_CHATWOOT_WEBHOOK_PAYLOAD_CLEANUP_INTERVAL_MINUTES`
 
 Observacao critica:
 - o job `deploy-web-cpmfull` precisa escrever `CPMFULL_CHATWOOT_*` em `Backend/.env.vps` para o container publicado enxergar `Chatwoot__Enabled=true`;
 - sem esses secrets no environment do GitHub Actions, o CPM Full sobe normalmente, mas a integracao fica desabilitada em runtime e o Kanban responde `Integracao com Chatwoot desabilitada no ambiente atual.`;
 - depois da correcao `CPMFULL-016`, o healthcheck do workflow tambem consulta `/internal/health/chatwoot` sempre que `CPMFULL_CHATWOOT_ENABLED=true`, para impedir falso positivo de deploy.
+- a allowlist de IP do webhook e opcional; nao habilite `CPMFULL_CHATWOOT_ALLOWED_WEBHOOK_IPS` sem antes confirmar qual IP/faixa realmente chega ao CPM Full apos Nginx/proxy reverso.
+- o worker de retention do webhook usa `CPMFULL_CHATWOOT_WEBHOOK_PAYLOAD_RETENTION_DAYS` e `CPMFULL_CHATWOOT_WEBHOOK_PAYLOAD_CLEANUP_INTERVAL_MINUTES`; o padrao publicado e expurgar payload bruto e assinatura apos `14` dias, preservando somente metadados operacionais.
 
 Exemplo minimo (PROD):
 
@@ -152,6 +155,10 @@ CPMFULL_CHATWOOT_ACCOUNT_ID=1
 CPMFULL_CHATWOOT_CLIENTS_INBOX_ID=1
 CPMFULL_CHATWOOT_PROVIDERS_INBOX_ID=2
 CPMFULL_CHATWOOT_WEBHOOK_SECRET=ALTERAR_AQUI
+CPMFULL_CHATWOOT_ALLOWED_WEBHOOK_IPS=
+CPMFULL_CHATWOOT_WEBHOOK_PAYLOAD_CLEANUP_ENABLED=true
+CPMFULL_CHATWOOT_WEBHOOK_PAYLOAD_RETENTION_DAYS=14
+CPMFULL_CHATWOOT_WEBHOOK_PAYLOAD_CLEANUP_INTERVAL_MINUTES=360
 ```
 
 Exemplo minimo (DEV na mesma VPS):
@@ -198,6 +205,10 @@ CPMFULL_CHATWOOT_ACCOUNT_ID=1
 CPMFULL_CHATWOOT_CLIENTS_INBOX_ID=1
 CPMFULL_CHATWOOT_PROVIDERS_INBOX_ID=2
 CPMFULL_CHATWOOT_WEBHOOK_SECRET=ALTERAR_AQUI
+CPMFULL_CHATWOOT_ALLOWED_WEBHOOK_IPS=
+CPMFULL_CHATWOOT_WEBHOOK_PAYLOAD_CLEANUP_ENABLED=true
+CPMFULL_CHATWOOT_WEBHOOK_PAYLOAD_RETENTION_DAYS=14
+CPMFULL_CHATWOOT_WEBHOOK_PAYLOAD_CLEANUP_INTERVAL_MINUTES=360
 ```
 
 ## 2.1) Validacao do rodape de Homologacao (HML)
