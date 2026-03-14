@@ -194,6 +194,33 @@ No `ConsertaPraMim.Web.CpmFull`, configurar a secao `TelegramAutomation`:
 - Anexo antigo continua em disco no bridge: validar `TelegramBridge:AttachmentRetentionEnabled`, path `wwwroot/uploads/telegram-bridge`, horario UTC do arquivo e execucao do `TelegramAttachmentRetentionWorker`.
 - Endpoint interno aceitou chamada sem segredo: validar reverse proxy, se o header `X-Telegram-Automation-Key` esta sendo exigido pela aplicacao e se nao existe reescrita indevida na borda.
 
+### Checklist final de homologacao do epic Telegram
+
+1. Publicar `ConsertaPraMim.Web.CpmFull`, `ConsertaPraMim.Web.TelegramBridge` e API na branch alvo.
+2. Confirmar `TelegramAutomation:Enabled=true` nos dois lados e `Chatwoot:Enabled=true` no CPM Full.
+3. Validar fluxo `clientes`: abrir conversa autenticada, gerar lead, confirmar bootstrap no `CPM Clientes`, espelhar mensagem inbound e receber resposta humana.
+4. Validar fluxo `prestadores`: abrir conversa autenticada, gerar lead, confirmar bootstrap no `CPM Prestadores`, espelhar mensagem inbound e receber resposta humana.
+5. Reabrir o lead nos dois boards e confirmar `Vinculo Telegram`, `Sync Chatwoot`, `Ultima msg Telegram sincronizada`, `Ultima msg Chatwoot sincronizada` e `Handoff humano iniciado`.
+6. Abrir o drawer `Diagnostico Telegram` e confirmar metricas locais + snapshot do bridge, fila ativa, dead-letter e incidentes recentes.
+7. Simular indisponibilidade externa controlada no bridge ou no Chatwoot e confirmar item em `retrying`/`dead_letter` com reprocessamento manual funcionando.
+8. Confirmar mascaramento de `chatId`, e-mail e erros sensiveis no modal e no drawer.
+9. Confirmar retention de payloads e anexos em ambiente de QA com janela reduzida.
+10. Validar smoke final em producao/homologacao: criacao de lead, bootstrap Chatwoot, mensagem inbound, handoff humano e drawer de diagnostico.
+
+### Plano de rollback da trilha Telegram
+
+1. Se a falha afetar apenas criacao de lead automatica, desligar seletivamente:
+   - `TelegramAutomation:ClientsAutomationEnabled=false`
+   - `TelegramAutomation:ProvidersAutomationEnabled=false`
+2. Se a falha afetar espelhamento bidirecional, desligar seletivamente:
+   - `TelegramAutomation:MirrorMessagesEnabled=false` no bridge
+   - `TelegramAutomation:MirrorMessagesEnabled=false` no CPM Full
+3. Se a falha afetar apenas outbound humano, manter espelhamento inbound e desligar:
+   - `TelegramAutomation:RequireHumanHandoffForOutbound=false` para impedir takeover automatico
+   - ou `MirrorMessagesEnabled=false` quando precisar congelar toda a trilha bidirecional
+4. Em rollback parcial, o bot continua operando com a trilha conversacional propria e, para `Client`, o fluxo principal de `service request` segue funcional.
+5. Apos rollback, validar imediatamente login, envio/recebimento no bridge, abertura de pedido do cliente e ausencia de erros novos no drawer `Diagnostico Telegram`.
+
 ## Home - botao flutuante de WhatsApp
 
 ### Comportamento esperado
@@ -788,4 +815,4 @@ Equivalentes no deploy VPS:
 
 - A automacao Telegram -> CPM Full -> Chatwoot continua sendo tratada pelo documento `EPIC-TELEGRAM-001 - Automacao do Bot Telegram com Funis CPM e Chatwoot`.
 - A base ja cobre configuracao, lead automatico de `clientes`, lead automatico de `prestadores`, vinculo tecnico visivel no admin, bootstrap Chatwoot, espelhamento bidirecional de mensagens, handoff humano e observabilidade ampliada.
-- A proxima etapa documentada do epic e a `US-10`, dedicada a QA, testes integrados e homologacao/rollback da trilha Telegram.
+- O epic Telegram foi encerrado com a `US-10`, consolidando cobertura automatizada, checklist final de homologacao e plano de rollback por feature flags.

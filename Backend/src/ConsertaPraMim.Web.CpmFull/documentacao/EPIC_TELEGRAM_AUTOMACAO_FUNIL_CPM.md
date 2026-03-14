@@ -5,7 +5,7 @@
 - Produto: `ConsertaPraMim`
 - Data de criacao: `2026-03-14`
 - Prioridade: `Alta`
-- Status atual: `In progress`
+- Status atual: `Completed`
 - Time alvo: `Backend`, `API`, `Frontend/TelegramBridge`, `Dados`, `DevOps`, `QA`
 - Objetivo macro: conectar o bot Telegram ao funil do CPM Full e as inboxes `CPM Clientes` e `CPM Prestadores` do Chatwoot, mantendo o CPM como sistema de verdade do atendimento.
 
@@ -376,6 +376,9 @@ Como time de seguranca, queremos proteger dados e segredos do bot e do Chatwoot.
 ### Descricao
 Como QA, queremos validar a automacao Telegram ponta a ponta antes de operar em producao.
 
+### Status
+- Concluida em `2026-03-14` com ampliacao da cobertura automatizada, checklist final de homologacao e plano de rollback por feature flags.
+
 ### Criterios de aceite
 1. Casos felizes e de falha validados para `clientes` e `prestadores`.
 2. Espelhamento de mensagem e handoff humano homologados.
@@ -388,6 +391,13 @@ Como QA, queremos validar a automacao Telegram ponta a ponta antes de operar em 
 - `TASK-10.04` Validar retentativa com indisponibilidade simulada.
 - `TASK-10.05` Criar checklist operacional de homologacao.
 - `TASK-10.06` Criar plano de rollback e feature flags de desativacao.
+
+### Entrega aplicada
+1. A suite automatizada passou a cobrir servico de automacao de lead Telegram, fila bidirecional do worker Telegram e cenarios adicionais de idempotencia para outbound humano sem `ChatwootMessageId`.
+2. A cobertura agora valida fluxo feliz e bloqueios da automacao de lead (`clientes` e `prestadores`), processamento do worker com sucesso, dead-letter quando retentativas esgotam e reaproveitamento da mesma delivery key em reenvio idempotente.
+3. O manual operacional passou a consolidar checklist final de homologacao da trilha Telegram, incluindo `clientes`, `prestadores`, bootstrap Chatwoot, espelhamento inbound, handoff humano, drawer de diagnostico, seguranca e retention.
+4. O runbook passou a documentar rollback operacional por feature flags, permitindo desligar seletivamente automacao de leads, espelhamento de mensagens e outbound humano sem interromper a trilha principal do bot.
+5. Com a conclusao da US-10, o epic `EPIC-TELEGRAM-001` fica encerrado como entregue do ponto de vista funcional, tecnico e operacional.
 
 ## 8. Sequencia de entrega recomendada
 1. Sprint 1:

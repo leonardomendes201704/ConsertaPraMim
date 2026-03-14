@@ -72,6 +72,7 @@
 
 ### Done
 
+- [ST-087 - QA, homologacao e rollback da trilha Telegram no CPM Full](STORIES/DONE/ST-087-qa-homologacao-rollback-telegram-cpmfull.md)
 - [ST-086 - Seguranca e conformidade da trilha Telegram no CPM Full](STORIES/DONE/ST-086-seguranca-conformidade-telegram-cpmfull.md)
 - [ST-085 - Diagnostico operacional do Telegram no CPM Full](STORIES/DONE/ST-085-diagnostico-operacional-telegram-cpmfull.md)
 - [ST-084 - Handoff humano do Chatwoot volta para o Telegram](STORIES/DONE/ST-084-chatwoot-handoff-telegram.md)

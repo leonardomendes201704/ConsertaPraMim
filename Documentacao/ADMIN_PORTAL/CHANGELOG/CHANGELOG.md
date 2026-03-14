@@ -12,6 +12,12 @@
 
 ## Released
 
+- [2026-03-14] [CPMFULL-029][TELEGRAM-US-10-QA-HOMOLOGACAO-ROLLBACK] Fechamento de QA, homologacao e rollback da trilha Telegram no CPM Full
+- Tipo: test
+- Resumo: a trilha `Telegram -> CPM Full -> Chatwoot` recebeu cobertura automatizada complementar para automacao de lead, worker bidirecional e idempotencia de outbound humano sem `ChatwootMessageId`, alem de checklist final de homologacao e plano de rollback por feature flags no manual operacional. O epic `EPIC-TELEGRAM-001` foi encerrado com status `Completed`.
+- Arquivos principais: `Backend/tests/ConsertaPraMim.Tests.Unit/Integrations/Telegram/TelegramLeadAutomationServiceTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Integrations/Telegram/TelegramDeliveryWorkerTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Integrations/Telegram/TelegramMessageAutomationServiceTests.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/EPIC_TELEGRAM_AUTOMACAO_FUNIL_CPM.md`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/MANUAL_QA_OPERACAO.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-087-qa-homologacao-rollback-telegram-cpmfull.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: baixo
+
 - [2026-03-14] [CPMFULL-028][TELEGRAM-US-09-SEGURANCA-CONFORMIDADE] Endurecimento de seguranca e retention da trilha Telegram no CPM Full
 - Tipo: feat
 - Resumo: o `ConsertaPraMim.Web.CpmFull` e o `ConsertaPraMim.Web.TelegramBridge` passaram a mascarar `chatId`, telefone, e-mail, token, segredo e erros tecnicos na trilha Telegram, endurecer o uso do segredo compartilhado entre endpoints internos, expurgar payloads antigos da fila `dbo.cpm_web_telegram_delivery_queue` e remover anexos antigos de `wwwroot/uploads/telegram-bridge` por retention configuravel. A entrega tambem atualizou o manual operacional com checklist de seguranca, rotacao de token/segredo e politica de outbound humano.

@@ -9,6 +9,75 @@ namespace ConsertaPraMim.Tests.Unit.Integrations.Telegram;
 
 public sealed class TelegramMessageAutomationServiceTests
 {
+    [Fact(DisplayName = "Telegram Automation | Enqueue inbound | Deve reaproveitar idempotencia quando mensagem ja estiver na fila")]
+    public async Task EnqueueInboundMessageAsync_DeveRetornarDuplicateQuandoMensagemJaExistirNaFila()
+    {
+        var chatbotConversationId = Guid.NewGuid();
+        var kanbanService = new Mock<IAdminKanbanService>(MockBehavior.Strict);
+        var leadSyncService = new Mock<IChatwootLeadSyncService>(MockBehavior.Strict);
+        var chatwootApiClient = new Mock<IChatwootApiClient>(MockBehavior.Strict);
+        var queueService = new Mock<ITelegramDeliveryQueueService>(MockBehavior.Strict);
+        var bridgeClient = new Mock<ITelegramBridgeDeliveryClient>(MockBehavior.Strict);
+
+        kanbanService
+            .Setup(service => service.FindLeadIdByTelegramChatbotConversationId(chatbotConversationId))
+            .Returns(81);
+        kanbanService
+            .Setup(service => service.GetLeadDetails(81))
+            .Returns(CreateLead(81, source: "Telegram", conversationId: 902, telegramChatId: 5513997114422));
+        queueService
+            .Setup(service => service.Enqueue(
+                81,
+                TelegramDeliveryDirections.TelegramToChatwoot,
+                "msg-telegram-001",
+                It.IsAny<string>(),
+                902,
+                5513997114422,
+                It.Is<string>(message => message.Contains("espelhamento", StringComparison.OrdinalIgnoreCase)),
+                true))
+            .Returns(new AdminKanbanTelegramDeliveryQueueItemRecord
+            {
+                Id = 50,
+                LeadId = 81,
+                Direction = TelegramDeliveryDirections.TelegramToChatwoot,
+                DeliveryKey = "msg-telegram-001",
+                Status = TelegramDeliveryQueueStatuses.Queued,
+                AttemptCount = 1,
+                MaxAttempts = 10,
+                NextAttemptAt = DateTime.UtcNow,
+                IsDuplicate = true
+            });
+
+        var sut = CreateSut(
+            kanbanService.Object,
+            leadSyncService.Object,
+            chatwootApiClient.Object,
+            queueService.Object,
+            bridgeClient.Object);
+
+        var result = await sut.EnqueueInboundMessageAsync(
+            new TelegramInboundMessageAutomationRequest
+            {
+                ChatbotConversationId = chatbotConversationId,
+                ChannelConversationId = "chat-telegram-5513997114422",
+                ChannelMessageId = "msg-telegram-001",
+                TelegramChatId = 5513997114422,
+                SenderDisplayName = "Ricardo Almeida",
+                MessageText = "Preciso de ajuda com a lampada da cozinha.",
+                SentAtUtc = new DateTime(2026, 3, 14, 18, 30, 0, DateTimeKind.Utc)
+            },
+            "segredo-compartilhado");
+
+        Assert.True(result.Success);
+        Assert.Equal(StatusCodes.Status200OK, result.HttpStatusCode);
+        Assert.NotNull(result.Payload);
+        Assert.True(result.Payload!.Duplicate);
+        Assert.Equal("duplicate", result.Payload.QueueStatus);
+        Assert.Contains("ja registrada", result.Payload.Message, StringComparison.OrdinalIgnoreCase);
+        kanbanService.VerifyAll();
+        queueService.VerifyAll();
+    }
+
     [Fact(DisplayName = "Telegram Automation | Deve espelhar mensagem Telegram como incoming no Chatwoot")]
     public async Task ProcessQueueItemAsync_DeveCriarMensagemIncomingNoChatwootParaMensagemTelegram()
     {
@@ -180,6 +249,74 @@ public sealed class TelegramMessageAutomationServiceTests
         Assert.Contains("Telegram", result.Message, StringComparison.OrdinalIgnoreCase);
         bridgeClient.VerifyAll();
         kanbanService.VerifyAll();
+    }
+
+    [Fact(DisplayName = "Telegram Automation | Outbound fallback idempotencia | Deve gerar a mesma chave quando nao houver ChatwootMessageId")]
+    public async Task TryEnqueueOutboundMessageFromChatwootAsync_DeveGerarMesmaDeliveryKeyQuandoNaoHouverMessageId()
+    {
+        var kanbanService = new Mock<IAdminKanbanService>(MockBehavior.Strict);
+        var leadSyncService = new Mock<IChatwootLeadSyncService>(MockBehavior.Strict);
+        var chatwootApiClient = new Mock<IChatwootApiClient>(MockBehavior.Strict);
+        var queueService = new Mock<ITelegramDeliveryQueueService>(MockBehavior.Strict);
+        var bridgeClient = new Mock<ITelegramBridgeDeliveryClient>(MockBehavior.Strict);
+        var keys = new List<string>();
+        var enqueueCount = 0;
+        var lead = CreateLead(83, source: "Telegram", conversationId: 904, telegramChatId: 5513997001234);
+
+        queueService
+            .Setup(service => service.Enqueue(
+                83,
+                TelegramDeliveryDirections.ChatwootToTelegram,
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                904,
+                5513997001234,
+                It.Is<string>(message => message.Contains("Chatwoot", StringComparison.OrdinalIgnoreCase)),
+                true))
+            .Returns((int _, string _, string deliveryKey, string _, long? _, long? _, string _, bool _) =>
+            {
+                enqueueCount++;
+                keys.Add(deliveryKey);
+                return new AdminKanbanTelegramDeliveryQueueItemRecord
+                {
+                    Id = enqueueCount == 1 ? 60 : 61,
+                    LeadId = 83,
+                    Direction = TelegramDeliveryDirections.ChatwootToTelegram,
+                    DeliveryKey = deliveryKey,
+                    Status = TelegramDeliveryQueueStatuses.Queued,
+                    AttemptCount = 1,
+                    MaxAttempts = 10,
+                    NextAttemptAt = DateTime.UtcNow,
+                    IsDuplicate = enqueueCount > 1
+                };
+            });
+
+        var sut = CreateSut(
+            kanbanService.Object,
+            leadSyncService.Object,
+            chatwootApiClient.Object,
+            queueService.Object,
+            bridgeClient.Object);
+
+        var occurredAt = new DateTime(2026, 3, 14, 18, 45, 0, DateTimeKind.Utc);
+        var first = await sut.TryEnqueueOutboundMessageFromChatwootAsync(
+            lead,
+            null,
+            "Oi! Vou assumir seu atendimento agora.",
+            "Atendente CPM",
+            occurredAt);
+        var second = await sut.TryEnqueueOutboundMessageFromChatwootAsync(
+            lead,
+            null,
+            "Oi! Vou assumir seu atendimento agora.",
+            "Atendente CPM",
+            occurredAt);
+
+        Assert.True(first);
+        Assert.False(second);
+        Assert.Equal(2, keys.Count);
+        Assert.Equal(keys[0], keys[1]);
+        queueService.VerifyAll();
     }
 
     private static TelegramMessageAutomationService CreateSut(
