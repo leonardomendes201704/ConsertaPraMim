@@ -418,8 +418,8 @@ public static class ApiEndpointDocumentationCatalog
             if (httpMethod == "POST" && path.Contains("/session", StringComparison.Ordinal))
             {
                 return new OperationNarrativeContext(
-                    BusinessObjective: "Abrir ou retomar a sessao conversacional do cliente no canal Telegram com vinculo auditavel.",
-                    Scenario: "Fluxo inicial apos autenticacao do cliente para garantir que a conversa natural com IA use contexto correto por `ClientId`.",
+                    BusinessObjective: "Abrir ou retomar a sessao conversacional do usuario autenticado no canal Telegram com vinculo auditavel.",
+                    Scenario: "Fluxo inicial apos autenticacao do cliente ou prestador para garantir que a conversa natural com IA use contexto correto por usuario autenticado.",
                     ExpectedOutcome: "Conversa ativa e pronta para registrar mensagens, contexto da IA e eventos de negocio.");
             }
 
@@ -479,7 +479,7 @@ public static class ApiEndpointDocumentationCatalog
             {
                 return new OperationNarrativeContext(
                     BusinessObjective: "Persistir mensagens inbound/outbound/system da conversa do chatbot Telegram.",
-                    Scenario: "Bridge/orquestrador envia cada interacao do cliente e da IA para manter historico completo da trilha conversacional.",
+                    Scenario: "Bridge/orquestrador envia cada interacao do usuario autenticado e da IA para manter historico completo da trilha conversacional.",
                     ExpectedOutcome: "Mensagem registrada em UTC e estado da conversa atualizado para uso em contexto/historico.");
             }
 
@@ -488,7 +488,7 @@ public static class ApiEndpointDocumentationCatalog
                 return new OperationNarrativeContext(
                     BusinessObjective: "Consultar historico consolidado da conversa para continuidade da jornada em linguagem natural.",
                     Scenario: "Bridge/orquestrador recupera mensagens, snapshots e acoes para montar contexto antes de nova resposta da IA.",
-                    ExpectedOutcome: "Payload historico consistente e restrito ao cliente autenticado.");
+                    ExpectedOutcome: "Payload historico consistente e restrito ao usuario autenticado.");
             }
 
             if (httpMethod == "POST" && path.Contains("/actions", StringComparison.Ordinal))
@@ -508,9 +508,9 @@ public static class ApiEndpointDocumentationCatalog
             }
 
             return new OperationNarrativeContext(
-                BusinessObjective: "Operar ciclo conversacional do chatbot Telegram com persistencia e auditabilidade por cliente.",
-                Scenario: "Endpoints dedicados do chatbot para manter sessao, estado e eventos de conversa natural.",
-                ExpectedOutcome: "Conversa consistente por `ClientId`, pronta para suportar triagem automatizada e acompanhamento de pedidos.");
+                BusinessObjective: "Operar ciclo conversacional do chatbot Telegram com persistencia e auditabilidade por usuario autenticado.",
+                Scenario: "Endpoints dedicados do chatbot para manter sessao, estado e eventos de conversa natural de clientes e prestadores, preservando as restricoes de negocio de cada papel.",
+                ExpectedOutcome: "Conversa consistente por usuario autenticado, pronta para suportar triagem automatizada, onboarding de prestadores e acompanhamento de pedidos quando aplicavel.");
         }
 
         if (path.Contains("/api/chats", StringComparison.Ordinal) || path.Contains("/chat", StringComparison.Ordinal))
@@ -1035,14 +1035,15 @@ public static class ApiEndpointDocumentationCatalog
             "TelegramChatbot" => new CatalogEntry(
                 DomainTitle: "Chatbot Telegram com IA",
                 ResourceLabel: "sessao, historico e eventos conversacionais do chatbot",
-                BusinessContext: "Sustenta a jornada em linguagem natural do cliente no Telegram para triagem, abertura de pedido e agendamento.",
-                TechnicalContext: "Endpoints autenticados por `Client` que persistem mensagens, contexto da IA e logs de acao na `ConsertaPraMim.API`.",
+                BusinessContext: "Sustenta a jornada em linguagem natural no Telegram para clientes (triagem, abertura de pedido e agendamento) e prestadores (captacao, validacao e suporte operacional).",
+                TechnicalContext: "Endpoints autenticados por `Client` ou `Provider` para sessao/historico/trilha conversacional, mantendo consultas operacionais de pedido e agenda restritas a `Client` na `ConsertaPraMim.API`.",
                 Audience: "Bridge Telegram/App Cliente/Operacao de suporte",
                 Rules:
                 [
-                    "Sempre vincular dados da conversa ao `ClientId` autenticado.",
+                    "Sempre vincular dados da conversa ao usuario autenticado, mesmo quando o contrato interno ainda usa o campo `ClientId` por compatibilidade.",
                     "Persistir datas em UTC para consistencia de historico e auditoria.",
-                    "Registrar acao/contexto com metadados suficientes para troubleshooting de IA."
+                    "Registrar acao/contexto com metadados suficientes para troubleshooting de IA.",
+                    "Nao liberar endpoints de pedidos/agendamentos para `Provider`; esses fluxos permanecem client-only."
                 ]),
             "Notifications" => new CatalogEntry(
                 DomainTitle: "Notificacoes",

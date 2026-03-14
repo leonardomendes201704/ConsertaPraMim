@@ -4,7 +4,7 @@ namespace ConsertaPraMim.Web.TelegramBridge.Services;
 
 public interface ITelegramLeadAutomationClient
 {
-    Task<TelegramLeadAutomationUpsertResult> UpsertClientLeadAsync(
+    Task<TelegramLeadAutomationUpsertResult> UpsertLeadAsync(
         TelegramLeadAutomationUpsertRequest request,
         CancellationToken cancellationToken = default);
 }

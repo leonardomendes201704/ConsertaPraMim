@@ -24,15 +24,29 @@ public sealed class TelegramLeadAutomationClient : ITelegramLeadAutomationClient
         _logger = logger;
     }
 
-    public async Task<TelegramLeadAutomationUpsertResult> UpsertClientLeadAsync(
+    public async Task<TelegramLeadAutomationUpsertResult> UpsertLeadAsync(
         TelegramLeadAutomationUpsertRequest request,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        if (!_options.Enabled || !_options.ClientsAutomationEnabled)
+        if (!_options.Enabled)
+        {
+            return TelegramLeadAutomationUpsertResult.Disabled("Automacao Telegram desabilitada no ambiente atual.");
+        }
+
+        var normalizedBoardType = string.IsNullOrWhiteSpace(request.BoardType)
+            ? string.Empty
+            : request.BoardType.Trim().ToLowerInvariant();
+
+        if (normalizedBoardType == "clientes" && !_options.ClientsAutomationEnabled)
         {
             return TelegramLeadAutomationUpsertResult.Disabled("Automacao Telegram para clientes desabilitada no ambiente atual.");
+        }
+
+        if (normalizedBoardType == "prestadores" && !_options.ProvidersAutomationEnabled)
+        {
+            return TelegramLeadAutomationUpsertResult.Disabled("Automacao Telegram para prestadores desabilitada no ambiente atual.");
         }
 
         if (_httpClient.BaseAddress is null)

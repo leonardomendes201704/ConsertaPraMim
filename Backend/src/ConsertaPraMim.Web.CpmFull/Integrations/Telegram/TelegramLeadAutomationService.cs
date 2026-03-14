@@ -82,11 +82,11 @@ public sealed class TelegramLeadAutomationService : ITelegramLeadAutomationServi
                 "TelegramChatId deve ser maior que zero para automacao Telegram.");
         }
 
-        if (request.ClientId == Guid.Empty)
+        if (request.UserId == Guid.Empty)
         {
             return TelegramLeadAutomationResult.Fail(
                 StatusCodes.Status400BadRequest,
-                "ClientId e obrigatorio para automacao Telegram.");
+                "UserId e obrigatorio para automacao Telegram.");
         }
 
         var upsertResult = _kanbanService.UpsertTelegramLead(new AdminKanbanTelegramLeadUpsertRequest
@@ -95,9 +95,11 @@ public sealed class TelegramLeadAutomationService : ITelegramLeadAutomationServi
             ChatbotConversationId = request.ChatbotConversationId,
             ChannelConversationId = request.ChannelConversationId,
             TelegramChatId = request.TelegramChatId,
-            ClientId = request.ClientId,
-            ClientName = string.IsNullOrWhiteSpace(request.ClientName) ? "Cliente Telegram" : request.ClientName.Trim(),
-            ClientEmail = request.ClientEmail,
+            ClientId = request.UserId,
+            ClientName = string.IsNullOrWhiteSpace(request.UserName)
+                ? (normalizedBoardType == AdminKanbanBoardTypes.Providers ? "Prestador Telegram" : "Cliente Telegram")
+                : request.UserName.Trim(),
+            ClientEmail = request.UserEmail,
             ServiceRequestId = request.ServiceRequestId,
             ServiceCategory = request.ServiceCategory,
             PostalCode = request.PostalCode,

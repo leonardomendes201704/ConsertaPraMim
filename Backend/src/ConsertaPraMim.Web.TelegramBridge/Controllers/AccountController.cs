@@ -63,9 +63,10 @@ public sealed class AccountController : Controller
             return View(model);
         }
 
-        if (!loginResult.Response.Role.Equals("Client", StringComparison.OrdinalIgnoreCase))
+        if (!loginResult.Response.Role.Equals("Client", StringComparison.OrdinalIgnoreCase) &&
+            !loginResult.Response.Role.Equals("Provider", StringComparison.OrdinalIgnoreCase))
         {
-            model.ErrorMessage = "A conta autenticada nao possui perfil de cliente.";
+            model.ErrorMessage = "A conta autenticada nao possui perfil compativel com a bridge Telegram.";
             model.Password = string.Empty;
             return View(model);
         }

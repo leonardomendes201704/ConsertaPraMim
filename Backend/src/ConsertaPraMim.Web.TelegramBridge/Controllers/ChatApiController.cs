@@ -13,7 +13,7 @@ namespace ConsertaPraMim.Web.TelegramBridge.Controllers;
 public sealed class ChatApiController : ControllerBase
 {
     private const string MissingApiTokenError = "sessao_sem_token_api";
-    private const string InvalidClientSessionError = "sessao_sem_client_id";
+    private const string InvalidAuthenticatedSessionError = "sessao_sem_usuario_id";
 
     private readonly ITelegramChatService _telegramChatService;
     private readonly ITelegramChatbotApiClient _telegramChatbotApiClient;
@@ -35,7 +35,7 @@ public sealed class ChatApiController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<ChatConversationSummaryDto>>> GetConversations(CancellationToken cancellationToken)
     {
-        if (!TryResolveClientConversation(out var clientChatId, out var title, out var invalidSessionResult))
+        if (!TryResolveAuthenticatedConversation(out var clientChatId, out var title, out var invalidSessionResult))
         {
             return invalidSessionResult!;
         }
@@ -55,7 +55,7 @@ public sealed class ChatApiController : ControllerBase
         [FromQuery] int take = 200,
         CancellationToken cancellationToken = default)
     {
-        if (!TryResolveClientConversation(out var clientChatId, out var title, out var invalidSessionResult))
+        if (!TryResolveAuthenticatedConversation(out var clientChatId, out var title, out var invalidSessionResult))
         {
             return invalidSessionResult!;
         }
@@ -77,7 +77,7 @@ public sealed class ChatApiController : ControllerBase
     [HttpPost("open")]
     public async Task<ActionResult<ChatConversationSummaryDto>> OpenConversation(CancellationToken cancellationToken)
     {
-        if (!TryResolveClientConversation(out var clientChatId, out var title, out var invalidSessionResult))
+        if (!TryResolveAuthenticatedConversation(out var clientChatId, out var title, out var invalidSessionResult))
         {
             return invalidSessionResult!;
         }
@@ -99,7 +99,7 @@ public sealed class ChatApiController : ControllerBase
         [FromForm] List<IFormFile>? files,
         CancellationToken cancellationToken)
     {
-        if (!TryResolveClientConversation(out var clientChatId, out var title, out var invalidSessionResult))
+        if (!TryResolveAuthenticatedConversation(out var clientChatId, out var title, out var invalidSessionResult))
         {
             return invalidSessionResult!;
         }
@@ -121,15 +121,16 @@ public sealed class ChatApiController : ControllerBase
             await EnsureClientConversationAsync(clientChatId, title, apiToken!, cancellationToken);
             var message = await _telegramChatService.SendFromClientAsync(clientChatId, text, list, cancellationToken);
             await _telegramChatbotApiClient.RegisterIncomingMessageAsync(apiToken!, clientChatId, message, cancellationToken);
-            TelegramBridgeClientConversation.TryGetClientId(User, out var resolvedClientId);
+            TelegramBridgeClientConversation.TryGetAuthenticatedUserId(User, out var resolvedUserId);
             var assistantReply = await _telegramChatbotOrchestrator.GenerateAssistantReplyAsync(
                 apiToken!,
                 clientChatId,
                 message,
                 title,
                 cancellationToken,
-                clientId: resolvedClientId == Guid.Empty ? null : resolvedClientId,
-                clientEmail: User.FindFirstValue(ClaimTypes.Email));
+                authenticatedUserId: resolvedUserId == Guid.Empty ? null : resolvedUserId,
+                authenticatedUserEmail: User.FindFirstValue(ClaimTypes.Email),
+                authenticatedUserRole: User.FindFirstValue(ClaimTypes.Role));
 
             if (assistantReply is not null && !string.IsNullOrWhiteSpace(assistantReply.MessageText))
             {
@@ -170,20 +171,20 @@ public sealed class ChatApiController : ControllerBase
         }
     }
 
-    private bool TryResolveClientConversation(
+    private bool TryResolveAuthenticatedConversation(
         out long chatId,
         out string title,
         out ActionResult? invalidSessionResult)
     {
-        if (!TelegramBridgeClientConversation.TryGetClientId(User, out var clientId))
+        if (!TelegramBridgeClientConversation.TryGetAuthenticatedUserId(User, out var userId))
         {
             chatId = 0;
             title = string.Empty;
-            invalidSessionResult = Unauthorized(new { error = InvalidClientSessionError });
+            invalidSessionResult = Unauthorized(new { error = InvalidAuthenticatedSessionError });
             return false;
         }
 
-        chatId = TelegramBridgeClientConversation.BuildChatId(clientId);
+        chatId = TelegramBridgeClientConversation.BuildChatId(userId);
         title = TelegramBridgeClientConversation.BuildTitle(User);
         invalidSessionResult = null;
         return true;

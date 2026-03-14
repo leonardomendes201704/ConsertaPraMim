@@ -6,9 +6,9 @@ public sealed class TelegramLeadAutomationUpsertRequest
     public required Guid ChatbotConversationId { get; init; }
     public required string ChannelConversationId { get; init; }
     public long TelegramChatId { get; init; }
-    public Guid ClientId { get; init; }
-    public string ClientName { get; init; } = string.Empty;
-    public string ClientEmail { get; init; } = string.Empty;
+    public Guid UserId { get; init; }
+    public string UserName { get; init; } = string.Empty;
+    public string UserEmail { get; init; } = string.Empty;
     public Guid? ServiceRequestId { get; init; }
     public string ServiceCategory { get; init; } = string.Empty;
     public string PostalCode { get; init; } = string.Empty;

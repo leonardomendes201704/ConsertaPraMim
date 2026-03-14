@@ -5,7 +5,7 @@ Painel web em ASP.NET Core (.NET 8) para conversar com usuarios do Telegram em t
 ## Funcionalidades
 
 - Visual de chat inspirado no WhatsApp.
-- Login cliente com vinculo automatico de conversa por `ClientId` (sem `chatId` manual).
+- Login cliente/prestador com vinculo automatico de conversa por usuario autenticado (sem `chatId` manual).
 - Envio e recebimento em tempo real via SignalR.
 - Upload de anexos (imagem, video e documento).
 - Polling da Telegram Bot API para capturar mensagens do usuario.
@@ -19,14 +19,16 @@ Painel web em ASP.NET Core (.NET 8) para conversar com usuarios do Telegram em t
    - `ApiBaseUrl` (ex.: `http://localhost:5193`)
 3. Configure a chave OpenAI por secret/env (nao versionar):
    - `TelegramBridgeAi__ApiKey`
-4. Para a automacao Telegram -> CPM Full -> Chatwoot de clientes, configure a secao `TelegramAutomation`:
+4. Para a automacao Telegram -> CPM Full -> Chatwoot, configure a secao `TelegramAutomation`:
    - `TelegramAutomation__Enabled`
    - `TelegramAutomation__ClientsAutomationEnabled`
+   - `TelegramAutomation__ProvidersAutomationEnabled`
    - `TelegramAutomation__CpmFullBaseUrl`
    - `TelegramAutomation__SharedSecret`
    - `TelegramAutomation__RequestTimeoutSeconds`
-5. O cliente autenticado entra direto na conversa vinculada ao login e o orquestrador IA responde automaticamente.
-6. Rode o projeto:
+5. O usuario autenticado entra direto na conversa vinculada ao login e o orquestrador IA responde automaticamente.
+6. Fluxos `Client` continuam podendo abrir pedido e consultar agenda/pedidos; fluxos `Provider` alimentam o board `prestadores` do CPM Full e nao devem abrir `service request` de cliente.
+7. Rode o projeto:
 
 ```bash
 dotnet run --project Backend/src/ConsertaPraMim.Web.TelegramBridge/ConsertaPraMim.Web.TelegramBridge.csproj

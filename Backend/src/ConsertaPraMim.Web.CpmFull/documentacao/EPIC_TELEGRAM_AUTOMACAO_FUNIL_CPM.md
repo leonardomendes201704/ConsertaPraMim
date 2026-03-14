@@ -16,7 +16,7 @@
 - `ChatbotMessages`
 - `ChatbotContextSnapshots`
 - `ChatbotActionLogs`
-- O `TelegramChatbotController` atual atende apenas o papel `Client`.
+- O `TelegramChatbotController` agora aceita trilha conversacional para `Client` e `Provider`, mantendo endpoints operacionais de pedidos/agenda restritos a `Client`.
 - O bridge ja consegue criar `service requests`, mas ainda nao cria lead no funil CPM Full.
 - A integracao Chatwoot entregue no CPM Full parte do lead do Kanban; sem lead, nao existe inbox `CPM Clientes` ou `CPM Prestadores` alimentada automaticamente.
 
@@ -184,6 +184,9 @@ Como operacao, queremos que conversas Telegram de clientes gerem lead no funil `
 ### Descricao
 Como operacao, queremos que fluxos do bot voltados a prestadores entrem automaticamente no funil `prestadores`.
 
+### Status
+- Concluida em `2026-03-14` com ampliacao do bridge/API para `Provider` e automacao inicial do board `prestadores`.
+
 ### Criterios de aceite
 1. Conversa de prestador qualificada gera lead no board `prestadores`.
 2. O fluxo respeita feature flag separada de `clientes`.
@@ -195,6 +198,13 @@ Como operacao, queremos que fluxos do bot voltados a prestadores entrem automati
 - `TASK-03.03` Criar lead no board `prestadores` com labels e historico operacionais.
 - `TASK-03.04` Cobrir erros de classificacao e fallback manual.
 - `TASK-03.05` Adicionar testes para fluxo de `clientes` x `prestadores`.
+
+### Entrega aplicada
+1. O `ConsertaPraMim.Web.TelegramBridge` passou a aceitar login de `Provider`, preservando a mesma sessao autenticada do bridge para cliente ou prestador.
+2. O `TelegramChatbotController` da API agora aceita os endpoints de sessao, mensagens, snapshots, actions, estado e historico para `Client` e `Provider`, mantendo endpoints de pedidos/agendamentos como `client-only`.
+3. O `TelegramChatbotOrchestrator` ganhou contexto explicito de papel autenticado e passou a tratar `Provider` como fluxo proprio, com guardrail para nao abrir pedido de cliente nem consultar carteira/agendamento.
+4. Conversas autenticadas como `Provider` passam a criar ou atualizar lead no board `prestadores` do CPM Full usando `ProvidersAutomationEnabled`, com idempotencia por `ChatbotConversationId`.
+5. A automacao de `prestadores` registra `Source = Telegram`, contexto operacional do prestador, `UserId`/`UserEmail` autenticados e segue reaproveitando a sincronizacao ja existente do Chatwoot a partir do lead do funil.
 
 ## US-04 - Vinculo tecnico bot Telegram <-> lead <-> Chatwoot
 ### Descricao
