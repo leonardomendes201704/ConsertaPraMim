@@ -74,6 +74,7 @@ Preencher a secao `Chatwoot` via `appsettings.Local.json` ou variaveis de ambien
 - `404` em API: validar `BaseUrl` e `AccountId`.
 - `Degraded`: validar se `ClientsInboxId` e `ProvidersInboxId` pertencem a mesma conta configurada.
 - `TaskCanceledException`: revisar timeout, DNS, proxy reverso e acesso da aplicacao ao host do Chatwoot.
+- `Integracao Chatwoot desabilitada.` em ambiente publicado: validar se o environment do GitHub Actions da branch (`production` para `main/master`, `development` para `dev-local`) possui todos os secrets `CPMFULL_CHATWOOT_*` e se o job `deploy-web-cpmfull` escreveu esses valores em `Backend/.env.vps` antes do deploy.
 
 ## Integracao Chatwoot - persistencia de vinculo no funil
 
@@ -257,6 +258,7 @@ Preencher a secao `Chatwoot` via `appsettings.Local.json` ou variaveis de ambien
 - Historico duplicado: validar se o Chatwoot esta enviando `X-Chatwoot-Delivery`; se nao estiver, confirmar se `X-Chatwoot-Timestamp` e `X-Chatwoot-Signature` estao chegando integrais para o fallback de idempotencia.
 - `500` no webhook: consultar `dbo.cpm_web_chatwoot_webhook_events`, coluna `ErrorMessage`, e repetir a entrega do payload apos corrigir o mapeamento/local de conversa.
 - `404` no destino publico do webhook: validar se o workflow `deploy-vps` da branch certa ja publicou o servico `web-cpmfull` em `https://www.consertapramim.com` e se o endpoint `GET /health` do CPM Full responde na porta `5088/6088`.
+- O deploy do CPM Full ficou verde, mas o Kanban ainda mostra integracao desabilitada: chamar `GET /internal/health/chatwoot`; se a descricao vier como `Integracao Chatwoot desabilitada.`, revisar os secrets `CPMFULL_CHATWOOT_*` do environment e o passo `Write VPS env file` do job `deploy-web-cpmfull`.
 
 ## Integracao Chatwoot - fila de retentativa e reprocessamento
 

@@ -101,7 +101,12 @@ Preencha no `Backend/.env.vps` pelo menos:
 - `DB_HOST` (normalmente `mssql`)
 - `JWT_SECRET_KEY`
 - `SEED_DEFAULT_PASSWORD`
-- opcional para Chatwoot no CPM Full: `CPMFULL_CHATWOOT_*`
+- obrigatorio para Chatwoot no CPM Full publicado: `CPMFULL_CHATWOOT_*`
+
+Observacao critica:
+- o job `deploy-web-cpmfull` precisa escrever `CPMFULL_CHATWOOT_*` em `Backend/.env.vps` para o container publicado enxergar `Chatwoot__Enabled=true`;
+- sem esses secrets no environment do GitHub Actions, o CPM Full sobe normalmente, mas a integracao fica desabilitada em runtime e o Kanban responde `Integracao com Chatwoot desabilitada no ambiente atual.`;
+- depois da correcao `CPMFULL-016`, o healthcheck do workflow tambem consulta `/internal/health/chatwoot` sempre que `CPMFULL_CHATWOOT_ENABLED=true`, para impedir falso positivo de deploy.
 
 Exemplo minimo (PROD):
 
@@ -140,6 +145,13 @@ DB_HOST=mssql
 
 JWT_SECRET_KEY=ALTERAR_PARA_UMA_CHAVE_BEM_FORTE_COM_32+_CARACTERES
 SEED_DEFAULT_PASSWORD=ALTERAR_AQUI
+CPMFULL_CHATWOOT_ENABLED=true
+CPMFULL_CHATWOOT_BASE_URL=https://chatwoot.consertapramim.com
+CPMFULL_CHATWOOT_API_ACCESS_TOKEN=ALTERAR_AQUI
+CPMFULL_CHATWOOT_ACCOUNT_ID=1
+CPMFULL_CHATWOOT_CLIENTS_INBOX_ID=1
+CPMFULL_CHATWOOT_PROVIDERS_INBOX_ID=2
+CPMFULL_CHATWOOT_WEBHOOK_SECRET=ALTERAR_AQUI
 ```
 
 Exemplo minimo (DEV na mesma VPS):
@@ -179,6 +191,13 @@ DB_HOST=mssql
 
 JWT_SECRET_KEY=ALTERAR_PARA_UMA_CHAVE_BEM_FORTE_COM_32+_CARACTERES
 SEED_DEFAULT_PASSWORD=ALTERAR_AQUI
+CPMFULL_CHATWOOT_ENABLED=true
+CPMFULL_CHATWOOT_BASE_URL=https://chatwoot.consertapramim.com
+CPMFULL_CHATWOOT_API_ACCESS_TOKEN=ALTERAR_AQUI
+CPMFULL_CHATWOOT_ACCOUNT_ID=1
+CPMFULL_CHATWOOT_CLIENTS_INBOX_ID=1
+CPMFULL_CHATWOOT_PROVIDERS_INBOX_ID=2
+CPMFULL_CHATWOOT_WEBHOOK_SECRET=ALTERAR_AQUI
 ```
 
 ## 2.1) Validacao do rodape de Homologacao (HML)

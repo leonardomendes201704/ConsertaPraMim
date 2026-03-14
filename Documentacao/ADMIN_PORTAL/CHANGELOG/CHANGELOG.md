@@ -12,6 +12,12 @@
 
 ## Released
 
+- [2026-03-13] [CPMFULL-016][CPMFULL-CHATWOOT-DEPLOY-SECRETS-FIX] Deploy do CPM Full passa a publicar os secrets do Chatwoot corretamente
+- Tipo: fix
+- Resumo: o job `deploy-web-cpmfull` do workflow `deploy-vps` passou a escrever `CPMFULL_CHATWOOT_*` em `Backend/.env.vps`, corrigindo o falso positivo em que o deploy raiz do `ConsertaPraMim.Web.CpmFull` ficava verde, mas a aplicacao publicada continuava com `Chatwoot__Enabled=false`. O healthcheck da pipeline tambem passou a consultar `/internal/health/chatwoot` quando a integracao esta habilitada, para reprovar publicacoes em que o Chatwoot permaneceu desabilitado em runtime.
+- Arquivos principais: `.github/workflows/deploy-vps.yml`, `Backend/DEPLOY_VPS.md`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/MANUAL_QA_OPERACAO.md`
+- Risco/Impacto: alto
+
 - [2026-03-13] [CPMFULL-015][CPMFULL-VPS-ROOT-DEPLOY-SWAP] Pipeline VPS passa a publicar o CPM Full no dominio raiz
 - Tipo: feat
 - Resumo: o workflow `deploy-vps`, os scripts de deploy e os artefatos Docker da VPS passaram a publicar o `ConsertaPraMim.Web.CpmFull` no slot raiz da infraestrutura, substituindo o antigo alvo `Web.Landing` na porta `5088/6088`. O projeto tambem passou a responder `GET /health`, interpretar `ForwardedHeaders` atras do Nginx, aceitar configuracao de Chatwoot via secrets `CPMFULL_CHATWOOT_*` no deploy e, em `dev-local`, preferir a `PUBLIC_LANDING_URL` especifica do environment `development` no healthcheck quando houver URL HML distinta.
