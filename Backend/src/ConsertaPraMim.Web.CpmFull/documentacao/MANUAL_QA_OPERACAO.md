@@ -577,3 +577,23 @@ Equivalentes no deploy VPS:
 - `health-web-cpmfull` falha so no `dev-local`: confirmar se o secret `PUBLIC_LANDING_URL` do environment `development` aponta para a URL HML correta; se ele estiver vazio, o workflow volta a validar `http://<VPS_PUBLIC_HOST>:6088/health`.
 - Site abre, mas Chatwoot fica desabilitado: conferir se os secrets `CPMFULL_CHATWOOT_*` foram cadastrados no environment correto do GitHub.
 - Root domain continua mostrando a landing antiga: validar se o container legado `${CONTAINER_PREFIX}-landing` foi removido no primeiro deploy e se o Nginx continua apontando para a porta `5088`.
+
+## Status consolidado do epic Chatwoot e proxima trilha
+
+### Estado atual
+
+- O epic `EPIC-CHATWOOT-001` foi encerrado em `2026-03-14` com a trilha publicada em `https://www.consertapramim.com`.
+- O ambiente publicado deve responder `Healthy` em:
+- `/health`
+- `/internal/health/chatwoot`
+- O CPM Full permanece como sistema de verdade do funil; o Chatwoot permanece como camada de atendimento humano.
+
+### Limitacao atual conhecida
+
+- O `ConsertaPraMim.Web.TelegramBridge` ainda nao alimenta automaticamente os funis `clientes`/`prestadores` do CPM Full nem as inboxes do Chatwoot.
+- O bridge continua registrando a trilha conversacional propria (`ChatbotConversations`, `ChatbotMessages`, `ChatbotContextSnapshots`, `ChatbotActionLogs`) e, quando aplicavel, cria `service requests` pela API.
+
+### Proxima evolucao documentada
+
+- A automacao Telegram -> CPM Full -> Chatwoot passa a ser tratada pelo documento `EPIC-TELEGRAM-001 - Automacao do Bot Telegram com Funis CPM e Chatwoot`.
+- O objetivo dessa nova trilha e criar/atualizar lead no funil a partir do bot, marcar `Source = Telegram`, abrir a conversa humana na inbox correta e preservar vinculo entre sessao do bot, lead e Chatwoot.
