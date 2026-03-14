@@ -12,6 +12,12 @@
 
 ## Released
 
+- [2026-03-14] [CPMFULL-024][TELEGRAM-US-05-CHATWOOT-INBOX-CORRETA] Bootstrap Telegram no Chatwoot com inbox correta por board
+- Tipo: feat
+- Resumo: o `ConsertaPraMim.Web.CpmFull` passou a registrar explicitamente o bootstrap de leads Telegram no Chatwoot quando a conversa humana precisa ser criada ou reaproveitada a partir do funil. A sincronizacao continua reaproveitando o `ChatwootLeadSyncService`, mas agora diferencia operacionalmente a trilha `Telegram -> Chatwoot`, validando `ClientsInboxId` para `clientes`, `ProvidersInboxId` para `prestadores`, preservando `Canal de Origem = Telegram` em contato/conversa e evitando duplicidade quando ja existe conversa no mesmo contato e inbox.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/ChatwootLeadSyncService.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Areas/Admin/Controllers/KanbanController.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/EPIC_TELEGRAM_AUTOMACAO_FUNIL_CPM.md`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/MANUAL_QA_OPERACAO.md`, `Backend/tests/ConsertaPraMim.Tests.Unit/Integrations/Chatwoot/ChatwootLeadSyncServiceTests.cs`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-082-telegram-bootstrap-chatwoot-inbox-correta.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: medio
+
 - [2026-03-14] [CPMFULL-023][TELEGRAM-US-03-PRESTADORES-FUNIL] Automacao do bot Telegram para criar/atualizar lead de prestadores no CPM Full
 - Tipo: feat
 - Resumo: o `ConsertaPraMim.Web.TelegramBridge` passou a aceitar login de `Provider` e a propagar o papel autenticado para o orquestrador IA, enquanto o `TelegramChatbotController` da API passou a aceitar sessao, historico e trilha conversacional para `Client` e `Provider`, preservando pedidos/agendamentos como `client-only`. Com isso, conversas autenticadas como prestador agora criam ou atualizam lead no board `prestadores` do CPM Full, com `Source = Telegram`, idempotencia por `ChatbotConversationId` e reaproveitamento da sincronizacao ja existente do Chatwoot a partir do lead do funil.

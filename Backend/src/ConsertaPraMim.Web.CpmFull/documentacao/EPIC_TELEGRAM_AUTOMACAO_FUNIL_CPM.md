@@ -236,6 +236,9 @@ Como sistema, quero rastrear com seguranca qual sessao do bot originou qual lead
 ### Descricao
 Como atendente, quero que o lead originado no Telegram abra a conversa humana no inbox correto do Chatwoot.
 
+### Status
+- Concluida em `2026-03-14` com bootstrap dedicado de leads Telegram no Chatwoot, reaproveitando inbox correta por board e registrando historico operacional proprio.
+
 ### Criterios de aceite
 1. Lead Telegram de clientes abre/reaproveita conversa em `CPM Clientes`.
 2. Lead Telegram de prestadores abre/reaproveita conversa em `CPM Prestadores`.
@@ -247,6 +250,13 @@ Como atendente, quero que o lead originado no Telegram abra a conversa humana no
 - `TASK-05.03` Registrar historico `chatwoot_bootstrap_via_telegram`.
 - `TASK-05.04` Validar deduplicacao entre conversa Telegram existente e conversa Chatwoot ja aberta.
 - `TASK-05.05` Cobrir cenarios de reprocessamento manual.
+
+### Entrega aplicada
+1. O fluxo `Telegram -> CPM Full -> Chatwoot` continuou reaproveitando o `ChatwootLeadSyncService`, sem abrir uma trilha paralela fora do funil.
+2. Leads Telegram de `clientes` seguem resolvendo `ClientsInboxId`, enquanto leads Telegram de `prestadores` passam a resolver `ProvidersInboxId` via board do funil.
+3. O contato e a conversa do Chatwoot continuam recebendo `cpm_lead_source = Telegram` e `cpm_lead_source_slug = telegram` a partir do `Source = Telegram` persistido no lead do CPM Full.
+4. Quando um lead Telegram ainda nao possui `ChatwootConversationId`, o bootstrap agora registra historico funcional `chatwoot_bootstrap_via_telegram`, indicando se a conversa foi criada ou reaproveitada no inbox correto.
+5. A cobertura de regressao passou a validar inbox correta para `prestadores`, canal `Telegram` em contato/conversa e reaproveitamento de conversa existente sem duplicar atendimento no Chatwoot.
 
 ## US-06 - Espelhar mensagens Telegram -> Chatwoot
 ### Descricao

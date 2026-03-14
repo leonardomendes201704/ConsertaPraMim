@@ -298,6 +298,192 @@ public sealed class ChatwootLeadSyncServiceTests
         chatwootApiClient.VerifyAll();
     }
 
+    [Fact(DisplayName = "Deve bootstrapar lead Telegram de prestador no inbox correto do Chatwoot")]
+    public async Task DeveBootstraparLeadTelegramDePrestadorNoInboxCorretoDoChatwoot()
+    {
+        var kanbanService = new Mock<IAdminKanbanService>();
+        var chatwootApiClient = new Mock<IChatwootApiClient>();
+        var lead = CreateLead(
+            24,
+            AdminKanbanBoardTypes.Providers,
+            phone: null,
+            email: "prestador@email.com",
+            stageName: "Novo cadastro",
+            source: "Telegram");
+
+        kanbanService
+            .Setup(service => service.GetLeadDetails(24))
+            .Returns(lead);
+        kanbanService
+            .Setup(service => service.UpdateLeadChatwootSync(
+                24,
+                It.Is<AdminKanbanLeadChatwootSyncUpdateRequest>(request =>
+                    request.ChatwootContactId == 701 &&
+                    request.ChatwootConversationId == 702 &&
+                    request.ChatwootInboxId == 2 &&
+                    request.ChatwootSyncStatus == ChatwootSyncStatuses.Synced &&
+                    request.ClearChatwootLastError)))
+            .Returns(true);
+        kanbanService
+            .Setup(service => service.AddHistoryEvent(24, "chatwoot_contato_sincronizado", It.IsAny<string>()))
+            .Returns(true);
+        kanbanService
+            .Setup(service => service.AddHistoryEvent(24, "chatwoot_conversa_criada", It.IsAny<string>()))
+            .Returns(true);
+        kanbanService
+            .Setup(service => service.AddHistoryEvent(
+                24,
+                "chatwoot_bootstrap_via_telegram",
+                It.Is<string>(message =>
+                    message.Contains("Lead Telegram", StringComparison.Ordinal) &&
+                    message.Contains("inbox #2", StringComparison.Ordinal))))
+            .Returns(true);
+        kanbanService
+            .Setup(service => service.AddHistoryEvent(24, "chatwoot_sincronizado", It.IsAny<string>()))
+            .Returns(true);
+
+        chatwootApiClient
+            .Setup(client => client.SearchContactsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        chatwootApiClient
+            .Setup(client => client.CreateContactAsync(
+                It.Is<ChatwootUpsertContactRequest>(request =>
+                    request.InboxId == 2 &&
+                    request.Email == "prestador@email.com" &&
+                    request.Identifier == "email:prestador@email.com" &&
+                    request.CustomAttributes.ContainsKey("cpm_board_type") &&
+                    Equals(request.CustomAttributes["cpm_board_type"], AdminKanbanBoardTypes.Providers) &&
+                    request.CustomAttributes.ContainsKey("cpm_stage_name") &&
+                    Equals(request.CustomAttributes["cpm_stage_name"], "Novo cadastro") &&
+                    request.CustomAttributes.ContainsKey("cpm_lead_source") &&
+                    Equals(request.CustomAttributes["cpm_lead_source"], "Telegram") &&
+                    request.CustomAttributes.ContainsKey("cpm_lead_source_slug") &&
+                    Equals(request.CustomAttributes["cpm_lead_source_slug"], "telegram")),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ChatwootContactSummary
+            {
+                Id = 701,
+                Name = "Ricardo Almeida",
+                Email = "prestador@email.com",
+                PhoneNumber = null,
+                Identifier = "email:prestador@email.com",
+                ContactInboxes =
+                [
+                    new ChatwootContactInboxSummary
+                    {
+                        InboxId = 2,
+                        InboxName = "CPM Prestadores",
+                        SourceId = "cpm-lead-prestadores-24"
+                    }
+                ]
+            });
+        chatwootApiClient
+            .Setup(client => client.ListContactConversationsAsync(701, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        chatwootApiClient
+            .Setup(client => client.CreateConversationAsync(
+                It.Is<ChatwootCreateConversationRequest>(request =>
+                    request.InboxId == 2 &&
+                    request.ContactId == 701 &&
+                    request.SourceId == "cpm-lead-prestadores-24"),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ChatwootConversationSummary
+            {
+                Id = 702,
+                InboxId = 2,
+                Status = "open"
+            });
+        chatwootApiClient
+            .Setup(client => client.CreateMessageAsync(
+                702,
+                It.Is<ChatwootCreateMessageRequest>(request =>
+                    request.Private &&
+                    request.MessageType == "outgoing" &&
+                    request.Content.Contains("Funil: Funil de prestadores", StringComparison.Ordinal) &&
+                    request.Content.Contains("Canal de origem: Telegram", StringComparison.Ordinal)),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ChatwootMessageSummary
+            {
+                Id = 703,
+                Private = true
+            });
+        chatwootApiClient
+            .Setup(client => client.UpdateContactAsync(
+                701,
+                It.Is<ChatwootUpsertContactRequest>(request =>
+                    request.CustomAttributes.ContainsKey("cpm_stage_slug") &&
+                    Equals(request.CustomAttributes["cpm_stage_slug"], "prestadores_novo_cadastro") &&
+                    request.CustomAttributes.ContainsKey("cpm_lead_source") &&
+                    Equals(request.CustomAttributes["cpm_lead_source"], "Telegram") &&
+                    request.CustomAttributes.ContainsKey("cpm_lead_source_slug") &&
+                    Equals(request.CustomAttributes["cpm_lead_source_slug"], "telegram")),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ChatwootContactSummary
+            {
+                Id = 701,
+                Name = "Ricardo Almeida",
+                Email = "prestador@email.com",
+                PhoneNumber = null,
+                Identifier = "email:prestador@email.com",
+                ContactInboxes =
+                [
+                    new ChatwootContactInboxSummary
+                    {
+                        InboxId = 2,
+                        InboxName = "CPM Prestadores",
+                        SourceId = "cpm-lead-prestadores-24"
+                    }
+                ]
+            });
+        chatwootApiClient
+            .Setup(client => client.ListContactLabelsAsync(701, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        chatwootApiClient
+            .Setup(client => client.ReplaceContactLabelsAsync(
+                701,
+                It.Is<IReadOnlyList<string>>(labels =>
+                    labels.Contains("cpm_prestadores") &&
+                    labels.Contains("cpm_prestadores_novo_cadastro")),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(["cpm_prestadores", "cpm_prestadores_novo_cadastro"]);
+        chatwootApiClient
+            .Setup(client => client.UpdateConversationCustomAttributesAsync(
+                702,
+                It.Is<IReadOnlyDictionary<string, object?>>(attributes =>
+                    Equals(attributes["cpm_board_type"], AdminKanbanBoardTypes.Providers) &&
+                    Equals(attributes["cpm_stage_name"], "Novo cadastro") &&
+                    Equals(attributes["cpm_stage_slug"], "prestadores_novo_cadastro") &&
+                    Equals(attributes["cpm_lead_source"], "Telegram") &&
+                    Equals(attributes["cpm_lead_source_slug"], "telegram")),
+                It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        chatwootApiClient
+            .Setup(client => client.ListConversationLabelsAsync(702, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        chatwootApiClient
+            .Setup(client => client.ReplaceConversationLabelsAsync(
+                702,
+                It.Is<IReadOnlyList<string>>(labels =>
+                    labels.Contains("cpm_prestadores") &&
+                    labels.Contains("cpm_prestadores_novo_cadastro")),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(["cpm_prestadores", "cpm_prestadores_novo_cadastro"]);
+        chatwootApiClient
+            .Setup(client => client.UpdateConversationStatusAsync(702, "open", It.IsAny<CancellationToken>()))
+            .ReturnsAsync("open");
+
+        var sut = CreateSut(kanbanService.Object, chatwootApiClient.Object);
+
+        var result = await sut.SyncLeadAsync(24);
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(2, result.InboxId);
+        Assert.Equal(701, result.ContactId);
+        Assert.Equal(702, result.ConversationId);
+        kanbanService.VerifyAll();
+        chatwootApiClient.VerifyAll();
+    }
+
     [Fact(DisplayName = "Deve reaproveitar conversa existente do contato durante backfill sem duplicar atendimento")]
     public async Task DeveReaproveitarConversaExistenteDoContatoDuranteBackfillSemDuplicarAtendimento()
     {
@@ -541,6 +727,150 @@ public sealed class ChatwootLeadSyncServiceTests
         chatwootApiClient.Verify(client => client.CreateConversationAsync(It.IsAny<ChatwootCreateConversationRequest>(), It.IsAny<CancellationToken>()), Times.Never);
         chatwootApiClient.Verify(client => client.CreateMessageAsync(It.IsAny<long>(), It.IsAny<ChatwootCreateMessageRequest>(), It.IsAny<CancellationToken>()), Times.Never);
         kanbanService.VerifyAll();
+    }
+
+    [Fact(DisplayName = "Deve registrar bootstrap Telegram ao reaproveitar conversa existente no Chatwoot")]
+    public async Task DeveRegistrarBootstrapTelegramAoReaproveitarConversaExistenteNoChatwoot()
+    {
+        var kanbanService = new Mock<IAdminKanbanService>();
+        var chatwootApiClient = new Mock<IChatwootApiClient>();
+        var lead = CreateLead(
+            37,
+            AdminKanbanBoardTypes.Clients,
+            phone: "(13) 99711-4422",
+            email: "ricardo@email.com",
+            source: "Telegram");
+
+        kanbanService
+            .Setup(service => service.GetLeadDetails(37))
+            .Returns(lead);
+        kanbanService
+            .Setup(service => service.UpdateLeadChatwootSync(
+                37,
+                It.Is<AdminKanbanLeadChatwootSyncUpdateRequest>(request =>
+                    request.ChatwootContactId == 801 &&
+                    request.ChatwootConversationId == 808 &&
+                    request.ChatwootInboxId == 1 &&
+                    request.ChatwootSyncStatus == ChatwootSyncStatuses.Synced &&
+                    request.ClearChatwootLastError)))
+            .Returns(true);
+        kanbanService
+            .Setup(service => service.AddHistoryEvent(37, "chatwoot_contato_sincronizado", It.IsAny<string>()))
+            .Returns(true);
+        kanbanService
+            .Setup(service => service.AddHistoryEvent(37, "chatwoot_conversa_reaproveitada", It.IsAny<string>()))
+            .Returns(true);
+        kanbanService
+            .Setup(service => service.AddHistoryEvent(
+                37,
+                "chatwoot_bootstrap_via_telegram",
+                It.Is<string>(message =>
+                    message.Contains("reaproveitando a conversa #808", StringComparison.Ordinal) &&
+                    message.Contains("inbox #1", StringComparison.Ordinal))))
+            .Returns(true);
+        kanbanService
+            .Setup(service => service.AddHistoryEvent(37, "chatwoot_sincronizado", It.IsAny<string>()))
+            .Returns(true);
+
+        chatwootApiClient
+            .Setup(client => client.SearchContactsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        chatwootApiClient
+            .Setup(client => client.CreateContactAsync(
+                It.Is<ChatwootUpsertContactRequest>(request =>
+                    request.CustomAttributes.ContainsKey("cpm_lead_source") &&
+                    Equals(request.CustomAttributes["cpm_lead_source"], "Telegram") &&
+                    request.CustomAttributes.ContainsKey("cpm_lead_source_slug") &&
+                    Equals(request.CustomAttributes["cpm_lead_source_slug"], "telegram")),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ChatwootContactSummary
+            {
+                Id = 801,
+                Name = "Ricardo Almeida",
+                Email = "ricardo@email.com",
+                PhoneNumber = "+5513997114422",
+                Identifier = "phone:+5513997114422",
+                ContactInboxes =
+                [
+                    new ChatwootContactInboxSummary
+                    {
+                        InboxId = 1,
+                        InboxName = "CPM Clientes",
+                        SourceId = "cpm-lead-clientes-37"
+                    }
+                ]
+            });
+        chatwootApiClient
+            .Setup(client => client.ListContactConversationsAsync(801, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(
+            [
+                new ChatwootConversationSummary
+                {
+                    Id = 808,
+                    InboxId = 1,
+                    Status = "pending"
+                }
+            ]);
+        chatwootApiClient
+            .Setup(client => client.UpdateContactAsync(
+                801,
+                It.Is<ChatwootUpsertContactRequest>(request =>
+                    request.CustomAttributes.ContainsKey("cpm_lead_source") &&
+                    Equals(request.CustomAttributes["cpm_lead_source"], "Telegram") &&
+                    request.CustomAttributes.ContainsKey("cpm_lead_source_slug") &&
+                    Equals(request.CustomAttributes["cpm_lead_source_slug"], "telegram")),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ChatwootContactSummary
+            {
+                Id = 801,
+                Name = "Ricardo Almeida",
+                Email = "ricardo@email.com",
+                PhoneNumber = "+5513997114422",
+                Identifier = "phone:+5513997114422",
+                ContactInboxes =
+                [
+                    new ChatwootContactInboxSummary
+                    {
+                        InboxId = 1,
+                        InboxName = "CPM Clientes",
+                        SourceId = "cpm-lead-clientes-37"
+                    }
+                ]
+            });
+        chatwootApiClient
+            .Setup(client => client.ListContactLabelsAsync(801, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        chatwootApiClient
+            .Setup(client => client.ReplaceContactLabelsAsync(801, It.IsAny<IReadOnlyList<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(["cpm_clientes", "cpm_clientes_novo_lead"]);
+        chatwootApiClient
+            .Setup(client => client.UpdateConversationCustomAttributesAsync(
+                808,
+                It.Is<IReadOnlyDictionary<string, object?>>(attributes =>
+                    Equals(attributes["cpm_lead_source"], "Telegram") &&
+                    Equals(attributes["cpm_lead_source_slug"], "telegram")),
+                It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        chatwootApiClient
+            .Setup(client => client.ListConversationLabelsAsync(808, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        chatwootApiClient
+            .Setup(client => client.ReplaceConversationLabelsAsync(808, It.IsAny<IReadOnlyList<string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(["cpm_clientes", "cpm_clientes_novo_lead"]);
+        chatwootApiClient
+            .Setup(client => client.UpdateConversationStatusAsync(808, "open", It.IsAny<CancellationToken>()))
+            .ReturnsAsync("open");
+
+        var sut = CreateSut(kanbanService.Object, chatwootApiClient.Object);
+
+        var result = await sut.SyncLeadAsync(37);
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(808, result.ConversationId);
+        chatwootApiClient.Verify(client => client.CreateConversationAsync(It.IsAny<ChatwootCreateConversationRequest>(), It.IsAny<CancellationToken>()), Times.Never);
+        chatwootApiClient.Verify(client => client.CreateMessageAsync(It.IsAny<long>(), It.IsAny<ChatwootCreateMessageRequest>(), It.IsAny<CancellationToken>()), Times.Never);
+        kanbanService.VerifyAll();
+        chatwootApiClient.VerifyAll();
     }
 
     [Fact(DisplayName = "Deve sincronizar etapa do lead com status, labels e atributos da conversa")]

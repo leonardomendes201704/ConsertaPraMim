@@ -72,6 +72,7 @@
 
 ### Done
 
+- [ST-082 - Lead Telegram abre Chatwoot na inbox correta do CPM Full](STORIES/DONE/ST-082-telegram-bootstrap-chatwoot-inbox-correta.md)
 - [ST-081 - Bot Telegram cria lead de prestadores no funil CPM Full](STORIES/DONE/ST-081-bot-telegram-cria-lead-prestadores-funil-cpmfull.md)
 - [ST-080 - Vinculo Telegram no detalhe do lead do CPM Full](STORIES/DONE/ST-080-vinculo-telegram-no-detalhe-do-lead-cpmfull.md)
 - [ST-079 - Bot Telegram cria lead de clientes no funil CPM Full](STORIES/DONE/ST-079-bot-telegram-cria-lead-clientes-funil-cpmfull.md)

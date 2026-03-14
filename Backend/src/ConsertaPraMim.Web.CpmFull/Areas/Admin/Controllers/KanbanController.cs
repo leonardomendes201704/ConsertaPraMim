@@ -559,6 +559,7 @@ public sealed class KanbanController : Controller
             "seed" => "Carga inicial",
             "telegram_lead_criado" => "Lead criado via bot Telegram",
             "telegram_lead_atualizado" => "Lead atualizado via bot Telegram",
+            "chatwoot_bootstrap_via_telegram" => "Bootstrap Telegram no Chatwoot",
             "chatwoot_contato_sincronizado" => "Contato sincronizado no Chatwoot",
             "chatwoot_conversa_criada" => "Conversa criada no Chatwoot",
             "chatwoot_conversa_reaproveitada" => "Conversa reaproveitada no Chatwoot",

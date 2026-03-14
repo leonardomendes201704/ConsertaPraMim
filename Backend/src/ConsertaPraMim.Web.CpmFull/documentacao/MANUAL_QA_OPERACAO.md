@@ -18,7 +18,7 @@ Orientar validacao funcional e operacao basica do projeto `ConsertaPraMim.Web.Cp
 - A deduplicacao desta fase e feita por `ChatbotConversationId`.
 - O lead nasce com `Source = Telegram`, contexto inicial da conversa e vinculo tecnico persistido em `dbo.cpm_web_telegram_funil_links`.
 - O detalhe do lead no Kanban agora exibe a secao `Vinculo Telegram` com `ChatbotConversationId`, `ChannelConversationId`, `TelegramChatId`, `ClientId`, `ClientEmail`, `ServiceRequestId` e horario da ultima atualizacao do vinculo.
-- O Chatwoot continua sendo alimentado pela trilha ja existente do lead do Kanban.
+- O Chatwoot continua sendo alimentado pela trilha ja existente do lead do Kanban, agora com bootstrap operacional dedicado para leads Telegram no inbox correto de `clientes` ou `prestadores`.
 - O `TelegramChatbotController` da API agora aceita sessao, mensagens, snapshots, actions, estado e historico para `Client` e `Provider`, mantendo pedidos/agendamentos como `client-only`.
 - O enriquecimento automatico do telefone do usuario continua pendente porque o contrato autenticado atual do bridge ainda nao expoe esse dado.
 
@@ -47,7 +47,9 @@ No `ConsertaPraMim.Web.CpmFull`, configurar a secao `TelegramAutomation`:
 - abrir ou reaproveitar `service request` apenas para `Client`;
 - chamar `POST /api/integrations/telegram/automation/lead` no CPM Full;
 - criar ou atualizar lead no board correto (`clientes` ou `prestadores`);
-- sincronizar o lead com o Chatwoot via `ChatwootLeadSyncService`.
+- sincronizar o lead com o Chatwoot via `ChatwootLeadSyncService`;
+- criar ou reaproveitar conversa no inbox correto do Chatwoot para o board atual;
+- registrar historico `Bootstrap Telegram no Chatwoot` quando o lead ainda nao possuía conversa vinculada.
 - A mesma `ChatbotConversationId` deve reaproveitar o mesmo lead no CPM Full.
 - O lead deve exibir `Source = Telegram` e historico do tipo `Lead criado via bot Telegram` / `Lead atualizado via bot Telegram`.
 - Fluxos autenticados como `Provider` nao devem abrir pedido de cliente nem consultar carteira/agendamentos do cliente.
@@ -67,15 +69,20 @@ No `ConsertaPraMim.Web.CpmFull`, configurar a secao `TelegramAutomation`:
 11. Validar no modal os campos `Conversa bot Telegram`, `Conversa do canal`, `Chat ID Telegram`, `Cliente vinculado`, `E-mail autenticado` e `Pedido vinculado`.
 12. Confirmar que o lead recebeu `StatusNote` e `InternalNotes` descrevendo a origem automatica.
 13. Validar que `Sync Chatwoot` foi atualizado pela trilha atual do Chatwoot.
-14. Reenviar mensagem na mesma conversa do bot, mantendo o contexto do pedido ja criado.
-15. Confirmar que o mesmo lead foi reaproveitado e recebeu historico `Lead atualizado via bot Telegram`.
-16. Consultar `dbo.cpm_web_telegram_funil_links` e validar um unico registro por `ChatbotConversationId`.
-17. Fazer logout e logar como prestador no bridge.
-18. Enviar mensagem com intencao de cadastro/reativacao, por exemplo `Sou eletricista em Praia Grande e quero entrar na plataforma`.
-19. Confirmar que o bridge nao tenta abrir pedido de cliente nem consultar agenda/pedidos do cliente.
-20. Acessar `/admin/funil/prestadores` no CPM Full.
-21. Confirmar a criacao ou atualizacao do lead com `Source = Telegram`.
-22. Abrir o detalhe do lead e validar que o vinculo Telegram reaproveitou a mesma `ChatbotConversationId` e registrou o `ClientId`/`ClientEmail` autenticados do prestador por compatibilidade tecnica.
+14. Abrir o Chatwoot e confirmar que a conversa foi criada ou reaproveitada no inbox `CPM Clientes`.
+15. Validar na conversa e no contato os atributos `CPM Canal de Origem = Telegram` e `CPM Canal de Origem Slug = telegram`.
+16. Reabrir o detalhe do lead e confirmar historico `Bootstrap Telegram no Chatwoot`.
+17. Reenviar mensagem na mesma conversa do bot, mantendo o contexto do pedido ja criado.
+18. Confirmar que o mesmo lead foi reaproveitado e recebeu historico `Lead atualizado via bot Telegram`.
+19. Consultar `dbo.cpm_web_telegram_funil_links` e validar um unico registro por `ChatbotConversationId`.
+20. Fazer logout e logar como prestador no bridge.
+21. Enviar mensagem com intencao de cadastro/reativacao, por exemplo `Sou eletricista em Praia Grande e quero entrar na plataforma`.
+22. Confirmar que o bridge nao tenta abrir pedido de cliente nem consultar agenda/pedidos do cliente.
+23. Acessar `/admin/funil/prestadores` no CPM Full.
+24. Confirmar a criacao ou atualizacao do lead com `Source = Telegram`.
+25. Validar no Chatwoot que a conversa foi aberta ou reaproveitada no inbox `CPM Prestadores`.
+26. Abrir o detalhe do lead e validar que o vinculo Telegram reaproveitou a mesma `ChatbotConversationId` e registrou o `ClientId`/`ClientEmail` autenticados do prestador por compatibilidade tecnica.
+27. Confirmar historico `Bootstrap Telegram no Chatwoot` tambem para o fluxo de prestadores quando o lead ainda nao tinha conversa vinculada.
 
 ### Troubleshooting
 
@@ -84,6 +91,8 @@ No `ConsertaPraMim.Web.CpmFull`, configurar a secao `TelegramAutomation`:
 - Pedido criado, mas sem lead no CPM Full: revisar `TelegramAutomation:CpmFullBaseUrl`, reachability HTTP e logs do `TelegramLeadAutomationClient`.
 - Lead duplicado: validar se a mesma conversa esta preservando o mesmo `ChatbotConversationId` na trilha do chatbot.
 - Modal sem `Vinculo Telegram`: validar se existe registro em `dbo.cpm_web_telegram_funil_links` para o `LeadId` e se o detalhe do lead foi recarregado apos a automacao.
+- Lead Telegram caiu no inbox errado do Chatwoot: revisar `BoardType` do lead, `ClientsInboxId`, `ProvidersInboxId` e se o board atual no CPM Full esta coerente com o papel autenticado.
+- Lead Telegram sem historico `Bootstrap Telegram no Chatwoot`: validar se o lead ja possuia `ChatwootConversationId`; o evento so aparece quando o bootstrap precisa criar ou reaproveitar a conversa humana a partir do funil.
 - Lead sem telefone: comportamento esperado nesta fase; o contrato atual do bridge autenticado ainda nao expoe telefone do usuario para a automacao.
 - Prestador recebendo resposta de pedido/agendamento: validar se a publicacao contem a trilha `Provider` do `TelegramChatbotOrchestrator` e se o login do bridge carregou a claim `Role = Provider`.
 
