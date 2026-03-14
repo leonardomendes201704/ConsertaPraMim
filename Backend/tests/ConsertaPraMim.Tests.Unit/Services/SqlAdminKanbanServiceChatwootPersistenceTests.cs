@@ -1065,6 +1065,110 @@ WHERE ChatbotConversationId = @chatbotConversationId;
         Assert.True(reader.IsDBNull(3));
     }
 
+    [Fact(DisplayName = "PurgeTelegramDeliveryPayloads deve expurgar payloads antigos processados")]
+    public void PurgeTelegramDeliveryPayloads_DeveExpurgarPayloadsAntigosProcessados()
+    {
+        using var database = new LocalDbKanbanDatabaseScope();
+        if (!database.IsAvailable)
+        {
+            return;
+        }
+
+        var service = CreateService(database.ConnectionString);
+        var leadId = service.CreateLead(new AdminKanbanLeadUpsertRequest
+        {
+            BoardType = AdminKanbanBoardTypes.Clients,
+            StageId = 0,
+            Name = "Ricardo Almeida",
+            Source = "Telegram"
+        });
+
+        var oldQueueItem = service.EnqueueTelegramDeliveryQueueItem(new AdminKanbanTelegramDeliveryQueueEnqueueRequest
+        {
+            LeadId = leadId,
+            Direction = TelegramDeliveryDirections.TelegramToChatwoot,
+            DeliveryKey = "telegram:old",
+            PayloadJson = """{"message":"telefone 13997114422"}""",
+            TelegramChatId = 5513997114422,
+            NextAttemptAt = new DateTime(2026, 3, 1, 12, 0, 0, DateTimeKind.Utc),
+            MaxAttempts = 5,
+            LastError = "Erro ao entregar para o chat 5513997114422."
+        });
+        _ = service.FinalizeTelegramDeliveryQueueItem(new AdminKanbanTelegramDeliveryQueueFinalizeRequest
+        {
+            QueueItemId = oldQueueItem.Id,
+            FinalStatus = TelegramDeliveryQueueStatuses.Processed,
+            FinalizedAt = new DateTime(2026, 3, 1, 12, 5, 0, DateTimeKind.Utc),
+            ClearLastError = false,
+            WorkerInstance = "test"
+        });
+
+        var newQueueItem = service.EnqueueTelegramDeliveryQueueItem(new AdminKanbanTelegramDeliveryQueueEnqueueRequest
+        {
+            LeadId = leadId,
+            Direction = TelegramDeliveryDirections.ChatwootToTelegram,
+            DeliveryKey = "chatwoot:new",
+            PayloadJson = """{"message":"telefone 13997114422"}""",
+            TelegramChatId = 5513997114422,
+            NextAttemptAt = new DateTime(2026, 3, 13, 12, 0, 0, DateTimeKind.Utc),
+            MaxAttempts = 5,
+            LastError = "Erro recente"
+        });
+        _ = service.FinalizeTelegramDeliveryQueueItem(new AdminKanbanTelegramDeliveryQueueFinalizeRequest
+        {
+            QueueItemId = newQueueItem.Id,
+            FinalStatus = TelegramDeliveryQueueStatuses.Processed,
+            FinalizedAt = new DateTime(2026, 3, 13, 12, 5, 0, DateTimeKind.Utc),
+            ClearLastError = false,
+            WorkerInstance = "test"
+        });
+
+        using (var seedConnection = new SqlConnection(database.ConnectionString))
+        {
+            seedConnection.Open();
+            using var seedCommand = seedConnection.CreateCommand();
+            seedCommand.CommandText = """
+UPDATE dbo.cpm_web_telegram_delivery_queue
+SET CreatedAt = CASE
+        WHEN Id = @oldQueueItemId THEN @oldCreatedAt
+        WHEN Id = @newQueueItemId THEN @newCreatedAt
+        ELSE CreatedAt
+    END
+WHERE Id IN (@oldQueueItemId, @newQueueItemId);
+""";
+            seedCommand.Parameters.AddRange(
+            [
+                new SqlParameter("@oldQueueItemId", SqlDbType.Int) { Value = oldQueueItem.Id },
+                new SqlParameter("@newQueueItemId", SqlDbType.Int) { Value = newQueueItem.Id },
+                new SqlParameter("@oldCreatedAt", SqlDbType.DateTime2) { Value = new DateTime(2026, 3, 1, 12, 0, 0, DateTimeKind.Utc) },
+                new SqlParameter("@newCreatedAt", SqlDbType.DateTime2) { Value = new DateTime(2026, 3, 13, 12, 0, 0, DateTimeKind.Utc) }
+            ]);
+            _ = seedCommand.ExecuteNonQuery();
+        }
+
+        var affectedRows = service.PurgeTelegramDeliveryPayloads(
+            new DateTime(2026, 3, 10, 0, 0, 0, DateTimeKind.Utc),
+            new DateTime(2026, 3, 14, 0, 0, 0, DateTimeKind.Utc));
+
+        Assert.Equal(1, affectedRows);
+
+        using var connection = new SqlConnection(database.ConnectionString);
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT Id, PayloadJson, PayloadPurgedAt FROM dbo.cpm_web_telegram_delivery_queue ORDER BY Id;";
+
+        using var reader = command.ExecuteReader();
+        Assert.True(reader.Read());
+        Assert.Equal(oldQueueItem.Id, reader.GetInt32(0));
+        Assert.Equal("{\"redacted\":true,\"reason\":\"retention\"}", reader.GetString(1));
+        Assert.False(reader.IsDBNull(2));
+
+        Assert.True(reader.Read());
+        Assert.Equal(newQueueItem.Id, reader.GetInt32(0));
+        Assert.Contains("telefone", reader.GetString(1), StringComparison.OrdinalIgnoreCase);
+        Assert.True(reader.IsDBNull(2));
+    }
+
     private static SqlAdminKanbanService CreateService(string connectionString)
     {
         var configuration = new ConfigurationBuilder()

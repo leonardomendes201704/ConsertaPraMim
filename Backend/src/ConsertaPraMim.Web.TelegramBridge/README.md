@@ -28,11 +28,17 @@ Painel web em ASP.NET Core (.NET 8) para conversar com usuarios do Telegram em t
    - `TelegramAutomation__CpmFullBaseUrl`
    - `TelegramAutomation__SharedSecret`
    - `TelegramAutomation__RequestTimeoutSeconds`
-5. O usuario autenticado entra direto na conversa vinculada ao login e o orquestrador IA responde automaticamente.
-6. Fluxos `Client` continuam podendo abrir pedido e consultar agenda/pedidos; fluxos `Provider` alimentam o board `prestadores` do CPM Full e nao devem abrir `service request` de cliente.
-7. Com `MirrorMessagesEnabled=true`, mensagens recebidas do Telegram passam a ser espelhadas para o CPM Full/Chatwoot, e respostas humanas vindas do Chatwoot passam a ser entregues de volta ao Telegram pelo endpoint interno protegido.
-8. Para diagnostico operacional interno, o bridge expoe `GET /api/internal/telegram/observability/dashboard`, protegido por `TelegramAutomation__SharedSecret` e consumido pelo drawer `Diagnostico Telegram` do CPM Full.
-9. Rode o projeto:
+5. Configure tambem a secao `TelegramBridge`:
+   - `TelegramBridge__AttachmentRetentionEnabled`
+   - `TelegramBridge__AttachmentRetentionDays`
+   - `TelegramBridge__AttachmentRetentionIntervalMinutes`
+6. O usuario autenticado entra direto na conversa vinculada ao login e o orquestrador IA responde automaticamente.
+7. Fluxos `Client` continuam podendo abrir pedido e consultar agenda/pedidos; fluxos `Provider` alimentam o board `prestadores` do CPM Full e nao devem abrir `service request` de cliente.
+8. Com `MirrorMessagesEnabled=true`, mensagens recebidas do Telegram passam a ser espelhadas para o CPM Full/Chatwoot, e respostas humanas vindas do Chatwoot passam a ser entregues de volta ao Telegram pelo endpoint interno protegido.
+9. O bridge mascara `chatId`, e-mail, telefone, token e segredo em logs/diagnosticos tecnicos. Os endpoints internos continuam protegidos por `TelegramAutomation__SharedSecret`.
+10. O bot publicado ainda usa long polling. Se a operacao migrar para webhook publico do Telegram, a borda deve validar segredo e origem antes de aceitar o payload.
+11. Para diagnostico operacional interno, o bridge expoe `GET /api/internal/telegram/observability/dashboard`, protegido por `TelegramAutomation__SharedSecret` e consumido pelo drawer `Diagnostico Telegram` do CPM Full.
+12. Rode o projeto:
 
 ```bash
 dotnet run --project Backend/src/ConsertaPraMim.Web.TelegramBridge/ConsertaPraMim.Web.TelegramBridge.csproj

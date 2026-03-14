@@ -346,13 +346,13 @@ public sealed class TelegramMessageAutomationService : ITelegramMessageAutomatio
             _ = _kanbanService.AddHistoryEvent(
                 lead.Id,
                 "chatwoot_handoff_humano_iniciado",
-                $"Atendimento humano iniciado no Chatwoot para o chat Telegram #{payload.TelegramChatId}.");
+                $"Atendimento humano iniciado no Chatwoot para o chat Telegram #{TelegramSecuritySanitizer.MaskChatId(payload.TelegramChatId)}.");
         }
 
         _ = _kanbanService.AddHistoryEvent(
             lead.Id,
             "chatwoot_message_synced_to_telegram",
-            $"Mensagem humana do Chatwoot entregue ao chat Telegram #{payload.TelegramChatId}.");
+            $"Mensagem humana do Chatwoot entregue ao chat Telegram #{TelegramSecuritySanitizer.MaskChatId(payload.TelegramChatId)}.");
 
         return TelegramDeliveryProcessResult.Ok("Mensagem humana do Chatwoot entregue ao Telegram.");
     }

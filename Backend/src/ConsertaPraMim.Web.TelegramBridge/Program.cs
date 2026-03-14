@@ -7,8 +7,10 @@ using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.Configure<TelegramBridgeOptions>(
-    builder.Configuration.GetSection(TelegramBridgeOptions.SectionName));
+builder.Services.AddSingleton<IValidateOptions<TelegramBridgeOptions>, TelegramBridgeOptionsValidator>();
+builder.Services.AddOptions<TelegramBridgeOptions>()
+    .Bind(builder.Configuration.GetSection(TelegramBridgeOptions.SectionName))
+    .ValidateOnStart();
 builder.Services.Configure<TelegramBridgeAiOptions>(
     builder.Configuration.GetSection(TelegramBridgeAiOptions.SectionName));
 builder.Services.Configure<TelegramChatbotRolloutOptions>(
@@ -109,6 +111,7 @@ builder.Services.AddSingleton<TelegramServiceRequestTriageEngine>();
 builder.Services.AddSingleton<TelegramSchedulingNaturalLanguageParser>();
 builder.Services.AddScoped<ITelegramChatbotOrchestrator, TelegramChatbotOrchestrator>();
 builder.Services.AddHostedService<TelegramLongPollingBackgroundService>();
+builder.Services.AddHostedService<TelegramAttachmentRetentionWorker>();
 
 var app = builder.Build();
 

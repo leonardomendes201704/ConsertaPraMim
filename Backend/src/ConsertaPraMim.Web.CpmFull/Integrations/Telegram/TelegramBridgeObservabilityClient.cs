@@ -62,7 +62,7 @@ public sealed class TelegramBridgeObservabilityClient : ITelegramBridgeObservabi
                 _logger.LogWarning(
                     "Telegram Bridge retornou erro HTTP {StatusCode} ao carregar diagnostico. Message={Message}",
                     (int)response.StatusCode,
-                    message);
+                    TelegramSecuritySanitizer.SanitizeMessage(message, 300));
 
                 return TelegramBridgeObservabilityResult.Failed((int)response.StatusCode, message);
             }

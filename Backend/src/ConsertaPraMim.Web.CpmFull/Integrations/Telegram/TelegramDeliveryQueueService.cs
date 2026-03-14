@@ -91,7 +91,7 @@ public sealed class TelegramDeliveryQueueService : ITelegramDeliveryQueueService
 
     public string MarkFailed(AdminKanbanTelegramDeliveryQueueItemRecord item, string workerInstance, string errorMessage, bool retryRecommended)
     {
-        var sanitizedError = ChatwootSecuritySanitizer.SanitizeMessage(errorMessage, 1000);
+        var sanitizedError = TelegramSecuritySanitizer.SanitizeMessage(errorMessage, 1000);
         var utcNow = DateTime.UtcNow;
 
         if (!retryRecommended || item.AttemptCount >= item.MaxAttempts)

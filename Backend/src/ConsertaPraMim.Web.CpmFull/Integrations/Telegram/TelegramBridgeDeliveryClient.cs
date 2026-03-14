@@ -70,8 +70,8 @@ public sealed class TelegramBridgeDeliveryClient : ITelegramBridgeDeliveryClient
                     "Telegram Bridge retornou erro HTTP {StatusCode} no envio da conversa {ConversationId} para o chat {TelegramChatId}. Message={Message}",
                     (int)response.StatusCode,
                     request.ChatwootConversationId,
-                    request.TelegramChatId,
-                    failureMessage);
+                    TelegramSecuritySanitizer.MaskChatId(request.TelegramChatId),
+                    TelegramSecuritySanitizer.SanitizeMessage(failureMessage, 300));
 
                 return TelegramBridgeHumanReplyResult.Failed((int)response.StatusCode, failureMessage);
             }

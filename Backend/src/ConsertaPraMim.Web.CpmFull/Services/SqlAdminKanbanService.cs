@@ -9,6 +9,7 @@ public sealed class SqlAdminKanbanService : IAdminKanbanService
 {
     private const string TablePrefix = "cpm_web_";
     private const string RedactedWebhookPayloadJson = "{\"redacted\":true,\"reason\":\"retention\"}";
+    private const string RedactedTelegramPayloadJson = "{\"redacted\":true,\"reason\":\"retention\"}";
 
     private static readonly IReadOnlyList<(string Name, string Color)> ClientDefaultStages =
     [
@@ -558,7 +559,7 @@ WHERE LeadId = @leadId;
         var maxAttempts = request.MaxAttempts > 0 ? request.MaxAttempts : 10;
         var sanitizedLastError = string.IsNullOrWhiteSpace(request.LastError)
             ? null
-            : ChatwootSecuritySanitizer.SanitizeMessage(request.LastError, 1000);
+            : TelegramSecuritySanitizer.SanitizeMessage(request.LastError, 1000);
 
         using var connection = OpenConnection();
         if (TryGetTelegramDeliveryQueueItemByDirectionAndKey(connection, direction, deliveryKey, out var existingItem))
@@ -672,7 +673,7 @@ INNER JOIN due_items d ON d.Id = q.Id;
         EnsureInitialized();
         var sanitizedLastError = string.IsNullOrWhiteSpace(request.LastError)
             ? null
-            : ChatwootSecuritySanitizer.SanitizeMessage(request.LastError, 1000);
+            : TelegramSecuritySanitizer.SanitizeMessage(request.LastError, 1000);
 
         using var connection = OpenConnection();
         using var command = connection.CreateCommand();
@@ -753,6 +754,30 @@ WHERE Id = @queueItemId
         return TryGetTelegramDeliveryQueueItemById(connection, queueItemId, out var queueItem)
             ? queueItem
             : null;
+    }
+
+    public int PurgeTelegramDeliveryPayloads(DateTime createdBeforeUtc, DateTime purgedAtUtc)
+    {
+        EnsureInitialized();
+
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = $"""
+UPDATE dbo.{TablePrefix}telegram_delivery_queue
+SET PayloadJson = @payloadJson,
+    PayloadPurgedAt = @purgedAtUtc
+WHERE CreatedAt < @createdBeforeUtc
+  AND PayloadPurgedAt IS NULL
+  AND Status IN ('processed', 'dead_letter');
+""";
+        command.Parameters.AddRange(
+        [
+            new SqlParameter("@payloadJson", SqlDbType.NVarChar, -1) { Value = RedactedTelegramPayloadJson },
+            new SqlParameter("@createdBeforeUtc", SqlDbType.DateTime2) { Value = createdBeforeUtc.Kind == DateTimeKind.Utc ? createdBeforeUtc : createdBeforeUtc.ToUniversalTime() },
+            new SqlParameter("@purgedAtUtc", SqlDbType.DateTime2) { Value = purgedAtUtc.Kind == DateTimeKind.Utc ? purgedAtUtc : purgedAtUtc.ToUniversalTime() }
+        ]);
+
+        return command.ExecuteNonQuery();
     }
 
     public bool UpdateLead(int leadId, AdminKanbanLeadUpsertRequest request)
@@ -2097,7 +2122,8 @@ CREATE TABLE dbo.{TablePrefix}telegram_delivery_queue
     CreatedAt DATETIME2 NOT NULL DEFAULT(SYSUTCDATETIME()),
     UpdatedAt DATETIME2 NOT NULL DEFAULT(SYSUTCDATETIME()),
     ProcessedAt DATETIME2 NULL,
-    DeadLetterAt DATETIME2 NULL
+    DeadLetterAt DATETIME2 NULL,
+    PayloadPurgedAt DATETIME2 NULL
 );
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID('dbo.{TablePrefix}kanban_stages') AND name = 'IX_{TablePrefix}kanban_stages_board')
@@ -2182,6 +2208,9 @@ ALTER TABLE dbo.{TablePrefix}telegram_funil_links ADD LastChatwootMessageSyncedA
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID('dbo.{TablePrefix}telegram_funil_links') AND name = 'IX_{TablePrefix}telegram_funil_links_chat')
 CREATE INDEX IX_{TablePrefix}telegram_funil_links_chat
     ON dbo.{TablePrefix}telegram_funil_links(TelegramChatId, UpdatedAt DESC, Id DESC);
+
+IF COL_LENGTH('dbo.{TablePrefix}telegram_delivery_queue', 'PayloadPurgedAt') IS NULL
+ALTER TABLE dbo.{TablePrefix}telegram_delivery_queue ADD PayloadPurgedAt DATETIME2 NULL;
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID('dbo.{TablePrefix}telegram_delivery_queue') AND name = 'UX_{TablePrefix}telegram_delivery_queue_key')
 CREATE UNIQUE INDEX UX_{TablePrefix}telegram_delivery_queue_key

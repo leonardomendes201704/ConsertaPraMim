@@ -47,6 +47,16 @@ public sealed class TelegramAutomationOptionsValidator : IValidateOptions<Telegr
             }
         }
 
+        if (options.DeliveryPayloadRetentionDays <= 0)
+        {
+            failures.Add("TelegramAutomation:DeliveryPayloadRetentionDays deve ser maior que zero.");
+        }
+
+        if (options.DeliveryPayloadCleanupIntervalMinutes <= 0)
+        {
+            failures.Add("TelegramAutomation:DeliveryPayloadCleanupIntervalMinutes deve ser maior que zero.");
+        }
+
         if (!options.ClientsAutomationEnabled &&
             !options.ProvidersAutomationEnabled &&
             !options.MirrorMessagesEnabled)

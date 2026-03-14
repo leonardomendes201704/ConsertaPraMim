@@ -7,6 +7,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using ConsertaPraMim.Web.TelegramBridge.Models;
 using ConsertaPraMim.Web.TelegramBridge.Options;
+using ConsertaPraMim.Web.TelegramBridge.Security;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 
@@ -109,7 +110,7 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
         {
             _logger.LogInformation(
                 "Chatbot IA bloqueado por feature flag. ChatId: {ChatId}. Reason: {ReasonCode}. Bucket: {Bucket}.",
-                chatId,
+                TelegramSecuritySanitizer.MaskChatId(chatId),
                 rolloutDecision.ReasonCode,
                 rolloutDecision.Bucket);
 
@@ -169,7 +170,9 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
 
         if (!conversationId.HasValue)
         {
-            _logger.LogWarning("Nao foi possivel abrir/retomar conversa para orquestracao IA. ChatId: {ChatId}", chatId);
+            _logger.LogWarning(
+                "Nao foi possivel abrir/retomar conversa para orquestracao IA. ChatId: {ChatId}",
+                TelegramSecuritySanitizer.MaskChatId(chatId));
             _observabilityService.RecordIncident(
                 stage: "session_open",
                 errorCode: "conversation_open_failed",
@@ -381,7 +384,7 @@ public sealed class TelegramChatbotOrchestrator : ITelegramChatbotOrchestrator
             _logger.LogError(
                 exception,
                 "Falha inesperada ao orquestrar resposta IA para ChatId {ChatId}. CorrelationId: {CorrelationId}",
-                chatId,
+                TelegramSecuritySanitizer.MaskChatId(chatId),
                 correlationId);
 
             FailureCounter.Add(1,

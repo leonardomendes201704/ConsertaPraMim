@@ -1,5 +1,6 @@
 using ConsertaPraMim.Web.TelegramBridge.Models;
 using ConsertaPraMim.Web.TelegramBridge.Options;
+using ConsertaPraMim.Web.TelegramBridge.Security;
 using Microsoft.Extensions.Options;
 
 namespace ConsertaPraMim.Web.TelegramBridge.Services;
@@ -153,7 +154,7 @@ public sealed class TelegramLongPollingBackgroundService : BackgroundService
             _logger.LogWarning(
                 exception,
                 "Falha ao espelhar mensagem Telegram para o CPM Full. ChatId={ChatId} MessageId={MessageId}",
-                chatId,
+                TelegramSecuritySanitizer.MaskChatId(chatId),
                 storedMessage.Id);
         }
     }

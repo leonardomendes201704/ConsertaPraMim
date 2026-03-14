@@ -1,5 +1,6 @@
 using ConsertaPraMim.Web.TelegramBridge.Models;
 using ConsertaPraMim.Web.TelegramBridge.Options;
+using ConsertaPraMim.Web.TelegramBridge.Security;
 using ConsertaPraMim.Web.TelegramBridge.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
@@ -74,7 +75,7 @@ public sealed class TelegramAutomationInternalController : ControllerBase
         return Ok(new
         {
             success = true,
-            telegramChatId = request.TelegramChatId,
+            telegramChatIdMasked = TelegramSecuritySanitizer.MaskChatId(request.TelegramChatId),
             humanHandoffActivated = request.ActivateHumanHandoff,
             message = "Mensagem humana enviada ao Telegram com sucesso."
         });

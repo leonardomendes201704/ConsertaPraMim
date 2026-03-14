@@ -67,7 +67,10 @@ public sealed class TelegramAutomationOptionsValidatorTests
             DeliveryWorkerEnabled = true,
             DeliveryWorkerIntervalSeconds = 20,
             DeliveryWorkerBatchSize = 10,
-            DeliveryQueueMaxAttempts = 5
+            DeliveryQueueMaxAttempts = 5,
+            DeliveryPayloadCleanupEnabled = true,
+            DeliveryPayloadRetentionDays = 14,
+            DeliveryPayloadCleanupIntervalMinutes = 360
         });
 
         Assert.True(result.Succeeded);
@@ -88,5 +91,23 @@ public sealed class TelegramAutomationOptionsValidatorTests
 
         Assert.True(result.Failed);
         Assert.Contains(result.Failures!, failure => failure.Contains("TelegramBridgeBaseUrl", StringComparison.Ordinal));
+    }
+
+    [Fact(DisplayName = "Telegram Automation Options | CPM Full | Deve falhar com retention invalida")]
+    public void CpmFullValidator_DeveFalharComRetentionInvalida()
+    {
+        var validator = new CpmFullTelegramOptionsValidator();
+        var result = validator.Validate(Options.DefaultName, new CpmFullTelegramOptions
+        {
+            Enabled = true,
+            ClientsAutomationEnabled = true,
+            SharedSecret = "segredo-compartilhado",
+            DeliveryPayloadRetentionDays = 0,
+            DeliveryPayloadCleanupIntervalMinutes = 0
+        });
+
+        Assert.True(result.Failed);
+        Assert.Contains(result.Failures!, failure => failure.Contains("DeliveryPayloadRetentionDays", StringComparison.Ordinal));
+        Assert.Contains(result.Failures!, failure => failure.Contains("DeliveryPayloadCleanupIntervalMinutes", StringComparison.Ordinal));
     }
 }

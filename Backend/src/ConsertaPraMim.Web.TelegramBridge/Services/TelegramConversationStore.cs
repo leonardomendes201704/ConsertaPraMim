@@ -1,6 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using ConsertaPraMim.Web.TelegramBridge.Models;
 using ConsertaPraMim.Web.TelegramBridge.Options;
+using ConsertaPraMim.Web.TelegramBridge.Security;
 using Microsoft.Extensions.Options;
 
 namespace ConsertaPraMim.Web.TelegramBridge.Services;
@@ -58,7 +59,7 @@ public sealed class TelegramConversationStore : ITelegramConversationStore
 
             if (string.IsNullOrWhiteSpace(state.Title))
             {
-                state.Title = $"Chat {chatId}";
+                state.Title = TelegramSecuritySanitizer.BuildMaskedChatLabel(chatId);
             }
 
             if (state.UpdatedAtUtc == default)
@@ -90,7 +91,7 @@ public sealed class TelegramConversationStore : ITelegramConversationStore
 
             if (string.IsNullOrWhiteSpace(state.Title))
             {
-                state.Title = $"Chat {chatId}";
+                state.Title = TelegramSecuritySanitizer.BuildMaskedChatLabel(chatId);
             }
 
             var message = new ChatMessageDto(
@@ -156,7 +157,7 @@ public sealed class TelegramConversationStore : ITelegramConversationStore
         public ConversationState(long chatId)
         {
             ChatId = chatId;
-            Title = $"Chat {chatId}";
+            Title = TelegramSecuritySanitizer.BuildMaskedChatLabel(chatId);
             LastMessagePreview = "Sem mensagens";
             UpdatedAtUtc = DateTimeOffset.UtcNow;
         }

@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using ConsertaPraMim.Web.TelegramBridge.Models;
 using ConsertaPraMim.Web.TelegramBridge.Options;
+using ConsertaPraMim.Web.TelegramBridge.Security;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
 
@@ -71,7 +72,7 @@ public sealed class TelegramMessageAutomationClient : ITelegramMessageAutomation
                     "Automacao Telegram retornou erro HTTP {StatusCode} no espelhamento da mensagem {ChannelMessageId}. Message={Message}",
                     (int)response.StatusCode,
                     request.ChannelMessageId,
-                    failureMessage);
+                    TelegramSecuritySanitizer.SanitizeMessage(failureMessage, 300));
 
                 return TelegramInboundMessageAutomationResult.Failed((int)response.StatusCode, failureMessage);
             }

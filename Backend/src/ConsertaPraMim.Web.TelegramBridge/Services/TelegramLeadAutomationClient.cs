@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using ConsertaPraMim.Web.TelegramBridge.Models;
 using ConsertaPraMim.Web.TelegramBridge.Options;
+using ConsertaPraMim.Web.TelegramBridge.Security;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
 
@@ -85,7 +86,7 @@ public sealed class TelegramLeadAutomationClient : ITelegramLeadAutomationClient
                     "Automacao Telegram retornou erro HTTP {StatusCode} ao sincronizar conversa {ChatbotConversationId}. Message={Message}",
                     (int)response.StatusCode,
                     request.ChatbotConversationId,
-                    failureMessage);
+                    TelegramSecuritySanitizer.SanitizeMessage(failureMessage, 300));
 
                 return TelegramLeadAutomationUpsertResult.Failed((int)response.StatusCode, failureMessage);
             }

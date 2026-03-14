@@ -349,6 +349,9 @@ Como time tecnico, queremos diagnosticar rapidamente falhas entre bot, CPM Full 
 ### Descricao
 Como time de seguranca, queremos proteger dados e segredos do bot e do Chatwoot.
 
+### Status
+- Concluida em `2026-03-14` com mascaramento de PII/segredos, retention controlada de payloads/anexos e endurecimento operacional dos endpoints internos da trilha Telegram.
+
 ### Criterios de aceite
 1. Telefone, chat id, token e dados sensiveis aparecem mascarados em logs e telas tecnicas.
 2. Webhook do bot, quando existir, valida origem/segredo.
@@ -360,6 +363,14 @@ Como time de seguranca, queremos proteger dados e segredos do bot e do Chatwoot.
 - `TASK-09.03` Revisar retention de payloads e anexos.
 - `TASK-09.04` Publicar runbook de rotacao de token do bot.
 - `TASK-09.05` Revisar politica de permissao para outbound humano.
+
+### Entrega aplicada
+1. O CPM Full e o Telegram Bridge ganharam `TelegramSecuritySanitizer`, passando a mascarar chat id, telefone, e-mail, token, segredo e mensagens tecnicas sensiveis em logs, diagnosticos e telas administrativas.
+2. O detalhe do lead e o drawer `Diagnostico Telegram` no Kanban agora exibem `TelegramChatId`, `ClientEmail` e erros operacionais somente em formato mascarado, sem expor PII bruta para suporte.
+3. A trilha interna continua protegida por `X-Telegram-Automation-Key` nos endpoints bridge -> CPM Full e CPM Full -> bridge; como o bot publicado ainda usa long polling, nao existe webhook publico do Telegram exposto nesta fase, mas o runbook passou a registrar que qualquer webhook futuro deve validar segredo e origem antes de aceitar entrega.
+4. O CPM Full ganhou retention controlada para `dbo.cpm_web_telegram_delivery_queue`, com redacao automatica de `PayloadJson` antigo em itens `processed`/`dead_letter` e preenchimento de `PayloadPurgedAt`.
+5. O Telegram Bridge ganhou retention controlada de anexos baixados em `wwwroot/uploads/telegram-bridge`, com worker periodico para remover arquivos fora da janela configurada e limpar diretorios vazios.
+6. A politica de outbound humano ficou explicitada no manual: respostas do Chatwoot so retornam ao Telegram quando a mensagem e publica, a automacao bidirecional esta habilitada, o lead possui vinculo Telegram valido e o handoff humano foi permitido para a conversa.
 
 ## US-10 - QA, testes e homologacao
 ### Descricao

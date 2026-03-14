@@ -84,9 +84,13 @@ public sealed class KanbanController : Controller
                 originLabel = string.Equals(lead.Source, "Telegram", StringComparison.OrdinalIgnoreCase) ? "Telegram" : "-",
                 chatbotConversationId = lead.Telegram.ChatbotConversationId?.ToString() ?? string.Empty,
                 channelConversationId = lead.Telegram.ChannelConversationId,
-                telegramChatId = lead.Telegram.TelegramChatId,
+                telegramChatId = lead.Telegram.TelegramChatId.HasValue
+                    ? TelegramSecuritySanitizer.MaskChatId(lead.Telegram.TelegramChatId)
+                    : string.Empty,
                 clientId = lead.Telegram.ClientId?.ToString() ?? string.Empty,
-                clientEmail = lead.Telegram.ClientEmail,
+                clientEmail = string.IsNullOrWhiteSpace(lead.Telegram.ClientEmail)
+                    ? string.Empty
+                    : TelegramSecuritySanitizer.MaskEmail(lead.Telegram.ClientEmail),
                 serviceRequestId = lead.Telegram.ServiceRequestId?.ToString() ?? string.Empty,
                 humanHandoffStartedAt = lead.Telegram.HumanHandoffStartedAt?.ToString("dd/MM/yyyy HH:mm") ?? "-",
                 lastTelegramMessageSyncedAt = lead.Telegram.LastTelegramMessageSyncedAt?.ToString("dd/MM/yyyy HH:mm") ?? "-",
@@ -492,10 +496,10 @@ public sealed class KanbanController : Controller
                 attemptCount = item.AttemptCount,
                 maxAttempts = item.MaxAttempts,
                 lastAttemptAt = item.LastAttemptAt?.ToString("dd/MM/yyyy HH:mm") ?? "-",
-                lastError = string.IsNullOrWhiteSpace(item.LastError) ? "-" : ChatwootSecuritySanitizer.SanitizeMessage(item.LastError, 500),
+                lastError = string.IsNullOrWhiteSpace(item.LastError) ? "-" : TelegramSecuritySanitizer.SanitizeMessage(item.LastError, 500),
                 chatwootConversationId = item.ChatwootConversationId,
                 conversationUrl = BuildChatwootConversationUrl(item.ChatwootConversationId),
-                telegramChatId = item.TelegramChatId
+                telegramChatId = item.TelegramChatId.HasValue ? TelegramSecuritySanitizer.MaskChatId(item.TelegramChatId) : "-"
             }),
             recentQueueItems = diagnostics.RecentQueueItems.Select(item => new
             {
@@ -513,10 +517,10 @@ public sealed class KanbanController : Controller
                 maxAttempts = item.MaxAttempts,
                 nextAttemptAt = item.NextAttemptAt.ToString("dd/MM/yyyy HH:mm"),
                 lastAttemptAt = item.LastAttemptAt?.ToString("dd/MM/yyyy HH:mm") ?? "-",
-                lastError = string.IsNullOrWhiteSpace(item.LastError) ? "-" : ChatwootSecuritySanitizer.SanitizeMessage(item.LastError, 500),
+                lastError = string.IsNullOrWhiteSpace(item.LastError) ? "-" : TelegramSecuritySanitizer.SanitizeMessage(item.LastError, 500),
                 chatwootConversationId = item.ChatwootConversationId,
                 conversationUrl = BuildChatwootConversationUrl(item.ChatwootConversationId),
-                telegramChatId = item.TelegramChatId
+                telegramChatId = item.TelegramChatId.HasValue ? TelegramSecuritySanitizer.MaskChatId(item.TelegramChatId) : "-"
             }),
             bridge = new
             {
@@ -569,7 +573,7 @@ public sealed class KanbanController : Controller
                         stage = item.Stage,
                         errorCode = item.ErrorCode,
                         correlationId = item.CorrelationId ?? "-",
-                        message = string.IsNullOrWhiteSpace(item.Message) ? "-" : ChatwootSecuritySanitizer.SanitizeMessage(item.Message, 500)
+                        message = string.IsNullOrWhiteSpace(item.Message) ? "-" : TelegramSecuritySanitizer.SanitizeMessage(item.Message, 500)
                     })
             }
         });

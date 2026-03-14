@@ -41,6 +41,7 @@ builder.Services.AddScoped<ITelegramMessageAutomationService, TelegramMessageAut
 builder.Services.AddHostedService<ChatwootSyncRetryWorker>();
 builder.Services.AddHostedService<ChatwootWebhookRetentionWorker>();
 builder.Services.AddHostedService<TelegramDeliveryWorker>();
+builder.Services.AddHostedService<TelegramDeliveryRetentionWorker>();
 builder.Services.AddSingleton<IValidateOptions<ChatwootOptions>, ChatwootOptionsValidator>();
 builder.Services.AddSingleton<IValidateOptions<TelegramAutomationOptions>, TelegramAutomationOptionsValidator>();
 builder.Services.AddOptions<ChatwootOptions>()

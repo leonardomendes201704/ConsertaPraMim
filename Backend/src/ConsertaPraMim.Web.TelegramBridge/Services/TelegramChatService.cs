@@ -1,4 +1,5 @@
 ﻿using ConsertaPraMim.Web.TelegramBridge.Models;
+using ConsertaPraMim.Web.TelegramBridge.Security;
 using Microsoft.AspNetCore.Http;
 
 namespace ConsertaPraMim.Web.TelegramBridge.Services;
@@ -200,7 +201,7 @@ public sealed class TelegramChatService : ITelegramChatService
             return $"@{chat.Username.Trim()}";
         }
 
-        return $"Chat {chat.Id}";
+        return TelegramSecuritySanitizer.BuildMaskedChatLabel(chat.Id);
     }
 
     private static string ResolveSenderName(TelegramMessage message)
@@ -228,7 +229,7 @@ public sealed class TelegramChatService : ITelegramChatService
             return $"@{message.From.Username.Trim()}";
         }
 
-        return $"Telegram {message.From.Id}";
+        return $"Telegram {TelegramSecuritySanitizer.MaskChatId(message.From.Id)}";
     }
 
     private static string? NormalizeOptionalText(string? value)

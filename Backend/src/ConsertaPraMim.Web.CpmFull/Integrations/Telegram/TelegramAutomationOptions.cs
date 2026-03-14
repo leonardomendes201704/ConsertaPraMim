@@ -17,6 +17,9 @@ public sealed class TelegramAutomationOptions
     public int DeliveryWorkerIntervalSeconds { get; init; } = 20;
     public int DeliveryWorkerBatchSize { get; init; } = 20;
     public int DeliveryQueueMaxAttempts { get; init; } = 10;
+    public bool DeliveryPayloadCleanupEnabled { get; init; } = true;
+    public int DeliveryPayloadRetentionDays { get; init; } = 14;
+    public int DeliveryPayloadCleanupIntervalMinutes { get; init; } = 360;
 
     public IReadOnlyList<string> GetAllowedBotSources() =>
         AllowedBotSources
@@ -26,4 +29,7 @@ public sealed class TelegramAutomationOptions
 
     public TimeSpan GetRequestTimeout() =>
         TimeSpan.FromSeconds(RequestTimeoutSeconds <= 0 ? 15 : RequestTimeoutSeconds);
+
+    public TimeSpan GetDeliveryPayloadCleanupInterval() =>
+        TimeSpan.FromMinutes(DeliveryPayloadCleanupIntervalMinutes <= 0 ? 360 : DeliveryPayloadCleanupIntervalMinutes);
 }
