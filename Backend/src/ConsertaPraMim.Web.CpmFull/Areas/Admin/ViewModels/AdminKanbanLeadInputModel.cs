@@ -75,3 +75,17 @@ public sealed class AdminKanbanStageOrderInputModel
     public int StageId { get; set; }
     public List<int> LeadIds { get; set; } = [];
 }
+
+public sealed class AdminKanbanChatwootBackfillInputModel
+{
+    [StringLength(30)]
+    public string BoardType { get; set; } = string.Empty;
+
+    [Range(1, 200, ErrorMessage = "Informe um lote entre 1 e 200 leads.")]
+    public int BatchSize { get; set; } = 20;
+
+    public bool DryRun { get; set; }
+
+    [Range(1, int.MaxValue, ErrorMessage = "Informe um Lead ID inicial valido.")]
+    public int? StartAfterLeadId { get; set; }
+}

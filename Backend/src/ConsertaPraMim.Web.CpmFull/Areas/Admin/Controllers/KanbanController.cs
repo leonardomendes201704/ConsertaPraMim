@@ -15,17 +15,20 @@ public sealed class KanbanController : Controller
     private readonly IAdminKanbanService _kanbanService;
     private readonly IChatwootSyncQueueService _chatwootSyncQueueService;
     private readonly IChatwootLeadSyncService _chatwootLeadSyncService;
+    private readonly IChatwootBackfillService _chatwootBackfillService;
     private readonly ChatwootOptions _chatwootOptions;
 
     public KanbanController(
         IAdminKanbanService kanbanService,
         IChatwootSyncQueueService chatwootSyncQueueService,
         IChatwootLeadSyncService chatwootLeadSyncService,
+        IChatwootBackfillService chatwootBackfillService,
         IOptions<ChatwootOptions> chatwootOptions)
     {
         _kanbanService = kanbanService;
         _chatwootSyncQueueService = chatwootSyncQueueService;
         _chatwootLeadSyncService = chatwootLeadSyncService;
+        _chatwootBackfillService = chatwootBackfillService;
         _chatwootOptions = chatwootOptions.Value;
     }
 
@@ -265,6 +268,73 @@ public sealed class KanbanController : Controller
         }
     }
 
+    [HttpPost("chatwoot/backfill")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RunChatwootBackfill([FromBody] AdminKanbanChatwootBackfillInputModel model)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest(new { success = false, message = "Parametros invalidos para executar o backfill do Chatwoot." });
+        }
+
+        if (!string.IsNullOrWhiteSpace(model.BoardType) && !AdminKanbanBoardTypes.IsValid(model.BoardType))
+        {
+            return BadRequest(new { success = false, message = "Tipo de funil invalido para o backfill do Chatwoot." });
+        }
+
+        try
+        {
+            var result = await _chatwootBackfillService.RunAsync(
+                new ChatwootBackfillRunRequest
+                {
+                    BoardType = string.IsNullOrWhiteSpace(model.BoardType) ? null : model.BoardType,
+                    BatchSize = model.BatchSize,
+                    DryRun = model.DryRun,
+                    StartAfterLeadId = model.StartAfterLeadId
+                },
+                HttpContext.RequestAborted);
+
+            return Json(new
+            {
+                success = true,
+                dryRun = result.DryRun,
+                status = result.Status,
+                statusLabel = FormatBackfillRunStatusLabel(result.Status),
+                scopeKey = result.ScopeKey,
+                scopeLabel = result.ScopeLabel,
+                batchSize = result.BatchSize,
+                storedCheckpointLeadId = result.StoredCheckpointLeadId,
+                effectiveStartAfterLeadId = result.EffectiveStartAfterLeadId,
+                lastProcessedLeadId = result.LastProcessedLeadId,
+                summary = new
+                {
+                    totalSelected = result.TotalSelected,
+                    successCount = result.SuccessCount,
+                    failedCount = result.FailedCount,
+                    pendingCount = result.PendingCount
+                },
+                items = result.Items.Select(item => new
+                {
+                    leadId = item.LeadId,
+                    boardType = item.BoardType,
+                    boardLabel = AdminKanbanBoardTypes.GetTitle(item.BoardType),
+                    leadName = item.LeadName,
+                    stageName = item.StageName,
+                    status = item.Status,
+                    statusLabel = FormatBackfillItemStatusLabel(item.Status),
+                    message = item.Message,
+                    contactId = item.ContactId,
+                    conversationId = item.ConversationId,
+                    inboxId = item.InboxId
+                })
+            });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { success = false, message = ex.Message });
+        }
+    }
+
     [HttpPost("lead/ordem")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> SaveOrder([FromBody] AdminKanbanOrderInputModel model)
@@ -404,6 +474,7 @@ public sealed class KanbanController : Controller
             "seed" => "Carga inicial",
             "chatwoot_contato_sincronizado" => "Contato sincronizado no Chatwoot",
             "chatwoot_conversa_criada" => "Conversa criada no Chatwoot",
+            "chatwoot_conversa_reaproveitada" => "Conversa reaproveitada no Chatwoot",
             "chatwoot_sincronizado" => "Sincronizacao com Chatwoot",
             "chatwoot_sync_falhou" => "Falha na sincronizacao com Chatwoot",
             "chatwoot_etapa_sincronizada" => "Etapa sincronizada no Chatwoot",
@@ -416,6 +487,23 @@ public sealed class KanbanController : Controller
             "chatwoot_retentativa_processada" => "Retentativa Chatwoot concluida",
             "chatwoot_dead_letter" => "Retentativa Chatwoot esgotada",
             _ => "Evento do funil"
+        };
+
+    private static string FormatBackfillRunStatusLabel(string? status) =>
+        (status ?? string.Empty).Trim().ToLowerInvariant() switch
+        {
+            ChatwootBackfillRunStatuses.DryRun => "Dry-run",
+            ChatwootBackfillRunStatuses.Completed => "Concluido",
+            _ => "Backfill"
+        };
+
+    private static string FormatBackfillItemStatusLabel(string? status) =>
+        (status ?? string.Empty).Trim().ToLowerInvariant() switch
+        {
+            ChatwootBackfillItemStatuses.Synced => "Sincronizado",
+            ChatwootBackfillItemStatuses.Pending => "Pendente",
+            ChatwootBackfillItemStatuses.Skipped => "Ignorado",
+            _ => "Falha"
         };
 
     private string BuildChatwootConversationUrl(long? conversationId)

@@ -82,6 +82,7 @@ public sealed class ChatwootLeadSyncService : IChatwootLeadSyncService
 
         long? contactId = lead.Chatwoot.ContactId;
         long? conversationId = lead.Chatwoot.ConversationId;
+        var createdConversation = false;
 
         try
         {
@@ -90,27 +91,14 @@ public sealed class ChatwootLeadSyncService : IChatwootLeadSyncService
 
             if (!conversationId.HasValue)
             {
-                var conversation = await _chatwootApiClient.CreateConversationAsync(
-                    new ChatwootCreateConversationRequest
-                    {
-                        SourceId = resolvedContact.ContactInbox.SourceId,
-                        InboxId = inboxId,
-                        ContactId = resolvedContact.Contact.Id,
-                        Status = "open"
-                    },
+                var resolvedConversation = await ResolveConversationAsync(
+                    lead,
+                    resolvedContact,
+                    inboxId,
                     cancellationToken);
 
-                conversationId = conversation.Id;
-
-                await _chatwootApiClient.CreateMessageAsync(
-                    conversation.Id,
-                    new ChatwootCreateMessageRequest
-                    {
-                        Content = BuildOpeningMessage(lead),
-                        MessageType = "outgoing",
-                        Private = true
-                    },
-                    cancellationToken);
+                conversationId = resolvedConversation.ConversationId;
+                createdConversation = resolvedConversation.CreatedNewConversation;
             }
 
             await ApplyStageMappingAsync(lead, conversationId.Value, trackHistory: false, cancellationToken);
@@ -140,8 +128,10 @@ public sealed class ChatwootLeadSyncService : IChatwootLeadSyncService
             {
                 _kanbanService.AddHistoryEvent(
                     leadId,
-                    "chatwoot_conversa_criada",
-                    $"Conversa #{conversationId.Value} criada no inbox #{inboxId} do Chatwoot.");
+                    createdConversation ? "chatwoot_conversa_criada" : "chatwoot_conversa_reaproveitada",
+                    createdConversation
+                        ? $"Conversa #{conversationId.Value} criada no inbox #{inboxId} do Chatwoot."
+                        : $"Conversa #{conversationId.Value} reaproveitada no inbox #{inboxId} do Chatwoot.");
             }
 
             if (lead.Chatwoot.SyncStatus != ChatwootSyncStatuses.Synced)
@@ -536,6 +526,54 @@ public sealed class ChatwootLeadSyncService : IChatwootLeadSyncService
         return string.Join(Environment.NewLine, lines);
     }
 
+    private async Task<ResolvedChatwootConversation> ResolveConversationAsync(
+        AdminKanbanLeadDetailsRecord lead,
+        ResolvedChatwootContact resolvedContact,
+        long inboxId,
+        CancellationToken cancellationToken)
+    {
+        var existingConversation = await FindExistingConversationAsync(resolvedContact.Contact.Id, inboxId, cancellationToken);
+        if (existingConversation is not null)
+        {
+            return new ResolvedChatwootConversation(existingConversation.Id, false);
+        }
+
+        var createdConversation = await _chatwootApiClient.CreateConversationAsync(
+            new ChatwootCreateConversationRequest
+            {
+                SourceId = resolvedContact.ContactInbox.SourceId,
+                InboxId = inboxId,
+                ContactId = resolvedContact.Contact.Id,
+                Status = "open"
+            },
+            cancellationToken);
+
+        await _chatwootApiClient.CreateMessageAsync(
+            createdConversation.Id,
+            new ChatwootCreateMessageRequest
+            {
+                Content = BuildOpeningMessage(lead),
+                MessageType = "outgoing",
+                Private = true
+            },
+            cancellationToken);
+
+        return new ResolvedChatwootConversation(createdConversation.Id, true);
+    }
+
+    private async Task<ChatwootConversationSummary?> FindExistingConversationAsync(
+        long contactId,
+        long inboxId,
+        CancellationToken cancellationToken)
+    {
+        var conversations = await _chatwootApiClient.ListContactConversationsAsync(contactId, cancellationToken);
+
+        return conversations
+            .Where(item => item.InboxId == inboxId)
+            .OrderByDescending(item => item.Id)
+            .FirstOrDefault();
+    }
+
     private static string BuildUserFacingError(Exception ex) =>
         ex switch
         {
@@ -761,4 +799,8 @@ public sealed class ChatwootLeadSyncService : IChatwootLeadSyncService
     private sealed record ResolvedChatwootContact(
         ChatwootContactSummary Contact,
         ChatwootContactInboxSummary ContactInbox);
+
+    private sealed record ResolvedChatwootConversation(
+        long ConversationId,
+        bool CreatedNewConversation);
 }

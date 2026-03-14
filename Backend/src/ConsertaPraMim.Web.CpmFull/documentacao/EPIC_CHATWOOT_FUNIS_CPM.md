@@ -300,6 +300,9 @@ Como time de plataforma, queremos evitar perda de sincronizacao quando Chatwoot 
 ### Descricao
 Como operacao, quero sincronizar backlog de leads existentes sem interromper uso da plataforma.
 
+### Status
+- Concluida em 2026-03-13 no `ConsertaPraMim.Web.CpmFull`, com backfill incremental acionado pelo painel admin, `dry-run`, checkpoint SQL por escopo (`clientes`, `prestadores` ou ambos) e reaproveitamento de conversa existente por contato/inbox para evitar duplicidade.
+
 ### Criterios de aceite
 1. Processo de backfill e executavel de forma incremental.
 2. Backfill nao duplica contatos/conversas.
