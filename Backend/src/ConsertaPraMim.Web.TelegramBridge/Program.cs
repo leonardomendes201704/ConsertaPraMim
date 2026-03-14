@@ -101,6 +101,7 @@ builder.Services.AddSingleton<ITelegramBotApiClient, TelegramBotApiClient>();
 builder.Services.AddSingleton<ITelegramAttachmentStorage, TelegramAttachmentStorage>();
 builder.Services.AddSingleton<ITelegramChatRealtimeNotifier, TelegramChatRealtimeNotifier>();
 builder.Services.AddSingleton<ITelegramChatService, TelegramChatService>();
+builder.Services.AddSingleton<ITelegramInboundUpdateProcessor, TelegramInboundUpdateProcessor>();
 builder.Services.AddSingleton<ITelegramHumanHandoffStateService, TelegramHumanHandoffStateService>();
 builder.Services.AddScoped<ITelegramBridgeAuthApiClient, TelegramBridgeAuthApiClient>();
 builder.Services.AddScoped<ITelegramChatbotApiClient, TelegramChatbotApiClient>();
@@ -110,6 +111,7 @@ builder.Services.AddSingleton<ITelegramChatbotObservabilityService, TelegramChat
 builder.Services.AddSingleton<TelegramServiceRequestTriageEngine>();
 builder.Services.AddSingleton<TelegramSchedulingNaturalLanguageParser>();
 builder.Services.AddScoped<ITelegramChatbotOrchestrator, TelegramChatbotOrchestrator>();
+builder.Services.AddHostedService<TelegramUpdateTransportBootstrapService>();
 builder.Services.AddHostedService<TelegramLongPollingBackgroundService>();
 builder.Services.AddHostedService<TelegramAttachmentRetentionWorker>();
 

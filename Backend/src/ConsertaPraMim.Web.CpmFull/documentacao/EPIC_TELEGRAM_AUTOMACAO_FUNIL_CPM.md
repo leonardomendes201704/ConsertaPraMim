@@ -367,7 +367,7 @@ Como time de seguranca, queremos proteger dados e segredos do bot e do Chatwoot.
 ### Entrega aplicada
 1. O CPM Full e o Telegram Bridge ganharam `TelegramSecuritySanitizer`, passando a mascarar chat id, telefone, e-mail, token, segredo e mensagens tecnicas sensiveis em logs, diagnosticos e telas administrativas.
 2. O detalhe do lead e o drawer `Diagnostico Telegram` no Kanban agora exibem `TelegramChatId`, `ClientEmail` e erros operacionais somente em formato mascarado, sem expor PII bruta para suporte.
-3. A trilha interna continua protegida por `X-Telegram-Automation-Key` nos endpoints bridge -> CPM Full e CPM Full -> bridge; como o bot publicado ainda usa long polling, nao existe webhook publico do Telegram exposto nesta fase, mas o runbook passou a registrar que qualquer webhook futuro deve validar segredo e origem antes de aceitar entrega.
+3. A trilha interna continua protegida por `X-Telegram-Automation-Key` nos endpoints bridge -> CPM Full e CPM Full -> bridge; a validacao de segredo/origem para webhook do Telegram passou a fazer parte da trilha suportada do `TelegramBridge`.
 4. O CPM Full ganhou retention controlada para `dbo.cpm_web_telegram_delivery_queue`, com redacao automatica de `PayloadJson` antigo em itens `processed`/`dead_letter` e preenchimento de `PayloadPurgedAt`.
 5. O Telegram Bridge ganhou retention controlada de anexos baixados em `wwwroot/uploads/telegram-bridge`, com worker periodico para remover arquivos fora da janela configurada e limpar diretorios vazios.
 6. A politica de outbound humano ficou explicitada no manual: respostas do Chatwoot so retornam ao Telegram quando a mensagem e publica, a automacao bidirecional esta habilitada, o lead possui vinculo Telegram valido e o handoff humano foi permitido para a conversa.
@@ -398,6 +398,32 @@ Como QA, queremos validar a automacao Telegram ponta a ponta antes de operar em 
 3. O manual operacional passou a consolidar checklist final de homologacao da trilha Telegram, incluindo `clientes`, `prestadores`, bootstrap Chatwoot, espelhamento inbound, handoff humano, drawer de diagnostico, seguranca e retention.
 4. O runbook passou a documentar rollback operacional por feature flags, permitindo desligar seletivamente automacao de leads, espelhamento de mensagens e outbound humano sem interromper a trilha principal do bot.
 5. Com a conclusao da US-10, o epic `EPIC-TELEGRAM-001` fica encerrado como entregue do ponto de vista funcional, tecnico e operacional.
+
+## Pos-epico - ST-088 - Transporte webhook seguro no TelegramBridge
+### Descricao
+Como operacao, queremos que o `ConsertaPraMim.Web.TelegramBridge` possa receber mensagens do Telegram tambem por webhook seguro, mantendo fallback explicito para long polling.
+
+### Status
+- Concluida em `2026-03-14` como evolucao operacional pos-epic, preservando o epic principal como `Completed`.
+
+### Criterios de aceite
+1. O bridge aceita `LongPolling` e `Webhook` como modos inbound validos.
+2. Em `Webhook`, o bridge registra `setWebhook` automaticamente, valida `X-Telegram-Bot-Api-Secret-Token` e reaproveita a mesma trilha de processamento/mirror.
+3. Em `LongPolling`, o bootstrap remove webhook anterior e o worker de polling continua como fallback suportado.
+
+### Tasks
+- `TASK-11.01` Adicionar configuracao `TelegramBridge:UpdateTransport` e parametros do webhook.
+- `TASK-11.02` Reaproveitar o mesmo pipeline de processamento inbound entre polling e webhook.
+- `TASK-11.03` Registrar/remover webhook automaticamente na Bot API conforme o modo configurado.
+- `TASK-11.04` Publicar endpoint interno do webhook com validacao de segredo.
+- `TASK-11.05` Atualizar documentacao operacional e cobertura automatizada minima do bridge.
+
+### Entrega aplicada
+1. O `ConsertaPraMim.Web.TelegramBridge` passou a suportar `TelegramBridge:UpdateTransport=LongPolling|Webhook`, com validacao de `WebhookPublicBaseUrl`, `WebhookPath`, `WebhookSecretToken` e `WebhookDropPendingUpdates`.
+2. O processamento inbound foi extraido para um servico compartilhado, permitindo que `long polling` e `webhook` passem exatamente pela mesma trilha de persistencia local, observabilidade e espelhamento para o CPM Full/Chatwoot.
+3. O bridge ganhou o endpoint `POST /api/integrations/telegram/webhook`, protegido por `X-Telegram-Bot-Api-Secret-Token` e oculto do Swagger por se tratar de rota tecnica.
+4. O bootstrap do transporte agora registra `setWebhook` automaticamente quando o modo `Webhook` esta ativo e remove webhook anterior quando o modo `LongPolling` esta configurado, evitando conflito entre `getUpdates` e entrega por webhook.
+5. A documentacao operacional do CPM Full e do bridge passou a cobrir publicacao HTTPS do webhook, rotacao do secret token, troubleshooting do transporte e validacao do fallback.
 
 ## 8. Sequencia de entrega recomendada
 1. Sprint 1:

@@ -52,6 +52,59 @@ public sealed class TelegramBotApiClient : ITelegramBotApiClient
         return result ?? [];
     }
 
+    public async Task SetWebhookAsync(
+        string webhookUrl,
+        string secretToken,
+        bool dropPendingUpdates,
+        CancellationToken cancellationToken)
+    {
+        EnsureConfigured();
+
+        if (string.IsNullOrWhiteSpace(webhookUrl))
+        {
+            throw new InvalidOperationException("WebhookUrl invalida para registro do Telegram.");
+        }
+
+        if (string.IsNullOrWhiteSpace(secretToken))
+        {
+            throw new InvalidOperationException("WebhookSecretToken invalido para registro do Telegram.");
+        }
+
+        await PostForResultAsync<JsonElement>(
+            "setWebhook",
+            new
+            {
+                url = webhookUrl.Trim(),
+                secret_token = secretToken.Trim(),
+                drop_pending_updates = dropPendingUpdates,
+                allowed_updates = new[] { "message" }
+            },
+            cancellationToken);
+    }
+
+    public async Task DeleteWebhookAsync(bool dropPendingUpdates, CancellationToken cancellationToken)
+    {
+        EnsureConfigured();
+
+        await PostForResultAsync<JsonElement>(
+            "deleteWebhook",
+            new
+            {
+                drop_pending_updates = dropPendingUpdates
+            },
+            cancellationToken);
+    }
+
+    public async Task<TelegramWebhookInfo?> GetWebhookInfoAsync(CancellationToken cancellationToken)
+    {
+        EnsureConfigured();
+
+        return await PostForResultAsync<TelegramWebhookInfo>(
+            "getWebhookInfo",
+            new { },
+            cancellationToken);
+    }
+
     public async Task SendMessageAsync(
         long chatId,
         string? text,

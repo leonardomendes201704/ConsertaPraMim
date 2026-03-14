@@ -72,6 +72,7 @@
 
 ### Done
 
+- [ST-088 - Transporte webhook seguro no TelegramBridge](STORIES/DONE/ST-088-telegram-webhook-seguro-bridge.md)
 - [ST-087 - QA, homologacao e rollback da trilha Telegram no CPM Full](STORIES/DONE/ST-087-qa-homologacao-rollback-telegram-cpmfull.md)
 - [ST-086 - Seguranca e conformidade da trilha Telegram no CPM Full](STORIES/DONE/ST-086-seguranca-conformidade-telegram-cpmfull.md)
 - [ST-085 - Diagnostico operacional do Telegram no CPM Full](STORIES/DONE/ST-085-diagnostico-operacional-telegram-cpmfull.md)

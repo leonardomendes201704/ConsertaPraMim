@@ -94,8 +94,23 @@ public sealed class TelegramConversationStore : ITelegramConversationStore
                 state.Title = TelegramSecuritySanitizer.BuildMaskedChatLabel(chatId);
             }
 
+            var normalizedMessageId = string.IsNullOrWhiteSpace(messageId)
+                ? null
+                : messageId.Trim();
+
+            if (!string.IsNullOrWhiteSpace(normalizedMessageId))
+            {
+                var existingMessage = state.Messages.FirstOrDefault(message =>
+                    string.Equals(message.Id, normalizedMessageId, StringComparison.Ordinal));
+
+                if (existingMessage is not null)
+                {
+                    return new StoreAppendResult(ToSummary(state), existingMessage);
+                }
+            }
+
             var message = new ChatMessageDto(
-                Id: string.IsNullOrWhiteSpace(messageId) ? Guid.NewGuid().ToString("N") : messageId.Trim(),
+                Id: normalizedMessageId ?? Guid.NewGuid().ToString("N"),
                 ChatId: chatId,
                 IsOutgoing: isOutgoing,
                 SenderDisplayName: string.IsNullOrWhiteSpace(senderDisplayName)
