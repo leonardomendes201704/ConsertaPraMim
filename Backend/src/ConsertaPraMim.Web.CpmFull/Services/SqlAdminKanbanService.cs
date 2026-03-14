@@ -1,4 +1,5 @@
 using System.Data;
+using AppMobileCPM.Integrations.Chatwoot;
 using Microsoft.Data.SqlClient;
 
 namespace AppMobileCPM.Services;
@@ -491,6 +492,387 @@ WHERE Id = @leadId AND IsActive = 1;
         return command.ExecuteNonQuery() > 0;
     }
 
+    public int? FindLeadIdByChatwootConversationId(long conversationId)
+    {
+        EnsureInitialized();
+
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = $"""
+SELECT TOP (1) Id
+FROM dbo.{TablePrefix}kanban_leads
+WHERE IsActive = 1 AND ChatwootConversationId = @conversationId
+ORDER BY Id;
+""";
+        command.Parameters.Add(new SqlParameter("@conversationId", SqlDbType.BigInt) { Value = conversationId });
+
+        var result = command.ExecuteScalar();
+        return result is null ? null : Convert.ToInt32(result);
+    }
+
+    public bool ApplyChatwootWebhookLeadUpdate(int leadId, AdminKanbanLeadWebhookUpdateRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        EnsureInitialized();
+
+        using var connection = OpenConnection();
+        using var transaction = connection.BeginTransaction();
+
+        if (!ActiveLeadExists(connection, transaction, leadId))
+        {
+            return false;
+        }
+
+        if (request.LastContactAt.HasValue)
+        {
+            using var updateCommand = connection.CreateCommand();
+            updateCommand.Transaction = transaction;
+            updateCommand.CommandText = $"""
+UPDATE dbo.{TablePrefix}kanban_leads
+SET LastContactAt = CASE
+        WHEN LastContactAt IS NULL OR @lastContactAt > LastContactAt THEN @lastContactAt
+        ELSE LastContactAt
+    END,
+    UpdatedAt = SYSUTCDATETIME()
+WHERE Id = @leadId AND IsActive = 1;
+""";
+            updateCommand.Parameters.AddRange(
+            [
+                new SqlParameter("@lastContactAt", SqlDbType.DateTime2) { Value = request.LastContactAt.Value },
+                new SqlParameter("@leadId", SqlDbType.Int) { Value = leadId }
+            ]);
+            updateCommand.ExecuteNonQuery();
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.HistoryEventType) && !string.IsNullOrWhiteSpace(request.HistoryDescription))
+        {
+            InsertHistory(
+                connection,
+                transaction,
+                leadId,
+                eventType: TrimTo(request.HistoryEventType, 40),
+                fromStageId: null,
+                toStageId: null,
+                description: TrimTo(request.HistoryDescription, 3000));
+        }
+
+        transaction.Commit();
+        return true;
+    }
+
+    public AdminKanbanChatwootWebhookEventRecord CreateOrGetChatwootWebhookEvent(AdminKanbanChatwootWebhookEventUpsertRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        EnsureInitialized();
+
+        var providerEventId = string.IsNullOrWhiteSpace(request.ProviderEventId)
+            ? null
+            : TrimTo(request.ProviderEventId, 120);
+        var eventType = TrimTo(request.EventType, 80);
+
+        using var connection = OpenConnection();
+        if (TryGetChatwootWebhookEventByProviderEventId(connection, providerEventId, out var existingWebhookEvent))
+        {
+            return existingWebhookEvent with { IsDuplicate = true };
+        }
+
+        using var insertCommand = connection.CreateCommand();
+        insertCommand.CommandText = $"""
+INSERT INTO dbo.{TablePrefix}chatwoot_webhook_events
+(ProviderEventId, EventType, ConversationId, PayloadJson, Signature, ReceivedAt, ProcessStatus, ErrorMessage)
+VALUES
+(@providerEventId, @eventType, @conversationId, @payloadJson, @signature, @receivedAt, 'received', NULL);
+SELECT CAST(SCOPE_IDENTITY() AS INT);
+""";
+        insertCommand.Parameters.AddRange(
+        [
+            new SqlParameter("@providerEventId", SqlDbType.NVarChar, 120) { Value = ToDbValue(providerEventId) },
+            new SqlParameter("@eventType", SqlDbType.NVarChar, 80) { Value = eventType },
+            new SqlParameter("@conversationId", SqlDbType.BigInt) { Value = request.ConversationId.HasValue ? request.ConversationId.Value : DBNull.Value },
+            new SqlParameter("@payloadJson", SqlDbType.NVarChar, -1) { Value = request.PayloadJson },
+            new SqlParameter("@signature", SqlDbType.NVarChar, 255) { Value = ToDbValue(request.Signature) },
+            new SqlParameter("@receivedAt", SqlDbType.DateTime2) { Value = request.ReceivedAt }
+        ]);
+
+        int webhookEventId;
+        try
+        {
+            webhookEventId = Convert.ToInt32(insertCommand.ExecuteScalar());
+        }
+        catch (SqlException ex) when (IsUniqueKeyViolation(ex) && TryGetChatwootWebhookEventByProviderEventId(connection, providerEventId, out existingWebhookEvent))
+        {
+            return existingWebhookEvent with { IsDuplicate = true };
+        }
+
+        return new AdminKanbanChatwootWebhookEventRecord
+        {
+            Id = webhookEventId,
+            ProviderEventId = providerEventId ?? string.Empty,
+            EventType = eventType,
+            ConversationId = request.ConversationId,
+            ProcessStatus = "received",
+            ReceivedAt = request.ReceivedAt
+        };
+    }
+
+    public bool CompleteChatwootWebhookEvent(int webhookEventId, string processStatus, string? errorMessage)
+    {
+        EnsureInitialized();
+
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = $"""
+UPDATE dbo.{TablePrefix}chatwoot_webhook_events
+SET ProcessStatus = @processStatus,
+    ProcessedAt = SYSUTCDATETIME(),
+    ErrorMessage = @errorMessage
+WHERE Id = @webhookEventId;
+""";
+        command.Parameters.AddRange(
+        [
+            new SqlParameter("@processStatus", SqlDbType.NVarChar, 30) { Value = NormalizeWebhookProcessStatus(processStatus) },
+            new SqlParameter("@errorMessage", SqlDbType.NVarChar, -1) { Value = ToDbValue(errorMessage) },
+            new SqlParameter("@webhookEventId", SqlDbType.Int) { Value = webhookEventId }
+        ]);
+
+        return command.ExecuteNonQuery() > 0;
+    }
+
+    public AdminKanbanChatwootSyncQueueItemRecord EnqueueChatwootSyncQueueItem(AdminKanbanChatwootSyncQueueEnqueueRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        EnsureInitialized();
+
+        var operationType = NormalizeChatwootSyncOperationType(request.OperationType);
+        var nextAttemptAt = request.NextAttemptAt.Kind == DateTimeKind.Utc
+            ? request.NextAttemptAt
+            : request.NextAttemptAt.ToUniversalTime();
+        var maxAttempts = request.MaxAttempts > 0 ? request.MaxAttempts : 10;
+
+        using var connection = OpenConnection();
+        if (TryGetActiveChatwootSyncQueueItem(connection, request.LeadId, operationType, out var activeItem))
+        {
+            if (string.Equals(activeItem.Status, ChatwootSyncQueueStatuses.Processing, StringComparison.OrdinalIgnoreCase))
+            {
+                return activeItem;
+            }
+
+            using var updateCommand = connection.CreateCommand();
+            updateCommand.CommandText = $"""
+UPDATE dbo.{TablePrefix}chatwoot_sync_queue
+SET Status = @status,
+    NextAttemptAt = CASE
+        WHEN NextAttemptAt > @nextAttemptAt THEN @nextAttemptAt
+        ELSE NextAttemptAt
+    END,
+    MaxAttempts = CASE
+        WHEN MaxAttempts < @maxAttempts THEN @maxAttempts
+        ELSE MaxAttempts
+    END,
+    LastError = CASE
+        WHEN @lastError IS NOT NULL THEN @lastError
+        ELSE LastError
+    END,
+    UpdatedAt = SYSUTCDATETIME()
+WHERE Id = @id AND Status IN ('queued', 'retrying');
+""";
+            updateCommand.Parameters.AddRange(
+            [
+                new SqlParameter("@status", SqlDbType.NVarChar, 30) { Value = ChatwootSyncQueueStatuses.Queued },
+                new SqlParameter("@nextAttemptAt", SqlDbType.DateTime2) { Value = nextAttemptAt },
+                new SqlParameter("@maxAttempts", SqlDbType.Int) { Value = maxAttempts },
+                new SqlParameter("@lastError", SqlDbType.NVarChar, -1) { Value = ToDbValue(request.LastError) },
+                new SqlParameter("@id", SqlDbType.Int) { Value = activeItem.Id }
+            ]);
+            _ = updateCommand.ExecuteNonQuery();
+
+            return TryGetChatwootSyncQueueItemById(connection, activeItem.Id, out var updatedItem)
+                ? updatedItem
+                : activeItem;
+        }
+
+        using var insertCommand = connection.CreateCommand();
+        insertCommand.CommandText = $"""
+INSERT INTO dbo.{TablePrefix}chatwoot_sync_queue
+(LeadId, OperationType, Status, AttemptCount, MaxAttempts, NextAttemptAt, LastAttemptAt, LastError, WorkerInstance, CreatedAt, UpdatedAt, ProcessedAt, DeadLetterAt)
+VALUES
+(@leadId, @operationType, 'queued', 0, @maxAttempts, @nextAttemptAt, NULL, @lastError, NULL, SYSUTCDATETIME(), SYSUTCDATETIME(), NULL, NULL);
+SELECT CAST(SCOPE_IDENTITY() AS INT);
+""";
+        insertCommand.Parameters.AddRange(
+        [
+            new SqlParameter("@leadId", SqlDbType.Int) { Value = request.LeadId },
+            new SqlParameter("@operationType", SqlDbType.NVarChar, 40) { Value = operationType },
+            new SqlParameter("@maxAttempts", SqlDbType.Int) { Value = maxAttempts },
+            new SqlParameter("@nextAttemptAt", SqlDbType.DateTime2) { Value = nextAttemptAt },
+            new SqlParameter("@lastError", SqlDbType.NVarChar, -1) { Value = ToDbValue(request.LastError) }
+        ]);
+
+        try
+        {
+            var queueItemId = Convert.ToInt32(insertCommand.ExecuteScalar());
+            if (TryGetChatwootSyncQueueItemById(connection, queueItemId, out var insertedItem))
+            {
+                return insertedItem;
+            }
+
+            throw new InvalidOperationException("Nao foi possivel recarregar o item da fila Chatwoot apos o insert.");
+        }
+        catch (SqlException ex) when (IsUniqueKeyViolation(ex) && TryGetActiveChatwootSyncQueueItem(connection, request.LeadId, operationType, out activeItem))
+        {
+            return activeItem;
+        }
+    }
+
+    public IReadOnlyList<AdminKanbanChatwootSyncQueueItemRecord> AcquireDueChatwootSyncQueueItems(int batchSize, DateTime attemptStartedAtUtc, string workerInstance)
+    {
+        EnsureInitialized();
+
+        var utcNow = attemptStartedAtUtc.Kind == DateTimeKind.Utc
+            ? attemptStartedAtUtc
+            : attemptStartedAtUtc.ToUniversalTime();
+        var normalizedBatchSize = Math.Clamp(batchSize, 1, 500);
+
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = $"""
+;WITH due_items AS (
+    SELECT TOP (@batchSize) Id
+    FROM dbo.{TablePrefix}chatwoot_sync_queue WITH (READPAST, UPDLOCK, ROWLOCK)
+    WHERE Status IN ('queued', 'retrying')
+      AND NextAttemptAt <= @attemptStartedAtUtc
+    ORDER BY NextAttemptAt, Id
+)
+UPDATE q
+SET Status = @processingStatus,
+    AttemptCount = AttemptCount + 1,
+    LastAttemptAt = @attemptStartedAtUtc,
+    WorkerInstance = @workerInstance,
+    UpdatedAt = SYSUTCDATETIME()
+OUTPUT
+    inserted.Id,
+    inserted.LeadId,
+    inserted.OperationType,
+    inserted.Status,
+    inserted.AttemptCount,
+    inserted.MaxAttempts,
+    inserted.NextAttemptAt,
+    inserted.LastAttemptAt,
+    inserted.LastError,
+    inserted.WorkerInstance,
+    inserted.CreatedAt,
+    inserted.UpdatedAt,
+    inserted.ProcessedAt,
+    inserted.DeadLetterAt
+FROM dbo.{TablePrefix}chatwoot_sync_queue q
+INNER JOIN due_items d ON d.Id = q.Id;
+""";
+        command.Parameters.AddRange(
+        [
+            new SqlParameter("@batchSize", SqlDbType.Int) { Value = normalizedBatchSize },
+            new SqlParameter("@attemptStartedAtUtc", SqlDbType.DateTime2) { Value = utcNow },
+            new SqlParameter("@workerInstance", SqlDbType.NVarChar, 120) { Value = TrimTo(workerInstance, 120) },
+            new SqlParameter("@processingStatus", SqlDbType.NVarChar, 30) { Value = ChatwootSyncQueueStatuses.Processing }
+        ]);
+
+        var items = new List<AdminKanbanChatwootSyncQueueItemRecord>();
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            items.Add(ReadChatwootSyncQueueItem(reader));
+        }
+
+        return items;
+    }
+
+    public AdminKanbanChatwootSyncQueueItemRecord? FinalizeChatwootSyncQueueItem(AdminKanbanChatwootSyncQueueFinalizeRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        EnsureInitialized();
+
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = $"""
+UPDATE dbo.{TablePrefix}chatwoot_sync_queue
+SET Status = @finalStatus,
+    NextAttemptAt = COALESCE(@nextAttemptAt, NextAttemptAt),
+    LastError = CASE
+        WHEN @clearLastError = 1 THEN NULL
+        WHEN @lastError IS NOT NULL THEN @lastError
+        ELSE LastError
+    END,
+    WorkerInstance = @workerInstance,
+    UpdatedAt = @finalizedAt,
+    ProcessedAt = CASE
+        WHEN @finalStatus IN ('processed', 'dead_letter') THEN @finalizedAt
+        ELSE NULL
+    END,
+    DeadLetterAt = CASE
+        WHEN @finalStatus = 'dead_letter' THEN @finalizedAt
+        ELSE NULL
+    END
+WHERE Id = @queueItemId;
+""";
+        command.Parameters.AddRange(
+        [
+            new SqlParameter("@finalStatus", SqlDbType.NVarChar, 30) { Value = NormalizeChatwootSyncQueueStatus(request.FinalStatus) },
+            new SqlParameter("@nextAttemptAt", SqlDbType.DateTime2) { Value = request.NextAttemptAt.HasValue ? request.NextAttemptAt.Value : DBNull.Value },
+            new SqlParameter("@lastError", SqlDbType.NVarChar, -1) { Value = ToDbValue(request.LastError) },
+            new SqlParameter("@clearLastError", SqlDbType.Bit) { Value = request.ClearLastError },
+            new SqlParameter("@workerInstance", SqlDbType.NVarChar, 120) { Value = ToDbValue(TrimTo(request.WorkerInstance, 120)) },
+            new SqlParameter("@finalizedAt", SqlDbType.DateTime2) { Value = request.FinalizedAt.Kind == DateTimeKind.Utc ? request.FinalizedAt : request.FinalizedAt.ToUniversalTime() },
+            new SqlParameter("@queueItemId", SqlDbType.Int) { Value = request.QueueItemId }
+        ]);
+
+        if (command.ExecuteNonQuery() <= 0)
+        {
+            return null;
+        }
+
+        return TryGetChatwootSyncQueueItemById(connection, request.QueueItemId, out var queueItem)
+            ? queueItem
+            : null;
+    }
+
+    public int CompleteActiveChatwootSyncQueueItems(int leadId, string? operationType, string finalStatus, string? lastError, DateTime completedAtUtc)
+    {
+        EnsureInitialized();
+
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = $"""
+UPDATE dbo.{TablePrefix}chatwoot_sync_queue
+SET Status = @finalStatus,
+    LastError = @lastError,
+    UpdatedAt = @completedAtUtc,
+    ProcessedAt = CASE
+        WHEN @finalStatus IN ('processed', 'dead_letter') THEN @completedAtUtc
+        ELSE NULL
+    END,
+    DeadLetterAt = CASE
+        WHEN @finalStatus = 'dead_letter' THEN @completedAtUtc
+        ELSE NULL
+    END
+WHERE LeadId = @leadId
+  AND (@operationType IS NULL OR OperationType = @operationType)
+  AND Status IN ('queued', 'retrying', 'processing');
+""";
+        command.Parameters.AddRange(
+        [
+            new SqlParameter("@finalStatus", SqlDbType.NVarChar, 30) { Value = NormalizeChatwootSyncQueueStatus(finalStatus) },
+            new SqlParameter("@lastError", SqlDbType.NVarChar, -1) { Value = ToDbValue(lastError) },
+            new SqlParameter("@completedAtUtc", SqlDbType.DateTime2) { Value = completedAtUtc.Kind == DateTimeKind.Utc ? completedAtUtc : completedAtUtc.ToUniversalTime() },
+            new SqlParameter("@leadId", SqlDbType.Int) { Value = leadId },
+            new SqlParameter("@operationType", SqlDbType.NVarChar, 40) { Value = ToDbValue(string.IsNullOrWhiteSpace(operationType) ? null : NormalizeChatwootSyncOperationType(operationType)) }
+        ]);
+
+        return command.ExecuteNonQuery();
+    }
+
     public bool SaveBoardOrder(AdminKanbanBoardOrderUpdateRequest request)
     {
         EnsureInitialized();
@@ -685,6 +1067,40 @@ CREATE TABLE dbo.{TablePrefix}kanban_lead_history
     CreatedAt DATETIME2 NOT NULL DEFAULT(SYSUTCDATETIME())
 );
 
+IF OBJECT_ID('dbo.{TablePrefix}chatwoot_webhook_events', 'U') IS NULL
+CREATE TABLE dbo.{TablePrefix}chatwoot_webhook_events
+(
+    Id INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    ProviderEventId NVARCHAR(120) NULL,
+    EventType NVARCHAR(80) NOT NULL,
+    ConversationId BIGINT NULL,
+    PayloadJson NVARCHAR(MAX) NOT NULL,
+    Signature NVARCHAR(255) NULL,
+    ReceivedAt DATETIME2 NOT NULL DEFAULT(SYSUTCDATETIME()),
+    ProcessedAt DATETIME2 NULL,
+    ProcessStatus NVARCHAR(30) NOT NULL DEFAULT('received'),
+    ErrorMessage NVARCHAR(MAX) NULL
+);
+
+IF OBJECT_ID('dbo.{TablePrefix}chatwoot_sync_queue', 'U') IS NULL
+CREATE TABLE dbo.{TablePrefix}chatwoot_sync_queue
+(
+    Id INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    LeadId INT NOT NULL,
+    OperationType NVARCHAR(40) NOT NULL,
+    Status NVARCHAR(30) NOT NULL DEFAULT('queued'),
+    AttemptCount INT NOT NULL DEFAULT(0),
+    MaxAttempts INT NOT NULL DEFAULT(10),
+    NextAttemptAt DATETIME2 NOT NULL DEFAULT(SYSUTCDATETIME()),
+    LastAttemptAt DATETIME2 NULL,
+    LastError NVARCHAR(MAX) NULL,
+    WorkerInstance NVARCHAR(120) NULL,
+    CreatedAt DATETIME2 NOT NULL DEFAULT(SYSUTCDATETIME()),
+    UpdatedAt DATETIME2 NOT NULL DEFAULT(SYSUTCDATETIME()),
+    ProcessedAt DATETIME2 NULL,
+    DeadLetterAt DATETIME2 NULL
+);
+
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID('dbo.{TablePrefix}kanban_stages') AND name = 'IX_{TablePrefix}kanban_stages_board')
 CREATE INDEX IX_{TablePrefix}kanban_stages_board
     ON dbo.{TablePrefix}kanban_stages(BoardType, SortOrder, Id);
@@ -718,6 +1134,27 @@ CREATE INDEX IX_{TablePrefix}kanban_leads_chatwoot_conversation
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID('dbo.{TablePrefix}kanban_lead_history') AND name = 'IX_{TablePrefix}kanban_history_lead')
 CREATE INDEX IX_{TablePrefix}kanban_history_lead
     ON dbo.{TablePrefix}kanban_lead_history(LeadId, CreatedAt DESC, Id DESC);
+
+IF COL_LENGTH('dbo.{TablePrefix}chatwoot_webhook_events', 'ConversationId') IS NULL
+ALTER TABLE dbo.{TablePrefix}chatwoot_webhook_events ADD ConversationId BIGINT NULL;
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID('dbo.{TablePrefix}chatwoot_webhook_events') AND name = 'IX_{TablePrefix}chatwoot_webhook_events_provider_event')
+CREATE UNIQUE INDEX IX_{TablePrefix}chatwoot_webhook_events_provider_event
+    ON dbo.{TablePrefix}chatwoot_webhook_events(ProviderEventId)
+    WHERE ProviderEventId IS NOT NULL;
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID('dbo.{TablePrefix}chatwoot_webhook_events') AND name = 'IX_{TablePrefix}chatwoot_webhook_events_conversation')
+CREATE INDEX IX_{TablePrefix}chatwoot_webhook_events_conversation
+    ON dbo.{TablePrefix}chatwoot_webhook_events(ConversationId, ReceivedAt DESC, Id DESC);
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID('dbo.{TablePrefix}chatwoot_sync_queue') AND name = 'IX_{TablePrefix}chatwoot_sync_queue_due')
+CREATE INDEX IX_{TablePrefix}chatwoot_sync_queue_due
+    ON dbo.{TablePrefix}chatwoot_sync_queue(Status, NextAttemptAt, Id);
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID('dbo.{TablePrefix}chatwoot_sync_queue') AND name = 'UX_{TablePrefix}chatwoot_sync_queue_active')
+CREATE UNIQUE INDEX UX_{TablePrefix}chatwoot_sync_queue_active
+    ON dbo.{TablePrefix}chatwoot_sync_queue(LeadId, OperationType)
+    WHERE Status IN ('queued', 'retrying', 'processing');
 """;
                 command.ExecuteNonQuery();
             }
@@ -1293,6 +1730,188 @@ VALUES
 
         return TrimTo(syncStatus, 30).ToLowerInvariant();
     }
+
+    private static string NormalizeChatwootSyncQueueStatus(string? status)
+    {
+        var normalized = TrimTo(status, 30).ToLowerInvariant();
+        return normalized switch
+        {
+            ChatwootSyncQueueStatuses.Queued => ChatwootSyncQueueStatuses.Queued,
+            ChatwootSyncQueueStatuses.Processing => ChatwootSyncQueueStatuses.Processing,
+            ChatwootSyncQueueStatuses.Retrying => ChatwootSyncQueueStatuses.Retrying,
+            ChatwootSyncQueueStatuses.Processed => ChatwootSyncQueueStatuses.Processed,
+            ChatwootSyncQueueStatuses.DeadLetter => ChatwootSyncQueueStatuses.DeadLetter,
+            _ => ChatwootSyncQueueStatuses.Queued
+        };
+    }
+
+    private static string NormalizeChatwootSyncOperationType(string? operationType)
+    {
+        var normalized = TrimTo(operationType, 40).ToLowerInvariant();
+        return normalized switch
+        {
+            ChatwootSyncOperationTypes.LeadSync => ChatwootSyncOperationTypes.LeadSync,
+            ChatwootSyncOperationTypes.StageSync => ChatwootSyncOperationTypes.StageSync,
+            _ => throw new InvalidOperationException($"Tipo de operacao Chatwoot nao suportado: '{operationType}'.")
+        };
+    }
+
+    private static string NormalizeWebhookProcessStatus(string? processStatus)
+    {
+        if (string.IsNullOrWhiteSpace(processStatus))
+        {
+            return "received";
+        }
+
+        return TrimTo(processStatus, 30).ToLowerInvariant();
+    }
+
+    private static bool TryGetChatwootWebhookEventByProviderEventId(
+        SqlConnection connection,
+        string? providerEventId,
+        out AdminKanbanChatwootWebhookEventRecord webhookEvent)
+    {
+        webhookEvent = null!;
+        if (string.IsNullOrWhiteSpace(providerEventId))
+        {
+            return false;
+        }
+
+        using var command = connection.CreateCommand();
+        command.CommandText = $"""
+SELECT TOP (1) Id, ProviderEventId, EventType, ConversationId, ProcessStatus, ReceivedAt, ProcessedAt, ErrorMessage
+FROM dbo.{TablePrefix}chatwoot_webhook_events
+WHERE ProviderEventId = @providerEventId
+ORDER BY Id DESC;
+""";
+        command.Parameters.Add(new SqlParameter("@providerEventId", SqlDbType.NVarChar, 120) { Value = providerEventId });
+
+        using var reader = command.ExecuteReader();
+        if (!reader.Read())
+        {
+            return false;
+        }
+
+        webhookEvent = new AdminKanbanChatwootWebhookEventRecord
+        {
+            Id = reader.GetInt32(0),
+            ProviderEventId = reader.IsDBNull(1) ? string.Empty : reader.GetString(1),
+            EventType = reader.IsDBNull(2) ? string.Empty : reader.GetString(2),
+            ConversationId = ReadNullableInt64(reader, 3),
+            ProcessStatus = reader.IsDBNull(4) ? string.Empty : reader.GetString(4),
+            ReceivedAt = reader.GetDateTime(5),
+            ProcessedAt = reader.IsDBNull(6) ? null : reader.GetDateTime(6),
+            ErrorMessage = reader.IsDBNull(7) ? string.Empty : reader.GetString(7)
+        };
+        return true;
+    }
+
+    private static bool TryGetActiveChatwootSyncQueueItem(
+        SqlConnection connection,
+        int leadId,
+        string operationType,
+        out AdminKanbanChatwootSyncQueueItemRecord queueItem)
+    {
+        queueItem = null!;
+
+        using var command = connection.CreateCommand();
+        command.CommandText = $"""
+SELECT TOP (1)
+    Id,
+    LeadId,
+    OperationType,
+    Status,
+    AttemptCount,
+    MaxAttempts,
+    NextAttemptAt,
+    LastAttemptAt,
+    LastError,
+    WorkerInstance,
+    CreatedAt,
+    UpdatedAt,
+    ProcessedAt,
+    DeadLetterAt
+FROM dbo.{TablePrefix}chatwoot_sync_queue
+WHERE LeadId = @leadId
+  AND OperationType = @operationType
+  AND Status IN ('queued', 'retrying', 'processing')
+ORDER BY Id DESC;
+""";
+        command.Parameters.AddRange(
+        [
+            new SqlParameter("@leadId", SqlDbType.Int) { Value = leadId },
+            new SqlParameter("@operationType", SqlDbType.NVarChar, 40) { Value = operationType }
+        ]);
+
+        using var reader = command.ExecuteReader();
+        if (!reader.Read())
+        {
+            return false;
+        }
+
+        queueItem = ReadChatwootSyncQueueItem(reader);
+        return true;
+    }
+
+    private static bool TryGetChatwootSyncQueueItemById(
+        SqlConnection connection,
+        int queueItemId,
+        out AdminKanbanChatwootSyncQueueItemRecord queueItem)
+    {
+        queueItem = null!;
+
+        using var command = connection.CreateCommand();
+        command.CommandText = $"""
+SELECT TOP (1)
+    Id,
+    LeadId,
+    OperationType,
+    Status,
+    AttemptCount,
+    MaxAttempts,
+    NextAttemptAt,
+    LastAttemptAt,
+    LastError,
+    WorkerInstance,
+    CreatedAt,
+    UpdatedAt,
+    ProcessedAt,
+    DeadLetterAt
+FROM dbo.{TablePrefix}chatwoot_sync_queue
+WHERE Id = @queueItemId;
+""";
+        command.Parameters.Add(new SqlParameter("@queueItemId", SqlDbType.Int) { Value = queueItemId });
+
+        using var reader = command.ExecuteReader();
+        if (!reader.Read())
+        {
+            return false;
+        }
+
+        queueItem = ReadChatwootSyncQueueItem(reader);
+        return true;
+    }
+
+    private static AdminKanbanChatwootSyncQueueItemRecord ReadChatwootSyncQueueItem(SqlDataReader reader) =>
+        new()
+        {
+            Id = reader.GetInt32(0),
+            LeadId = reader.GetInt32(1),
+            OperationType = reader.IsDBNull(2) ? string.Empty : reader.GetString(2),
+            Status = reader.IsDBNull(3) ? string.Empty : reader.GetString(3),
+            AttemptCount = reader.GetInt32(4),
+            MaxAttempts = reader.GetInt32(5),
+            NextAttemptAt = reader.GetDateTime(6),
+            LastAttemptAt = reader.IsDBNull(7) ? null : reader.GetDateTime(7),
+            LastError = reader.IsDBNull(8) ? string.Empty : reader.GetString(8),
+            WorkerInstance = reader.IsDBNull(9) ? string.Empty : reader.GetString(9),
+            CreatedAt = reader.GetDateTime(10),
+            UpdatedAt = reader.GetDateTime(11),
+            ProcessedAt = reader.IsDBNull(12) ? null : reader.GetDateTime(12),
+            DeadLetterAt = reader.IsDBNull(13) ? null : reader.GetDateTime(13)
+        };
+
+    private static bool IsUniqueKeyViolation(SqlException ex) => ex.Number is 2601 or 2627;
 
     private static string NormalizePriority(string? priority)
     {

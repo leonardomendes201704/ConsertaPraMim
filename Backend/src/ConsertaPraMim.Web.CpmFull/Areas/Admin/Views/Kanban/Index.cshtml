@@ -175,6 +175,9 @@
                 <button type="button" id="syncLeadChatwootBtn" class="btn btn-outline-success">
                     Sincronizar Chatwoot
                 </button>
+                <button type="button" id="enqueueLeadChatwootRetryBtn" class="btn btn-outline-warning">
+                    Enfileirar retentativa
+                </button>
                 <button type="button" id="openEditLeadBtn" class="btn btn-primary">Editar lead</button>
             </div>
         </div>
@@ -293,6 +296,7 @@
             const endpoint = {
                 details: (id) => `/admin/funil/lead/${id}/json`,
                 sync: (id) => `/admin/funil/lead/${id}/chatwoot/sincronizar`,
+                retry: (id) => `/admin/funil/lead/${id}/chatwoot/retentativa`,
                 create: "/admin/funil/lead/novo",
                 update: "/admin/funil/lead/editar",
                 order: "/admin/funil/lead/ordem",
@@ -595,6 +599,34 @@
                     } catch { }
 
                     alert(error.message || "Nao foi possivel sincronizar o lead com Chatwoot.");
+                } finally {
+                    button.disabled = false;
+                    button.textContent = originalText;
+                }
+            });
+
+            document.getElementById("enqueueLeadChatwootRetryBtn")?.addEventListener("click", async (event) => {
+                if (!currentLead?.id) {
+                    return;
+                }
+
+                const button = event.currentTarget;
+                const originalText = button.textContent;
+                button.disabled = true;
+                button.textContent = "Enfileirando...";
+
+                try {
+                    const response = await postJson(endpoint.retry(currentLead.id), {});
+                    currentLead = await loadLeadDetails(currentLead.id);
+                    fillDetails(currentLead);
+                    alert(response.message || "Retentativa do Chatwoot enfileirada.");
+                } catch (error) {
+                    try {
+                        currentLead = await loadLeadDetails(currentLead.id);
+                        fillDetails(currentLead);
+                    } catch { }
+
+                    alert(error.message || "Nao foi possivel enfileirar a retentativa do Chatwoot.");
                 } finally {
                     button.disabled = false;
                     button.textContent = originalText;

@@ -13,15 +13,18 @@ namespace AppMobileCPM.Areas.Admin.Controllers;
 public sealed class KanbanController : Controller
 {
     private readonly IAdminKanbanService _kanbanService;
+    private readonly IChatwootSyncQueueService _chatwootSyncQueueService;
     private readonly IChatwootLeadSyncService _chatwootLeadSyncService;
     private readonly ChatwootOptions _chatwootOptions;
 
     public KanbanController(
         IAdminKanbanService kanbanService,
+        IChatwootSyncQueueService chatwootSyncQueueService,
         IChatwootLeadSyncService chatwootLeadSyncService,
         IOptions<ChatwootOptions> chatwootOptions)
     {
         _kanbanService = kanbanService;
+        _chatwootSyncQueueService = chatwootSyncQueueService;
         _chatwootLeadSyncService = chatwootLeadSyncService;
         _chatwootOptions = chatwootOptions.Value;
     }
@@ -217,6 +220,51 @@ public sealed class KanbanController : Controller
         });
     }
 
+    [HttpPost("lead/{id:int}/chatwoot/retentativa")]
+    [ValidateAntiForgeryToken]
+    public IActionResult EnqueueLeadChatwootRetry(int id)
+    {
+        if (!_chatwootOptions.Enabled)
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message = "Integracao com Chatwoot desabilitada no ambiente atual."
+            });
+        }
+
+        var lead = _kanbanService.GetLeadDetails(id);
+        if (lead is null)
+        {
+            return NotFound(new { success = false, message = "Lead nao encontrado para retentativa do Chatwoot." });
+        }
+
+        try
+        {
+            var operationType = _chatwootSyncQueueService.ResolveOperationType(lead);
+            _chatwootSyncQueueService.EnqueueRetry(
+                id,
+                operationType,
+                "Retentativa manual solicitada no painel do funil.",
+                runImmediately: true);
+
+            var operationLabel = operationType == ChatwootSyncOperationTypes.StageSync
+                ? "Retentativa de sincronizacao da etapa enfileirada para processamento imediato."
+                : "Retentativa de sincronizacao do lead enfileirada para processamento imediato.";
+
+            return Json(new
+            {
+                success = true,
+                status = ChatwootSyncQueueStatuses.Queued,
+                message = operationLabel
+            });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { success = false, message = ex.Message });
+        }
+    }
+
     [HttpPost("lead/ordem")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> SaveOrder([FromBody] AdminKanbanOrderInputModel model)
@@ -360,6 +408,13 @@ public sealed class KanbanController : Controller
             "chatwoot_sync_falhou" => "Falha na sincronizacao com Chatwoot",
             "chatwoot_etapa_sincronizada" => "Etapa sincronizada no Chatwoot",
             "chatwoot_etapa_sync_falhou" => "Falha ao sincronizar etapa no Chatwoot",
+            "chatwoot_mensagem_recebida" => "Mensagem recebida no Chatwoot",
+            "chatwoot_resposta_enviada" => "Resposta enviada no Chatwoot",
+            "chatwoot_status_alterado" => "Status alterado no Chatwoot",
+            "chatwoot_conversa_atualizada" => "Conversa atualizada no Chatwoot",
+            "chatwoot_retentativa_enfileirada" => "Retentativa Chatwoot enfileirada",
+            "chatwoot_retentativa_processada" => "Retentativa Chatwoot concluida",
+            "chatwoot_dead_letter" => "Retentativa Chatwoot esgotada",
             _ => "Evento do funil"
         };
 

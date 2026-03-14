@@ -42,6 +42,51 @@ public sealed class ChatwootLeadSyncServiceTests
         chatwootApiClient.VerifyNoOtherCalls();
     }
 
+    [Fact(DisplayName = "Deve enfileirar retentativa quando Chatwoot falhar por erro externo")]
+    public async Task DeveEnfileirarRetentativaQuandoChatwootFalharPorErroExterno()
+    {
+        var kanbanService = new Mock<IAdminKanbanService>();
+        var chatwootApiClient = new Mock<IChatwootApiClient>();
+        var queueService = new Mock<IChatwootSyncQueueService>();
+        var lead = CreateLead(19, AdminKanbanBoardTypes.Clients, phone: "(13) 99711-4422", email: "ricardo@email.com");
+
+        kanbanService
+            .Setup(service => service.GetLeadDetails(19))
+            .Returns(lead);
+        kanbanService
+            .Setup(service => service.UpdateLeadChatwootSync(
+                19,
+                It.Is<AdminKanbanLeadChatwootSyncUpdateRequest>(request =>
+                    request.ChatwootSyncStatus == ChatwootSyncStatuses.Failed &&
+                    request.ChatwootInboxId == 1 &&
+                    !string.IsNullOrWhiteSpace(request.ChatwootLastError))))
+            .Returns(true);
+        kanbanService
+            .Setup(service => service.AddHistoryEvent(19, "chatwoot_sync_falhou", It.IsAny<string>()))
+            .Returns(true);
+
+        chatwootApiClient
+            .Setup(client => client.SearchContactsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new HttpRequestException("Erro de rede"));
+
+        queueService
+            .Setup(service => service.EnqueueRetry(
+                19,
+                ChatwootSyncOperationTypes.LeadSync,
+                It.Is<string>(message => message.Contains("rede", StringComparison.OrdinalIgnoreCase)),
+                false));
+
+        var sut = CreateSut(kanbanService.Object, chatwootApiClient.Object, queueService.Object);
+
+        var result = await sut.SyncLeadAsync(19);
+
+        Assert.False(result.Succeeded);
+        Assert.True(result.RetrySuggested);
+        Assert.True(result.QueuedForRetry);
+        Assert.Contains("Retentativa automatica enfileirada", result.Message, StringComparison.Ordinal);
+        queueService.VerifyAll();
+    }
+
     [Fact(DisplayName = "Deve criar contato e conversa no Chatwoot para lead novo")]
     public async Task DeveCriarContatoEConversaNoChatwootParaLeadNovo()
     {
@@ -615,7 +660,11 @@ public sealed class ChatwootLeadSyncServiceTests
         chatwootApiClient.VerifyAll();
     }
 
-    private static ChatwootLeadSyncService CreateSut(IAdminKanbanService kanbanService, IChatwootApiClient chatwootApiClient, bool enabled = true)
+    private static ChatwootLeadSyncService CreateSut(
+        IAdminKanbanService kanbanService,
+        IChatwootApiClient chatwootApiClient,
+        IChatwootSyncQueueService? chatwootSyncQueueService = null,
+        bool enabled = true)
     {
         var options = Options.Create(new ChatwootOptions
         {
@@ -625,12 +674,17 @@ public sealed class ChatwootLeadSyncServiceTests
             AccountId = 1,
             ClientsInboxId = 1,
             ProvidersInboxId = 2,
-            WebhookSecret = "secret"
+            WebhookSecret = "secret",
+            RetryWorkerEnabled = true,
+            RetryWorkerIntervalSeconds = 30,
+            RetryWorkerBatchSize = 20,
+            SyncQueueMaxAttempts = 10
         });
 
         return new ChatwootLeadSyncService(
             kanbanService,
             chatwootApiClient,
+            chatwootSyncQueueService ?? Mock.Of<IChatwootSyncQueueService>(),
             options,
             NullLogger<ChatwootLeadSyncService>.Instance);
     }

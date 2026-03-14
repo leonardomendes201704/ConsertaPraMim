@@ -253,6 +253,8 @@ Como operacao, quero que mover card no Kanban reflita no status/labels da conver
 ### Descricao
 Como sistema, quero receber eventos do Chatwoot para enriquecer historico e ultimo contato do lead.
 
+- Concluida em 2026-03-13 no `ConsertaPraMim.Web.CpmFull`, com endpoint autenticado por HMAC, persistencia bruta de eventos, idempotencia por `X-Chatwoot-Delivery` com fallback para fingerprint assinado, atualizacao de `LastContactAt` e historico PT-BR no funil.
+
 ### Criterios de aceite
 1. Endpoint de webhook autenticado por assinatura HMAC.
 2. Eventos duplicados nao sao processados duas vezes.
@@ -262,7 +264,7 @@ Como sistema, quero receber eventos do Chatwoot para enriquecer historico e ulti
 - `TASK-06.01` Criar endpoint `POST /api/integrations/chatwoot/webhook`.
 - `TASK-06.02` Validar assinatura via `WebhookSecret`.
 - `TASK-06.03` Persistir payload bruto em `cpm_web_chatwoot_webhook_events`.
-- `TASK-06.04` Implementar idempotencia por `ProviderEventId + EventType + timestamp`.
+- `TASK-06.04` Implementar idempotencia por `X-Chatwoot-Delivery`, com fallback para fingerprint assinado quando o header nao vier.
 - `TASK-06.05` Processar eventos:
 1. `message_created`
 2. `conversation_status_changed`
@@ -275,6 +277,10 @@ Como sistema, quero receber eventos do Chatwoot para enriquecer historico e ulti
 ## US-07 - Fila de sincronizacao e retentativa
 ### Descricao
 Como time de plataforma, queremos evitar perda de sincronizacao quando Chatwoot estiver indisponivel.
+
+### Status
+- Concluida em 2026-03-13 no `ConsertaPraMim.Web.CpmFull`, com fila SQL local `cpm_web_chatwoot_sync_queue`, enfileiramento automatico para falhas externas, worker `ChatwootSyncRetryWorker`, politica de backoff `1m -> 5m -> 15m -> 1h -> 6h`, limite de `10` tentativas e endpoint admin/manual para enfileirar nova retentativa por lead.
+- A instancia publicada do Chatwoot ja recebeu o webhook `CPM Full Funil Webhook` apontando para `https://www.consertapramim.com/api/integrations/chatwoot/webhook`; a entrega ponta a ponta depende do deploy publico do CPM Full nesse dominio, porque o endpoint ainda responde `404` enquanto a aplicacao nao estiver publicada ali.
 
 ### Criterios de aceite
 1. Falhas de sincronizacao sao enfileiradas automaticamente.

@@ -4,6 +4,7 @@ using AppMobileCPM.Services;
 using System.IO.Compression;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.Extensions.Options;
 
@@ -13,13 +14,25 @@ builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, relo
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 builder.Services.AddHttpContextAccessor();
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders =
+        ForwardedHeaders.XForwardedFor |
+        ForwardedHeaders.XForwardedProto |
+        ForwardedHeaders.XForwardedHost;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
 builder.Services.AddSingleton<IMarketplaceRepository, SqlMarketplaceRepository>();
 builder.Services.AddSingleton<IAdminAuthService, SqlAdminAuthService>();
 builder.Services.AddSingleton<IAdminSiteContentService, SqlAdminSiteContentService>();
 builder.Services.AddSingleton<IAdminSupportFaqService, SqlAdminSupportFaqService>();
 builder.Services.AddSingleton<IAdminKanbanService, SqlAdminKanbanService>();
 builder.Services.AddScoped<ISiteContentResolver, SiteContentResolver>();
+builder.Services.AddScoped<IChatwootSyncQueueService, ChatwootSyncQueueService>();
 builder.Services.AddScoped<IChatwootLeadSyncService, ChatwootLeadSyncService>();
+builder.Services.AddScoped<IChatwootWebhookService, ChatwootWebhookService>();
+builder.Services.AddHostedService<ChatwootSyncRetryWorker>();
 builder.Services.AddSingleton<IValidateOptions<ChatwootOptions>, ChatwootOptionsValidator>();
 builder.Services.AddOptions<ChatwootOptions>()
     .Bind(builder.Configuration.GetSection(ChatwootOptions.SectionName))
@@ -65,6 +78,8 @@ builder.Services.Configure<GzipCompressionProviderOptions>(options =>
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
+app.UseForwardedHeaders();
+
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
@@ -88,6 +103,7 @@ app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 
+app.MapGet("/health", () => Results.Text("Healthy", "text/plain"));
 app.MapControllers();
 app.MapControllerRoute(
     name: "default",

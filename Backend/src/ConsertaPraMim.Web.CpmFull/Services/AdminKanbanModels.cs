@@ -162,3 +162,71 @@ public sealed class AdminKanbanLeadChatwootSyncUpdateRequest
     public string? ChatwootLastError { get; init; }
     public bool ClearChatwootLastError { get; init; }
 }
+
+public sealed class AdminKanbanLeadWebhookUpdateRequest
+{
+    public DateTime? LastContactAt { get; init; }
+    public string HistoryEventType { get; init; } = string.Empty;
+    public string HistoryDescription { get; init; } = string.Empty;
+}
+
+public sealed class AdminKanbanChatwootWebhookEventUpsertRequest
+{
+    public string? ProviderEventId { get; init; }
+    public string EventType { get; init; } = string.Empty;
+    public long? ConversationId { get; init; }
+    public string PayloadJson { get; init; } = string.Empty;
+    public string Signature { get; init; } = string.Empty;
+    public DateTime ReceivedAt { get; init; }
+}
+
+public sealed record class AdminKanbanChatwootWebhookEventRecord
+{
+    public int Id { get; init; }
+    public string ProviderEventId { get; init; } = string.Empty;
+    public string EventType { get; init; } = string.Empty;
+    public long? ConversationId { get; init; }
+    public string ProcessStatus { get; init; } = string.Empty;
+    public DateTime ReceivedAt { get; init; }
+    public DateTime? ProcessedAt { get; init; }
+    public string ErrorMessage { get; init; } = string.Empty;
+    public bool IsDuplicate { get; init; }
+}
+
+public sealed class AdminKanbanChatwootSyncQueueEnqueueRequest
+{
+    public int LeadId { get; init; }
+    public string OperationType { get; init; } = string.Empty;
+    public DateTime NextAttemptAt { get; init; }
+    public int MaxAttempts { get; init; }
+    public string? LastError { get; init; }
+}
+
+public sealed class AdminKanbanChatwootSyncQueueFinalizeRequest
+{
+    public int QueueItemId { get; init; }
+    public string FinalStatus { get; init; } = string.Empty;
+    public DateTime FinalizedAt { get; init; }
+    public DateTime? NextAttemptAt { get; init; }
+    public string? LastError { get; init; }
+    public bool ClearLastError { get; init; }
+    public string WorkerInstance { get; init; } = string.Empty;
+}
+
+public sealed record class AdminKanbanChatwootSyncQueueItemRecord
+{
+    public int Id { get; init; }
+    public int LeadId { get; init; }
+    public string OperationType { get; init; } = string.Empty;
+    public string Status { get; init; } = string.Empty;
+    public int AttemptCount { get; init; }
+    public int MaxAttempts { get; init; }
+    public DateTime NextAttemptAt { get; init; }
+    public DateTime? LastAttemptAt { get; init; }
+    public string LastError { get; init; } = string.Empty;
+    public string WorkerInstance { get; init; } = string.Empty;
+    public DateTime CreatedAt { get; init; }
+    public DateTime UpdatedAt { get; init; }
+    public DateTime? ProcessedAt { get; init; }
+    public DateTime? DeadLetterAt { get; init; }
+}

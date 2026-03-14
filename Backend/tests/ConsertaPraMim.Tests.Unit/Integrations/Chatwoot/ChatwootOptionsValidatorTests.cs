@@ -54,11 +54,44 @@ public sealed class ChatwootOptionsValidatorTests
             WebhookSecret = "segredo",
             RequestTimeoutSeconds = 15,
             MaxRetryAttempts = 3,
-            RetryBaseDelayMs = 500
+            RetryBaseDelayMs = 500,
+            RetryWorkerEnabled = true,
+            RetryWorkerIntervalSeconds = 30,
+            RetryWorkerBatchSize = 20,
+            SyncQueueMaxAttempts = 10
         };
 
         var result = _validator.Validate(Options.DefaultName, options);
 
         Assert.True(result.Succeeded);
+    }
+
+    [Fact(DisplayName = "Deve falhar quando configuracao da fila Chatwoot for invalida")]
+    public void DeveFalharQuandoConfiguracaoDaFilaChatwootForInvalida()
+    {
+        var options = new ChatwootOptions
+        {
+            Enabled = true,
+            BaseUrl = "https://chat.exemplo.com",
+            ApiAccessToken = "token-valido",
+            AccountId = 1,
+            ClientsInboxId = 10,
+            ProvidersInboxId = 11,
+            WebhookSecret = "segredo",
+            RequestTimeoutSeconds = 15,
+            MaxRetryAttempts = 3,
+            RetryBaseDelayMs = 500,
+            RetryWorkerIntervalSeconds = 0,
+            RetryWorkerBatchSize = 0,
+            SyncQueueMaxAttempts = 0
+        };
+
+        var result = _validator.Validate(Options.DefaultName, options);
+        var failures = result.Failures ?? [];
+
+        Assert.False(result.Succeeded);
+        Assert.Contains(failures, failure => failure.Contains("RetryWorkerIntervalSeconds", StringComparison.Ordinal));
+        Assert.Contains(failures, failure => failure.Contains("RetryWorkerBatchSize", StringComparison.Ordinal));
+        Assert.Contains(failures, failure => failure.Contains("SyncQueueMaxAttempts", StringComparison.Ordinal));
     }
 }

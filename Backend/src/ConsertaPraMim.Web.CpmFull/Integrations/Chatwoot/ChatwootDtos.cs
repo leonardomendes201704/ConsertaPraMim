@@ -10,6 +10,21 @@ public static class ChatwootSyncStatuses
     public const string NotFound = "not_found";
 }
 
+public static class ChatwootSyncOperationTypes
+{
+    public const string LeadSync = "lead_sync";
+    public const string StageSync = "stage_sync";
+}
+
+public static class ChatwootSyncQueueStatuses
+{
+    public const string Queued = "queued";
+    public const string Processing = "processing";
+    public const string Retrying = "retrying";
+    public const string Processed = "processed";
+    public const string DeadLetter = "dead_letter";
+}
+
 public sealed class ChatwootInboxSummary
 {
     public long Id { get; init; }
@@ -93,6 +108,8 @@ public sealed class ChatwootLeadSyncResult
     public long? ContactId { get; init; }
     public long? ConversationId { get; init; }
     public long? InboxId { get; init; }
+    public bool RetrySuggested { get; init; }
+    public bool QueuedForRetry { get; init; }
 
     public static ChatwootLeadSyncResult Synced(string message, long? contactId, long? conversationId, long? inboxId) =>
         new()
@@ -105,7 +122,13 @@ public sealed class ChatwootLeadSyncResult
             InboxId = inboxId
         };
 
-    public static ChatwootLeadSyncResult Failed(string message, long? contactId, long? conversationId, long? inboxId) =>
+    public static ChatwootLeadSyncResult Failed(
+        string message,
+        long? contactId,
+        long? conversationId,
+        long? inboxId,
+        bool retrySuggested = false,
+        bool queuedForRetry = false) =>
         new()
         {
             Succeeded = false,
@@ -113,7 +136,9 @@ public sealed class ChatwootLeadSyncResult
             Message = message,
             ContactId = contactId,
             ConversationId = conversationId,
-            InboxId = inboxId
+            InboxId = inboxId,
+            RetrySuggested = retrySuggested,
+            QueuedForRetry = queuedForRetry
         };
 
     public static ChatwootLeadSyncResult Disabled(string message, long? contactId, long? conversationId, long? inboxId) =>

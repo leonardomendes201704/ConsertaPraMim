@@ -10,22 +10,25 @@ public sealed class ChatwootLeadSyncService : IChatwootLeadSyncService
 
     private readonly IAdminKanbanService _kanbanService;
     private readonly IChatwootApiClient _chatwootApiClient;
+    private readonly IChatwootSyncQueueService _chatwootSyncQueueService;
     private readonly ChatwootOptions _options;
     private readonly ILogger<ChatwootLeadSyncService> _logger;
 
     public ChatwootLeadSyncService(
         IAdminKanbanService kanbanService,
         IChatwootApiClient chatwootApiClient,
+        IChatwootSyncQueueService chatwootSyncQueueService,
         IOptions<ChatwootOptions> options,
         ILogger<ChatwootLeadSyncService> logger)
     {
         _kanbanService = kanbanService;
         _chatwootApiClient = chatwootApiClient;
+        _chatwootSyncQueueService = chatwootSyncQueueService;
         _options = options.Value;
         _logger = logger;
     }
 
-    public async Task<ChatwootLeadSyncResult> SyncLeadAsync(int leadId, CancellationToken cancellationToken = default)
+    public async Task<ChatwootLeadSyncResult> SyncLeadAsync(int leadId, CancellationToken cancellationToken = default, bool queueOnFailure = true)
     {
         var lead = _kanbanService.GetLeadDetails(leadId);
         if (lead is null)
@@ -73,7 +76,8 @@ public sealed class ChatwootLeadSyncService : IChatwootLeadSyncService
                 sanitizedError,
                 lead.Chatwoot.ContactId,
                 lead.Chatwoot.ConversationId,
-                inboxId);
+                inboxId,
+                retrySuggested: false);
         }
 
         long? contactId = lead.Chatwoot.ContactId;
@@ -148,6 +152,10 @@ public sealed class ChatwootLeadSyncService : IChatwootLeadSyncService
                     "Lead sincronizado com Chatwoot e pronto para atendimento.");
             }
 
+            TryCompleteActiveRetries(
+                leadId,
+                [ChatwootSyncOperationTypes.LeadSync, ChatwootSyncOperationTypes.StageSync]);
+
             return ChatwootLeadSyncResult.Synced(
                 "Lead sincronizado com Chatwoot.",
                 contactId,
@@ -175,11 +183,28 @@ public sealed class ChatwootLeadSyncService : IChatwootLeadSyncService
                 "chatwoot_sync_falhou",
                 $"Falha na sincronizacao com Chatwoot: {sanitizedError}");
 
-            return ChatwootLeadSyncResult.Failed(sanitizedError, contactId, conversationId, inboxId);
+            var queuedForRetry = false;
+            var message = sanitizedError;
+            if (queueOnFailure && _options.Enabled)
+            {
+                queuedForRetry = TryEnqueueRetry(leadId, ChatwootSyncOperationTypes.LeadSync, sanitizedError);
+                if (queuedForRetry)
+                {
+                    message = $"{sanitizedError} Retentativa automatica enfileirada.";
+                }
+            }
+
+            return ChatwootLeadSyncResult.Failed(
+                message,
+                contactId,
+                conversationId,
+                inboxId,
+                retrySuggested: true,
+                queuedForRetry: queuedForRetry);
         }
     }
 
-    public async Task<ChatwootLeadSyncResult> SyncLeadStageAsync(int leadId, CancellationToken cancellationToken = default)
+    public async Task<ChatwootLeadSyncResult> SyncLeadStageAsync(int leadId, CancellationToken cancellationToken = default, bool queueOnFailure = true)
     {
         var lead = _kanbanService.GetLeadDetails(leadId);
         if (lead is null)
@@ -189,9 +214,24 @@ public sealed class ChatwootLeadSyncService : IChatwootLeadSyncService
 
         if (!lead.Chatwoot.ConversationId.HasValue)
         {
-            var bootstrapResult = await SyncLeadAsync(leadId, cancellationToken);
+            var bootstrapResult = await SyncLeadAsync(leadId, cancellationToken, queueOnFailure: false);
             if (!bootstrapResult.Succeeded || !bootstrapResult.ConversationId.HasValue)
             {
+                if (queueOnFailure && bootstrapResult.RetrySuggested && _options.Enabled)
+                {
+                    var queuedForRetry = TryEnqueueRetry(leadId, ChatwootSyncOperationTypes.StageSync, bootstrapResult.Message);
+
+                    return ChatwootLeadSyncResult.Failed(
+                        queuedForRetry
+                            ? $"{bootstrapResult.Message} Retentativa automatica enfileirada para sincronizacao da etapa."
+                            : bootstrapResult.Message,
+                        bootstrapResult.ContactId,
+                        bootstrapResult.ConversationId,
+                        bootstrapResult.InboxId,
+                        retrySuggested: true,
+                        queuedForRetry: queuedForRetry);
+                }
+
                 return bootstrapResult;
             }
 
@@ -224,6 +264,10 @@ public sealed class ChatwootLeadSyncService : IChatwootLeadSyncService
                     ClearChatwootLastError = true
                 });
 
+            TryCompleteActiveRetries(
+                leadId,
+                [ChatwootSyncOperationTypes.StageSync, ChatwootSyncOperationTypes.LeadSync]);
+
             return ChatwootLeadSyncResult.Synced(
                 $"Etapa '{lead.StageName}' sincronizada com Chatwoot.",
                 lead.Chatwoot.ContactId,
@@ -251,11 +295,24 @@ public sealed class ChatwootLeadSyncService : IChatwootLeadSyncService
                 "chatwoot_etapa_sync_falhou",
                 $"Falha ao sincronizar etapa '{lead.StageName}' com Chatwoot: {sanitizedError}");
 
+            var queuedForRetry = false;
+            var message = sanitizedError;
+            if (queueOnFailure && _options.Enabled)
+            {
+                queuedForRetry = TryEnqueueRetry(leadId, ChatwootSyncOperationTypes.StageSync, sanitizedError);
+                if (queuedForRetry)
+                {
+                    message = $"{sanitizedError} Retentativa automatica enfileirada para sincronizacao da etapa.";
+                }
+            }
+
             return ChatwootLeadSyncResult.Failed(
-                sanitizedError,
+                message,
                 lead.Chatwoot.ContactId,
                 lead.Chatwoot.ConversationId,
-                lead.Chatwoot.InboxId ?? ResolveInboxId(lead.BoardType));
+                lead.Chatwoot.InboxId ?? ResolveInboxId(lead.BoardType),
+                retrySuggested: true,
+                queuedForRetry: queuedForRetry);
         }
     }
 
@@ -673,6 +730,32 @@ public sealed class ChatwootLeadSyncService : IChatwootLeadSyncService
         }
 
         return string.Join(Environment.NewLine, lines);
+    }
+
+    private void TryCompleteActiveRetries(int leadId, IReadOnlyCollection<string> operationTypes)
+    {
+        try
+        {
+            _ = _chatwootSyncQueueService.CompleteActiveRetriesForLead(leadId, operationTypes);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Nao foi possivel concluir itens ativos da fila Chatwoot para o lead {LeadId}.", leadId);
+        }
+    }
+
+    private bool TryEnqueueRetry(int leadId, string operationType, string reason)
+    {
+        try
+        {
+            _chatwootSyncQueueService.EnqueueRetry(leadId, operationType, reason);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Nao foi possivel enfileirar retentativa Chatwoot para o lead {LeadId}.", leadId);
+            return false;
+        }
     }
 
     private sealed record ResolvedChatwootContact(

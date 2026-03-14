@@ -211,6 +211,98 @@ Preencher a secao `Chatwoot` via `appsettings.Local.json` ou variaveis de ambien
 - Dificuldade para localizar a conversa apos mover o card: usar o atalho `Abrir no Chatwoot` no modal do lead para abrir diretamente `/app/accounts/{accountId}/conversations/{conversationId}`.
 - A conversa mostra so a nota inicial do lead: validar se a aplicacao publicada ja contem o fluxo que cria nota privada por mudanca de etapa e repetir um novo movimento de card apos o deploy.
 
+## Integracao Chatwoot - recepcao de webhooks no funil
+
+### Objetivo
+
+- Receber eventos relevantes do Chatwoot no CPM Full para atualizar `LastContactAt`, enriquecer o historico do lead e manter rastreabilidade operacional do atendimento.
+
+### Comportamento esperado
+
+- O endpoint publico do webhook e `POST /api/integrations/chatwoot/webhook`.
+- O endpoint valida os headers `X-Chatwoot-Timestamp` e `X-Chatwoot-Signature` usando HMAC SHA-256 com prefixo `sha256=`.
+- Quando o Chatwoot enviar `X-Chatwoot-Delivery`, esse valor vira a chave de idempotencia; sem esse header, o sistema usa fingerprint derivada de timestamp + assinatura.
+- Todo payload aceito fica persistido em `dbo.cpm_web_chatwoot_webhook_events`, com `ProcessStatus`, `ProcessedAt` e eventual `ErrorMessage`.
+- Eventos suportados nesta etapa:
+  - `message_created`
+  - `conversation_status_changed`
+  - `conversation_updated`
+- Eventos duplicados retornam `200` com `processStatus = duplicate`.
+- Evento suportado sem conversa local mapeada retorna `200` com `processStatus = ignored`, sem quebrar a entrega do webhook.
+- Assinatura invalida retorna `401`.
+- Falha interna de processamento retorna `500`, preservando o payload bruto para diagnostico e retentativa operacional.
+
+### Checklist operacional
+
+1. Garantir que `Chatwoot:WebhookSecret` do `appsettings.Local.json` ou das variaveis de ambiente seja exatamente o segredo do webhook cadastrado no Chatwoot.
+2. Garantir que o CPM Full publicado esteja acessivel em HTTPS no endpoint `/api/integrations/chatwoot/webhook`.
+3. No Chatwoot, cadastrar o webhook apontando para a URL publica do CPM Full e habilitar ao menos:
+4. `message_created`
+5. `conversation_status_changed`
+6. `conversation_updated`
+7. Criar ou localizar um lead ja sincronizado no CPM Full, com `ChatwootConversationId` preenchido.
+8. Enviar mensagem real na conversa do Chatwoot.
+9. Abrir o detalhe do lead no CPM Full e confirmar novo historico `Mensagem recebida no Chatwoot` ou `Resposta enviada no Chatwoot`.
+10. Confirmar atualizacao de `Ultimo contato` quando a mensagem tiver timestamp mais recente que o valor atual.
+11. Alterar o status da conversa no Chatwoot para `Pending` ou `Resolved`.
+12. Reabrir o detalhe do lead e confirmar historico `Status alterado no Chatwoot`.
+13. Executar um replay do mesmo webhook e confirmar resposta `duplicate` sem duplicar historico local.
+14. Consultar `dbo.cpm_web_chatwoot_webhook_events` e validar preenchimento de `ProviderEventId`, `EventType`, `ConversationId`, `ProcessStatus`, `ProcessedAt` e `ErrorMessage`.
+
+### Troubleshooting
+
+- `401` no webhook: validar se o segredo do webhook no Chatwoot corresponde exatamente a `Chatwoot:WebhookSecret`, incluindo o uso do prefixo `sha256=` na assinatura enviada.
+- Webhook aceito, mas sem efeito no lead: validar se o lead possui `ChatwootConversationId` igual ao `conversation_id` do evento recebido.
+- `processStatus = ignored` em todo evento: revisar se o evento esta entre os tres suportados nesta fase (`message_created`, `conversation_status_changed`, `conversation_updated`).
+- Historico duplicado: validar se o Chatwoot esta enviando `X-Chatwoot-Delivery`; se nao estiver, confirmar se `X-Chatwoot-Timestamp` e `X-Chatwoot-Signature` estao chegando integrais para o fallback de idempotencia.
+- `500` no webhook: consultar `dbo.cpm_web_chatwoot_webhook_events`, coluna `ErrorMessage`, e repetir a entrega do payload apos corrigir o mapeamento/local de conversa.
+- `404` no destino publico do webhook: validar se o workflow `deploy-vps` da branch certa ja publicou o servico `web-cpmfull` em `https://www.consertapramim.com` e se o endpoint `GET /health` do CPM Full responde na porta `5088/6088`.
+
+## Integracao Chatwoot - fila de retentativa e reprocessamento
+
+### Objetivo
+
+- Garantir que falhas transientes entre CPM Full e Chatwoot nao se percam quando a API externa ou a rede estiverem indisponiveis.
+
+### Comportamento esperado
+
+- Falha externa durante `create/sync` do lead ou durante a sync de etapa deve enfileirar item em `dbo.cpm_web_chatwoot_sync_queue`.
+- O worker `ChatwootSyncRetryWorker` deve buscar itens `queued/retrying`, marcar como `processing` e reprocessar em lote.
+- Politica atual de espera:
+  - enfileiramento inicial: `1 minuto`
+  - apos 1a tentativa falha no worker: `5 minutos`
+  - apos 2a tentativa falha: `15 minutos`
+  - apos 3a tentativa falha: `1 hora`
+  - tentativas seguintes: `6 horas`
+- O limite atual de tentativas e `10`.
+- Quando o limite e esgotado, o item deve ser marcado como `dead_letter` e o lead deve receber historico `Retentativa Chatwoot esgotada`.
+- O modal do lead no Kanban deve exibir o botao `Enfileirar retentativa` para forcar reprocessamento imediato sem depender da proxima falha automatica.
+- Quando uma retentativa concluir com sucesso, o historico do lead deve registrar `Retentativa Chatwoot concluida`.
+
+### Checklist de QA
+
+1. Garantir que `Chatwoot:Enabled=true` e que o worker esteja habilitado (`RetryWorkerEnabled=true`).
+2. Simular falha externa temporaria:
+3. opcao A: derrubar a conectividade da aplicacao com o Chatwoot;
+4. opcao B: usar temporariamente token invalido em ambiente de QA/local.
+5. Criar ou editar um lead com telefone ou e-mail valido.
+6. Confirmar que o lead local continua salvo, mas com `Sync Chatwoot = Falha`.
+7. Abrir o detalhe do lead e validar evento `Retentativa Chatwoot enfileirada`.
+8. Consultar `dbo.cpm_web_chatwoot_sync_queue` e validar um item ativo para o `LeadId`.
+9. Restaurar a conectividade/configuracao do Chatwoot.
+10. Aguardar o worker ou clicar em `Enfileirar retentativa` no modal do lead.
+11. Confirmar mudanca do item da fila para `processed` e historico `Retentativa Chatwoot concluida`.
+12. Repetir o teste com falha permanente de dados minimos (lead sem telefone e sem e-mail).
+13. Confirmar que o lead falha localmente, mas a fila nao fica em looping infinito; quando reprocessado pelo worker, o item deve terminar em `dead_letter`.
+
+### Troubleshooting
+
+- Item nao sai de `queued`: validar se o processo publicado esta com `RetryWorkerEnabled=true` e se o host iniciou `ChatwootSyncRetryWorker`.
+- Item nao e adquirido pelo worker: validar `NextAttemptAt` em UTC e se o horario do servidor esta sincronizado.
+- Mesmo lead gera muitos itens: revisar se o indice unico `UX_cpm_web_chatwoot_sync_queue_active` existe na base.
+- `dead_letter` recorrente: abrir o detalhe do lead, revisar `Ultimo erro Chatwoot` e corrigir causa raiz antes de acionar nova retentativa manual.
+- Botao `Enfileirar retentativa` falha no modal: validar o endpoint `POST /admin/funil/lead/{id}/chatwoot/retentativa` e o anti-forgery token da pagina.
+
 ## Integracao Chatwoot - deploy da VPS
 
 ### Estado atual do ambiente
@@ -225,6 +317,7 @@ Preencher a secao `Chatwoot` via `appsettings.Local.json` ou variaveis de ambien
 - Proxy da API: `underscores_in_headers on`, `ignore_invalid_headers off` e forward explicito de `api_access_token`
 - Definicoes customizadas do CPM: `cpm_lead_id`, `cpm_board_type`, `cpm_stage_name`, `cpm_stage_slug`, `cpm_lead_source` e `cpm_lead_source_slug` provisionadas para `conversation_attribute` e `contact_attribute`
 - Catalogo global de labels do CPM provisionado na conta: labels `cpm_clientes*` e `cpm_prestadores*` com `show_on_sidebar=true`
+- Webhook da conta `1`: `CPM Full Funil Webhook`, subscriptions `message_created`, `conversation_status_changed`, `conversation_updated`, apontando para `https://www.consertapramim.com/api/integrations/chatwoot/webhook`
 
 ### Comportamento esperado
 
@@ -267,3 +360,43 @@ Preencher a secao `Chatwoot` via `appsettings.Local.json` ou variaveis de ambien
 - `pagina em branco` apos login: validar se o `FRONTEND_URL` em `/opt/chatwoot/.env` continua `https://chatwoot.consertapramim.com`.
 - `401 Unauthorized` na Application API: validar se o Nginx do Chatwoot continua com `underscores_in_headers on;`, `ignore_invalid_headers off;` e `proxy_set_header api_access_token $http_api_access_token;`.
 - Labels nao aparecem abaixo do nome do contato: validar se a conta possui o catalogo global em `Settings > Labels` e fazer refresh completo da tela do contato apos criar novas labels.
+- Webhook cadastrado, mas sem entrega: validar se `https://www.consertapramim.com/api/integrations/chatwoot/webhook` deixou de responder `404` apos o deploy publico do CPM Full.
+
+## Publicacao do CPM Full na VPS como site raiz
+
+### Objetivo
+
+- Publicar o `ConsertaPraMim.Web.CpmFull` em `https://www.consertapramim.com`, substituindo o antigo deploy da `Web.Landing` no slot raiz da VPS.
+
+### Comportamento esperado
+
+- O workflow `.github/workflows/deploy-vps.yml` deve detectar mudancas em `Backend/src/ConsertaPraMim.Web.CpmFull/**` e no artefato `Backend/docker-compose.vps.web-cpmfull.yml`.
+- O job `deploy-web-cpmfull` deve publicar o container `${CONTAINER_PREFIX}-cpmfull` na porta `LANDING_PORT` (`5088` em prod, `6088` em dev).
+- O healthcheck do workflow deve validar `GET /health` no CPM Full antes de liberar os jobs dependentes.
+- Em `dev-local`, o healthcheck deve preferir a URL publica configurada em `PUBLIC_LANDING_URL` quando esse secret existir; sem ele, o fallback continua em `http://<VPS_PUBLIC_HOST>:6088/health`.
+- O nome `PUBLIC_LANDING_URL` continua existindo por compatibilidade operacional, mas representa a URL publica do site raiz do CPM Full.
+- Quando a integracao Chatwoot estiver habilitada em producao, as configuracoes devem vir por secrets `CPMFULL_CHATWOOT_*`, nunca por `appsettings.Local.json`.
+
+### Checklist operacional
+
+1. Confirmar que os environments do GitHub Actions possuem `PUBLIC_LANDING_URL` coerente com cada branch:
+2. `production` -> `https://www.consertapramim.com`
+3. `development` -> URL HML dedicada, por exemplo `https://hml.consertapramim.com`, ou manter vazio para fallback em `http://<VPS_PUBLIC_HOST>:6088`
+4. Se a integracao Chatwoot precisar ficar ativa em producao, cadastrar os secrets `CPMFULL_CHATWOOT_ENABLED`, `CPMFULL_CHATWOOT_BASE_URL`, `CPMFULL_CHATWOOT_API_ACCESS_TOKEN`, `CPMFULL_CHATWOOT_ACCOUNT_ID`, `CPMFULL_CHATWOOT_CLIENTS_INBOX_ID`, `CPMFULL_CHATWOOT_PROVIDERS_INBOX_ID` e `CPMFULL_CHATWOOT_WEBHOOK_SECRET`.
+5. Executar deploy pela branch desejada (`main/master` para producao, `dev-local` para homologacao).
+6. Acompanhar no workflow os jobs `deploy-web-cpmfull` e `health-web-cpmfull`.
+7. Na VPS, validar `docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep cpmfull`.
+8. Validar `curl -I http://127.0.0.1:5088/health` em producao ou `curl -I http://127.0.0.1:6088/health` em dev.
+9. Validar a URL publica coerente com a branch:
+10. producao -> `curl -I https://www.consertapramim.com`
+11. homologacao -> `curl -I <PUBLIC_LANDING_URL do environment development>`
+12. Validar `curl -I https://www.consertapramim.com/api/integrations/chatwoot/webhook` em producao, e a URL HML equivalente em `dev-local` quando esse endpoint estiver exposto publicamente.
+13. Abrir a home publica do CPM Full e o `/admin/login` do proprio projeto para smoke test do site publicado.
+
+### Troubleshooting
+
+- Workflow nao dispara o deploy do site raiz: validar se a alteracao afetou `Backend/src/ConsertaPraMim.Web.CpmFull/**`, `Backend/docker/vps/Dockerfile.web.cpmfull`, `Backend/docker-compose.vps.web-cpmfull.yml` ou arquivos globais de deploy.
+- `health-web-cpmfull` falha: abrir logs do container `${CONTAINER_PREFIX}-cpmfull` e validar se a connection string de SQL Server esta correta.
+- `health-web-cpmfull` falha so no `dev-local`: confirmar se o secret `PUBLIC_LANDING_URL` do environment `development` aponta para a URL HML correta; se ele estiver vazio, o workflow volta a validar `http://<VPS_PUBLIC_HOST>:6088/health`.
+- Site abre, mas Chatwoot fica desabilitado: conferir se os secrets `CPMFULL_CHATWOOT_*` foram cadastrados no environment correto do GitHub.
+- Root domain continua mostrando a landing antiga: validar se o container legado `${CONTAINER_PREFIX}-landing` foi removido no primeiro deploy e se o Nginx continua apontando para a porta `5088`.

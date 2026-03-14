@@ -59,6 +59,21 @@ public sealed class ChatwootOptionsValidator : IValidateOptions<ChatwootOptions>
             failures.Add("Chatwoot:RetryBaseDelayMs deve ser maior que zero.");
         }
 
+        if (options.RetryWorkerIntervalSeconds <= 0)
+        {
+            failures.Add("Chatwoot:RetryWorkerIntervalSeconds deve ser maior que zero.");
+        }
+
+        if (options.RetryWorkerBatchSize <= 0)
+        {
+            failures.Add("Chatwoot:RetryWorkerBatchSize deve ser maior que zero.");
+        }
+
+        if (options.SyncQueueMaxAttempts <= 0)
+        {
+            failures.Add("Chatwoot:SyncQueueMaxAttempts deve ser maior que zero.");
+        }
+
         return failures.Count == 0
             ? ValidateOptionsResult.Success
             : ValidateOptionsResult.Fail(failures);
