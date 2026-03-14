@@ -418,6 +418,67 @@ Preencher a secao `Chatwoot` via `appsettings.Local.json` ou variaveis de ambien
 - Logs sem `CorrelationId`: validar se `CorrelationIdMiddleware` esta registrado logo apos `UseForwardedHeaders()` no `Program.cs`.
 - Correlation id diferente entre worker/backfill: validar se o fluxo foi disparado fora da requisicao HTTP; nesses casos o CPM Full gera um novo `CorrelationId` proprio por ciclo.
 
+## Integracao Chatwoot - seguranca e conformidade
+
+### Objetivo
+
+- Reduzir exposicao de dados pessoais e segredos operacionais na trilha Chatwoot do CPM Full sem perder capacidade de diagnostico.
+
+### Comportamento esperado
+
+- Telefone, e-mail, `ApiAccessToken`, `WebhookSecret` e cabecalhos equivalentes nao devem aparecer em claro em erros persistidos, logs tecnicos nem no drawer `Diagnostico Chatwoot`.
+- O endpoint `POST /api/integrations/chatwoot/webhook` continua exigindo assinatura HMAC valida e, quando `Chatwoot:AllowedWebhookIps` estiver preenchido, tambem deve rejeitar origens fora da allowlist com `403`.
+- A allowlist aceita IP individual e faixa CIDR separados por virgula, ponto e virgula ou quebra de linha.
+- O payload bruto e a assinatura do webhook devem ser preservados apenas dentro da janela de retention configurada; apos esse prazo, o worker deve substituir `PayloadJson` pelo marcador de redacao e limpar `Signature`, mantendo `ProviderEventId`, `EventType`, `ConversationId`, `ProcessStatus`, `ReceivedAt`, `ProcessedAt`, `ErrorMessage` e `PayloadPurgedAt`.
+- O worker `ChatwootWebhookRetentionWorker` deve executar em background somente quando `Chatwoot:WebhookPayloadCleanupEnabled=true`.
+
+### Configuracao operacional
+
+Campos novos da secao `Chatwoot`:
+
+- `AllowedWebhookIps`
+- `WebhookPayloadCleanupEnabled`
+- `WebhookPayloadRetentionDays`
+- `WebhookPayloadCleanupIntervalMinutes`
+
+Equivalentes no deploy VPS:
+
+- `CPMFULL_CHATWOOT_ALLOWED_WEBHOOK_IPS`
+- `CPMFULL_CHATWOOT_WEBHOOK_PAYLOAD_CLEANUP_ENABLED`
+- `CPMFULL_CHATWOOT_WEBHOOK_PAYLOAD_RETENTION_DAYS`
+- `CPMFULL_CHATWOOT_WEBHOOK_PAYLOAD_CLEANUP_INTERVAL_MINUTES`
+
+### Checklist de QA
+
+1. Forcar erro operacional do Chatwoot contendo telefone, e-mail ou token e confirmar no modal/drawer do funil que os valores aparecem mascarados.
+2. Chamar `/admin/funil/chatwoot/diagnostico/json` e validar que `lastError` nao expoe PII nem segredos.
+3. Configurar `Chatwoot:AllowedWebhookIps` com faixa controlada e enviar webhook de origem fora da allowlist.
+4. Confirmar resposta `403` com mensagem `Webhook do Chatwoot rejeitado por origem nao autorizada.`.
+5. Restaurar a allowlist correta ou esvaziar o campo e confirmar que o webhook volta a ser aceito.
+6. Inserir ou reaproveitar evento antigo em `dbo.cpm_web_chatwoot_webhook_events` com `ReceivedAt` anterior ao prazo de retention.
+7. Executar o worker ou aguardar o intervalo configurado.
+8. Confirmar que `PayloadJson` virou `{\"redacted\":true,\"reason\":\"retention\"}`, `Signature` ficou `NULL` e `PayloadPurgedAt` foi preenchido em UTC.
+9. Validar `GET /internal/health/chatwoot` para garantir que a integracao continua `Healthy` apos a configuracao de seguranca.
+
+### Runbook de rotacao de token e segredo
+
+1. Gerar novo `Personal Access Token` no usuario admin do Chatwoot.
+2. Se necessario, editar o webhook `CPM Full Funil Webhook` no Chatwoot e definir novo `WebhookSecret`.
+3. Atualizar os secrets do GitHub Actions no environment correto:
+4. `CPMFULL_CHATWOOT_API_ACCESS_TOKEN`
+5. `CPMFULL_CHATWOOT_WEBHOOK_SECRET`
+6. Se houver endurecimento por IP, revisar tambem `CPMFULL_CHATWOOT_ALLOWED_WEBHOOK_IPS`.
+7. Reexecutar o deploy da branch correspondente (`dev-local` ou `main/master`).
+8. Validar `GET /internal/health/chatwoot`.
+9. Disparar um webhook real ou replay controlado e confirmar `processStatus = processed`.
+
+### Troubleshooting
+
+- `403` apos ativar allowlist: conferir o IP real que chega ao CPM Full pelo `X-Forwarded-For` do Nginx antes de endurecer `AllowedWebhookIps`.
+- Payloads antigos nao sao expurgados: validar `WebhookPayloadCleanupEnabled`, `WebhookPayloadRetentionDays`, `WebhookPayloadCleanupIntervalMinutes` e se o processo publicado iniciou `ChatwootWebhookRetentionWorker`.
+- Diagnostico ainda mostra PII em erro antigo: reprocessar o lead/evento ou limpar o erro historico antigo; a sanitizacao passa a valer automaticamente para novas persistencias.
+- Token novo nao surtiu efeito em producao: validar se o environment do GitHub Actions correto recebeu o secret atualizado e se o deploy da branch alvo concluiu com sucesso.
+
 ## Integracao Chatwoot - deploy da VPS
 
 ### Estado atual do ambiente
@@ -498,15 +559,16 @@ Preencher a secao `Chatwoot` via `appsettings.Local.json` ou variaveis de ambien
 2. `production` -> `https://www.consertapramim.com`
 3. `development` -> URL HML dedicada, por exemplo `https://hml.consertapramim.com`, ou manter vazio para fallback em `http://<VPS_PUBLIC_HOST>:6088`
 4. Se a integracao Chatwoot precisar ficar ativa em producao, cadastrar os secrets `CPMFULL_CHATWOOT_ENABLED`, `CPMFULL_CHATWOOT_BASE_URL`, `CPMFULL_CHATWOOT_API_ACCESS_TOKEN`, `CPMFULL_CHATWOOT_ACCOUNT_ID`, `CPMFULL_CHATWOOT_CLIENTS_INBOX_ID`, `CPMFULL_CHATWOOT_PROVIDERS_INBOX_ID` e `CPMFULL_CHATWOOT_WEBHOOK_SECRET`.
-5. Executar deploy pela branch desejada (`main/master` para producao, `dev-local` para homologacao).
-6. Acompanhar no workflow os jobs `deploy-web-cpmfull` e `health-web-cpmfull`.
-7. Na VPS, validar `docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep cpmfull`.
-8. Validar `curl -I http://127.0.0.1:5088/health` em producao ou `curl -I http://127.0.0.1:6088/health` em dev.
-9. Validar a URL publica coerente com a branch:
-10. producao -> `curl -I https://www.consertapramim.com`
-11. homologacao -> `curl -I <PUBLIC_LANDING_URL do environment development>`
-12. Validar `curl -I https://www.consertapramim.com/api/integrations/chatwoot/webhook` em producao, e a URL HML equivalente em `dev-local` quando esse endpoint estiver exposto publicamente.
-13. Abrir a home publica do CPM Full e o `/admin/login` do proprio projeto para smoke test do site publicado.
+5. Se a trilha de seguranca/conformidade for usada em runtime, cadastrar tambem `CPMFULL_CHATWOOT_ALLOWED_WEBHOOK_IPS`, `CPMFULL_CHATWOOT_WEBHOOK_PAYLOAD_CLEANUP_ENABLED`, `CPMFULL_CHATWOOT_WEBHOOK_PAYLOAD_RETENTION_DAYS` e `CPMFULL_CHATWOOT_WEBHOOK_PAYLOAD_CLEANUP_INTERVAL_MINUTES`.
+6. Executar deploy pela branch desejada (`main/master` para producao, `dev-local` para homologacao).
+7. Acompanhar no workflow os jobs `deploy-web-cpmfull` e `health-web-cpmfull`.
+8. Na VPS, validar `docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep cpmfull`.
+9. Validar `curl -I http://127.0.0.1:5088/health` em producao ou `curl -I http://127.0.0.1:6088/health` em dev.
+10. Validar a URL publica coerente com a branch:
+11. producao -> `curl -I https://www.consertapramim.com`
+12. homologacao -> `curl -I <PUBLIC_LANDING_URL do environment development>`
+13. Validar `curl -I https://www.consertapramim.com/api/integrations/chatwoot/webhook` em producao, e a URL HML equivalente em `dev-local` quando esse endpoint estiver exposto publicamente.
+14. Abrir a home publica do CPM Full e o `/admin/login` do proprio projeto para smoke test do site publicado.
 
 ### Troubleshooting
 

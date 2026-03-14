@@ -67,6 +67,11 @@ public sealed class ChatwootWebhookService : IChatwootWebhookService
             return Task.FromResult(BuildRejectedResult(400, "Payload vazio no webhook do Chatwoot."));
         }
 
+        if (!TryValidateAllowedSourceIp(request, out var ipAllowlistError))
+        {
+            return Task.FromResult(BuildRejectedResult(403, ipAllowlistError));
+        }
+
         if (!TryValidateSignedRequest(request, out var signatureError))
         {
             return Task.FromResult(BuildRejectedResult(401, signatureError));
@@ -200,7 +205,7 @@ public sealed class ChatwootWebhookService : IChatwootWebhookService
                 payload.EventType,
                 payload.ConversationId,
                 request.DeliveryId);
-            var sanitizedError = TrimTo(ex.Message, 500);
+            var sanitizedError = ChatwootSecuritySanitizer.SanitizeMessage(BuildUserFacingError(ex), 500);
             CompleteEvent(webhookEvent.Id, "failed", sanitizedError);
 
             return Task.FromResult(new ChatwootWebhookProcessResult
@@ -214,6 +219,26 @@ public sealed class ChatwootWebhookService : IChatwootWebhookService
                 WebhookEventId = webhookEvent.Id
             });
         }
+    }
+
+    private bool TryValidateAllowedSourceIp(ChatwootWebhookRequest request, out string error)
+    {
+        var allowlist = _options.GetAllowedWebhookIpEntries();
+        if (allowlist.Count == 0)
+        {
+            error = string.Empty;
+            return true;
+        }
+
+        var candidateIp = ChatwootIpAllowlist.ResolveCandidateIp(request.ForwardedFor, request.RemoteIp);
+        if (ChatwootIpAllowlist.IsAllowed(candidateIp, allowlist))
+        {
+            error = string.Empty;
+            return true;
+        }
+
+        error = "Webhook do Chatwoot rejeitado por origem nao autorizada.";
+        return false;
     }
 
     private bool TryValidateSignedRequest(ChatwootWebhookRequest request, out string error)
@@ -613,6 +638,16 @@ public sealed class ChatwootWebhookService : IChatwootWebhookService
         return TrimTo(normalized, 160);
     }
 
+    private static string BuildUserFacingError(Exception ex) =>
+        ex switch
+        {
+            ChatwootApiException apiEx => apiEx.Message,
+            HttpRequestException => "Falha de rede ao processar webhook do Chatwoot.",
+            TaskCanceledException => "Tempo esgotado ao processar webhook do Chatwoot.",
+            JsonException => "Payload JSON invalido no webhook do Chatwoot.",
+            _ => ex.Message
+        };
+
     private bool CompleteEvent(int webhookEventId, string processStatus, string? errorMessage)
     {
         return _kanbanService.CompleteChatwootWebhookEvent(webhookEventId, processStatus, errorMessage);
@@ -655,7 +690,7 @@ public sealed class ChatwootWebhookService : IChatwootWebhookService
             HttpStatusCode = httpStatusCode,
             Accepted = false,
             ProcessStatus = "rejected",
-            Message = message
+            Message = ChatwootSecuritySanitizer.SanitizeMessage(message, 500)
         };
 
     private static string FormatConversationStatusLabel(string? status) =>

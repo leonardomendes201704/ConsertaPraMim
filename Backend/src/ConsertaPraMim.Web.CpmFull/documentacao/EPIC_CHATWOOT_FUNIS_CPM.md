@@ -343,10 +343,20 @@ Como time tecnico, queremos visibilidade completa da integracao para suporte rap
 ### Descricao
 Como time de seguranca, queremos garantir protecao de credenciais e dados pessoais.
 
+### Status
+- Concluida em 2026-03-14 no `ConsertaPraMim.Web.CpmFull`.
+
 ### Criterios de aceite
 1. Token do Chatwoot nao aparece em logs.
 2. Webhook rejeita payload sem assinatura valida.
 3. Dados sensiveis mascarados em logs e telas tecnicas.
+
+### Entrega realizada
+1. Erros tecnicos, payloads rejeitados e diagnosticos admin passaram a mascarar telefone, e-mail, token e segredo antes de log/persistencia/exibicao.
+2. O webhook passou a suportar allowlist opcional de IP/faixa (`AllowedWebhookIps`) antes da validacao de assinatura.
+3. O repositorio SQL do funil passou a expurgar payload bruto e assinatura de eventos antigos do webhook, preservando metadados e `PayloadPurgedAt`.
+4. O CPM Full ganhou worker de retention configuravel para limpeza recorrente dos payloads do webhook.
+5. O deploy VPS passou a propagar as variaveis `CPMFULL_CHATWOOT_*` de seguranca/conformidade e o manual operacional passou a incluir runbook de rotacao de token/secret.
 
 ### Tasks
 - `TASK-10.01` Bloquear logging de headers sensiveis.

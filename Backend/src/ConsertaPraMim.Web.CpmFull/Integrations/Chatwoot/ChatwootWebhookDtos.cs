@@ -6,6 +6,8 @@ public sealed class ChatwootWebhookRequest
     public string Signature { get; init; } = string.Empty;
     public string Timestamp { get; init; } = string.Empty;
     public string DeliveryId { get; init; } = string.Empty;
+    public string RemoteIp { get; init; } = string.Empty;
+    public string ForwardedFor { get; init; } = string.Empty;
 }
 
 public sealed class ChatwootWebhookProcessResult

@@ -31,7 +31,7 @@ public sealed class ChatwootSyncQueueService : IChatwootSyncQueueService
             OperationType = normalizedOperationType,
             NextAttemptAt = runImmediately ? utcNow : utcNow.Add(ResolveRetryDelay(0)),
             MaxAttempts = _options.SyncQueueMaxAttempts,
-            LastError = TrimTo(reason, 1000)
+            LastError = ChatwootSecuritySanitizer.SanitizeMessage(reason, 1000)
         });
 
         var description = runImmediately
@@ -85,7 +85,7 @@ public sealed class ChatwootSyncQueueService : IChatwootSyncQueueService
     {
         var correlationId = ChatwootCorrelationContext.GetOrCreate($"chatwoot-queue-{item.LeadId}");
         var utcNow = DateTime.UtcNow;
-        var sanitizedError = TrimTo(errorMessage, 1000);
+        var sanitizedError = ChatwootSecuritySanitizer.SanitizeMessage(errorMessage, 1000);
 
         if (!retryRecommended || item.AttemptCount >= item.MaxAttempts)
         {

@@ -30,6 +30,10 @@ services:
       Chatwoot__RetryWorkerIntervalSeconds: "${CPMFULL_CHATWOOT_RETRY_WORKER_INTERVAL_SECONDS:-30}"
       Chatwoot__RetryWorkerBatchSize: "${CPMFULL_CHATWOOT_RETRY_WORKER_BATCH_SIZE:-20}"
       Chatwoot__SyncQueueMaxAttempts: "${CPMFULL_CHATWOOT_SYNC_QUEUE_MAX_ATTEMPTS:-10}"
+      Chatwoot__AllowedWebhookIps: "${CPMFULL_CHATWOOT_ALLOWED_WEBHOOK_IPS:-}"
+      Chatwoot__WebhookPayloadCleanupEnabled: "${CPMFULL_CHATWOOT_WEBHOOK_PAYLOAD_CLEANUP_ENABLED:-true}"
+      Chatwoot__WebhookPayloadRetentionDays: "${CPMFULL_CHATWOOT_WEBHOOK_PAYLOAD_RETENTION_DAYS:-14}"
+      Chatwoot__WebhookPayloadCleanupIntervalMinutes: "${CPMFULL_CHATWOOT_WEBHOOK_PAYLOAD_CLEANUP_INTERVAL_MINUTES:-360}"
     networks:
       - conserta_net
 

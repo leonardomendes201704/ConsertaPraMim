@@ -27,7 +27,9 @@ public sealed class ChatwootWebhookController : ControllerBase
                 RawBody = buffer.ToArray(),
                 Signature = Request.Headers["X-Chatwoot-Signature"].ToString(),
                 Timestamp = Request.Headers["X-Chatwoot-Timestamp"].ToString(),
-                DeliveryId = Request.Headers["X-Chatwoot-Delivery"].ToString()
+                DeliveryId = Request.Headers["X-Chatwoot-Delivery"].ToString(),
+                RemoteIp = HttpContext.Connection.RemoteIpAddress?.ToString() ?? string.Empty,
+                ForwardedFor = Request.Headers["X-Forwarded-For"].ToString()
             },
             cancellationToken);
 

@@ -175,6 +175,29 @@ public sealed class ChatwootWebhookServiceTests
         kanbanService.VerifyNoOtherCalls();
     }
 
+    [Fact(DisplayName = "Deve rejeitar webhook quando origem nao estiver na allowlist")]
+    public async Task DeveRejeitarWebhookQuandoOrigemNaoEstiverNaAllowlist()
+    {
+        var kanbanService = new Mock<IAdminKanbanService>(MockBehavior.Strict);
+        var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString();
+        var rawPayload = Encoding.UTF8.GetBytes("""{"event":"message_created","conversation":{"id":202}}""");
+        var sut = CreateSut(kanbanService.Object, allowedWebhookIps: "10.0.0.0/24");
+
+        var result = await sut.HandleAsync(new ChatwootWebhookRequest
+        {
+            RawBody = rawPayload,
+            Timestamp = timestamp,
+            Signature = ComputeSignature("secret-webhook", timestamp, rawPayload),
+            DeliveryId = "delivery-allowlist",
+            RemoteIp = "187.77.48.150"
+        });
+
+        Assert.False(result.Accepted);
+        Assert.Equal(403, result.HttpStatusCode);
+        Assert.Equal("rejected", result.ProcessStatus);
+        kanbanService.VerifyNoOtherCalls();
+    }
+
     [Fact(DisplayName = "Deve registrar historico quando status da conversa muda no Chatwoot")]
     public async Task DeveRegistrarHistoricoQuandoStatusDaConversaMudaNoChatwoot()
     {
@@ -230,7 +253,7 @@ public sealed class ChatwootWebhookServiceTests
         kanbanService.VerifyAll();
     }
 
-    private static ChatwootWebhookService CreateSut(IAdminKanbanService kanbanService)
+    private static ChatwootWebhookService CreateSut(IAdminKanbanService kanbanService, string? allowedWebhookIps = null)
     {
         var options = Options.Create(new ChatwootOptions
         {
@@ -240,7 +263,10 @@ public sealed class ChatwootWebhookServiceTests
             AccountId = 1,
             ClientsInboxId = 1,
             ProvidersInboxId = 2,
-            WebhookSecret = "secret-webhook"
+            WebhookSecret = "secret-webhook",
+            AllowedWebhookIps = allowedWebhookIps ?? string.Empty,
+            WebhookPayloadRetentionDays = 14,
+            WebhookPayloadCleanupIntervalMinutes = 360
         });
 
         return new ChatwootWebhookService(

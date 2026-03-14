@@ -80,7 +80,7 @@ public sealed class KanbanController : Controller
                 syncStatus = lead.Chatwoot.SyncStatus,
                 syncStatusLabel = FormatChatwootSyncStatusLabel(lead.Chatwoot.SyncStatus),
                 lastSyncAt = lead.Chatwoot.LastSyncAt?.ToString("dd/MM/yyyy HH:mm") ?? "-",
-                lastError = string.IsNullOrWhiteSpace(lead.Chatwoot.LastError) ? "-" : lead.Chatwoot.LastError,
+                lastError = string.IsNullOrWhiteSpace(lead.Chatwoot.LastError) ? "-" : ChatwootSecuritySanitizer.SanitizeMessage(lead.Chatwoot.LastError, 500),
                 conversationUrl = BuildChatwootConversationUrl(lead.Chatwoot.ConversationId)
             },
             history = lead.History.Select(item => new
@@ -379,7 +379,7 @@ public sealed class KanbanController : Controller
                 syncStatus = item.SyncStatus,
                 syncStatusLabel = FormatChatwootSyncStatusLabel(item.SyncStatus),
                 lastSyncAt = item.LastSyncAt?.ToString("dd/MM/yyyy HH:mm") ?? "-",
-                lastError = string.IsNullOrWhiteSpace(item.LastError) ? "-" : item.LastError,
+                lastError = string.IsNullOrWhiteSpace(item.LastError) ? "-" : ChatwootSecuritySanitizer.SanitizeMessage(item.LastError, 500),
                 contactId = item.ContactId,
                 conversationId = item.ConversationId,
                 inboxId = item.InboxId,
@@ -401,7 +401,7 @@ public sealed class KanbanController : Controller
                 maxAttempts = item.MaxAttempts,
                 nextAttemptAt = item.NextAttemptAt.ToString("dd/MM/yyyy HH:mm"),
                 lastAttemptAt = item.LastAttemptAt?.ToString("dd/MM/yyyy HH:mm") ?? "-",
-                lastError = string.IsNullOrWhiteSpace(item.LastError) ? "-" : item.LastError,
+                lastError = string.IsNullOrWhiteSpace(item.LastError) ? "-" : ChatwootSecuritySanitizer.SanitizeMessage(item.LastError, 500),
                 conversationId = item.ConversationId,
                 conversationUrl = BuildChatwootConversationUrl(item.ConversationId)
             })

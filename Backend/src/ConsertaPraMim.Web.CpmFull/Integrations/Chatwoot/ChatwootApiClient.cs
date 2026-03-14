@@ -349,16 +349,21 @@ public sealed class ChatwootApiClient : IChatwootApiClient
 
                 if (!response.IsSuccessStatusCode)
                 {
-                    var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
+                    var responseBody = ChatwootSecuritySanitizer.SanitizeMessage(
+                        await response.Content.ReadAsStringAsync(cancellationToken),
+                        300);
                     _logger.LogError(
                         "Chatwoot HTTP falhou. CorrelationId={CorrelationId} Method={Method} Path={Path} StatusCode={StatusCode}",
                         correlationId,
                         method.Method,
                         relativePath,
                         (int)response.StatusCode);
-                    throw new ChatwootApiException(
-                        $"Chatwoot retornou erro HTTP {(int)response.StatusCode} ao acessar '{relativePath}'. Resposta: {responseBody}",
-                        (int)response.StatusCode);
+
+                    var failureMessage = string.IsNullOrWhiteSpace(responseBody)
+                        ? $"Chatwoot retornou erro HTTP {(int)response.StatusCode} ao acessar '{relativePath}'."
+                        : $"Chatwoot retornou erro HTTP {(int)response.StatusCode} ao acessar '{relativePath}'. Resposta: {responseBody}";
+
+                    throw new ChatwootApiException(failureMessage, (int)response.StatusCode);
                 }
 
                 await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
