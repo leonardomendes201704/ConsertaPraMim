@@ -301,6 +301,86 @@ WHERE Id = @leadId;
         Assert.True(reader.IsDBNull(5));
     }
 
+    [Fact(DisplayName = "UpsertTelegramLead deve persistir e expor vinculo Telegram no detalhe do lead")]
+    public void UpsertTelegramLead_DevePersistirEExporVinculoTelegramNoDetalhe()
+    {
+        using var database = new LocalDbKanbanDatabaseScope();
+        if (!database.IsAvailable)
+        {
+            return;
+        }
+
+        var service = CreateService(database.ConnectionString);
+        var chatbotConversationId = Guid.Parse("7d46e080-26f0-4a78-ae9c-50f75951ed88");
+        var clientId = Guid.Parse("9c7cbf35-0b16-4f3b-a68b-697b7b66c5d3");
+        var serviceRequestId = Guid.Parse("84eec1a7-e7dc-4f8f-a0c6-b0f6a3fec3fb");
+
+        var result = service.UpsertTelegramLead(new AdminKanbanTelegramLeadUpsertRequest
+        {
+            BoardType = AdminKanbanBoardTypes.Clients,
+            ChatbotConversationId = chatbotConversationId,
+            ChannelConversationId = "telegram-client-001",
+            TelegramChatId = 5513997114422,
+            ClientId = clientId,
+            ClientName = "Ricardo Almeida",
+            ClientEmail = "ricardo@email.com",
+            ServiceRequestId = serviceRequestId,
+            ServiceCategory = "Eletricista",
+            PostalCode = "11701-200",
+            City = "Praia Grande",
+            StatusNote = "Lead criado pelo bot Telegram para clientes.",
+            InternalNotes = "Contexto inicial da conversa Telegram.",
+            LastContactAt = new DateTime(2026, 3, 14, 12, 30, 0, DateTimeKind.Utc)
+        });
+
+        Assert.True(result.Created);
+
+        var synced = service.UpdateLeadChatwootSync(result.LeadId, new AdminKanbanLeadChatwootSyncUpdateRequest
+        {
+            ChatwootContactId = 901,
+            ChatwootConversationId = 902,
+            ChatwootInboxId = 1,
+            ChatwootSyncStatus = "synced",
+            ChatwootLastSyncAt = new DateTime(2026, 3, 14, 12, 35, 0, DateTimeKind.Utc)
+        });
+
+        Assert.True(synced);
+
+        var details = service.GetLeadDetails(result.LeadId);
+
+        Assert.NotNull(details);
+        Assert.Equal("Telegram", details!.Source);
+        Assert.Equal(chatbotConversationId, details.Telegram.ChatbotConversationId);
+        Assert.Equal("telegram-client-001", details.Telegram.ChannelConversationId);
+        Assert.Equal(5513997114422, details.Telegram.TelegramChatId);
+        Assert.Equal(clientId, details.Telegram.ClientId);
+        Assert.Equal("ricardo@email.com", details.Telegram.ClientEmail);
+        Assert.Equal(serviceRequestId, details.Telegram.ServiceRequestId);
+        Assert.True(details.Telegram.UpdatedAt.HasValue);
+        Assert.Equal(902, details.Chatwoot.ConversationId);
+        Assert.Contains(details.History, item => item.EventType == "telegram_lead_criado");
+
+        using var connection = new SqlConnection(database.ConnectionString);
+        connection.Open();
+
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+SELECT ChatbotConversationId, ChannelConversationId, TelegramChatId, ClientId, ClientEmail, ServiceRequestId
+FROM dbo.cpm_web_telegram_funil_links
+WHERE LeadId = @leadId;
+""";
+        command.Parameters.Add(new SqlParameter("@leadId", SqlDbType.Int) { Value = result.LeadId });
+
+        using var reader = command.ExecuteReader();
+        Assert.True(reader.Read());
+        Assert.Equal(chatbotConversationId, reader.GetGuid(0));
+        Assert.Equal("telegram-client-001", reader.GetString(1));
+        Assert.Equal(5513997114422L, reader.GetInt64(2));
+        Assert.Equal(clientId, reader.GetGuid(3));
+        Assert.Equal("ricardo@email.com", reader.GetString(4));
+        Assert.Equal(serviceRequestId, reader.GetGuid(5));
+    }
+
     [Fact(DisplayName = "Fila de sincronizacao Chatwoot deve enfileirar, adquirir e finalizar item")]
     public void ChatwootSyncQueue_DevePersistirLifecycleDaFila()
     {

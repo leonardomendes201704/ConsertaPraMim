@@ -17,6 +17,7 @@ Orientar validacao funcional e operacao basica do projeto `ConsertaPraMim.Web.Cp
 - O CPM Full cria ou atualiza lead apenas no board `clientes`.
 - A deduplicacao desta primeira fatia e feita por `ChatbotConversationId`.
 - O lead nasce com `Source = Telegram`, contexto inicial da conversa e vinculo tecnico persistido em `dbo.cpm_web_telegram_funil_links`.
+- O detalhe do lead no Kanban agora exibe a secao `Vinculo Telegram` com `ChatbotConversationId`, `ChannelConversationId`, `TelegramChatId`, `ClientId`, `ClientEmail`, `ServiceRequestId` e horario da ultima atualizacao do vinculo.
 - O Chatwoot continua sendo alimentado pela trilha ja existente do lead do Kanban.
 - O fluxo de `prestadores` e o enriquecimento automatico do telefone do cliente ficam para as proximas historias do epic `EPIC-TELEGRAM-001`.
 
@@ -58,11 +59,13 @@ No `ConsertaPraMim.Web.CpmFull`, configurar a secao `TelegramAutomation`:
 7. Acessar `/admin/funil/clientes` no CPM Full.
 8. Confirmar a criacao do lead com `Source = Telegram`.
 9. Abrir o detalhe do lead e validar historico com `Lead criado via bot Telegram`.
-10. Confirmar que o lead recebeu `StatusNote` e `InternalNotes` descrevendo a origem automatica.
-11. Validar que `Sync Chatwoot` foi atualizado pela trilha atual do Chatwoot.
-12. Reenviar mensagem na mesma conversa do bot, mantendo o contexto do pedido ja criado.
-13. Confirmar que o mesmo lead foi reaproveitado e recebeu historico `Lead atualizado via bot Telegram`.
-14. Consultar `dbo.cpm_web_telegram_funil_links` e validar um unico registro por `ChatbotConversationId`.
+10. Confirmar que o modal exibe a secao `Vinculo Telegram` com `Origem automatizada = Telegram`.
+11. Validar no modal os campos `Conversa bot Telegram`, `Conversa do canal`, `Chat ID Telegram`, `Cliente vinculado`, `E-mail autenticado` e `Pedido vinculado`.
+12. Confirmar que o lead recebeu `StatusNote` e `InternalNotes` descrevendo a origem automatica.
+13. Validar que `Sync Chatwoot` foi atualizado pela trilha atual do Chatwoot.
+14. Reenviar mensagem na mesma conversa do bot, mantendo o contexto do pedido ja criado.
+15. Confirmar que o mesmo lead foi reaproveitado e recebeu historico `Lead atualizado via bot Telegram`.
+16. Consultar `dbo.cpm_web_telegram_funil_links` e validar um unico registro por `ChatbotConversationId`.
 
 ### Troubleshooting
 
@@ -70,6 +73,7 @@ No `ConsertaPraMim.Web.CpmFull`, configurar a secao `TelegramAutomation`:
 - `409` com automacao desabilitada: conferir `TelegramAutomation:Enabled` e `ClientsAutomationEnabled` nos dois projetos.
 - Pedido criado, mas sem lead no CPM Full: revisar `TelegramAutomation:CpmFullBaseUrl`, reachability HTTP e logs do `TelegramLeadAutomationClient`.
 - Lead duplicado: validar se a mesma conversa esta preservando o mesmo `ChatbotConversationId` na trilha do chatbot.
+- Modal sem `Vinculo Telegram`: validar se existe registro em `dbo.cpm_web_telegram_funil_links` para o `LeadId` e se o detalhe do lead foi recarregado apos a automacao.
 - Lead sem telefone: comportamento esperado nesta primeira fatia; o contrato atual do bridge autenticado ainda nao expoe telefone do cliente para a automacao.
 
 ## Home - botao flutuante de WhatsApp

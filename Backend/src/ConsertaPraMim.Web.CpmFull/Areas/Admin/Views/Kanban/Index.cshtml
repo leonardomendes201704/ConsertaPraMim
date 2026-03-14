@@ -181,6 +181,18 @@
                     <div class="col-12 col-md-6"><strong>CEP / Cidade:</strong> <span id="detailsAddress"></span></div>
                     <div class="col-12 col-md-6"><strong>Fonte:</strong> <span id="detailsSource"></span></div>
                     <div class="col-12 col-md-6"><strong>Prioridade:</strong> <span id="detailsPriority"></span></div>
+                    <div class="col-12"><hr class="my-1" /></div>
+                    <div class="col-12"><h6 class="fw-bold mb-0">Vinculo Telegram</h6></div>
+                    <div class="col-12 col-md-6"><strong>Origem automatizada:</strong> <span id="detailsTelegramOrigin"></span></div>
+                    <div class="col-12 col-md-6"><strong>Ultima atualizacao do vinculo:</strong> <span id="detailsTelegramUpdatedAt"></span></div>
+                    <div class="col-12 col-md-6"><strong>Conversa bot Telegram:</strong> <span id="detailsTelegramChatbotConversationId"></span></div>
+                    <div class="col-12 col-md-6"><strong>Conversa do canal:</strong> <span id="detailsTelegramChannelConversationId"></span></div>
+                    <div class="col-12 col-md-6"><strong>Chat ID Telegram:</strong> <span id="detailsTelegramChatId"></span></div>
+                    <div class="col-12 col-md-6"><strong>Cliente vinculado:</strong> <span id="detailsTelegramClientId"></span></div>
+                    <div class="col-12 col-md-6"><strong>E-mail autenticado:</strong> <span id="detailsTelegramClientEmail"></span></div>
+                    <div class="col-12 col-md-6"><strong>Pedido vinculado:</strong> <span id="detailsTelegramServiceRequestId"></span></div>
+                    <div class="col-12"><hr class="my-1" /></div>
+                    <div class="col-12"><h6 class="fw-bold mb-0">Integracao Chatwoot</h6></div>
                     <div class="col-12 col-md-4"><strong>Contato Chatwoot:</strong> <span id="detailsChatwootContactId"></span></div>
                     <div class="col-12 col-md-4"><strong>Conversa Chatwoot:</strong> <span id="detailsChatwootConversationId"></span></div>
                     <div class="col-12 col-md-4"><strong>Inbox Chatwoot:</strong> <span id="detailsChatwootInboxId"></span></div>
@@ -913,6 +925,7 @@
             };
 
             const fillDetails = (lead) => {
+                const telegram = lead.telegram || {};
                 const chatwoot = lead.chatwoot || {};
                 const conversationLink = document.getElementById("openLeadChatwootConversationBtn");
                 document.getElementById("detailsName").textContent = lead.name || "-";
@@ -925,6 +938,14 @@
                 document.getElementById("detailsAddress").textContent = [lead.postalCode, lead.city].filter(Boolean).join(" / ") || "-";
                 document.getElementById("detailsSource").textContent = lead.source || "-";
                 document.getElementById("detailsPriority").textContent = lead.priority || "-";
+                document.getElementById("detailsTelegramOrigin").textContent = telegram.originLabel || (lead.source || "-");
+                document.getElementById("detailsTelegramUpdatedAt").textContent = telegram.updatedAt || "-";
+                document.getElementById("detailsTelegramChatbotConversationId").textContent = telegram.chatbotConversationId || "-";
+                document.getElementById("detailsTelegramChannelConversationId").textContent = telegram.channelConversationId || "-";
+                document.getElementById("detailsTelegramChatId").textContent = telegram.telegramChatId || "-";
+                document.getElementById("detailsTelegramClientId").textContent = telegram.clientId || "-";
+                document.getElementById("detailsTelegramClientEmail").textContent = telegram.clientEmail || "-";
+                document.getElementById("detailsTelegramServiceRequestId").textContent = telegram.serviceRequestId || "-";
                 document.getElementById("detailsChatwootContactId").textContent = chatwoot.contactId || "-";
                 document.getElementById("detailsChatwootConversationId").textContent = chatwoot.conversationId || "-";
                 document.getElementById("detailsChatwootInboxId").textContent = chatwoot.inboxId || "-";

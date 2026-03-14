@@ -72,6 +72,17 @@ public sealed class KanbanController : Controller
             createdAt = lead.CreatedAt.ToString("dd/MM/yyyy HH:mm"),
             updatedAt = lead.UpdatedAt?.ToString("dd/MM/yyyy HH:mm") ?? "-",
             lastContactAt = lead.LastContactAt?.ToString("yyyy-MM-ddTHH:mm") ?? string.Empty,
+            telegram = new
+            {
+                originLabel = string.Equals(lead.Source, "Telegram", StringComparison.OrdinalIgnoreCase) ? "Telegram" : "-",
+                chatbotConversationId = lead.Telegram.ChatbotConversationId?.ToString() ?? string.Empty,
+                channelConversationId = lead.Telegram.ChannelConversationId,
+                telegramChatId = lead.Telegram.TelegramChatId,
+                clientId = lead.Telegram.ClientId?.ToString() ?? string.Empty,
+                clientEmail = lead.Telegram.ClientEmail,
+                serviceRequestId = lead.Telegram.ServiceRequestId?.ToString() ?? string.Empty,
+                updatedAt = lead.Telegram.UpdatedAt?.ToString("dd/MM/yyyy HH:mm") ?? "-"
+            },
             chatwoot = new
             {
                 contactId = lead.Chatwoot.ContactId,

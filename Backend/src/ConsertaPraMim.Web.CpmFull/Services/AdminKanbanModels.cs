@@ -95,8 +95,20 @@ public sealed class AdminKanbanLeadDetailsRecord
     public DateTime CreatedAt { get; init; }
     public DateTime? UpdatedAt { get; init; }
     public DateTime? LastContactAt { get; init; }
+    public AdminKanbanLeadTelegramLinkRecord Telegram { get; init; } = new();
     public AdminKanbanLeadChatwootSyncRecord Chatwoot { get; init; } = new();
     public required IReadOnlyList<AdminKanbanLeadHistoryRecord> History { get; init; }
+}
+
+public sealed class AdminKanbanLeadTelegramLinkRecord
+{
+    public Guid? ChatbotConversationId { get; init; }
+    public string ChannelConversationId { get; init; } = string.Empty;
+    public long? TelegramChatId { get; init; }
+    public Guid? ClientId { get; init; }
+    public string ClientEmail { get; init; } = string.Empty;
+    public Guid? ServiceRequestId { get; init; }
+    public DateTime? UpdatedAt { get; init; }
 }
 
 public sealed class AdminKanbanLeadChatwootSyncRecord

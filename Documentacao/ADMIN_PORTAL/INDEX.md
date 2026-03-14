@@ -72,6 +72,7 @@
 
 ### Done
 
+- [ST-080 - Vinculo Telegram no detalhe do lead do CPM Full](STORIES/DONE/ST-080-vinculo-telegram-no-detalhe-do-lead-cpmfull.md)
 - [ST-079 - Bot Telegram cria lead de clientes no funil CPM Full](STORIES/DONE/ST-079-bot-telegram-cria-lead-clientes-funil-cpmfull.md)
 - [ST-078 - Diagramador ER em ReactFlow no Portal Admin](STORIES/DONE/ST-078-diagramador-er-reactflow-portal-admin.md)
 - [ST-077 - Mapa relacional das tabelas do banco no Portal Admin](STORIES/DONE/ST-077-mapa-relacional-tabelas-banco-admin.md)

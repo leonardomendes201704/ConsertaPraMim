@@ -12,6 +12,12 @@
 
 ## Released
 
+- [2026-03-14] [CPMFULL-022][TELEGRAM-US-04-VINCULO-OPERACIONAL-LEAD] Vínculo Telegram exposto no detalhe do lead do CPM Full
+- Tipo: feat
+- Resumo: o detalhe do lead do `ConsertaPraMim.Web.CpmFull` passou a carregar e exibir o vínculo técnico salvo em `dbo.cpm_web_telegram_funil_links`, incluindo `ChatbotConversationId`, `ChannelConversationId`, `TelegramChatId`, `ClientId`, `ClientEmail`, `ServiceRequestId` e a última atualização do link. O endpoint `GET /admin/funil/lead/{id}/json` agora retorna um bloco `telegram` dedicado para suporte operacional, enquanto o modal do Kanban ganhou a seção `Vinculo Telegram` para auditoria e reprocessamento sem consulta manual ao banco.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.CpmFull/Services/AdminKanbanModels.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Services/SqlAdminKanbanService.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Areas/Admin/Controllers/KanbanController.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Areas/Admin/Views/Kanban/Index.cshtml`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/SqlAdminKanbanServiceChatwootPersistenceTests.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/EPIC_TELEGRAM_AUTOMACAO_FUNIL_CPM.md`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/MANUAL_QA_OPERACAO.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-080-vinculo-telegram-no-detalhe-do-lead-cpmfull.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: baixo
+
 - [2026-03-14] [CPMFULL-021][TELEGRAM-US-01-US-02-CLIENTES-FUNIL] Automacao base do bot Telegram para criar/atualizar lead de clientes no CPM Full
 - Tipo: feat
 - Resumo: o `ConsertaPraMim.Web.TelegramBridge` passou a possuir configuracao `TelegramAutomation` validada e a disparar uma automacao interna do CPM Full logo apos `service_request_created` ou reentrada com pedido ja existente. O `ConsertaPraMim.Web.CpmFull` agora expõe o endpoint interno `POST /api/integrations/telegram/automation/lead`, protegido por segredo compartilhado, cria ou atualiza lead do board `clientes` com `Source = Telegram`, persiste o vinculo tecnico em `dbo.cpm_web_telegram_funil_links` com idempotencia por `ChatbotConversationId` e reaproveita a sincronizacao atual do Chatwoot a partir do lead do funil.

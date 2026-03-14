@@ -218,6 +218,7 @@ WHERE l.Id = @leadId AND l.IsActive = 1;
                     CreatedAt = reader.GetDateTime(14),
                     UpdatedAt = reader.IsDBNull(15) ? null : reader.GetDateTime(15),
                     LastContactAt = reader.IsDBNull(16) ? null : reader.GetDateTime(16),
+                    Telegram = new AdminKanbanLeadTelegramLinkRecord(),
                     Chatwoot = new AdminKanbanLeadChatwootSyncRecord
                     {
                         ContactId = ReadNullableInt64(reader, 17),
@@ -235,6 +236,40 @@ WHERE l.Id = @leadId AND l.IsActive = 1;
         if (details is null)
         {
             return null;
+        }
+
+        AdminKanbanLeadTelegramLinkRecord? telegramLink = null;
+        using (var telegramCommand = connection.CreateCommand())
+        {
+            telegramCommand.CommandText = $"""
+SELECT TOP (1)
+    ChatbotConversationId,
+    ChannelConversationId,
+    TelegramChatId,
+    ClientId,
+    ClientEmail,
+    ServiceRequestId,
+    UpdatedAt
+FROM dbo.{TablePrefix}telegram_funil_links
+WHERE LeadId = @leadId
+ORDER BY UpdatedAt DESC, Id DESC;
+""";
+            telegramCommand.Parameters.Add(new SqlParameter("@leadId", SqlDbType.Int) { Value = leadId });
+
+            using var reader = telegramCommand.ExecuteReader();
+            if (reader.Read())
+            {
+                telegramLink = new AdminKanbanLeadTelegramLinkRecord
+                {
+                    ChatbotConversationId = reader.IsDBNull(0) ? null : reader.GetGuid(0),
+                    ChannelConversationId = reader.IsDBNull(1) ? string.Empty : reader.GetString(1),
+                    TelegramChatId = ReadNullableInt64(reader, 2),
+                    ClientId = reader.IsDBNull(3) ? null : reader.GetGuid(3),
+                    ClientEmail = reader.IsDBNull(4) ? string.Empty : reader.GetString(4),
+                    ServiceRequestId = reader.IsDBNull(5) ? null : reader.GetGuid(5),
+                    UpdatedAt = reader.IsDBNull(6) ? null : reader.GetDateTime(6)
+                };
+            }
         }
 
         var history = new List<AdminKanbanLeadHistoryRecord>();
@@ -286,6 +321,7 @@ ORDER BY h.CreatedAt DESC, h.Id DESC;
             CreatedAt = details.CreatedAt,
             UpdatedAt = details.UpdatedAt,
             LastContactAt = details.LastContactAt,
+            Telegram = telegramLink ?? details.Telegram,
             Chatwoot = details.Chatwoot,
             History = history
         };

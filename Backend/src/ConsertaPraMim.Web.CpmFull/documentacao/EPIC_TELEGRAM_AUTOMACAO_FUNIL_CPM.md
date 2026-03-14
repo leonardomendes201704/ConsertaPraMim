@@ -200,6 +200,9 @@ Como operacao, queremos que fluxos do bot voltados a prestadores entrem automati
 ### Descricao
 Como sistema, quero rastrear com seguranca qual sessao do bot originou qual lead e qual conversa humana.
 
+### Status
+- Concluida em `2026-03-14` com exposicao operacional do vinculo no admin do CPM Full.
+
 ### Criterios de aceite
 1. Existe vinculo tecnico persistido entre `ChatbotConversation`, lead e Chatwoot.
 2. O vinculo pode ser consultado para reprocessamento, suporte e auditoria.
@@ -211,6 +214,13 @@ Como sistema, quero rastrear com seguranca qual sessao do bot originou qual lead
 - `TASK-04.03` Projetar `Source = Telegram` no CPM Full.
 - `TASK-04.04` Expor o vinculo no admin para suporte operacional.
 - `TASK-04.05` Criar testes de leitura/escrita do vinculo.
+
+### Entrega aplicada
+1. O detalhe do lead no Kanban passou a carregar o vinculo mais recente salvo em `dbo.cpm_web_telegram_funil_links`, incluindo `ChatbotConversationId`, `ChannelConversationId`, `TelegramChatId`, `ClientId`, `ClientEmail`, `ServiceRequestId` e `UpdatedAt`.
+2. O endpoint `GET /admin/funil/lead/{id}/json` do CPM Full agora expõe um bloco `telegram` dedicado para auditoria e suporte operacional.
+3. O modal de detalhes do lead ganhou a secao `Vinculo Telegram`, exibindo origem automatizada, IDs tecnicos da conversa, vinculo com cliente autenticado e pedido associado.
+4. O comportamento de `Source = Telegram` continuou preservado no detalhe do lead, reforcando a rastreabilidade entre bot, funil e Chatwoot.
+5. Foi adicionada cobertura de regressao para validar leitura e persistencia do vinculo Telegram no `SqlAdminKanbanService`.
 
 ## US-05 - Alimentar a inbox correta do Chatwoot via lead Telegram
 ### Descricao
