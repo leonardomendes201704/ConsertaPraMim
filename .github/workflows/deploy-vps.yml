@@ -641,6 +641,20 @@ jobs:
           PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL_VALUE="${{ secrets.PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL }}"
           PUBLIC_MOBILE_ADMIN_WEBVIEW_URL_VALUE="${{ secrets.PUBLIC_MOBILE_ADMIN_WEBVIEW_URL }}"
           ENFORCE_API_HTTPS_REDIRECTION_VALUE="${{ secrets.ENFORCE_API_HTTPS_REDIRECTION }}"
+          CPMFULL_CHATWOOT_ENABLED_VALUE="${{ secrets.CPMFULL_CHATWOOT_ENABLED }}"
+          CPMFULL_CHATWOOT_BASE_URL_VALUE="${{ secrets.CPMFULL_CHATWOOT_BASE_URL }}"
+          CPMFULL_CHATWOOT_API_ACCESS_TOKEN_VALUE="${{ secrets.CPMFULL_CHATWOOT_API_ACCESS_TOKEN }}"
+          CPMFULL_CHATWOOT_ACCOUNT_ID_VALUE="${{ secrets.CPMFULL_CHATWOOT_ACCOUNT_ID }}"
+          CPMFULL_CHATWOOT_CLIENTS_INBOX_ID_VALUE="${{ secrets.CPMFULL_CHATWOOT_CLIENTS_INBOX_ID }}"
+          CPMFULL_CHATWOOT_PROVIDERS_INBOX_ID_VALUE="${{ secrets.CPMFULL_CHATWOOT_PROVIDERS_INBOX_ID }}"
+          CPMFULL_CHATWOOT_WEBHOOK_SECRET_VALUE="${{ secrets.CPMFULL_CHATWOOT_WEBHOOK_SECRET }}"
+          CPMFULL_CHATWOOT_REQUEST_TIMEOUT_SECONDS_VALUE="${{ secrets.CPMFULL_CHATWOOT_REQUEST_TIMEOUT_SECONDS }}"
+          CPMFULL_CHATWOOT_MAX_RETRY_ATTEMPTS_VALUE="${{ secrets.CPMFULL_CHATWOOT_MAX_RETRY_ATTEMPTS }}"
+          CPMFULL_CHATWOOT_RETRY_BASE_DELAY_MS_VALUE="${{ secrets.CPMFULL_CHATWOOT_RETRY_BASE_DELAY_MS }}"
+          CPMFULL_CHATWOOT_RETRY_WORKER_ENABLED_VALUE="${{ secrets.CPMFULL_CHATWOOT_RETRY_WORKER_ENABLED }}"
+          CPMFULL_CHATWOOT_RETRY_WORKER_INTERVAL_SECONDS_VALUE="${{ secrets.CPMFULL_CHATWOOT_RETRY_WORKER_INTERVAL_SECONDS }}"
+          CPMFULL_CHATWOOT_RETRY_WORKER_BATCH_SIZE_VALUE="${{ secrets.CPMFULL_CHATWOOT_RETRY_WORKER_BATCH_SIZE }}"
+          CPMFULL_CHATWOOT_SYNC_QUEUE_MAX_ATTEMPTS_VALUE="${{ secrets.CPMFULL_CHATWOOT_SYNC_QUEUE_MAX_ATTEMPTS }}"
 
           if [[ -z "$PUBLIC_API_URL_VALUE" ]]; then
             PUBLIC_API_URL_VALUE="http://${VPS_PUBLIC_HOST_VALUE}:${{ env.API_PORT }}"
@@ -706,6 +720,20 @@ jobs:
           DB_HOST=${{ secrets.VPS_DB_HOST }}
           JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
           SEED_DEFAULT_PASSWORD=${{ secrets.SEED_DEFAULT_PASSWORD }}
+          CPMFULL_CHATWOOT_ENABLED=${CPMFULL_CHATWOOT_ENABLED_VALUE:-false}
+          CPMFULL_CHATWOOT_BASE_URL=$CPMFULL_CHATWOOT_BASE_URL_VALUE
+          CPMFULL_CHATWOOT_API_ACCESS_TOKEN=$CPMFULL_CHATWOOT_API_ACCESS_TOKEN_VALUE
+          CPMFULL_CHATWOOT_ACCOUNT_ID=${CPMFULL_CHATWOOT_ACCOUNT_ID_VALUE:-0}
+          CPMFULL_CHATWOOT_CLIENTS_INBOX_ID=${CPMFULL_CHATWOOT_CLIENTS_INBOX_ID_VALUE:-0}
+          CPMFULL_CHATWOOT_PROVIDERS_INBOX_ID=${CPMFULL_CHATWOOT_PROVIDERS_INBOX_ID_VALUE:-0}
+          CPMFULL_CHATWOOT_WEBHOOK_SECRET=$CPMFULL_CHATWOOT_WEBHOOK_SECRET_VALUE
+          CPMFULL_CHATWOOT_REQUEST_TIMEOUT_SECONDS=${CPMFULL_CHATWOOT_REQUEST_TIMEOUT_SECONDS_VALUE:-15}
+          CPMFULL_CHATWOOT_MAX_RETRY_ATTEMPTS=${CPMFULL_CHATWOOT_MAX_RETRY_ATTEMPTS_VALUE:-3}
+          CPMFULL_CHATWOOT_RETRY_BASE_DELAY_MS=${CPMFULL_CHATWOOT_RETRY_BASE_DELAY_MS_VALUE:-500}
+          CPMFULL_CHATWOOT_RETRY_WORKER_ENABLED=${CPMFULL_CHATWOOT_RETRY_WORKER_ENABLED_VALUE:-true}
+          CPMFULL_CHATWOOT_RETRY_WORKER_INTERVAL_SECONDS=${CPMFULL_CHATWOOT_RETRY_WORKER_INTERVAL_SECONDS_VALUE:-30}
+          CPMFULL_CHATWOOT_RETRY_WORKER_BATCH_SIZE=${CPMFULL_CHATWOOT_RETRY_WORKER_BATCH_SIZE_VALUE:-20}
+          CPMFULL_CHATWOOT_SYNC_QUEUE_MAX_ATTEMPTS=${CPMFULL_CHATWOOT_SYNC_QUEUE_MAX_ATTEMPTS_VALUE:-10}
           FIREBASE_SERVICE_ACCOUNT_PATH=${{ secrets.FIREBASE_SERVICE_ACCOUNT_PATH }}
           APK_RELEASE_PUSH_TOKEN=${{ secrets.APK_RELEASE_PUSH_TOKEN }}
           EOF
@@ -768,14 +796,48 @@ jobs:
                 echo "- Endpoint: $endpoint"
                 echo "- HTTP: $code"
               } >> "$GITHUB_STEP_SUMMARY"
-              exit 0
+              break
             fi
             sleep "$sleep_seconds"
           done
 
+          if [[ ! "$code" =~ ^2[0-9][0-9]$ && ! "$code" =~ ^3[0-9][0-9]$ ]]; then
+            echo "http_code=$code" >> "$GITHUB_OUTPUT"
+            echo "::error::Web CPM Full healthcheck failed at $endpoint (last HTTP $code)"
+            exit 1
+          fi
+
+          if [[ "${{ secrets.CPMFULL_CHATWOOT_ENABLED }}" == "true" ]]; then
+            base_endpoint="${endpoint%/health}"
+            chatwoot_endpoint="${base_endpoint}/internal/health/chatwoot"
+            chatwoot_payload="$(curl -k -sS "$chatwoot_endpoint" || true)"
+
+            echo "::group::Chatwoot health payload"
+            echo "$chatwoot_payload"
+            echo "::endgroup::"
+
+            if [[ -z "$chatwoot_payload" ]]; then
+              echo "::error::Chatwoot health endpoint returned empty payload at $chatwoot_endpoint"
+              exit 1
+            fi
+
+            if [[ "$chatwoot_payload" == *"Integracao Chatwoot desabilitada."* ]]; then
+              echo "::error::Chatwoot remained disabled after deploy at $chatwoot_endpoint"
+              exit 1
+            fi
+
+            if [[ "$chatwoot_payload" != *"\"status\":\"Healthy\""* ]]; then
+              echo "::error::Chatwoot healthcheck is not healthy at $chatwoot_endpoint"
+              exit 1
+            fi
+
+            {
+              echo "- Chatwoot endpoint: $chatwoot_endpoint"
+              echo "- Chatwoot payload: \`$chatwoot_payload\`"
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
           echo "http_code=$code" >> "$GITHUB_OUTPUT"
-          echo "::error::Web CPM Full healthcheck failed at $endpoint (last HTTP $code)"
-          exit 1
+          exit 0
 
       - name: Diagnostics Web CPM Full on failure
         if: failure()
