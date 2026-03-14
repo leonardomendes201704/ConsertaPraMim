@@ -357,6 +357,67 @@ Preencher a secao `Chatwoot` via `appsettings.Local.json` ou variaveis de ambien
 - Conversa duplicada apareceu: revisar se o contato possuia conversa no mesmo inbox do funil; o reaproveitamento ocorre por `contact_id + inbox_id`.
 - Dry-run trouxe lead como falha: normalmente indica ausencia de telefone e e-mail validos no cadastro do lead.
 
+## Integracao Chatwoot - observabilidade e diagnostico no Kanban
+
+### Objetivo
+
+- Dar visibilidade operacional imediata sobre sync, fila, dead-letter e erros recentes do Chatwoot sem sair do painel admin do funil.
+
+### Comportamento esperado
+
+- Toda requisicao web do CPM Full deve responder com header `X-Correlation-ID`.
+- Chamadas HTTP ao Chatwoot, webhook inbound, retentativas do worker e backfill devem reutilizar ou gerar `CorrelationId` estruturado nos logs.
+- O cabecalho do Kanban deve exibir contadores locais de:
+  - `Sincronizados`
+  - `Pendentes`
+  - `Falhas`
+- Cada card do funil deve exibir badge de status do Chatwoot:
+  - `Sincronizado`
+  - `Pendente`
+  - `Falha`
+  - `Ignorado`
+  - `Desabilitado`
+  - `Ainda nao sincronizado`
+- O cabecalho do funil deve expor o botao `Diagnostico Chatwoot`.
+- O diagnostico deve abrir em drawer lateral (`offcanvas`) com filtros de:
+  - `Escopo`
+  - `Limite por lista`
+- O drawer deve exibir:
+  - resumo com `Leads monitorados`, `Sincronizados`, `Pendentes`, `Falhas`, `Fila ativa` e `Dead-letter`;
+  - tabela de falhas recentes;
+  - tabela de fila/dead-letter recentes.
+- Cada linha do diagnostico deve permitir:
+  - `Ver lead`
+  - `Reprocessar`
+  - `Abrir no Chatwoot` quando houver `ChatwootConversationId`
+
+### Checklist de QA
+
+1. Acessar `/admin/funil/clientes` ou `/admin/funil/prestadores`.
+2. Confirmar que o topo mostra os contadores `Sincronizados`, `Pendentes` e `Falhas`.
+3. Validar que cards sincronizados exibem badge verde e cards com falha exibem badge vermelha.
+4. Abrir o detalhe de um lead ja sincronizado, acionar `Sincronizar Chatwoot` e confirmar que o badge do card atualiza sem precisar recarregar a pagina.
+5. Clicar em `Diagnostico Chatwoot`.
+6. Confirmar abertura do drawer lateral com os filtros `Escopo` e `Limite por lista`.
+7. Validar carregamento do resumo e das listas de falhas/fila.
+8. Alterar o `Escopo` para outro funil e clicar em `Aplicar filtros`.
+9. Confirmar que os cards do resumo e as tabelas passam a refletir o novo escopo.
+10. Clicar em `Limpar filtros` e validar retorno ao escopo padrao da tela atual.
+11. Em uma linha de falha, usar `Ver lead` e confirmar abertura do modal do lead correto.
+12. Em uma linha de falha ou fila, usar `Reprocessar` e confirmar exibicao de mensagem de sucesso/erro no proprio drawer.
+13. Se houver conversa vinculada, usar `Abrir no Chatwoot` e confirmar abertura da conversa em nova aba.
+14. Em ambiente publicado, validar `curl -I https://www.consertapramim.com/admin/funil/clientes` autenticado no browser e conferir o header `X-Correlation-ID` no DevTools.
+15. Validar em logs da aplicacao que um mesmo fluxo de sync/retry/webhook carrega o mesmo `CorrelationId`.
+
+### Troubleshooting
+
+- Drawer abre vazio: validar `GET /admin/funil/chatwoot/diagnostico/json` e conferir se o usuario esta autenticado no portal admin.
+- Contadores do topo nao batem com a tabela: confirmar se houve alteracao manual de banco sem refresh da pagina; o resumo do topo e recalculado no DOM conforme os cards atuais.
+- `Reprocessar` falha no drawer: validar `POST /admin/funil/lead/{id}/chatwoot/retentativa`, anti-forgery da pagina e o estado atual do lead.
+- `Abrir no Chatwoot` nao aparece: validar `ChatwootConversationId` no detalhe do lead e se `Chatwoot:BaseUrl` esta configurado.
+- Logs sem `CorrelationId`: validar se `CorrelationIdMiddleware` esta registrado logo apos `UseForwardedHeaders()` no `Program.cs`.
+- Correlation id diferente entre worker/backfill: validar se o fluxo foi disparado fora da requisicao HTTP; nesses casos o CPM Full gera um novo `CorrelationId` proprio por ciclo.
+
 ## Integracao Chatwoot - deploy da VPS
 
 ### Estado atual do ambiente

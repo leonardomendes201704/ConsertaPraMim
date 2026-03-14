@@ -1,3 +1,5 @@
+using AppMobileCPM.Integrations.Chatwoot;
+
 namespace AppMobileCPM.Areas.Admin.ViewModels;
 
 public sealed class AdminKanbanPageViewModel
@@ -9,6 +11,9 @@ public sealed class AdminKanbanPageViewModel
     public required string AlternateBoardLabel { get; init; }
     public required IReadOnlyList<AdminKanbanStageViewModel> Stages { get; init; }
     public int TotalLeads => Stages.Sum(stage => stage.Leads.Count);
+    public int ChatwootSyncedLeads => Stages.Sum(stage => stage.Leads.Count(lead => lead.IsChatwootSynced));
+    public int ChatwootFailedLeads => Stages.Sum(stage => stage.Leads.Count(lead => lead.IsChatwootFailed));
+    public int ChatwootPendingLeads => Math.Max(0, TotalLeads - ChatwootSyncedLeads - ChatwootFailedLeads);
 }
 
 public sealed class AdminKanbanStageViewModel
@@ -31,8 +36,17 @@ public sealed class AdminKanbanLeadCardViewModel
     public string Source { get; init; } = string.Empty;
     public string Priority { get; init; } = "normal";
     public string StatusNote { get; init; } = string.Empty;
+    public string ChatwootSyncStatus { get; init; } = string.Empty;
     public DateTime StageEnteredAt { get; init; }
     public DateTime CreatedAt { get; init; }
     public DateTime? UpdatedAt { get; init; }
     public DateTime? LastContactAt { get; init; }
+
+    public bool IsChatwootSynced =>
+        string.Equals(ChatwootSyncStatus, ChatwootSyncStatuses.Synced, StringComparison.OrdinalIgnoreCase);
+
+    public bool IsChatwootFailed =>
+        string.Equals(ChatwootSyncStatus, ChatwootSyncStatuses.Failed, StringComparison.OrdinalIgnoreCase);
+
+    public bool IsChatwootPending => !IsChatwootSynced && !IsChatwootFailed;
 }

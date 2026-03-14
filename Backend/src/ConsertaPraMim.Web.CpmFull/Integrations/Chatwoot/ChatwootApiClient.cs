@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using AppMobileCPM.Observability;
 using Microsoft.Extensions.Options;
 
 namespace AppMobileCPM.Integrations.Chatwoot;
@@ -305,11 +306,13 @@ public sealed class ChatwootApiClient : IChatwootApiClient
         CancellationToken cancellationToken)
     {
         var attempts = Math.Max(1, _options.MaxRetryAttempts);
+        var correlationId = ChatwootCorrelationContext.GetOrCreate("chatwoot-http");
 
         for (var attempt = 1; attempt <= attempts; attempt++)
         {
             using var request = new HttpRequestMessage(method, relativePath);
             request.Headers.TryAddWithoutValidation("api_access_token", _options.ApiAccessToken);
+            request.Headers.TryAddWithoutValidation(ChatwootCorrelationContext.HeaderName, correlationId);
 
             if (body is not null)
             {
@@ -321,10 +324,25 @@ public sealed class ChatwootApiClient : IChatwootApiClient
 
             try
             {
+                _logger.LogInformation(
+                    "Chatwoot HTTP request iniciada. CorrelationId={CorrelationId} Method={Method} Path={Path} Attempt={Attempt} MaxAttempts={MaxAttempts}",
+                    correlationId,
+                    method.Method,
+                    relativePath,
+                    attempt,
+                    attempts);
+
                 using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeoutCts.Token);
 
                 if (IsTransientStatusCode(response.StatusCode) && attempt < attempts)
                 {
+                    _logger.LogWarning(
+                        "Chatwoot HTTP respondeu com status transiente. CorrelationId={CorrelationId} Method={Method} Path={Path} StatusCode={StatusCode} Attempt={Attempt}",
+                        correlationId,
+                        method.Method,
+                        relativePath,
+                        (int)response.StatusCode,
+                        attempt);
                     await DelayBeforeRetryAsync(attempt, response.StatusCode, cancellationToken);
                     continue;
                 }
@@ -332,6 +350,12 @@ public sealed class ChatwootApiClient : IChatwootApiClient
                 if (!response.IsSuccessStatusCode)
                 {
                     var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
+                    _logger.LogError(
+                        "Chatwoot HTTP falhou. CorrelationId={CorrelationId} Method={Method} Path={Path} StatusCode={StatusCode}",
+                        correlationId,
+                        method.Method,
+                        relativePath,
+                        (int)response.StatusCode);
                     throw new ChatwootApiException(
                         $"Chatwoot retornou erro HTTP {(int)response.StatusCode} ao acessar '{relativePath}'. Resposta: {responseBody}",
                         (int)response.StatusCode);
@@ -339,15 +363,35 @@ public sealed class ChatwootApiClient : IChatwootApiClient
 
                 await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
                 var payload = await JsonSerializer.DeserializeAsync<TResponse>(stream, JsonOptions, cancellationToken);
+                _logger.LogInformation(
+                    "Chatwoot HTTP concluida. CorrelationId={CorrelationId} Method={Method} Path={Path} StatusCode={StatusCode} Attempt={Attempt}",
+                    correlationId,
+                    method.Method,
+                    relativePath,
+                    (int)response.StatusCode,
+                    attempt);
                 return payload ?? throw new ChatwootApiException("Chatwoot retornou payload vazio.");
             }
             catch (Exception ex) when (IsTransientException(ex) && attempt < attempts)
             {
-                _logger.LogWarning(ex, "Falha transiente ao acessar Chatwoot na tentativa {Attempt}/{MaxAttempts}.", attempt, attempts);
+                _logger.LogWarning(
+                    ex,
+                    "Falha transiente ao acessar Chatwoot. CorrelationId={CorrelationId} Method={Method} Path={Path} Attempt={Attempt} MaxAttempts={MaxAttempts}",
+                    correlationId,
+                    method.Method,
+                    relativePath,
+                    attempt,
+                    attempts);
                 await DelayBeforeRetryAsync(attempt, null, cancellationToken);
             }
         }
 
+        _logger.LogError(
+            "Chatwoot HTTP esgotou tentativas. CorrelationId={CorrelationId} Method={Method} Path={Path} MaxAttempts={MaxAttempts}",
+            correlationId,
+            method.Method,
+            relativePath,
+            attempts);
         throw new ChatwootApiException("Falha ao acessar Chatwoot apos esgotar as tentativas configuradas.");
     }
 
@@ -359,8 +403,9 @@ public sealed class ChatwootApiClient : IChatwootApiClient
         if (statusCode.HasValue)
         {
             _logger.LogWarning(
-                "Chatwoot respondeu com status transiente {StatusCode}. Nova tentativa em {DelayMs} ms.",
+                "Chatwoot respondeu com status transiente {StatusCode}. CorrelationId={CorrelationId} Nova tentativa em {DelayMs} ms.",
                 (int)statusCode.Value,
+                ChatwootCorrelationContext.GetOrCreate("chatwoot-http"),
                 delay.TotalMilliseconds);
         }
 

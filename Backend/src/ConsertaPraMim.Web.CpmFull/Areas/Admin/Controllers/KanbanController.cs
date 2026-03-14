@@ -335,6 +335,79 @@ public sealed class KanbanController : Controller
         }
     }
 
+    [HttpGet("chatwoot/diagnostico/json")]
+    public IActionResult ChatwootDiagnosticsJson([FromQuery] string? boardType, [FromQuery] int issueLimit = 10, [FromQuery] int queueLimit = 10)
+    {
+        if (!string.IsNullOrWhiteSpace(boardType) && !AdminKanbanBoardTypes.IsValid(boardType))
+        {
+            return BadRequest(new { success = false, message = "Tipo de funil invalido para diagnostico do Chatwoot." });
+        }
+
+        var requestedBoardType = string.IsNullOrWhiteSpace(boardType)
+            ? null
+            : AdminKanbanBoardTypes.Normalize(boardType);
+        var diagnostics = _kanbanService.GetChatwootDiagnostics(requestedBoardType, issueLimit, queueLimit);
+        var effectiveBoardType = string.IsNullOrWhiteSpace(diagnostics.ScopeBoardType)
+            ? string.Empty
+            : diagnostics.ScopeBoardType;
+
+        return Json(new
+        {
+            success = true,
+            enabled = _chatwootOptions.Enabled,
+            scope = new
+            {
+                boardType = effectiveBoardType,
+                boardLabel = FormatDiagnosticsScopeLabel(effectiveBoardType)
+            },
+            summary = new
+            {
+                totalLeads = diagnostics.TotalLeads,
+                syncedCount = diagnostics.SyncedCount,
+                pendingCount = diagnostics.PendingCount,
+                failedCount = diagnostics.FailedCount,
+                activeQueueCount = diagnostics.ActiveQueueCount,
+                deadLetterCount = diagnostics.DeadLetterCount
+            },
+            recentIssues = diagnostics.RecentIssues.Select(item => new
+            {
+                leadId = item.LeadId,
+                boardType = item.BoardType,
+                boardLabel = AdminKanbanBoardTypes.GetTitle(item.BoardType),
+                leadName = item.LeadName,
+                stageName = item.StageName,
+                syncStatus = item.SyncStatus,
+                syncStatusLabel = FormatChatwootSyncStatusLabel(item.SyncStatus),
+                lastSyncAt = item.LastSyncAt?.ToString("dd/MM/yyyy HH:mm") ?? "-",
+                lastError = string.IsNullOrWhiteSpace(item.LastError) ? "-" : item.LastError,
+                contactId = item.ContactId,
+                conversationId = item.ConversationId,
+                inboxId = item.InboxId,
+                conversationUrl = BuildChatwootConversationUrl(item.ConversationId)
+            }),
+            recentQueueItems = diagnostics.RecentQueueItems.Select(item => new
+            {
+                queueItemId = item.QueueItemId,
+                leadId = item.LeadId,
+                boardType = item.BoardType,
+                boardLabel = AdminKanbanBoardTypes.GetTitle(item.BoardType),
+                leadName = item.LeadName,
+                stageName = item.StageName,
+                operationType = item.OperationType,
+                operationLabel = FormatQueueOperationLabel(item.OperationType),
+                status = item.Status,
+                statusLabel = FormatQueueStatusLabel(item.Status),
+                attemptCount = item.AttemptCount,
+                maxAttempts = item.MaxAttempts,
+                nextAttemptAt = item.NextAttemptAt.ToString("dd/MM/yyyy HH:mm"),
+                lastAttemptAt = item.LastAttemptAt?.ToString("dd/MM/yyyy HH:mm") ?? "-",
+                lastError = string.IsNullOrWhiteSpace(item.LastError) ? "-" : item.LastError,
+                conversationId = item.ConversationId,
+                conversationUrl = BuildChatwootConversationUrl(item.ConversationId)
+            })
+        });
+    }
+
     [HttpPost("lead/ordem")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> SaveOrder([FromBody] AdminKanbanOrderInputModel model)
@@ -444,6 +517,7 @@ public sealed class KanbanController : Controller
                     Source = lead.Source,
                     Priority = lead.Priority,
                     StatusNote = lead.StatusNote,
+                    ChatwootSyncStatus = lead.ChatwootSyncStatus,
                     StageEnteredAt = lead.StageEnteredAt,
                     CreatedAt = lead.CreatedAt,
                     UpdatedAt = lead.UpdatedAt,
@@ -505,6 +579,32 @@ public sealed class KanbanController : Controller
             ChatwootBackfillItemStatuses.Skipped => "Ignorado",
             _ => "Falha"
         };
+
+    private static string FormatQueueStatusLabel(string? status) =>
+        (status ?? string.Empty).Trim().ToLowerInvariant() switch
+        {
+            ChatwootSyncQueueStatuses.Queued => "Na fila",
+            ChatwootSyncQueueStatuses.Processing => "Processando",
+            ChatwootSyncQueueStatuses.Retrying => "Aguardando retentativa",
+            ChatwootSyncQueueStatuses.Processed => "Processado",
+            ChatwootSyncQueueStatuses.DeadLetter => "Esgotado",
+            _ => "Fila Chatwoot"
+        };
+
+    private static string FormatQueueOperationLabel(string? operationType) =>
+        (operationType ?? string.Empty).Trim().ToLowerInvariant() switch
+        {
+            ChatwootSyncOperationTypes.LeadSync => "Sincronizacao do lead",
+            ChatwootSyncOperationTypes.StageSync => "Sincronizacao da etapa",
+            _ => "Operacao Chatwoot"
+        };
+
+    private static string FormatDiagnosticsScopeLabel(string? boardType)
+    {
+        return string.IsNullOrWhiteSpace(boardType)
+            ? "Clientes e prestadores"
+            : AdminKanbanBoardTypes.GetTitle(boardType);
+    }
 
     private string BuildChatwootConversationUrl(long? conversationId)
     {

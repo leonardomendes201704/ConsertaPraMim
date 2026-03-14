@@ -16,6 +16,26 @@
         _ => "text-bg-primary"
     };
 
+    static string ChatwootSyncStatusLabel(string? syncStatus) => (syncStatus ?? string.Empty).Trim().ToLowerInvariant() switch
+    {
+        "synced" => "Sincronizado",
+        "failed" => "Falha",
+        "pending" => "Pendente",
+        "skipped" => "Ignorado",
+        "disabled" => "Desabilitado",
+        _ => "Ainda nao sincronizado"
+    };
+
+    static string ChatwootSyncBadgeClass(string? syncStatus) => (syncStatus ?? string.Empty).Trim().ToLowerInvariant() switch
+    {
+        "synced" => "text-bg-success",
+        "failed" => "text-bg-danger",
+        "pending" => "text-bg-warning",
+        "skipped" => "text-bg-secondary",
+        "disabled" => "text-bg-dark",
+        _ => "text-bg-light border text-secondary"
+    };
+
     static string ToRgba(string hexColor, double alpha)
     {
         var normalized = (hexColor ?? string.Empty).Trim().TrimStart('#');
@@ -50,6 +70,9 @@
         <a class="btn btn-outline-secondary" href="@Model.AlternateBoardUrl">
             @Model.AlternateBoardLabel
         </a>
+        <button type="button" class="btn btn-outline-dark" data-bs-toggle="offcanvas" data-bs-target="#chatwootDiagnosticsDrawer" aria-controls="chatwootDiagnosticsDrawer">
+            Diagnostico Chatwoot
+        </button>
         <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#chatwootBackfillModal">
             Backfill Chatwoot
         </button>
@@ -63,8 +86,11 @@
     @Html.AntiForgeryToken()
 </form>
 
-<div class="small text-secondary mb-3">
-    Total de leads: <strong>@Model.TotalLeads</strong>
+<div class="d-flex flex-wrap align-items-center gap-2 small text-secondary mb-3">
+    <span>Total de leads: <strong>@Model.TotalLeads</strong></span>
+    <span class="badge rounded-pill text-bg-success">Sincronizados: <span id="chatwootSyncedCount">@Model.ChatwootSyncedLeads</span></span>
+    <span class="badge rounded-pill text-bg-warning">Pendentes: <span id="chatwootPendingCount">@Model.ChatwootPendingLeads</span></span>
+    <span class="badge rounded-pill text-bg-danger">Falhas: <span id="chatwootFailedCount">@Model.ChatwootFailedLeads</span></span>
 </div>
 
 <div class="cpm-kanban-wrap">
@@ -93,12 +119,18 @@
                             class="cpm-lead-card"
                             data-lead-id="@lead.Id"
                             data-stage-id="@lead.StageId"
+                            data-chatwoot-sync-status="@lead.ChatwootSyncStatus"
                             data-stage-entered-at-ms="@(new DateTimeOffset(lead.StageEnteredAt).ToUnixTimeMilliseconds())"
                             role="button"
                             tabindex="0">
                             <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
                                 <strong class="text-truncate" title="@lead.Name">@lead.Name</strong>
                                 <span class="badge @PriorityBadgeClass(lead.Priority)">@PriorityLabel(lead.Priority)</span>
+                            </div>
+                            <div class="d-flex flex-wrap gap-2 mb-2">
+                                <span class="badge rounded-pill @ChatwootSyncBadgeClass(lead.ChatwootSyncStatus)" data-chatwoot-sync-badge>
+                                    @ChatwootSyncStatusLabel(lead.ChatwootSyncStatus)
+                                </span>
                             </div>
                             <div class="small text-secondary d-grid gap-1">
                                 @if (!string.IsNullOrWhiteSpace(lead.ServiceCategory))
@@ -292,6 +324,102 @@
     </div>
 </div>
 
+<div class="offcanvas offcanvas-end" tabindex="-1" id="chatwootDiagnosticsDrawer" aria-labelledby="chatwootDiagnosticsDrawerLabel">
+    <div class="offcanvas-header">
+        <div>
+            <h5 class="offcanvas-title fw-bold" id="chatwootDiagnosticsDrawerLabel">Diagnostico Chatwoot</h5>
+            <div class="small text-secondary">Visao operacional da sincronizacao por lead, fila e erros recentes.</div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Fechar"></button>
+    </div>
+    <div class="offcanvas-body d-flex flex-column gap-3">
+        <div class="border rounded-3 p-3 bg-light">
+            <div class="row g-3">
+                <div class="col-12">
+                    <label for="chatwootDiagnosticsBoardScope" class="form-label">Escopo</label>
+                    <select id="chatwootDiagnosticsBoardScope" class="form-select">
+                        <option value="">Clientes e prestadores</option>
+                        @if (Model.BoardType == "clientes")
+                        {
+                            <option value="clientes" selected>Funil de clientes</option>
+                        }
+                        else
+                        {
+                            <option value="clientes">Funil de clientes</option>
+                        }
+                        @if (Model.BoardType == "prestadores")
+                        {
+                            <option value="prestadores" selected>Funil de prestadores</option>
+                        }
+                        else
+                        {
+                            <option value="prestadores">Funil de prestadores</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-12">
+                    <label for="chatwootDiagnosticsLimit" class="form-label">Limite por lista</label>
+                    <input id="chatwootDiagnosticsLimit" type="number" min="1" max="50" class="form-control" value="10" />
+                </div>
+            </div>
+            <div class="d-flex flex-wrap gap-2 mt-3">
+                <button type="button" id="applyChatwootDiagnosticsFiltersBtn" class="btn btn-primary">Aplicar filtros</button>
+                <button type="button" id="resetChatwootDiagnosticsFiltersBtn" class="btn btn-outline-secondary">Limpar filtros</button>
+            </div>
+        </div>
+
+        <div id="chatwootDiagnosticsAlert" class="alert alert-secondary mb-0 d-none"></div>
+
+        <section>
+            <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+                <h6 class="fw-bold mb-0">Resumo</h6>
+                <button type="button" id="refreshChatwootDiagnosticsBtn" class="btn btn-sm btn-outline-secondary">Atualizar</button>
+            </div>
+            <div id="chatwootDiagnosticsSummaryCards" class="cpm-chatwoot-diagnostics-grid"></div>
+        </section>
+
+        <section>
+            <h6 class="fw-bold mb-2">Falhas recentes</h6>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Lead</th>
+                            <th>Status</th>
+                            <th>Erro</th>
+                            <th class="text-end">Acoes</th>
+                        </tr>
+                    </thead>
+                    <tbody id="chatwootDiagnosticsIssueRows">
+                        <tr><td colspan="4" class="text-secondary">Nenhum erro recente carregado.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section>
+            <h6 class="fw-bold mb-2">Fila e dead-letter</h6>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Lead</th>
+                            <th>Operacao</th>
+                            <th>Status</th>
+                            <th>Tentativas</th>
+                            <th>Proxima</th>
+                            <th class="text-end">Acoes</th>
+                        </tr>
+                    </thead>
+                    <tbody id="chatwootDiagnosticsQueueRows">
+                        <tr><td colspan="6" class="text-secondary">Nenhum item de fila carregado.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+</div>
+
 @section Head {
     <style>
         .cpm-kanban-wrap { overflow-x: auto; padding-bottom: 0.5rem; }
@@ -340,6 +468,10 @@
         }
         body.cpm-drag-active { cursor: grabbing; }
         body.cpm-drag-active .cpm-lead-card { cursor: grabbing !important; }
+        .cpm-chatwoot-diagnostics-grid { display: grid; gap: 0.75rem; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+        .cpm-chatwoot-summary-card { border: 1px solid #dfe6f0; border-radius: 0.85rem; background: #fff; padding: 0.85rem; }
+        .cpm-chatwoot-summary-card strong { display: block; font-size: 1.35rem; line-height: 1.1; }
+        .cpm-chatwoot-summary-card span { color: #6c757d; font-size: 0.85rem; }
     </style>
 }
 
@@ -355,10 +487,14 @@
             const createModalEl = document.getElementById("createLeadModal");
             const editModalEl = document.getElementById("editLeadModal");
             const backfillModalEl = document.getElementById("chatwootBackfillModal");
+            const diagnosticsDrawerEl = document.getElementById("chatwootDiagnosticsDrawer");
             const detailsModal = detailsModalEl ? new bootstrap.Modal(detailsModalEl) : null;
             const createModal = createModalEl ? new bootstrap.Modal(createModalEl) : null;
             const editModal = editModalEl ? new bootstrap.Modal(editModalEl) : null;
             const backfillModal = backfillModalEl ? new bootstrap.Modal(backfillModalEl) : null;
+            const diagnosticsDrawer = diagnosticsDrawerEl ? new bootstrap.Offcanvas(diagnosticsDrawerEl) : null;
+            const defaultDiagnosticsBoardScope = boardType;
+            const defaultDiagnosticsLimit = 10;
 
             let currentLead = null;
 
@@ -370,7 +506,8 @@
                 update: "/admin/funil/lead/editar",
                 order: "/admin/funil/lead/ordem",
                 note: "/admin/funil/lead/nota",
-                backfill: "/admin/funil/chatwoot/backfill"
+                backfill: "/admin/funil/chatwoot/backfill",
+                diagnostics: "/admin/funil/chatwoot/diagnostico/json"
             };
 
             const postJson = async (url, payload) => {
@@ -400,6 +537,24 @@
                 .replaceAll(">", "&gt;")
                 .replaceAll("\"", "&quot;")
                 .replaceAll("'", "&#39;");
+            const normalizeChatwootSyncStatus = (value) => (value || "").trim().toLowerCase();
+            const getChatwootStatusMeta = (value) => {
+                const status = normalizeChatwootSyncStatus(value);
+                switch (status) {
+                    case "synced":
+                        return { label: "Sincronizado", className: "text-bg-success" };
+                    case "failed":
+                        return { label: "Falha", className: "text-bg-danger" };
+                    case "pending":
+                        return { label: "Pendente", className: "text-bg-warning" };
+                    case "skipped":
+                        return { label: "Ignorado", className: "text-bg-secondary" };
+                    case "disabled":
+                        return { label: "Desabilitado", className: "text-bg-dark" };
+                    default:
+                        return { label: "Ainda nao sincronizado", className: "text-bg-light border text-secondary" };
+                }
+            };
 
             const formatStageAge = (enteredAtMsText) => {
                 const enteredAtMs = Number.parseInt(enteredAtMsText || "", 10);
@@ -460,6 +615,218 @@
                     const count = list.querySelectorAll(".cpm-lead-card").length;
                     countBadge.textContent = formatCardCount(count);
                 });
+            };
+
+            const updateChatwootSummary = () => {
+                const cards = Array.from(document.querySelectorAll(".cpm-lead-card"));
+                let synced = 0;
+                let failed = 0;
+                cards.forEach((card) => {
+                    const status = normalizeChatwootSyncStatus(card.dataset.chatwootSyncStatus || "");
+                    if (status === "synced") {
+                        synced++;
+                    } else if (status === "failed") {
+                        failed++;
+                    }
+                });
+
+                const pending = Math.max(0, cards.length - synced - failed);
+                const syncedEl = document.getElementById("chatwootSyncedCount");
+                const pendingEl = document.getElementById("chatwootPendingCount");
+                const failedEl = document.getElementById("chatwootFailedCount");
+                if (syncedEl) syncedEl.textContent = String(synced);
+                if (pendingEl) pendingEl.textContent = String(pending);
+                if (failedEl) failedEl.textContent = String(failed);
+            };
+
+            const updateLeadCardSyncState = (lead) => {
+                if (!lead?.id) {
+                    return;
+                }
+
+                const card = document.querySelector(`.cpm-lead-card[data-lead-id="${lead.id}"]`);
+                if (!card) {
+                    return;
+                }
+
+                const status = lead.chatwoot?.syncStatus || "";
+                const statusMeta = getChatwootStatusMeta(status);
+                card.dataset.chatwootSyncStatus = status;
+
+                const badge = card.querySelector("[data-chatwoot-sync-badge]");
+                if (badge) {
+                    badge.className = `badge rounded-pill ${statusMeta.className}`;
+                    badge.textContent = statusMeta.label;
+                }
+
+                updateChatwootSummary();
+            };
+
+            const getDiagnosticsFilters = () => ({
+                boardType: document.getElementById("chatwootDiagnosticsBoardScope")?.value || "",
+                limit: Number(document.getElementById("chatwootDiagnosticsLimit")?.value || String(defaultDiagnosticsLimit))
+            });
+
+            const setDiagnosticsAlert = (message, level = "secondary") => {
+                const alert = document.getElementById("chatwootDiagnosticsAlert");
+                if (!alert) {
+                    return;
+                }
+
+                if (!message) {
+                    alert.className = "alert alert-secondary mb-0 d-none";
+                    alert.textContent = "";
+                    return;
+                }
+
+                alert.className = `alert alert-${level} mb-0`;
+                alert.textContent = message;
+            };
+
+            const resetDiagnosticsTables = () => {
+                const summary = document.getElementById("chatwootDiagnosticsSummaryCards");
+                const issues = document.getElementById("chatwootDiagnosticsIssueRows");
+                const queue = document.getElementById("chatwootDiagnosticsQueueRows");
+                setDiagnosticsAlert("");
+
+                if (summary) {
+                    summary.innerHTML = "";
+                }
+
+                if (issues) {
+                    issues.innerHTML = "<tr><td colspan='4' class='text-secondary'>Nenhum erro recente carregado.</td></tr>";
+                }
+
+                if (queue) {
+                    queue.innerHTML = "<tr><td colspan='6' class='text-secondary'>Nenhum item de fila carregado.</td></tr>";
+                }
+            };
+
+            const renderDiagnosticsSummary = (summary) => {
+                const container = document.getElementById("chatwootDiagnosticsSummaryCards");
+                if (!container) {
+                    return;
+                }
+
+                const items = [
+                    { value: summary?.totalLeads ?? 0, label: "Leads monitorados" },
+                    { value: summary?.syncedCount ?? 0, label: "Sincronizados" },
+                    { value: summary?.pendingCount ?? 0, label: "Pendentes" },
+                    { value: summary?.failedCount ?? 0, label: "Falhas" },
+                    { value: summary?.activeQueueCount ?? 0, label: "Fila ativa" },
+                    { value: summary?.deadLetterCount ?? 0, label: "Dead-letter" }
+                ];
+
+                container.innerHTML = items.map((item) => `
+                    <article class="cpm-chatwoot-summary-card">
+                        <strong>${escapeHtml(String(item.value))}</strong>
+                        <span>${escapeHtml(item.label)}</span>
+                    </article>
+                `).join("");
+            };
+
+            const renderDiagnosticsIssues = (issues) => {
+                const rows = document.getElementById("chatwootDiagnosticsIssueRows");
+                if (!rows) {
+                    return;
+                }
+
+                if (!Array.isArray(issues) || !issues.length) {
+                    rows.innerHTML = "<tr><td colspan='4' class='text-secondary'>Nenhuma falha recente para o filtro selecionado.</td></tr>";
+                    return;
+                }
+
+                rows.innerHTML = issues.map((item) => `
+                    <tr>
+                        <td>
+                            <div class="fw-semibold">${escapeHtml(item.leadName || "-")}</div>
+                            <div class="small text-secondary">#${escapeHtml(String(item.leadId || "-"))} • ${escapeHtml(item.boardLabel || "-")} • ${escapeHtml(item.stageName || "-")}</div>
+                            <div class="small text-secondary">Ultima sync: ${escapeHtml(item.lastSyncAt || "-")}</div>
+                        </td>
+                        <td><span class="badge ${escapeHtml(getChatwootStatusMeta(item.syncStatus).className)}">${escapeHtml(item.syncStatusLabel || "-")}</span></td>
+                        <td class="small">${escapeHtml(item.lastError || "-")}</td>
+                        <td class="text-end">
+                            <div class="d-flex flex-wrap justify-content-end gap-2">
+                                <button type="button" class="btn btn-sm btn-outline-primary" data-chatwoot-open-lead="${escapeHtml(String(item.leadId || 0))}">Ver lead</button>
+                                <button type="button" class="btn btn-sm btn-outline-warning" data-chatwoot-retry="${escapeHtml(String(item.leadId || 0))}">Reprocessar</button>
+                                ${item.conversationUrl
+                                    ? `<a class="btn btn-sm btn-outline-secondary" href="${escapeHtml(item.conversationUrl)}" target="_blank" rel="noopener noreferrer">Abrir no Chatwoot</a>`
+                                    : ""}
+                            </div>
+                        </td>
+                    </tr>
+                `).join("");
+            };
+
+            const renderDiagnosticsQueue = (queueItems) => {
+                const rows = document.getElementById("chatwootDiagnosticsQueueRows");
+                if (!rows) {
+                    return;
+                }
+
+                if (!Array.isArray(queueItems) || !queueItems.length) {
+                    rows.innerHTML = "<tr><td colspan='6' class='text-secondary'>Nenhum item ativo ou esgotado para o filtro selecionado.</td></tr>";
+                    return;
+                }
+
+                rows.innerHTML = queueItems.map((item) => `
+                    <tr>
+                        <td>
+                            <div class="fw-semibold">${escapeHtml(item.leadName || "-")}</div>
+                            <div class="small text-secondary">#${escapeHtml(String(item.leadId || "-"))} • ${escapeHtml(item.boardLabel || "-")} • ${escapeHtml(item.stageName || "-")}</div>
+                        </td>
+                        <td class="small">${escapeHtml(item.operationLabel || "-")}</td>
+                        <td><span class="badge text-bg-secondary">${escapeHtml(item.statusLabel || "-")}</span></td>
+                        <td class="small">${escapeHtml(String(item.attemptCount || 0))} / ${escapeHtml(String(item.maxAttempts || 0))}</td>
+                        <td class="small">${escapeHtml(item.nextAttemptAt || "-")}</td>
+                        <td class="text-end">
+                            <div class="d-flex flex-wrap justify-content-end gap-2">
+                                <button type="button" class="btn btn-sm btn-outline-primary" data-chatwoot-open-lead="${escapeHtml(String(item.leadId || 0))}">Ver lead</button>
+                                <button type="button" class="btn btn-sm btn-outline-warning" data-chatwoot-retry="${escapeHtml(String(item.leadId || 0))}">Reprocessar</button>
+                                ${item.conversationUrl
+                                    ? `<a class="btn btn-sm btn-outline-secondary" href="${escapeHtml(item.conversationUrl)}" target="_blank" rel="noopener noreferrer">Abrir no Chatwoot</a>`
+                                    : ""}
+                            </div>
+                        </td>
+                    </tr>
+                `).join("");
+            };
+
+            const loadChatwootDiagnostics = async (showLoadingMessage = false) => {
+                const { boardType: diagnosticsBoardType, limit } = getDiagnosticsFilters();
+                const safeLimit = Number.isFinite(limit) ? Math.min(Math.max(limit, 1), 50) : defaultDiagnosticsLimit;
+                const query = new URLSearchParams();
+                if (diagnosticsBoardType) {
+                    query.set("boardType", diagnosticsBoardType);
+                }
+
+                query.set("issueLimit", String(safeLimit));
+                query.set("queueLimit", String(safeLimit));
+
+                if (showLoadingMessage) {
+                    setDiagnosticsAlert("Carregando diagnostico do Chatwoot...", "secondary");
+                }
+
+                const response = await fetch(`${endpoint.diagnostics}?${query.toString()}`, {
+                    headers: { Accept: "application/json" }
+                });
+
+                let data = null;
+                try { data = await response.json(); } catch { }
+                if (!response.ok || !data?.success) {
+                    throw new Error(data?.message || "Nao foi possivel carregar o diagnostico do Chatwoot.");
+                }
+
+                renderDiagnosticsSummary(data.summary || {});
+                renderDiagnosticsIssues(data.recentIssues || []);
+                renderDiagnosticsQueue(data.recentQueueItems || []);
+                setDiagnosticsAlert(
+                    data.enabled
+                        ? `Escopo atual: ${data.scope?.boardLabel || "Clientes e prestadores"}.`
+                        : "Integracao com Chatwoot desabilitada neste ambiente. Os dados exibidos refletem apenas o estado local salvo.",
+                    data.enabled ? "secondary" : "warning");
+
+                return data;
             };
 
             const serializeBoardOrder = (changedLeadId, fromStageId, toStageId) => {
@@ -574,6 +941,7 @@
                     }
                 }
                 renderHistory(lead.history || []);
+                updateLeadCardSyncState(lead);
             };
 
             const resetBackfillResult = () => {
@@ -841,7 +1209,96 @@
                 }
             });
 
+            diagnosticsDrawerEl?.addEventListener("show.bs.offcanvas", async () => {
+                resetDiagnosticsTables();
+                try {
+                    await loadChatwootDiagnostics(true);
+                } catch (error) {
+                    setDiagnosticsAlert(error.message || "Nao foi possivel carregar o diagnostico do Chatwoot.", "danger");
+                }
+            });
+
+            document.getElementById("applyChatwootDiagnosticsFiltersBtn")?.addEventListener("click", async () => {
+                try {
+                    await loadChatwootDiagnostics(true);
+                } catch (error) {
+                    setDiagnosticsAlert(error.message || "Nao foi possivel aplicar os filtros do diagnostico.", "danger");
+                }
+            });
+
+            document.getElementById("resetChatwootDiagnosticsFiltersBtn")?.addEventListener("click", async () => {
+                const boardScopeInput = document.getElementById("chatwootDiagnosticsBoardScope");
+                const limitInput = document.getElementById("chatwootDiagnosticsLimit");
+                if (boardScopeInput) {
+                    boardScopeInput.value = defaultDiagnosticsBoardScope;
+                }
+
+                if (limitInput) {
+                    limitInput.value = String(defaultDiagnosticsLimit);
+                }
+
+                try {
+                    await loadChatwootDiagnostics(true);
+                } catch (error) {
+                    setDiagnosticsAlert(error.message || "Nao foi possivel limpar os filtros do diagnostico.", "danger");
+                }
+            });
+
+            document.getElementById("refreshChatwootDiagnosticsBtn")?.addEventListener("click", async () => {
+                try {
+                    await loadChatwootDiagnostics(true);
+                } catch (error) {
+                    setDiagnosticsAlert(error.message || "Nao foi possivel atualizar o diagnostico do Chatwoot.", "danger");
+                }
+            });
+
+            diagnosticsDrawerEl?.addEventListener("click", async (event) => {
+                const retryButton = event.target.closest("[data-chatwoot-retry]");
+                if (retryButton) {
+                    const leadId = Number(retryButton.getAttribute("data-chatwoot-retry") || "0");
+                    if (!leadId) {
+                        return;
+                    }
+
+                    retryButton.setAttribute("disabled", "disabled");
+                    try {
+                        const response = await postJson(endpoint.retry(leadId), {});
+                        setDiagnosticsAlert(response.message || "Retentativa do Chatwoot enfileirada.", "success");
+                        if (currentLead?.id === leadId) {
+                            currentLead = await loadLeadDetails(leadId);
+                            fillDetails(currentLead);
+                        }
+
+                        await loadChatwootDiagnostics();
+                    } catch (error) {
+                        setDiagnosticsAlert(error.message || "Nao foi possivel enfileirar a retentativa do Chatwoot.", "danger");
+                    } finally {
+                        retryButton.removeAttribute("disabled");
+                    }
+
+                    return;
+                }
+
+                const openLeadButton = event.target.closest("[data-chatwoot-open-lead]");
+                if (openLeadButton) {
+                    const leadId = Number(openLeadButton.getAttribute("data-chatwoot-open-lead") || "0");
+                    if (!leadId) {
+                        return;
+                    }
+
+                    try {
+                        currentLead = await loadLeadDetails(leadId);
+                        fillDetails(currentLead);
+                        diagnosticsDrawer?.hide();
+                        detailsModal?.show();
+                    } catch (error) {
+                        setDiagnosticsAlert(error.message || "Nao foi possivel carregar o lead selecionado.", "danger");
+                    }
+                }
+            });
+
             updateStageCounts();
+            updateChatwootSummary();
             updateAllCardStageAges();
             window.setInterval(updateAllCardStageAges, 60000);
         })();

@@ -1,3 +1,4 @@
+using AppMobileCPM.Observability;
 using AppMobileCPM.Services;
 using Microsoft.Extensions.Options;
 
@@ -21,6 +22,7 @@ public sealed class ChatwootSyncQueueService : IChatwootSyncQueueService
 
     public void EnqueueRetry(int leadId, string operationType, string reason, bool runImmediately = false)
     {
+        var correlationId = ChatwootCorrelationContext.GetOrCreate($"chatwoot-queue-{leadId}");
         var normalizedOperationType = NormalizeOperationType(operationType);
         var utcNow = DateTime.UtcNow;
         var queueItem = _kanbanService.EnqueueChatwootSyncQueueItem(new AdminKanbanChatwootSyncQueueEnqueueRequest
@@ -38,7 +40,8 @@ public sealed class ChatwootSyncQueueService : IChatwootSyncQueueService
 
         _ = _kanbanService.AddHistoryEvent(leadId, "chatwoot_retentativa_enfileirada", description);
         _logger.LogInformation(
-            "Fila Chatwoot | LeadId={LeadId} OperationType={OperationType} QueueItemId={QueueItemId} RunImmediately={RunImmediately}",
+            "Fila Chatwoot | CorrelationId={CorrelationId} LeadId={LeadId} OperationType={OperationType} QueueItemId={QueueItemId} RunImmediately={RunImmediately}",
+            correlationId,
             leadId,
             normalizedOperationType,
             queueItem.Id,
@@ -52,6 +55,7 @@ public sealed class ChatwootSyncQueueService : IChatwootSyncQueueService
 
     public string MarkProcessed(AdminKanbanChatwootSyncQueueItemRecord item, string workerInstance, string? note = null)
     {
+        var correlationId = ChatwootCorrelationContext.GetOrCreate($"chatwoot-queue-{item.LeadId}");
         var status = ChatwootSyncQueueStatuses.Processed;
         _ = _kanbanService.FinalizeChatwootSyncQueueItem(new AdminKanbanChatwootSyncQueueFinalizeRequest
         {
@@ -66,12 +70,20 @@ public sealed class ChatwootSyncQueueService : IChatwootSyncQueueService
             item.LeadId,
             "chatwoot_retentativa_processada",
             $"Retentativa do Chatwoot concluida com sucesso em {FormatOperationLabel(item.OperationType)}.");
+        _logger.LogInformation(
+            "Fila Chatwoot processada com sucesso. CorrelationId={CorrelationId} LeadId={LeadId} QueueItemId={QueueItemId} OperationType={OperationType} WorkerInstance={WorkerInstance}",
+            correlationId,
+            item.LeadId,
+            item.Id,
+            item.OperationType,
+            workerInstance);
 
         return status;
     }
 
     public string MarkFailed(AdminKanbanChatwootSyncQueueItemRecord item, string workerInstance, string errorMessage, bool retryRecommended)
     {
+        var correlationId = ChatwootCorrelationContext.GetOrCreate($"chatwoot-queue-{item.LeadId}");
         var utcNow = DateTime.UtcNow;
         var sanitizedError = TrimTo(errorMessage, 1000);
 
@@ -90,6 +102,14 @@ public sealed class ChatwootSyncQueueService : IChatwootSyncQueueService
                 item.LeadId,
                 "chatwoot_dead_letter",
                 $"Retentativa do Chatwoot esgotou o limite em {FormatOperationLabel(item.OperationType)}. Ultimo erro: {sanitizedError}");
+            _logger.LogWarning(
+                "Fila Chatwoot movida para dead-letter. CorrelationId={CorrelationId} LeadId={LeadId} QueueItemId={QueueItemId} OperationType={OperationType} AttemptCount={AttemptCount} MaxAttempts={MaxAttempts}",
+                correlationId,
+                item.LeadId,
+                item.Id,
+                item.OperationType,
+                item.AttemptCount,
+                item.MaxAttempts);
 
             return ChatwootSyncQueueStatuses.DeadLetter;
         }
@@ -109,6 +129,14 @@ public sealed class ChatwootSyncQueueService : IChatwootSyncQueueService
             item.LeadId,
             "chatwoot_retentativa_enfileirada",
             $"Nova retentativa do Chatwoot foi reagendada para {FormatOperationLabel(item.OperationType)} apos falha transiente.");
+        _logger.LogWarning(
+            "Fila Chatwoot reagendada. CorrelationId={CorrelationId} LeadId={LeadId} QueueItemId={QueueItemId} OperationType={OperationType} AttemptCount={AttemptCount} NextAttemptAt={NextAttemptAt}",
+            correlationId,
+            item.LeadId,
+            item.Id,
+            item.OperationType,
+            item.AttemptCount,
+            nextAttemptAt);
 
         return ChatwootSyncQueueStatuses.Retrying;
     }

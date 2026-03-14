@@ -19,6 +19,7 @@ public interface IAdminKanbanService
     IReadOnlyList<AdminKanbanChatwootBackfillCandidateRecord> ListChatwootBackfillCandidates(string? boardType, int? startAfterLeadId, int batchSize);
     AdminKanbanChatwootBackfillCheckpointRecord? GetChatwootBackfillCheckpoint(string scopeKey);
     AdminKanbanChatwootBackfillCheckpointRecord SaveChatwootBackfillCheckpoint(AdminKanbanChatwootBackfillCheckpointUpsertRequest request);
+    AdminKanbanChatwootDiagnosticsSnapshot GetChatwootDiagnostics(string? boardType, int issueLimit, int queueLimit);
     bool SaveBoardOrder(AdminKanbanBoardOrderUpdateRequest request);
     bool AddHistoryNote(int leadId, string note);
     bool AddHistoryEvent(int leadId, string eventType, string description);
