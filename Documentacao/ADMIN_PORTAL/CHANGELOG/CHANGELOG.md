@@ -12,6 +12,12 @@
 
 ## Released
 
+- [2026-03-15] [CPMFULL-036][TELEGRAM-POST-EPIC-CHATWOOT-IDENTIFIER-FALLBACK] Lead Telegram sem telefone/e-mail passa a sincronizar no Chatwoot via identificador tecnico
+- Tipo: fix
+- Resumo: o `ConsertaPraMim.Web.CpmFull` passou a sincronizar com o Chatwoot leads `Source = Telegram` mesmo quando o primeiro contato ainda nao trouxe telefone ou e-mail, reaproveitando `TelegramChatId`, `ChatbotConversationId` ou `ChannelConversationId` como identificador deterministico do contato. O `dry-run` do backfill tambem foi alinhado para reconhecer esses leads como elegiveis quando houver vinculo tecnico suficiente, sem afrouxar a regra para outras origens.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/ChatwootLeadSyncService.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/ChatwootBackfillService.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Services/AdminKanbanModels.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Services/SqlAdminKanbanService.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Integrations/Chatwoot/ChatwootLeadSyncServiceTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Integrations/Chatwoot/ChatwootBackfillServiceTests.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/MANUAL_QA_OPERACAO.md`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/EPIC_TELEGRAM_AUTOMACAO_FUNIL_CPM.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-093-lead-telegram-sem-contato-sincroniza-chatwoot.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: alto
+
 - [2026-03-14] [CPMFULL-035][TELEGRAM-POST-EPIC-CPMFULL-DEPLOY-HOTFIX] Deploy do CPM Full passa a publicar TelegramAutomation corretamente
 - Tipo: fix
 - Resumo: corrigido o job `deploy-web-cpmfull` do workflow `deploy-vps`, que ainda escrevia `Backend/.env.vps` sem o bloco `TELEGRAM_AUTOMATION_*`. O erro fazia o `ConsertaPraMim.Web.TelegramBridge` receber a mensagem real do bot, mas o `ConsertaPraMim.Web.CpmFull` publicado responder `409 Automacao Telegram desabilitada no ambiente atual.`, bloqueando a criacao do lead e o espelhamento com o Chatwoot.

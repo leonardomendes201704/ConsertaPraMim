@@ -441,11 +441,12 @@ public sealed class ChatwootLeadSyncService : IChatwootLeadSyncService
     {
         var normalizedPhone = NormalizePhoneNumber(lead.Phone);
         var normalizedEmail = NormalizeEmail(lead.Email);
+        var identifier = BuildContactIdentifier(lead, normalizedPhone, normalizedEmail);
 
-        if (string.IsNullOrWhiteSpace(normalizedPhone) && string.IsNullOrWhiteSpace(normalizedEmail))
+        if (string.IsNullOrWhiteSpace(identifier))
         {
             request = null;
-            error = "Lead sem telefone ou e-mail valido para sincronizar com Chatwoot.";
+            error = "Lead sem telefone, e-mail ou identificador Telegram valido para sincronizar com Chatwoot.";
             return false;
         }
 
@@ -455,7 +456,7 @@ public sealed class ChatwootLeadSyncService : IChatwootLeadSyncService
             Name = string.IsNullOrWhiteSpace(lead.Name) ? $"Lead #{lead.Id}" : TrimTo(lead.Name, 140),
             Email = normalizedEmail,
             PhoneNumber = normalizedPhone,
-            Identifier = BuildContactIdentifier(lead, normalizedPhone, normalizedEmail),
+            Identifier = identifier,
             AdditionalAttributes = BuildAdditionalAttributes(lead),
             CustomAttributes = BuildCustomAttributes(lead)
         };
@@ -478,6 +479,21 @@ public sealed class ChatwootLeadSyncService : IChatwootLeadSyncService
             ["status_note"] = NullIfWhiteSpace(TrimTo(lead.StatusNote, 300)),
             ["last_contact_at_utc"] = lead.LastContactAt?.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture)
         };
+
+        if (lead.Telegram.TelegramChatId.HasValue)
+        {
+            attributes["telegram_chat_id"] = lead.Telegram.TelegramChatId.Value.ToString(CultureInfo.InvariantCulture);
+        }
+
+        if (lead.Telegram.ChatbotConversationId.HasValue)
+        {
+            attributes["telegram_chatbot_conversation_id"] = lead.Telegram.ChatbotConversationId.Value.ToString("D", CultureInfo.InvariantCulture);
+        }
+
+        if (!string.IsNullOrWhiteSpace(lead.Telegram.ChannelConversationId))
+        {
+            attributes["telegram_channel_conversation_id"] = TrimTo(lead.Telegram.ChannelConversationId, 128);
+        }
 
         return attributes
             .Where(item => item.Value is not null)
@@ -539,7 +555,7 @@ public sealed class ChatwootLeadSyncService : IChatwootLeadSyncService
             _ => throw new InvalidOperationException("Tipo de funil sem inbox Chatwoot configurado.")
         };
 
-    private static string BuildContactIdentifier(AdminKanbanLeadDetailsRecord lead, string? normalizedPhone, string? normalizedEmail)
+    private static string? BuildContactIdentifier(AdminKanbanLeadDetailsRecord lead, string? normalizedPhone, string? normalizedEmail)
     {
         if (!string.IsNullOrWhiteSpace(normalizedPhone))
         {
@@ -551,7 +567,9 @@ public sealed class ChatwootLeadSyncService : IChatwootLeadSyncService
             return $"email:{normalizedEmail}";
         }
 
-        return $"cpm-lead:{lead.Id}";
+        return TryBuildTelegramContactIdentifier(lead, out var telegramIdentifier)
+            ? telegramIdentifier
+            : null;
     }
 
     private static string BuildSourceId(AdminKanbanLeadDetailsRecord lead) =>
@@ -577,6 +595,10 @@ public sealed class ChatwootLeadSyncService : IChatwootLeadSyncService
         if (!string.IsNullOrWhiteSpace(lead.Email))
         {
             lines.Add($"E-mail: {lead.Email}");
+        }
+        else if (IsTelegramLead(lead))
+        {
+            lines.Add("Contato inicial via Telegram sem telefone/e-mail informado ate o momento.");
         }
 
         if (!string.IsNullOrWhiteSpace(lead.ServiceCategory))
@@ -713,6 +735,35 @@ public sealed class ChatwootLeadSyncService : IChatwootLeadSyncService
     {
         var sourceMapping = ChatwootLeadSourceMappings.Resolve(lead.Source);
         return string.Equals(sourceMapping?.Slug, "telegram", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool TryBuildTelegramContactIdentifier(AdminKanbanLeadDetailsRecord lead, out string identifier)
+    {
+        identifier = string.Empty;
+        if (!IsTelegramLead(lead))
+        {
+            return false;
+        }
+
+        if (lead.Telegram.TelegramChatId.HasValue && lead.Telegram.TelegramChatId.Value > 0)
+        {
+            identifier = $"telegram:chat:{lead.Telegram.TelegramChatId.Value.ToString(CultureInfo.InvariantCulture)}";
+            return true;
+        }
+
+        if (lead.Telegram.ChatbotConversationId.HasValue)
+        {
+            identifier = $"telegram:conversation:{lead.Telegram.ChatbotConversationId.Value:D}";
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(lead.Telegram.ChannelConversationId))
+        {
+            identifier = $"telegram:channel:{TrimTo(lead.Telegram.ChannelConversationId, 80)}";
+            return true;
+        }
+
+        return false;
     }
 
     private static string TrimTo(string? value, int maxLength)

@@ -152,9 +152,10 @@ No `ConsertaPraMim.Web.CpmFull`, configurar a secao `TelegramAutomation`:
 6. Confirmar a criacao ou atualizacao de um lead com `Source = Telegram` e historico `Lead criado automaticamente a partir da conversa do bot Telegram`.
 7. Abrir o detalhe do lead e validar a secao `Vinculo Telegram` com `ChatbotConversationId` preenchido, `Chat ID Telegram` mascarado e `ChannelConversationId` igual ao `chatId` original.
 8. Validar no Chatwoot que a conversa humana foi criada ou reaproveitada na inbox `CPM Clientes`.
-9. Enviar uma mensagem publica no Chatwoot e confirmar o retorno ao mesmo chat do Telegram.
-10. Repetir o teste com texto de onboarding de prestador, por exemplo `Quero me cadastrar como prestador parceiro`.
-11. Confirmar que o lead caiu em `/admin/funil/prestadores` e que a conversa humana foi criada ou reaproveitada na inbox `CPM Prestadores`.
+9. Se o usuario ainda nao tiver informado telefone/e-mail, validar no Chatwoot que o contato foi criado com identificador tecnico do Telegram e que a nota privada registra essa ausencia temporaria.
+10. Enviar uma mensagem publica no Chatwoot e confirmar o retorno ao mesmo chat do Telegram.
+11. Repetir o teste com texto de onboarding de prestador, por exemplo `Quero me cadastrar como prestador parceiro`.
+12. Confirmar que o lead caiu em `/admin/funil/prestadores` e que a conversa humana foi criada ou reaproveitada na inbox `CPM Prestadores`.
 
 ### Troubleshooting
 
@@ -166,7 +167,8 @@ No `ConsertaPraMim.Web.CpmFull`, configurar a secao `TelegramAutomation`:
 - Modal sem `Vinculo Telegram`: validar se existe registro em `dbo.cpm_web_telegram_funil_links` para o `LeadId` e se o detalhe do lead foi recarregado apos a automacao.
 - Lead Telegram caiu no inbox errado do Chatwoot: revisar `BoardType` do lead, `ClientsInboxId`, `ProvidersInboxId` e se o board atual no CPM Full esta coerente com o papel autenticado.
 - Lead Telegram sem historico `Bootstrap Telegram no Chatwoot`: validar se o lead ja possuia `ChatwootConversationId`; o evento so aparece quando o bootstrap precisa criar ou reaproveitar a conversa humana a partir do funil.
-- Lead sem telefone: comportamento esperado nesta fase; o contrato atual do bridge autenticado ainda nao expoe telefone do usuario para a automacao.
+- Lead Telegram sem telefone/e-mail no primeiro contato: comportamento esperado; a sincronizacao com Chatwoot deve usar `TelegramChatId`, `ChatbotConversationId` ou `ChannelConversationId` como identificador tecnico do contato.
+- Lead nao-Telegram sem telefone e sem e-mail: corrigir o cadastro antes de acionar `Sincronizar Chatwoot`.
 - Prestador recebendo resposta de pedido/agendamento: validar se a publicacao contem a trilha `Provider` do `TelegramChatbotOrchestrator` e se o login do bridge carregou a claim `Role = Provider`.
 - Mensagem nova do Telegram nao apareceu no Chatwoot: validar `MirrorMessagesEnabled=true` nos dois projetos, o worker `TelegramDeliveryWorker`, a tabela `dbo.cpm_web_telegram_delivery_queue` e se o lead ja possui vinculo Telegram ativo.
 - Mensagem humana do Chatwoot nao voltou ao Telegram: validar se a mensagem no Chatwoot e publica, se o lead possui `TelegramChatId`, se o webhook inbound do Chatwoot esta saudavel e se o bridge aceita `POST /api/internal/telegram/messages/send`.
@@ -437,6 +439,7 @@ Preencher a secao `Chatwoot` via `appsettings.Local.json` ou variaveis de ambien
 - Quando o contato existir sem vinculo ao inbox do funil atual, o sistema deve criar `contact_inbox` para reutilizar o mesmo contato.
 - O contato sincronizado deve receber `custom_attributes` operacionais do CPM e labels gerenciadas pelo prefixo `cpm_`, preservando labels manuais fora desse prefixo.
 - O contato e a conversa devem espelhar o canal de origem do lead em atributos estruturados do CPM (`CPM Canal de Origem` e `CPM Canal de Origem Slug`), preservando o valor bruto em `additional_attributes.source`.
+- Leads `Source = Telegram` podem sincronizar mesmo sem telefone/e-mail quando houver `TelegramChatId`, `ChatbotConversationId` ou `ChannelConversationId` validos no vinculo tecnico.
 - Quando o lead ainda nao possuir `ChatwootConversationId`, o sistema deve criar a conversa e registrar uma primeira mensagem privada com o resumo operacional do lead.
 - Em falha externa, o lead local continua salvo e os campos `ChatwootSyncStatus`/`ChatwootLastError` devem refletir o erro sem quebrar o Kanban.
 - O modal de detalhe do lead deve oferecer o botao `Sincronizar Chatwoot` para reprocessar leads antigos ou falhas anteriores.
@@ -457,10 +460,12 @@ Preencher a secao `Chatwoot` via `appsettings.Local.json` ou variaveis de ambien
 11. Repetir o fluxo com um lead do funil de prestadores e validar uso do inbox `CPM Prestadores`.
 12. Criar um lead sem telefone e sem e-mail.
 13. Confirmar que o lead local continua salvo, mas com `Sync Chatwoot = Falha` e `Ultimo erro Chatwoot` explicando a ausencia de dados minimos.
+14. Criar ou reaproveitar um lead `Source = Telegram` sem telefone/e-mail, mas com `Vinculo Telegram` preenchido.
+15. Confirmar que `Sync Chatwoot = Sincronizado`, que o contato do Chatwoot foi criado com identificador tecnico do bot e que a nota privada informa a ausencia temporaria de telefone/e-mail.
 
 ### Troubleshooting
 
-- `Lead sem telefone ou e-mail valido`: corrigir o cadastro e usar o botao `Sincronizar Chatwoot`.
+- `Lead sem telefone, e-mail ou identificador Telegram valido`: para leads nao-Telegram, corrigir o cadastro e usar o botao `Sincronizar Chatwoot`; para leads Telegram, validar se o `Vinculo Telegram` possui `TelegramChatId`, `ChatbotConversationId` ou `ChannelConversationId`.
 - `Chatwoot retornou erro HTTP 401`: validar token admin, proxy reverso e se o header `api_access_token` continua sendo encaminhado pelo Nginx.
 - `Phone number has already been taken`: o contato pode ter sido criado manualmente sem `identifier`; validar busca por telefone/e-mail no Chatwoot e reprocessar o lead.
 - O modal nao atualiza apos clicar em `Sincronizar Chatwoot`: validar o endpoint `POST /admin/funil/lead/{id}/chatwoot/sincronizar` e o anti-forgery token da pagina.

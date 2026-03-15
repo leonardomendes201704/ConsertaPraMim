@@ -222,9 +222,7 @@ public sealed class ChatwootBackfillService : IChatwootBackfillService
                 LeadName = candidate.LeadName,
                 StageName = candidate.StageName,
                 Status = ChatwootBackfillItemStatuses.Pending,
-                Message = candidate.ChatwootContactId.HasValue
-                    ? "Lead elegivel para reaproveitar contato existente e vincular conversa no Chatwoot."
-                    : "Lead elegivel para criar ou reaproveitar contato e vincular conversa no Chatwoot.",
+                Message = BuildDryRunEligibleMessage(candidate),
                 ContactId = candidate.ChatwootContactId,
                 InboxId = candidate.ChatwootInboxId
             });
@@ -285,7 +283,34 @@ public sealed class ChatwootBackfillService : IChatwootBackfillService
 
     private static bool HasMinimumContactData(AdminKanbanChatwootBackfillCandidateRecord candidate) =>
         !string.IsNullOrWhiteSpace(candidate.Phone) ||
-        !string.IsNullOrWhiteSpace(candidate.Email);
+        !string.IsNullOrWhiteSpace(candidate.Email) ||
+        HasTelegramContactIdentity(candidate);
+
+    private static string BuildDryRunEligibleMessage(AdminKanbanChatwootBackfillCandidateRecord candidate)
+    {
+        if (!string.IsNullOrWhiteSpace(candidate.Phone) || !string.IsNullOrWhiteSpace(candidate.Email))
+        {
+            return candidate.ChatwootContactId.HasValue
+                ? "Lead elegivel para reaproveitar contato existente e vincular conversa no Chatwoot."
+                : "Lead elegivel para criar ou reaproveitar contato e vincular conversa no Chatwoot.";
+        }
+
+        return candidate.ChatwootContactId.HasValue
+            ? "Lead Telegram elegivel para reaproveitar contato existente usando identificador tecnico do bot."
+            : "Lead Telegram elegivel para criar ou reaproveitar contato no Chatwoot usando identificador tecnico do bot.";
+    }
+
+    private static bool HasTelegramContactIdentity(AdminKanbanChatwootBackfillCandidateRecord candidate)
+    {
+        if (!string.Equals(candidate.Source, "Telegram", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return candidate.TelegramChatId.HasValue ||
+               candidate.TelegramChatbotConversationId.HasValue ||
+               !string.IsNullOrWhiteSpace(candidate.TelegramChannelConversationId);
+    }
 
     private static string ResolveItemStatus(ChatwootLeadSyncResult result)
     {

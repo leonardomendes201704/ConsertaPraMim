@@ -531,6 +531,33 @@ Como operacao, queremos garantir que o `ConsertaPraMim.Web.CpmFull` publicado re
 3. O hotfix operacional publicado recriou o `cpm-prd-cpmfull` com `TelegramAutomation` e espelhamento inbound realmente habilitados.
 4. O manual passou a orientar a verificacao de `printenv` no container do CPM Full quando o bridge estiver recebendo updates, mas o lead nao aparecer no funil.
 
+## Pos-epico - ST-093 - Bootstrap Chatwoot de lead Telegram sem telefone ou e-mail
+
+### Descricao
+Como operacao, queremos que o primeiro contato publico do Telegram sincronize no Chatwoot mesmo antes de o usuario compartilhar telefone ou e-mail, reaproveitando o identificador tecnico do bot como chave do contato.
+
+### Status
+- Concluida em `2026-03-15` como correcao funcional pos-epic para o fluxo publicado.
+
+### Criterios de aceite
+1. Lead `Source = Telegram` sem telefone/e-mail nao falha na sync se possuir `TelegramChatId`, `ChatbotConversationId` ou `ChannelConversationId`.
+2. O contato do Chatwoot e criado ou reaproveitado com identificador tecnico deterministico do Telegram.
+3. Leads nao-Telegram continuam exigindo telefone ou e-mail valido.
+4. O dry-run/backfill reconhece leads Telegram sem contato manual como elegiveis quando houver vinculo tecnico suficiente.
+
+### Tasks
+- `TASK-16.01` Permitir fallback de identificador do contato no `ChatwootLeadSyncService` para leads Telegram sem telefone/e-mail.
+- `TASK-16.02` Projetar metadados tecnicos do Telegram em `additional_attributes` do contato.
+- `TASK-16.03` Ajustar dry-run/backfill e testes de regressao para o novo criterio de elegibilidade.
+- `TASK-16.04` Atualizar manual, changelog, indice e story de suporte operacional.
+
+### Entrega aplicada
+1. O `ChatwootLeadSyncService` passou a aceitar leads `Source = Telegram` sem telefone/e-mail quando houver `TelegramChatId`, `ChatbotConversationId` ou `ChannelConversationId`, gerando identificador deterministico (`telegram:chat:*`, `telegram:conversation:*` ou `telegram:channel:*`).
+2. O contato do Chatwoot agora recebe `additional_attributes` tecnicos do Telegram (`telegram_chat_id`, `telegram_chatbot_conversation_id`, `telegram_channel_conversation_id`) para rastreabilidade interna.
+3. A anotacao privada de abertura da conversa passou a registrar explicitamente quando o primeiro contato via Telegram ainda nao informou telefone/e-mail.
+4. O `ChatwootBackfillService` passou a tratar leads Telegram sem telefone/e-mail como elegiveis no `dry-run` quando o vinculo tecnico estiver preenchido, mantendo a regra antiga para outras origens.
+5. A suite ganhou testes de regressao cobrindo a sincronizacao do lead Telegram sem telefone/e-mail e o dry-run do backfill com identificador tecnico do bot.
+
 ## 8. Sequencia de entrega recomendada
 1. Sprint 1:
 - US-01
