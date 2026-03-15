@@ -72,6 +72,7 @@
 
 ### Done
 
+- [ST-093 - Lead Telegram sem telefone/e-mail sincroniza no Chatwoot via identificador tecnico](STORIES/DONE/ST-093-lead-telegram-sem-contato-sincroniza-chatwoot.md)
 - [ST-092 - Hotfix do deploy do CPM Full para ativar TelegramAutomation no ambiente publicado](STORIES/DONE/ST-092-hotfix-deploy-cpmfull-telegram-automation-publicado.md)
 - [ST-091 - Bootstrap publico da primeira mensagem do bot Telegram](STORIES/DONE/ST-091-bootstrap-publico-primeira-mensagem-bot-telegram.md)
 - [ST-090 - Ativacao operacional do bot Telegram no ambiente publicado](STORIES/DONE/ST-090-ativacao-operacional-bot-telegram-publicado.md)

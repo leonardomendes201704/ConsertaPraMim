@@ -1370,10 +1370,24 @@ SELECT TOP (@batchSize)
     l.Name,
     l.Phone,
     l.Email,
+    l.Source,
+    tl.ChatbotConversationId,
+    tl.ChannelConversationId,
+    tl.TelegramChatId,
     l.ChatwootContactId,
     l.ChatwootInboxId
 FROM dbo.{TablePrefix}kanban_leads l
 INNER JOIN dbo.{TablePrefix}kanban_stages s ON s.Id = l.StageId
+OUTER APPLY
+(
+    SELECT TOP (1)
+        link.ChatbotConversationId,
+        link.ChannelConversationId,
+        link.TelegramChatId
+    FROM dbo.{TablePrefix}telegram_funil_links link
+    WHERE link.LeadId = l.Id
+    ORDER BY link.UpdatedAt DESC, link.Id DESC
+) tl
 WHERE l.IsActive = 1
   AND l.ChatwootConversationId IS NULL
   AND (@boardType IS NULL OR l.BoardType = @boardType)
@@ -1399,8 +1413,12 @@ ORDER BY l.Id;
                 LeadName = reader.GetString(3),
                 Phone = reader.IsDBNull(4) ? string.Empty : reader.GetString(4),
                 Email = reader.IsDBNull(5) ? string.Empty : reader.GetString(5),
-                ChatwootContactId = ReadNullableInt64(reader, 6),
-                ChatwootInboxId = ReadNullableInt64(reader, 7)
+                Source = reader.IsDBNull(6) ? string.Empty : reader.GetString(6),
+                TelegramChatbotConversationId = reader.IsDBNull(7) ? null : reader.GetGuid(7),
+                TelegramChannelConversationId = reader.IsDBNull(8) ? string.Empty : reader.GetString(8),
+                TelegramChatId = ReadNullableInt64(reader, 9),
+                ChatwootContactId = ReadNullableInt64(reader, 10),
+                ChatwootInboxId = ReadNullableInt64(reader, 11)
             });
         }
 

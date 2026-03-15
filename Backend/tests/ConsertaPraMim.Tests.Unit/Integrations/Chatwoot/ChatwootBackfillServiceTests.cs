@@ -66,6 +66,56 @@ public sealed class ChatwootBackfillServiceTests
         kanbanService.VerifyAll();
     }
 
+    [Fact(DisplayName = "Dry-run deve considerar lead Telegram sem telefone ou e-mail como elegivel quando houver identificador tecnico")]
+    public async Task DryRun_DeveConsiderarLeadTelegramSemContatoComoElegivelQuandoHouverIdentificadorTecnico()
+    {
+        var kanbanService = new Mock<IAdminKanbanService>(MockBehavior.Strict);
+        var leadSyncService = new Mock<IChatwootLeadSyncService>(MockBehavior.Strict);
+
+        kanbanService
+            .Setup(service => service.GetChatwootBackfillCheckpoint("board:clientes"))
+            .Returns(new AdminKanbanChatwootBackfillCheckpointRecord
+            {
+                ScopeKey = "board:clientes",
+                LastProcessedLeadId = 12,
+                UpdatedAt = DateTime.UtcNow
+            });
+        kanbanService
+            .Setup(service => service.ListChatwootBackfillCandidates(AdminKanbanBoardTypes.Clients, 12, 20))
+            .Returns(
+            [
+                new AdminKanbanChatwootBackfillCandidateRecord
+                {
+                    LeadId = 13,
+                    BoardType = AdminKanbanBoardTypes.Clients,
+                    StageName = "Novo lead",
+                    LeadName = "Lead Telegram sem contato",
+                    Phone = string.Empty,
+                    Email = string.Empty,
+                    Source = "Telegram",
+                    TelegramChatId = 7788990011,
+                    TelegramChannelConversationId = "7788990011"
+                }
+            ]);
+
+        var sut = CreateSut(kanbanService.Object, leadSyncService.Object);
+
+        var result = await sut.RunAsync(new ChatwootBackfillRunRequest
+        {
+            BoardType = AdminKanbanBoardTypes.Clients,
+            BatchSize = 20,
+            DryRun = true
+        });
+
+        Assert.True(result.DryRun);
+        Assert.Equal(1, result.TotalSelected);
+        Assert.Equal(1, result.PendingCount);
+        Assert.Equal(0, result.FailedCount);
+        Assert.Contains(result.Items, item => item.Message.Contains("identificador tecnico do bot", StringComparison.OrdinalIgnoreCase));
+        leadSyncService.VerifyNoOtherCalls();
+        kanbanService.VerifyAll();
+    }
+
     [Fact(DisplayName = "Execucao real deve respeitar checkpoint salvo e avancar cursor apos processar lote")]
     public async Task ExecucaoReal_DeveRespeitarCheckpointSalvoEAvancarCursorAposProcessarLote()
     {

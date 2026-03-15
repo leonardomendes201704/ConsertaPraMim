@@ -384,6 +384,10 @@ public sealed record class AdminKanbanChatwootBackfillCandidateRecord
     public string LeadName { get; init; } = string.Empty;
     public string Phone { get; init; } = string.Empty;
     public string Email { get; init; } = string.Empty;
+    public string Source { get; init; } = string.Empty;
+    public Guid? TelegramChatbotConversationId { get; init; }
+    public string TelegramChannelConversationId { get; init; } = string.Empty;
+    public long? TelegramChatId { get; init; }
     public long? ChatwootContactId { get; init; }
     public long? ChatwootInboxId { get; init; }
 }
