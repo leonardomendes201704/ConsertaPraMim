@@ -72,6 +72,7 @@
 
 ### Done
 
+- [ST-091 - Bootstrap publico da primeira mensagem do bot Telegram](STORIES/DONE/ST-091-bootstrap-publico-primeira-mensagem-bot-telegram.md)
 - [ST-090 - Ativacao operacional do bot Telegram no ambiente publicado](STORIES/DONE/ST-090-ativacao-operacional-bot-telegram-publicado.md)
 - [ST-089 - Publicacao do TelegramBridge na VPS com webhook HTTPS](STORIES/DONE/ST-089-publicacao-telegram-bridge-vps-webhook.md)
 - [ST-088 - Transporte webhook seguro no TelegramBridge](STORIES/DONE/ST-088-telegram-webhook-seguro-bridge.md)

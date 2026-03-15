@@ -39,13 +39,15 @@ Painel web em ASP.NET Core (.NET 8) para conversar com usuarios do Telegram em t
    - `TelegramBridge__AttachmentRetentionIntervalMinutes`
 6. O usuario autenticado entra direto na conversa vinculada ao login e o orquestrador IA responde automaticamente.
 7. Fluxos `Client` continuam podendo abrir pedido e consultar agenda/pedidos; fluxos `Provider` alimentam o board `prestadores` do CPM Full e nao devem abrir `service request` de cliente.
-8. Com `MirrorMessagesEnabled=true`, mensagens recebidas do Telegram passam a ser espelhadas para o CPM Full/Chatwoot, e respostas humanas vindas do Chatwoot passam a ser entregues de volta ao Telegram pelo endpoint interno protegido.
-9. O bridge mascara `chatId`, e-mail, telefone, token e segredo em logs/diagnosticos tecnicos. Os endpoints internos continuam protegidos por `TelegramAutomation__SharedSecret`.
-10. Com `TelegramBridge__UpdateTransport=LongPolling`, o bootstrap remove webhook anterior do bot e mantem `getUpdates` como canal inbound.
-11. Com `TelegramBridge__UpdateTransport=Webhook`, o bridge registra automaticamente `setWebhook` na Bot API com `TelegramBridge__WebhookPublicBaseUrl + TelegramBridge__WebhookPath`, exige o header `X-Telegram-Bot-Api-Secret-Token` e desabilita o worker de long polling.
-12. O endpoint publico do webhook fica em `POST /api/integrations/telegram/webhook` e deve ser publicado em HTTPS.
-13. Para diagnostico operacional interno, o bridge expoe `GET /api/internal/telegram/observability/dashboard`, protegido por `TelegramAutomation__SharedSecret` e consumido pelo drawer `Diagnostico Telegram` do CPM Full.
-14. Rode o projeto:
+8. Quando uma mensagem chega diretamente pelo bot publicado, sem login previo no painel web, o bridge agora gera um bootstrap tecnico deterministico por `TelegramChatId`, cria/atualiza o lead no CPM Full e tenta abrir a conversa humana no Chatwoot antes de espelhar a mensagem.
+9. O primeiro bootstrap da conversa publica envia um ACK simples ao usuario no proprio Telegram, desde que nao exista handoff humano ativo para o mesmo `chatId`.
+10. Com `MirrorMessagesEnabled=true`, mensagens recebidas do Telegram passam a ser espelhadas para o CPM Full/Chatwoot, e respostas humanas vindas do Chatwoot passam a ser entregues de volta ao Telegram pelo endpoint interno protegido.
+11. O bridge mascara `chatId`, e-mail, telefone, token e segredo em logs/diagnosticos tecnicos. Os endpoints internos continuam protegidos por `TelegramAutomation__SharedSecret`.
+12. Com `TelegramBridge__UpdateTransport=LongPolling`, o bootstrap remove webhook anterior do bot e mantem `getUpdates` como canal inbound.
+13. Com `TelegramBridge__UpdateTransport=Webhook`, o bridge registra automaticamente `setWebhook` na Bot API com `TelegramBridge__WebhookPublicBaseUrl + TelegramBridge__WebhookPath`, exige o header `X-Telegram-Bot-Api-Secret-Token` e desabilita o worker de long polling.
+14. O endpoint publico do webhook fica em `POST /api/integrations/telegram/webhook` e deve ser publicado em HTTPS.
+15. Para diagnostico operacional interno, o bridge expoe `GET /api/internal/telegram/observability/dashboard`, protegido por `TelegramAutomation__SharedSecret` e consumido pelo drawer `Diagnostico Telegram` do CPM Full.
+16. Rode o projeto:
 
 ```bash
 dotnet run --project Backend/src/ConsertaPraMim.Web.TelegramBridge/ConsertaPraMim.Web.TelegramBridge.csproj

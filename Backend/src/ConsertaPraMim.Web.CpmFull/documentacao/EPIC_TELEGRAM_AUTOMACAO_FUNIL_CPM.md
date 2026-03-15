@@ -479,6 +479,33 @@ Como operacao, queremos ativar o bot Telegram no ambiente publicado com `LongPol
 3. A ativacao operacional do bot foi planejada apenas para `production` enquanto o transporte estiver em `LongPolling`, evitando disputa do mesmo `BotToken` entre `development` e `production`.
 4. O manual operacional passou a cobrir o checklist de ativacao real do bot, incluindo validacao do bridge, do CPM Full e da configuracao compartilhada de automacao.
 
+## Pos-epico - ST-091 - Bootstrap publico da primeira mensagem do bot Telegram
+
+### Descricao
+Como operacao, queremos que a primeira mensagem recebida diretamente pelo bot publicado, sem login previo no painel web, abra automaticamente o lead tecnico no CPM Full e bootstrape a conversa humana no Chatwoot.
+
+### Status
+- Concluida em `2026-03-14` como correcao funcional pos-epic do fluxo publicado.
+
+### Criterios de aceite
+1. A primeira mensagem direta do bot publicado cria ou atualiza lead tecnico por `TelegramChatId`, sem depender de sessao autenticada no bridge.
+2. O bootstrap usa `ChatbotConversationId` deterministico e permite que o espelhamento `Telegram -> CPM Full -> Chatwoot` aconteca na mesma conversa.
+3. O board inicial e resolvido automaticamente entre `clientes` e `prestadores`.
+4. O bot envia um ACK inicial ao usuario apenas quando o lead nasce e nao existe handoff humano ativo.
+
+### Tasks
+- `TASK-14.01` Bootstrapar lead tecnico no inbound do `TelegramBridge` antes do espelhamento da mensagem.
+- `TASK-14.02` Gerar `ChatbotConversationId` e `UserId` deterministicos a partir do `TelegramChatId`.
+- `TASK-14.03` Resolver board inicial por heuristica leve (`clientes` x `prestadores`) e enviar ACK simples ao usuario.
+- `TASK-14.04` Cobrir a regressao com testes automatizados e atualizar manual/README/changelog/story.
+
+### Entrega aplicada
+1. O `TelegramInboundUpdateProcessor` passou a criar ou atualizar o lead tecnico no CPM Full antes do mirror, reutilizando `ITelegramLeadAutomationClient` mesmo quando a conversa nasce diretamente do bot publicado.
+2. O bridge passou a gerar `ChatbotConversationId` e `UserId` deterministicos por `TelegramChatId`, evitando duplicidade entre mensagens sucessivas da mesma conversa.
+3. O board inicial agora e resolvido automaticamente por heuristica simples de onboarding de prestador; mensagens comuns continuam entrando em `clientes`.
+4. O mirror inbound passou a carregar `ChatbotConversationId` no payload, aumentando a chance de o CPM Full localizar corretamente o lead mesmo na primeira mensagem.
+5. Quando o bootstrap cria o lead e ainda nao existe handoff humano ativo, o bot envia um ACK inicial ao usuario no Telegram para evitar a sensacao de silencio operacional.
+
 ## 8. Sequencia de entrega recomendada
 1. Sprint 1:
 - US-01
