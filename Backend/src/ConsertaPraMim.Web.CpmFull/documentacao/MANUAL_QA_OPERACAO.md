@@ -157,6 +157,11 @@ No `ConsertaPraMim.Web.CpmFull`, configurar a secao `TelegramAutomation`:
 11. Repetir o teste com texto de onboarding de prestador, por exemplo `Quero me cadastrar como prestador parceiro`.
 12. Confirmar que o lead caiu em `/admin/funil/prestadores` e que a conversa humana foi criada ou reaproveitada na inbox `CPM Prestadores`.
 
+### Roteiro rapido de validacao em producao
+
+- Para uma execucao objetiva do smoke E2E publicado, usar o documento `ROTEIRO_TESTE_E2E_TELEGRAM_PRODUCAO.md` nesta mesma pasta.
+- O roteiro consolida pre-check, fluxo de `clientes`, fluxo de `prestadores`, espelhamento `Telegram -> Chatwoot`, handoff `Chatwoot -> Telegram` e troubleshooting rapido.
+
 ### Troubleshooting
 
 - `401` na automacao interna: validar se bridge e CPM Full usam exatamente o mesmo `TelegramAutomation:SharedSecret`.

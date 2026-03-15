@@ -12,6 +12,12 @@
 
 ## Released
 
+- [2026-03-15] [CPMFULL-038][TELEGRAM-PROD-E2E-TEST-ROTEIRO] Roteiro rapido de validacao E2E do Telegram em producao documentado
+- Tipo: docs
+- Resumo: foi publicado um roteiro curto e direto para validar em producao a trilha `Telegram -> funil CPM -> Chatwoot -> handoff -> Telegram`, cobrindo cliente, prestador, espelhamento inbound, handoff humano e sintomas esperados de falha. O manual operacional do CPM Full passou a referenciar esse roteiro para uso recorrente da operacao.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/ROTEIRO_TESTE_E2E_TELEGRAM_PRODUCAO.md`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/MANUAL_QA_OPERACAO.md`
+- Risco/Impacto: baixo
+
 - [2026-03-15] [CPMFULL-037][TELEGRAM-POST-EPIC-WEBHOOK-ACTIVATION] Webhook publico do Telegram ativado em `telegram.consertapramim.com`
 - Tipo: chore
 - Resumo: a borda publica do `ConsertaPraMim.Web.TelegramBridge` foi ativada em `https://telegram.consertapramim.com`, com DNS apontando para a VPS, proxy reverso Nginx para `127.0.0.1:5175`, certificado TLS valido e `setWebhook` registrado na Bot API para `POST /api/integrations/telegram/webhook`. Com isso, o bot publicado deixou de depender de `LongPolling` em producao e passou a operar em `Webhook` com `X-Telegram-Bot-Api-Secret-Token`.
