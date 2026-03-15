@@ -199,3 +199,36 @@ public sealed class TelegramFileReference
     [JsonPropertyName("file_size")]
     public long? FileSize { get; init; }
 }
+
+public sealed class TelegramWebhookInfo
+{
+    [JsonPropertyName("url")]
+    public string? Url { get; init; }
+
+    [JsonPropertyName("has_custom_certificate")]
+    public bool HasCustomCertificate { get; init; }
+
+    [JsonPropertyName("pending_update_count")]
+    public int PendingUpdateCount { get; init; }
+
+    [JsonPropertyName("last_error_date")]
+    public long? LastErrorDateUnix { get; init; }
+
+    [JsonPropertyName("last_error_message")]
+    public string? LastErrorMessage { get; init; }
+
+    [JsonPropertyName("max_connections")]
+    public int? MaxConnections { get; init; }
+
+    [JsonPropertyName("allowed_updates")]
+    public IReadOnlyList<string>? AllowedUpdates { get; init; }
+
+    [JsonPropertyName("ip_address")]
+    public string? IpAddress { get; init; }
+
+    [JsonPropertyName("last_synchronization_error_date")]
+    public long? LastSynchronizationErrorDateUnix { get; init; }
+
+    [JsonPropertyName("secret_token")]
+    public string? SecretToken { get; init; }
+}

@@ -1,0 +1,52 @@
+name: "${CONTAINER_PREFIX:-cpm-prd}-telegrambridge"
+
+services:
+  web-telegrambridge:
+    container_name: "${CONTAINER_PREFIX:-cpm-prd}-telegrambridge"
+    build:
+      context: .
+      dockerfile: docker/vps/Dockerfile.web.telegrambridge
+    restart: unless-stopped
+    ports:
+      - "${BIND_HOST:-127.0.0.1}:${TELEGRAM_BRIDGE_PORT:-5175}:${TELEGRAM_BRIDGE_PORT:-5175}"
+    environment:
+      ASPNETCORE_ENVIRONMENT: "${APP_ENVIRONMENT:-Development}"
+      DEPLOY_PROFILE: "${DEPLOY_PROFILE:-production}"
+      ASPNETCORE_URLS: "http://+:${TELEGRAM_BRIDGE_PORT:-5175}"
+      URLS: "http://+:${TELEGRAM_BRIDGE_PORT:-5175}"
+      DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: "false"
+      LANG: "pt_BR.UTF-8"
+      LC_ALL: "pt_BR.UTF-8"
+      ApiBaseUrl: "${INTERNAL_API_URL:-http://${CONTAINER_PREFIX:-cpm-prd}-api:8080}"
+      TelegramBridge__BotToken: "${TELEGRAM_BRIDGE_BOT_TOKEN:-}"
+      TelegramBridge__UpdateTransport: "${TELEGRAM_BRIDGE_UPDATE_TRANSPORT:-LongPolling}"
+      TelegramBridge__PollingTimeoutSeconds: "${TELEGRAM_BRIDGE_POLLING_TIMEOUT_SECONDS:-25}"
+      TelegramBridge__IdleDelayMilliseconds: "${TELEGRAM_BRIDGE_IDLE_DELAY_MILLISECONDS:-750}"
+      TelegramBridge__WebhookPublicBaseUrl: "${TELEGRAM_BRIDGE_WEBHOOK_PUBLIC_BASE_URL:-}"
+      TelegramBridge__WebhookPath: "${TELEGRAM_BRIDGE_WEBHOOK_PATH:-/api/integrations/telegram/webhook}"
+      TelegramBridge__WebhookSecretToken: "${TELEGRAM_BRIDGE_WEBHOOK_SECRET_TOKEN:-}"
+      TelegramBridge__WebhookDropPendingUpdates: "${TELEGRAM_BRIDGE_WEBHOOK_DROP_PENDING_UPDATES:-false}"
+      TelegramBridge__MaxAttachmentBytes: "${TELEGRAM_BRIDGE_MAX_ATTACHMENT_BYTES:-20971520}"
+      TelegramBridge__MaxMessagesPerConversation: "${TELEGRAM_BRIDGE_MAX_MESSAGES_PER_CONVERSATION:-500}"
+      TelegramBridge__AttachmentRetentionEnabled: "${TELEGRAM_BRIDGE_ATTACHMENT_RETENTION_ENABLED:-true}"
+      TelegramBridge__AttachmentRetentionDays: "${TELEGRAM_BRIDGE_ATTACHMENT_RETENTION_DAYS:-14}"
+      TelegramBridge__AttachmentRetentionIntervalMinutes: "${TELEGRAM_BRIDGE_ATTACHMENT_RETENTION_INTERVAL_MINUTES:-360}"
+      TelegramBridgeAi__Enabled: "${TELEGRAM_BRIDGE_AI_ENABLED:-true}"
+      TelegramBridgeAi__Provider: "${TELEGRAM_BRIDGE_AI_PROVIDER:-OpenAI}"
+      TelegramBridgeAi__Model: "${TELEGRAM_BRIDGE_AI_MODEL:-gpt-4.1-mini}"
+      TelegramBridgeAi__ApiKey: "${TELEGRAM_BRIDGE_AI_API_KEY:-}"
+      TelegramAutomation__Enabled: "${TELEGRAM_AUTOMATION_ENABLED:-false}"
+      TelegramAutomation__ClientsAutomationEnabled: "${TELEGRAM_AUTOMATION_CLIENTS_ENABLED:-true}"
+      TelegramAutomation__ProvidersAutomationEnabled: "${TELEGRAM_AUTOMATION_PROVIDERS_ENABLED:-true}"
+      TelegramAutomation__MirrorMessagesEnabled: "${TELEGRAM_AUTOMATION_MIRROR_MESSAGES_ENABLED:-false}"
+      TelegramAutomation__RequireHumanHandoffForOutbound: "${TELEGRAM_AUTOMATION_REQUIRE_HANDOFF_FOR_OUTBOUND:-true}"
+      TelegramAutomation__CpmFullBaseUrl: "${TELEGRAM_AUTOMATION_CPMFULL_BASE_URL:-http://${CONTAINER_PREFIX:-cpm-prd}-cpmfull:${LANDING_PORT:-5088}}"
+      TelegramAutomation__AllowedBotSources: "${TELEGRAM_AUTOMATION_ALLOWED_BOT_SOURCES:-telegram}"
+      TelegramAutomation__SharedSecret: "${TELEGRAM_AUTOMATION_SHARED_SECRET:-}"
+      TelegramAutomation__RequestTimeoutSeconds: "${TELEGRAM_AUTOMATION_REQUEST_TIMEOUT_SECONDS:-15}"
+    networks:
+      - conserta_net
+
+networks:
+  conserta_net:
+    external: true

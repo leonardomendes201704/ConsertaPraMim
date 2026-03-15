@@ -8,6 +8,12 @@ public interface ITelegramBotApiClient
 
     Task<IReadOnlyList<TelegramUpdate>> GetUpdatesAsync(long offset, int timeoutSeconds, CancellationToken cancellationToken);
 
+    Task SetWebhookAsync(string webhookUrl, string secretToken, bool dropPendingUpdates, CancellationToken cancellationToken);
+
+    Task DeleteWebhookAsync(bool dropPendingUpdates, CancellationToken cancellationToken);
+
+    Task<TelegramWebhookInfo?> GetWebhookInfoAsync(CancellationToken cancellationToken);
+
     Task SendMessageAsync(long chatId, string? text, IReadOnlyList<StoredLocalFile> attachments, CancellationToken cancellationToken);
 
     Task<string?> GetFilePathAsync(string fileId, CancellationToken cancellationToken);

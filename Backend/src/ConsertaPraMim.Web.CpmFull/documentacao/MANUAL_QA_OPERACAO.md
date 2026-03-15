@@ -26,7 +26,9 @@ Orientar validacao funcional e operacao basica do projeto `ConsertaPraMim.Web.Cp
 - Mensagens humanas publicas do Chatwoot agora podem voltar para o Telegram pela fila `chatwoot_to_telegram`, com endpoint interno protegido no bridge e handoff humano marcado no lead.
 - O detalhe do lead e o drawer `Diagnostico Telegram` passaram a exibir `TelegramChatId`, `ClientEmail` e erros operacionais em formato mascarado, sem expor PII bruta para suporte.
 - O CPM Full agora expurga payloads antigos da fila `dbo.cpm_web_telegram_delivery_queue`, enquanto o bridge remove anexos antigos de `wwwroot/uploads/telegram-bridge` dentro da janela de retention configurada.
-- O bot publicado continua operando por long polling; nesta fase nao existe webhook publico do Telegram exposto na internet. Se a estrategia migrar para webhook no futuro, a validacao de segredo/origem passa a ser obrigatoria na borda antes de aceitar o payload.
+- O bridge agora suporta dois modos inbound: `LongPolling` e `Webhook`.
+- Em `LongPolling`, o bootstrap remove webhook anterior do bot e continua usando `getUpdates`.
+- Em `Webhook`, o bridge registra automaticamente `setWebhook`, exige `X-Telegram-Bot-Api-Secret-Token` no endpoint `POST /api/integrations/telegram/webhook` e desabilita o worker de polling.
 - O enriquecimento automatico do telefone do usuario continua pendente porque o contrato autenticado atual do bridge ainda nao expoe esse dado.
 
 ### Configuracao minima
@@ -44,6 +46,11 @@ No `ConsertaPraMim.Web.TelegramBridge`, configurar a secao `TelegramAutomation`:
 
 No `ConsertaPraMim.Web.TelegramBridge`, configurar tambem a secao `TelegramBridge`:
 
+- `UpdateTransport`
+- `WebhookPublicBaseUrl`
+- `WebhookPath`
+- `WebhookSecretToken`
+- `WebhookDropPendingUpdates`
 - `AttachmentRetentionEnabled`
 - `AttachmentRetentionDays`
 - `AttachmentRetentionIntervalMinutes`
@@ -86,7 +93,9 @@ No `ConsertaPraMim.Web.CpmFull`, configurar a secao `TelegramAutomation`:
 - O bridge deve aceitar o envio humano apenas pelo endpoint interno `POST /api/internal/telegram/messages/send`, protegido por `X-Telegram-Automation-Key`.
 - Quando o handoff humano estiver ativo, a trilha web do bridge que passa pelo `ChatApiController` deve deixar de emitir nova resposta automatica para o `chatId` marcado.
 - O modal `Vinculo Telegram` e o drawer `Diagnostico Telegram` devem exibir `Chat ID Telegram`, `E-mail autenticado` e mensagens de erro apenas em formato mascarado.
-- O runtime atual do bot continua usando long polling; por isso nao existe webhook publico do Telegram para validar nesta fase. Os endpoints internos bridge <-> CPM Full continuam exigindo o mesmo `SharedSecret`.
+- Em `LongPolling`, o bridge deve remover qualquer webhook anterior do bot e continuar recebendo updates por `getUpdates`.
+- Em `Webhook`, o bridge deve publicar `POST /api/integrations/telegram/webhook` em HTTPS, registrar automaticamente a URL publica na Bot API e rejeitar requests sem `X-Telegram-Bot-Api-Secret-Token` valido.
+- Os endpoints internos bridge <-> CPM Full continuam exigindo o mesmo `SharedSecret`.
 - Itens `processed` ou `dead_letter` antigos da fila `dbo.cpm_web_telegram_delivery_queue` devem ter `PayloadJson` redigido automaticamente pelo worker de retention, e anexos antigos do bridge devem ser removidos da pasta `uploads/telegram-bridge`.
 
 ### Checklist de QA
@@ -175,6 +184,70 @@ No `ConsertaPraMim.Web.CpmFull`, configurar a secao `TelegramAutomation`:
 9. Confirmar que o worker do bridge remove o arquivo fora da janela e limpa diretorios vazios.
 10. Validar que os endpoints internos `POST /api/integrations/telegram/automation/lead`, `POST /api/integrations/telegram/automation/message`, `POST /api/internal/telegram/messages/send` e `GET /api/internal/telegram/observability/dashboard` continuam recusando chamadas sem `X-Telegram-Automation-Key` valido.
 
+### Checklist complementar para modo webhook do Telegram
+
+1. Configurar `TelegramBridge:UpdateTransport=Webhook`.
+2. Preencher `TelegramBridge:WebhookPublicBaseUrl`, `TelegramBridge:WebhookPath` e `TelegramBridge:WebhookSecretToken` com valores validos em HTTPS.
+3. Publicar o `ConsertaPraMim.Web.TelegramBridge` na URL configurada.
+4. Reiniciar o bridge e validar em log que o bootstrap registrou `setWebhook` com sucesso.
+5. Enviar mensagem real ao bot e confirmar processamento pelo endpoint `POST /api/integrations/telegram/webhook`.
+6. Confirmar que o worker de long polling nao ficou ativo no runtime quando o modo `Webhook` estiver ligado.
+7. Repetir a validacao de lead, inbox Chatwoot, espelhamento inbound e handoff humano com o modo webhook ativo.
+
+### Publicacao do TelegramBridge na VPS
+
+#### Objetivo
+
+- Publicar o `ConsertaPraMim.Web.TelegramBridge` como servico proprio da VPS, com URL publica HTTPS e healthcheck dedicado para sustentar o modo `Webhook`.
+
+#### Comportamento esperado
+
+- O workflow `.github/workflows/deploy-vps.yml` deve detectar mudancas em `Backend/src/ConsertaPraMim.Web.TelegramBridge/**`, `Backend/docker/vps/Dockerfile.web.telegrambridge` e `Backend/docker-compose.vps.web-telegrambridge.yml`.
+- O job `deploy-web-telegrambridge` deve publicar o container `${CONTAINER_PREFIX}-telegrambridge` na porta `TELEGRAM_BRIDGE_PORT` (`5175` em prod, `6175` em dev).
+- O healthcheck `health-web-telegrambridge` deve validar `GET /health`.
+- Em `dev-local`, o healthcheck deve preferir `PUBLIC_TELEGRAM_BRIDGE_URL` quando esse secret existir; sem ele, o fallback continua em `http://<VPS_PUBLIC_HOST>:6175/health`.
+- Em `main/master`, o healthcheck deve usar `http://127.0.0.1:5175/health`.
+- O bridge publicado atras do Nginx deve interpretar `X-Forwarded-For`, `X-Forwarded-Proto` e `X-Forwarded-Host`, evitando redirecionamento HTTPS indevido para o webhook.
+- O `Dockerfile` publicado do bridge deve manter a mesma major do `TargetFramework` do projeto (`net8.0` -> `sdk/aspnet:8.0`) para evitar restart loop por framework ausente no container.
+
+#### Configuracao minima no GitHub Actions / `.env.vps`
+
+- `PUBLIC_TELEGRAM_BRIDGE_URL`
+- `TELEGRAM_BRIDGE_PORT`
+- `TELEGRAM_BRIDGE_BOT_TOKEN`
+- `TELEGRAM_BRIDGE_UPDATE_TRANSPORT`
+- `TELEGRAM_BRIDGE_WEBHOOK_PUBLIC_BASE_URL`
+- `TELEGRAM_BRIDGE_WEBHOOK_PATH`
+- `TELEGRAM_BRIDGE_WEBHOOK_SECRET_TOKEN`
+- `TELEGRAM_AUTOMATION_ENABLED`
+- `TELEGRAM_AUTOMATION_CLIENTS_ENABLED`
+- `TELEGRAM_AUTOMATION_PROVIDERS_ENABLED`
+- `TELEGRAM_AUTOMATION_MIRROR_MESSAGES_ENABLED`
+- `TELEGRAM_AUTOMATION_REQUIRE_HANDOFF_FOR_OUTBOUND`
+- `TELEGRAM_AUTOMATION_CPMFULL_BASE_URL`
+- `TELEGRAM_AUTOMATION_SHARED_SECRET`
+
+#### Checklist operacional
+
+1. Cadastrar no environment correto a URL publica do bridge:
+2. `production` -> `https://telegram.consertapramim.com`
+3. `development` -> URL HML dedicada, por exemplo `https://telegram-hml.consertapramim.com`, ou manter vazio para fallback em `http://<VPS_PUBLIC_HOST>:6175`
+4. Publicar a branch desejada e acompanhar os jobs `deploy-web-telegrambridge` e `health-web-telegrambridge`.
+5. Na VPS, validar `docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep telegrambridge`.
+6. Validar `curl -I http://127.0.0.1:5175/health` em producao ou `curl -I http://127.0.0.1:6175/health` em homologacao.
+7. Validar a URL publica coerente com o environment:
+8. producao -> `curl -I https://telegram.consertapramim.com/health`
+9. homologacao -> `curl -I <PUBLIC_TELEGRAM_BRIDGE_URL do environment development>/health`
+10. Se o modo webhook estiver habilitado, enviar mensagem real ao bot e confirmar que o runtime nao caiu em `UseHttpsRedirection`/redirect loop.
+
+#### Troubleshooting
+
+- Workflow nao dispara o deploy do bridge: validar se a alteracao afetou `Backend/src/ConsertaPraMim.Web.TelegramBridge/**`, `Backend/docker/vps/Dockerfile.web.telegrambridge`, `Backend/docker-compose.vps.web-telegrambridge.yml` ou arquivos globais de deploy.
+- `health-web-telegrambridge` falha so em `dev-local`: revisar o secret `PUBLIC_TELEGRAM_BRIDGE_URL`; se ele estiver incorreto, o workflow tentara essa URL antes do fallback `IP:6175`.
+- Container do bridge entra em `Restarting` com erro `You must install or update .NET`: validar se `Backend/docker/vps/Dockerfile.web.telegrambridge` usa `sdk` e `aspnet` na mesma major do `TargetFramework` do projeto (`ConsertaPraMim.Web.TelegramBridge.csproj`).
+- Bridge sobe, mas o webhook recebe `307/308`: validar se a publicacao contem `ForwardedHeaders` e se o Nginx esta encaminhando `X-Forwarded-Proto=https`.
+- Webhook seguro nao registra `setWebhook`: revisar `TELEGRAM_BRIDGE_BOT_TOKEN`, `TELEGRAM_BRIDGE_WEBHOOK_PUBLIC_BASE_URL`, `TELEGRAM_BRIDGE_WEBHOOK_PATH` e `TELEGRAM_BRIDGE_WEBHOOK_SECRET_TOKEN`.
+
 ### Runbook de rotacao do token e segredo do bot
 
 1. Gerar novo token do bot no `@BotFather`, sem invalidar o antigo antes de preparar os dois lados da publicacao.
@@ -182,7 +255,8 @@ No `ConsertaPraMim.Web.CpmFull`, configurar a secao `TelegramAutomation`:
 3. Revisar e, se necessario, rotacionar tambem `TelegramAutomation__SharedSecret` no bridge e no CPM Full no mesmo change set.
 4. Reiniciar bridge e CPM Full em janela controlada.
 5. Validar login, conversa, criacao de lead, bootstrap Chatwoot, espelhamento inbound e outbound humano.
-6. Se houver migracao futura para webhook publico do Telegram, registrar o novo segredo/origem na borda e revalidar o fluxo antes de invalidar o token antigo.
+6. Se o transporte inbound estiver em `Webhook`, revisar tambem `TelegramBridge:WebhookPublicBaseUrl`, `TelegramBridge:WebhookPath` e `TelegramBridge:WebhookSecretToken` antes de invalidar o token antigo.
+7. Revalidar o webhook publicado com mensagem real, confirmando header `X-Telegram-Bot-Api-Secret-Token` e entrega fim a fim antes de concluir a rotacao.
 
 ### Troubleshooting complementar do diagnostico e seguranca
 
@@ -193,6 +267,8 @@ No `ConsertaPraMim.Web.CpmFull`, configurar a secao `TelegramAutomation`:
 - Payload antigo nao foi redigido: validar `TelegramAutomation:DeliveryPayloadCleanupEnabled`, janela de retention, status do item (`processed`/`dead_letter`) e se `PayloadPurgedAt` ainda esta `NULL`.
 - Anexo antigo continua em disco no bridge: validar `TelegramBridge:AttachmentRetentionEnabled`, path `wwwroot/uploads/telegram-bridge`, horario UTC do arquivo e execucao do `TelegramAttachmentRetentionWorker`.
 - Endpoint interno aceitou chamada sem segredo: validar reverse proxy, se o header `X-Telegram-Automation-Key` esta sendo exigido pela aplicacao e se nao existe reescrita indevida na borda.
+- Webhook do Telegram nao recebe trafego: validar `TelegramBridge:UpdateTransport=Webhook`, `TelegramBridge:WebhookPublicBaseUrl`, publicacao HTTPS do endpoint `/api/integrations/telegram/webhook` e se a Bot API registrou a URL esperada.
+- Telegram segue entregando por polling quando webhook foi ligado: validar se a instancia publicada recebeu as novas envs e se o log do bridge registrou `worker de long polling desabilitado`.
 
 ### Checklist final de homologacao do epic Telegram
 
@@ -808,7 +884,7 @@ Equivalentes no deploy VPS:
 ### Limitacao atual conhecida
 
 - O `ConsertaPraMim.Web.TelegramBridge` ja alimenta automaticamente os funis `clientes` e `prestadores` do CPM Full, preservando a trilha conversacional propria (`ChatbotConversations`, `ChatbotMessages`, `ChatbotContextSnapshots`, `ChatbotActionLogs`) como origem tecnica da conversa.
-- O bot publicado ainda opera por long polling; nao existe webhook publico do Telegram exposto nesta fase.
+- O bot publicado agora pode operar por `long polling` ou `webhook` seguro, conforme `TelegramBridge:UpdateTransport`.
 - O enriquecimento automatico de telefone do usuario continua pendente porque o contrato autenticado atual do bridge ainda nao expoe esse dado.
 
 ### Proxima evolucao documentada

@@ -1,11 +1,12 @@
 ﻿# Deploy na VPS com HTTPS
 
-Este guia publica 8 projetos Docker independentes:
+Este guia publica 9 projetos Docker independentes:
 - Site raiz CPM Full (`cpm-prd-cpmfull`)
 - API (`cpm-prd-api`)
 - Portal Admin (`cpm-prd-admin`)
 - Portal Cliente (`cpm-prd-cliente`)
 - Portal Prestador (`cpm-prd-prestador`)
+- Telegram Bridge (`cpm-prd-telegrambridge`)
 - Mobile WebView Cliente (`cpm-prd-app-cliente`)
 - Mobile WebView Prestador (`cpm-prd-app-prestador`)
 - Mobile WebView Admin (`cpm-prd-app-admin`)
@@ -16,6 +17,7 @@ Arquivos compose:
 - `Backend/docker-compose.vps.web-admin.yml`
 - `Backend/docker-compose.vps.web-client.yml`
 - `Backend/docker-compose.vps.web-provider.yml`
+- `Backend/docker-compose.vps.web-telegrambridge.yml`
 - `Backend/docker-compose.vps.mobile-webview-client.yml`
 - `Backend/docker-compose.vps.mobile-webview-provider.yml`
 - `Backend/docker-compose.vps.mobile-webview-admin.yml`
@@ -36,6 +38,7 @@ URLs publicas recomendadas:
 - `https://admin.consertapramim.com`
 - `https://cliente.consertapramim.com`
 - `https://prestador.consertapramim.com`
+- `https://telegram.consertapramim.com`
 - `https://api.consertapramim.com`
 
 Mapeamento interno esperado:
@@ -43,6 +46,7 @@ Mapeamento interno esperado:
 - `admin.consertapramim.com` -> `127.0.0.1:5151`
 - `cliente.consertapramim.com` -> `127.0.0.1:5069`
 - `prestador.consertapramim.com` -> `127.0.0.1:5140`
+- `telegram.consertapramim.com` -> `127.0.0.1:5175`
 - `api.consertapramim.com` -> `127.0.0.1:5193`
 
 Observacao operacional:
@@ -64,6 +68,7 @@ Garanta que estes registros apontem para a IP publica da VPS:
 - `admin.consertapramim.com`
 - `cliente.consertapramim.com`
 - `prestador.consertapramim.com`
+- `telegram.consertapramim.com`
 - `api.consertapramim.com`
 
 Observacao:
@@ -94,6 +99,7 @@ Preencha no `Backend/.env.vps` pelo menos:
 - `PUBLIC_ADMIN_URL`
 - `PUBLIC_CLIENT_URL`
 - `PUBLIC_PROVIDER_URL`
+- `PUBLIC_TELEGRAM_BRIDGE_URL`
 - `PUBLIC_MOBILE_CLIENT_WEBVIEW_URL` (ex.: `http://<host>:5181` em prod, ou URL HTTPS dedicada se houver proxy)
 - `PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL` (ex.: `http://<host>:5182` em prod, ou URL HTTPS dedicada se houver proxy)
 - `PUBLIC_MOBILE_ADMIN_WEBVIEW_URL` (ex.: `http://<host>:5183` em prod, ou URL HTTPS dedicada se houver proxy)
@@ -102,6 +108,8 @@ Preencha no `Backend/.env.vps` pelo menos:
 - `JWT_SECRET_KEY`
 - `SEED_DEFAULT_PASSWORD`
 - obrigatorio para Chatwoot no CPM Full publicado: `CPMFULL_CHATWOOT_*`
+- obrigatorio para o Telegram Bridge publicado em modo webhook: `TELEGRAM_BRIDGE_BOT_TOKEN`, `TELEGRAM_BRIDGE_UPDATE_TRANSPORT`, `TELEGRAM_BRIDGE_WEBHOOK_PUBLIC_BASE_URL`, `TELEGRAM_BRIDGE_WEBHOOK_PATH`, `TELEGRAM_BRIDGE_WEBHOOK_SECRET_TOKEN`
+- obrigatorio para a automacao Telegram publicada no bridge: `TELEGRAM_AUTOMATION_ENABLED`, `TELEGRAM_AUTOMATION_CPMFULL_BASE_URL`, `TELEGRAM_AUTOMATION_SHARED_SECRET`
 - opcional para endurecimento do Chatwoot no CPM Full publicado: `CPMFULL_CHATWOOT_ALLOWED_WEBHOOK_IPS`, `CPMFULL_CHATWOOT_WEBHOOK_PAYLOAD_CLEANUP_ENABLED`, `CPMFULL_CHATWOOT_WEBHOOK_PAYLOAD_RETENTION_DAYS`, `CPMFULL_CHATWOOT_WEBHOOK_PAYLOAD_CLEANUP_INTERVAL_MINUTES`
 
 Observacao critica:
@@ -127,6 +135,7 @@ PUBLIC_API_URL=https://api.consertapramim.com
 PUBLIC_ADMIN_URL=https://admin.consertapramim.com
 PUBLIC_CLIENT_URL=https://cliente.consertapramim.com
 PUBLIC_PROVIDER_URL=https://prestador.consertapramim.com
+PUBLIC_TELEGRAM_BRIDGE_URL=https://telegram.consertapramim.com
 PUBLIC_MOBILE_CLIENT_WEBVIEW_URL=http://SEU_IP_OU_HOST_DA_VPS:5181
 PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL=http://SEU_IP_OU_HOST_DA_VPS:5182
 PUBLIC_MOBILE_ADMIN_WEBVIEW_URL=http://SEU_IP_OU_HOST_DA_VPS:5183
@@ -137,6 +146,7 @@ LANDING_PORT=5088
 ADMIN_PORT=5151
 CLIENT_PORT=5069
 PROVIDER_PORT=5140
+TELEGRAM_BRIDGE_PORT=5175
 MOBILE_CLIENT_WEBVIEW_PORT=5181
 MOBILE_PROVIDER_WEBVIEW_PORT=5182
 MOBILE_ADMIN_WEBVIEW_PORT=5183
@@ -159,6 +169,19 @@ CPMFULL_CHATWOOT_ALLOWED_WEBHOOK_IPS=
 CPMFULL_CHATWOOT_WEBHOOK_PAYLOAD_CLEANUP_ENABLED=true
 CPMFULL_CHATWOOT_WEBHOOK_PAYLOAD_RETENTION_DAYS=14
 CPMFULL_CHATWOOT_WEBHOOK_PAYLOAD_CLEANUP_INTERVAL_MINUTES=360
+TELEGRAM_BRIDGE_BOT_TOKEN=ALTERAR_AQUI
+TELEGRAM_BRIDGE_UPDATE_TRANSPORT=Webhook
+TELEGRAM_BRIDGE_WEBHOOK_PUBLIC_BASE_URL=https://telegram.consertapramim.com
+TELEGRAM_BRIDGE_WEBHOOK_PATH=/api/integrations/telegram/webhook
+TELEGRAM_BRIDGE_WEBHOOK_SECRET_TOKEN=ALTERAR_AQUI
+TELEGRAM_AUTOMATION_ENABLED=true
+TELEGRAM_AUTOMATION_CLIENTS_ENABLED=true
+TELEGRAM_AUTOMATION_PROVIDERS_ENABLED=true
+TELEGRAM_AUTOMATION_MIRROR_MESSAGES_ENABLED=true
+TELEGRAM_AUTOMATION_REQUIRE_HANDOFF_FOR_OUTBOUND=true
+TELEGRAM_AUTOMATION_CPMFULL_BASE_URL=http://cpm-prd-cpmfull:5088
+TELEGRAM_AUTOMATION_ALLOWED_BOT_SOURCES=telegram
+TELEGRAM_AUTOMATION_SHARED_SECRET=ALTERAR_AQUI
 ```
 
 Exemplo minimo (DEV na mesma VPS):
@@ -177,6 +200,7 @@ PUBLIC_API_URL=http://187.77.48.150:6193
 PUBLIC_ADMIN_URL=http://187.77.48.150:6151
 PUBLIC_CLIENT_URL=http://187.77.48.150:6069
 PUBLIC_PROVIDER_URL=http://187.77.48.150:6140
+PUBLIC_TELEGRAM_BRIDGE_URL=http://187.77.48.150:6175
 PUBLIC_MOBILE_CLIENT_WEBVIEW_URL=http://187.77.48.150:6181
 PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL=http://187.77.48.150:6182
 PUBLIC_MOBILE_ADMIN_WEBVIEW_URL=http://187.77.48.150:6183
@@ -187,6 +211,7 @@ LANDING_PORT=6088
 ADMIN_PORT=6151
 CLIENT_PORT=6069
 PROVIDER_PORT=6140
+TELEGRAM_BRIDGE_PORT=6175
 MOBILE_CLIENT_WEBVIEW_PORT=6181
 MOBILE_PROVIDER_WEBVIEW_PORT=6182
 MOBILE_ADMIN_WEBVIEW_PORT=6183
@@ -209,6 +234,19 @@ CPMFULL_CHATWOOT_ALLOWED_WEBHOOK_IPS=
 CPMFULL_CHATWOOT_WEBHOOK_PAYLOAD_CLEANUP_ENABLED=true
 CPMFULL_CHATWOOT_WEBHOOK_PAYLOAD_RETENTION_DAYS=14
 CPMFULL_CHATWOOT_WEBHOOK_PAYLOAD_CLEANUP_INTERVAL_MINUTES=360
+TELEGRAM_BRIDGE_BOT_TOKEN=ALTERAR_AQUI
+TELEGRAM_BRIDGE_UPDATE_TRANSPORT=LongPolling
+TELEGRAM_BRIDGE_WEBHOOK_PUBLIC_BASE_URL=
+TELEGRAM_BRIDGE_WEBHOOK_PATH=/api/integrations/telegram/webhook
+TELEGRAM_BRIDGE_WEBHOOK_SECRET_TOKEN=
+TELEGRAM_AUTOMATION_ENABLED=true
+TELEGRAM_AUTOMATION_CLIENTS_ENABLED=true
+TELEGRAM_AUTOMATION_PROVIDERS_ENABLED=true
+TELEGRAM_AUTOMATION_MIRROR_MESSAGES_ENABLED=true
+TELEGRAM_AUTOMATION_REQUIRE_HANDOFF_FOR_OUTBOUND=true
+TELEGRAM_AUTOMATION_CPMFULL_BASE_URL=http://cpm-hml-cpmfull:6088
+TELEGRAM_AUTOMATION_ALLOWED_BOT_SOURCES=telegram
+TELEGRAM_AUTOMATION_SHARED_SECRET=ALTERAR_AQUI
 ```
 
 ## 2.1) Validacao do rodape de Homologacao (HML)
@@ -252,6 +290,7 @@ Substitua os placeholders:
 - `__ADMIN_DOMAIN__` -> `admin.consertapramim.com`
 - `__CLIENT_DOMAIN__` -> `cliente.consertapramim.com`
 - `__PROVIDER_DOMAIN__` -> `prestador.consertapramim.com`
+- `__TELEGRAM_BRIDGE_DOMAIN__` -> `telegram.consertapramim.com`
 - `__API_DOMAIN__` -> `api.consertapramim.com`
 
 Ative o site e recarregue:
@@ -273,6 +312,7 @@ sudo certbot --nginx \
   -d admin.consertapramim.com \
   -d cliente.consertapramim.com \
   -d prestador.consertapramim.com \
+  -d telegram.consertapramim.com \
   -d api.consertapramim.com
 ```
 
@@ -285,6 +325,7 @@ sudo certbot --nginx --expand \
   -d admin.consertapramim.com \
   -d cliente.consertapramim.com \
   -d prestador.consertapramim.com \
+  -d telegram.consertapramim.com \
   -d api.consertapramim.com
 ```
 
@@ -313,6 +354,7 @@ MSSQL_CONTAINER_NAME=mssql-mssql-1 MSSQL_HOST_ALIAS=mssql scripts/deploy/vps-dep
 MSSQL_CONTAINER_NAME=mssql-mssql-1 MSSQL_HOST_ALIAS=mssql scripts/deploy/vps-deploy-service.sh "$PWD" web-admin
 MSSQL_CONTAINER_NAME=mssql-mssql-1 MSSQL_HOST_ALIAS=mssql scripts/deploy/vps-deploy-service.sh "$PWD" web-client
 MSSQL_CONTAINER_NAME=mssql-mssql-1 MSSQL_HOST_ALIAS=mssql scripts/deploy/vps-deploy-service.sh "$PWD" web-provider
+MSSQL_CONTAINER_NAME=mssql-mssql-1 MSSQL_HOST_ALIAS=mssql scripts/deploy/vps-deploy-service.sh "$PWD" web-telegrambridge
 MSSQL_CONTAINER_NAME=mssql-mssql-1 MSSQL_HOST_ALIAS=mssql scripts/deploy/vps-deploy-service.sh "$PWD" mobile-webview-client
 MSSQL_CONTAINER_NAME=mssql-mssql-1 MSSQL_HOST_ALIAS=mssql scripts/deploy/vps-deploy-service.sh "$PWD" mobile-webview-provider
 MSSQL_CONTAINER_NAME=mssql-mssql-1 MSSQL_HOST_ALIAS=mssql scripts/deploy/vps-deploy-service.sh "$PWD" mobile-webview-admin
@@ -337,6 +379,7 @@ curl -I http://127.0.0.1:5193/health
 curl -I http://127.0.0.1:5151/Account/Login
 curl -I http://127.0.0.1:5069/Account/Login
 curl -I http://127.0.0.1:5140/Account/Login
+curl -I http://127.0.0.1:5175/health
 ```
 
 Validacao publica:
@@ -349,6 +392,7 @@ curl -I https://api.consertapramim.com/health
 curl -I https://admin.consertapramim.com/Account/Login
 curl -I https://cliente.consertapramim.com/Account/Login
 curl -I https://prestador.consertapramim.com/Account/Login
+curl -I https://telegram.consertapramim.com/health
 ```
 
 Validacao da malha Docker:
@@ -404,10 +448,10 @@ Isolamento automatico por branch (workflow):
 Portas por ambiente:
 
 - `dev-local`:
-  API `6193`, CPM Full raiz `6088`, Admin `6151`, Cliente `6069`, Prestador `6140`,
+  API `6193`, CPM Full raiz `6088`, Admin `6151`, Cliente `6069`, Prestador `6140`, Telegram Bridge `6175`,
   Mobile WebViews `6181/6182/6183`
 - `main/master`:
-  API `5193`, CPM Full raiz `5088`, Admin `5151`, Cliente `5069`, Prestador `5140`,
+  API `5193`, CPM Full raiz `5088`, Admin `5151`, Cliente `5069`, Prestador `5140`, Telegram Bridge `5175`,
   Mobile WebViews `5181/5182/5183`
 
 Configuracao recomendada no GitHub:
@@ -455,16 +499,35 @@ Secrets opcionais:
 - `PUBLIC_ADMIN_URL`
 - `PUBLIC_CLIENT_URL`
 - `PUBLIC_PROVIDER_URL`
+- `PUBLIC_TELEGRAM_BRIDGE_URL`
 - `PUBLIC_MOBILE_CLIENT_WEBVIEW_URL`
 - `PUBLIC_MOBILE_PROVIDER_WEBVIEW_URL`
 - `PUBLIC_MOBILE_ADMIN_WEBVIEW_URL`
 - `ENFORCE_API_HTTPS_REDIRECTION`
+- `TELEGRAM_BRIDGE_BOT_TOKEN`
+- `TELEGRAM_BRIDGE_UPDATE_TRANSPORT`
+- `TELEGRAM_BRIDGE_WEBHOOK_PUBLIC_BASE_URL`
+- `TELEGRAM_BRIDGE_WEBHOOK_PATH`
+- `TELEGRAM_BRIDGE_WEBHOOK_SECRET_TOKEN`
+- `TELEGRAM_BRIDGE_WEBHOOK_DROP_PENDING_UPDATES`
+- `TELEGRAM_AUTOMATION_ENABLED`
+- `TELEGRAM_AUTOMATION_CLIENTS_ENABLED`
+- `TELEGRAM_AUTOMATION_PROVIDERS_ENABLED`
+- `TELEGRAM_AUTOMATION_MIRROR_MESSAGES_ENABLED`
+- `TELEGRAM_AUTOMATION_REQUIRE_HANDOFF_FOR_OUTBOUND`
+- `TELEGRAM_AUTOMATION_CPMFULL_BASE_URL`
+- `TELEGRAM_AUTOMATION_ALLOWED_BOT_SOURCES`
+- `TELEGRAM_AUTOMATION_SHARED_SECRET`
+- `TELEGRAM_AUTOMATION_REQUEST_TIMEOUT_SECONDS`
 
 Comportamento do workflow:
 - o pipeline respeita os valores de `PUBLIC_*_URL` e `PUBLIC_MOBILE_*_WEBVIEW_URL` definidos no environment (`development`/`production`);
+- o pipeline tambem respeita `PUBLIC_TELEGRAM_BRIDGE_URL` no healthcheck do `web-telegrambridge`, com fallback para `http://<VPS_PUBLIC_HOST>:<TELEGRAM_BRIDGE_PORT>` em `dev-local`;
 - se algum valor publico estiver ausente, aplica fallback para `http://<VPS_PUBLIC_HOST>:<porta-do-ambiente>`;
 - em `main/master`, os `PUBLIC_*_URL` e `PUBLIC_MOBILE_*_WEBVIEW_URL` devem apontar para os dominios/subdominios HTTPS de producao.
 - no `health-web-cpmfull`, o workflow passa a preferir `PUBLIC_LANDING_URL` quando a branch for `dev-local` e esse secret estiver preenchido; sem isso, continua o fallback para `http://<VPS_PUBLIC_HOST>:6088`.
+- no `health-web-telegrambridge`, o workflow passa a preferir `PUBLIC_TELEGRAM_BRIDGE_URL` quando a branch for `dev-local` e esse secret estiver preenchido; sem isso, continua o fallback para `http://<VPS_PUBLIC_HOST>:6175`.
+- o `Dockerfile` do `TelegramBridge` precisa manter a mesma major do `TargetFramework` do projeto na imagem final (`net8.0` -> `mcr.microsoft.com/dotnet/aspnet:8.0`), senao o container entra em restart loop por framework ausente.
 
 Observacoes sobre metadados de APK e push de resumo:
 - a publicacao de metadados dos APKs (`/api/internal/deploy/apk-publication`) e enviada pelo runner self-hosted para `http://127.0.0.1:<API_PORT>` na propria VPS;
@@ -489,6 +552,7 @@ docker compose -p cpm-prd-api -f Backend/docker-compose.vps.api.yml --env-file B
 docker compose -p cpm-prd-admin -f Backend/docker-compose.vps.web-admin.yml --env-file Backend/.env.vps ps
 docker compose -p cpm-prd-cliente -f Backend/docker-compose.vps.web-client.yml --env-file Backend/.env.vps ps
 docker compose -p cpm-prd-prestador -f Backend/docker-compose.vps.web-provider.yml --env-file Backend/.env.vps ps
+docker compose -p cpm-prd-telegrambridge -f Backend/docker-compose.vps.web-telegrambridge.yml --env-file Backend/.env.vps ps
 docker compose -p cpm-prd-app-cliente -f Backend/docker-compose.vps.mobile-webview-client.yml --env-file Backend/.env.vps ps
 docker compose -p cpm-prd-app-prestador -f Backend/docker-compose.vps.mobile-webview-provider.yml --env-file Backend/.env.vps ps
 docker compose -p cpm-prd-app-admin -f Backend/docker-compose.vps.mobile-webview-admin.yml --env-file Backend/.env.vps ps
@@ -512,6 +576,7 @@ docker logs -f cpm-prd-api
 docker logs -f cpm-prd-admin
 docker logs -f cpm-prd-cliente
 docker logs -f cpm-prd-prestador
+docker logs -f cpm-prd-telegrambridge
 docker logs -f cpm-prd-app-cliente
 docker logs -f cpm-prd-app-prestador
 docker logs -f cpm-prd-app-admin
@@ -522,6 +587,7 @@ docker logs -f cpm-hml-api
 docker logs -f cpm-hml-admin
 docker logs -f cpm-hml-cliente
 docker logs -f cpm-hml-prestador
+docker logs -f cpm-hml-telegrambridge
 docker logs -f cpm-hml-app-cliente
 docker logs -f cpm-hml-app-prestador
 docker logs -f cpm-hml-app-admin
@@ -529,7 +595,7 @@ docker logs -f cpm-hml-app-admin
 
 ## 10) Troubleshooting rapido (DEV por IP:porta)
 
-Quando `http://<IP>:6088|6151|6069|6140|6193` der timeout:
+Quando `http://<IP>:6088|6151|6069|6140|6175|6193` der timeout:
 
 1. Validar se a stack DEV subiu no projeto compose correto:
 
@@ -539,12 +605,13 @@ docker compose -p cpm-hml-admin -f Backend/docker-compose.vps.web-admin.yml --en
 docker compose -p cpm-hml-cliente -f Backend/docker-compose.vps.web-client.yml --env-file Backend/.env.vps ps
 docker compose -p cpm-hml-prestador -f Backend/docker-compose.vps.web-provider.yml --env-file Backend/.env.vps ps
 docker compose -p cpm-hml-cpmfull -f Backend/docker-compose.vps.web-cpmfull.yml --env-file Backend/.env.vps ps
+docker compose -p cpm-hml-telegrambridge -f Backend/docker-compose.vps.web-telegrambridge.yml --env-file Backend/.env.vps ps
 ```
 
 2. Validar bind de portas no host:
 
 ```bash
-sudo ss -ltnp | egrep ':(6193|6151|6069|6140|6088)\b'
+sudo ss -ltnp | egrep ':(6193|6175|6151|6069|6140|6088)\b'
 ```
 
 3. Testar localmente na propria VPS:
@@ -555,6 +622,7 @@ curl -I http://127.0.0.1:6151/Account/Login
 curl -I http://127.0.0.1:6069/Account/Login
 curl -I http://127.0.0.1:6140/Account/Login
 curl -i http://127.0.0.1:6088/health
+curl -i http://127.0.0.1:6175/health
 ```
 
 4. Se os containers estiverem em `Restarting/Exited`, abrir logs:
@@ -565,6 +633,9 @@ docker logs --tail 200 cpm-hml-admin
 docker logs --tail 200 cpm-hml-cliente
 docker logs --tail 200 cpm-hml-prestador
 docker logs --tail 200 cpm-hml-cpmfull
+docker logs --tail 200 cpm-hml-telegrambridge
+
+5. Se o `telegrambridge` estiver reiniciando com erro `You must install or update .NET`, revisar `Backend/docker/vps/Dockerfile.web.telegrambridge` e alinhar `sdk`/`aspnet` com a major do `TargetFramework` do projeto (`net8.0` -> `8.0`).
 ```
 
 5. Se a API cair com `PendingModelChangesWarning` no `cpm-hml-api`:

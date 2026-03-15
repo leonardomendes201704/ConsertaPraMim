@@ -3,6 +3,7 @@ using ConsertaPraMim.Web.TelegramBridge.Options;
 using ConsertaPraMim.Web.TelegramBridge.Services;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -25,6 +26,15 @@ builder.Services.AddOptions<TelegramAutomationOptions>()
 builder.Services.Configure<FormOptions>(options =>
 {
     options.MultipartBodyLengthLimit = 52_428_800;
+});
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders =
+        ForwardedHeaders.XForwardedFor |
+        ForwardedHeaders.XForwardedProto |
+        ForwardedHeaders.XForwardedHost;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
 });
 
 builder.Services.AddControllersWithViews();
@@ -101,6 +111,7 @@ builder.Services.AddSingleton<ITelegramBotApiClient, TelegramBotApiClient>();
 builder.Services.AddSingleton<ITelegramAttachmentStorage, TelegramAttachmentStorage>();
 builder.Services.AddSingleton<ITelegramChatRealtimeNotifier, TelegramChatRealtimeNotifier>();
 builder.Services.AddSingleton<ITelegramChatService, TelegramChatService>();
+builder.Services.AddSingleton<ITelegramInboundUpdateProcessor, TelegramInboundUpdateProcessor>();
 builder.Services.AddSingleton<ITelegramHumanHandoffStateService, TelegramHumanHandoffStateService>();
 builder.Services.AddScoped<ITelegramBridgeAuthApiClient, TelegramBridgeAuthApiClient>();
 builder.Services.AddScoped<ITelegramChatbotApiClient, TelegramChatbotApiClient>();
@@ -110,6 +121,7 @@ builder.Services.AddSingleton<ITelegramChatbotObservabilityService, TelegramChat
 builder.Services.AddSingleton<TelegramServiceRequestTriageEngine>();
 builder.Services.AddSingleton<TelegramSchedulingNaturalLanguageParser>();
 builder.Services.AddScoped<ITelegramChatbotOrchestrator, TelegramChatbotOrchestrator>();
+builder.Services.AddHostedService<TelegramUpdateTransportBootstrapService>();
 builder.Services.AddHostedService<TelegramLongPollingBackgroundService>();
 builder.Services.AddHostedService<TelegramAttachmentRetentionWorker>();
 
@@ -123,12 +135,15 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
+app.UseForwardedHeaders();
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 
 app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
+
+app.MapGet("/health", () => Results.Ok("Healthy"));
 
 app.MapControllerRoute(
     name: "default",
