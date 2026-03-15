@@ -208,6 +208,7 @@ No `ConsertaPraMim.Web.CpmFull`, configurar a secao `TelegramAutomation`:
 - Em `dev-local`, o healthcheck deve preferir `PUBLIC_TELEGRAM_BRIDGE_URL` quando esse secret existir; sem ele, o fallback continua em `http://<VPS_PUBLIC_HOST>:6175/health`.
 - Em `main/master`, o healthcheck deve usar `http://127.0.0.1:5175/health`.
 - O bridge publicado atras do Nginx deve interpretar `X-Forwarded-For`, `X-Forwarded-Proto` e `X-Forwarded-Host`, evitando redirecionamento HTTPS indevido para o webhook.
+- O `Dockerfile` publicado do bridge deve manter a mesma major do `TargetFramework` do projeto (`net8.0` -> `sdk/aspnet:8.0`) para evitar restart loop por framework ausente no container.
 
 #### Configuracao minima no GitHub Actions / `.env.vps`
 
@@ -243,6 +244,7 @@ No `ConsertaPraMim.Web.CpmFull`, configurar a secao `TelegramAutomation`:
 
 - Workflow nao dispara o deploy do bridge: validar se a alteracao afetou `Backend/src/ConsertaPraMim.Web.TelegramBridge/**`, `Backend/docker/vps/Dockerfile.web.telegrambridge`, `Backend/docker-compose.vps.web-telegrambridge.yml` ou arquivos globais de deploy.
 - `health-web-telegrambridge` falha so em `dev-local`: revisar o secret `PUBLIC_TELEGRAM_BRIDGE_URL`; se ele estiver incorreto, o workflow tentara essa URL antes do fallback `IP:6175`.
+- Container do bridge entra em `Restarting` com erro `You must install or update .NET`: validar se `Backend/docker/vps/Dockerfile.web.telegrambridge` usa `sdk` e `aspnet` na mesma major do `TargetFramework` do projeto (`ConsertaPraMim.Web.TelegramBridge.csproj`).
 - Bridge sobe, mas o webhook recebe `307/308`: validar se a publicacao contem `ForwardedHeaders` e se o Nginx esta encaminhando `X-Forwarded-Proto=https`.
 - Webhook seguro nao registra `setWebhook`: revisar `TELEGRAM_BRIDGE_BOT_TOKEN`, `TELEGRAM_BRIDGE_WEBHOOK_PUBLIC_BASE_URL`, `TELEGRAM_BRIDGE_WEBHOOK_PATH` e `TELEGRAM_BRIDGE_WEBHOOK_SECRET_TOKEN`.
 

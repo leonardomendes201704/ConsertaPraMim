@@ -12,6 +12,12 @@
 
 ## Released
 
+- [2026-03-14] [CPMFULL-032][TELEGRAM-POST-EPIC-VPS-HOTFIX] Correcao do runtime Docker do TelegramBridge na VPS
+- Tipo: fix
+- Resumo: corrigido o `Dockerfile` publicado do `ConsertaPraMim.Web.TelegramBridge` para alinhar `sdk` e `aspnet` em `8.0`, eliminando o restart loop do container em `dev-local` causado por mismatch entre o app `net8.0` e a imagem final `aspnet:9.0`. O runbook operacional passou a orientar essa validacao quando o healthcheck falhar com erro de framework ausente.
+- Arquivos principais: `Backend/docker/vps/Dockerfile.web.telegrambridge`, `Backend/DEPLOY_VPS.md`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/MANUAL_QA_OPERACAO.md`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/EPIC_TELEGRAM_AUTOMACAO_FUNIL_CPM.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-089-publicacao-telegram-bridge-vps-webhook.md`
+- Risco/Impacto: medio
+
 - [2026-03-14] [CPMFULL-031][TELEGRAM-POST-EPIC-VPS-PUBLISH] Publicacao do TelegramBridge na pipeline VPS com healthcheck e URL publica dedicados
 - Tipo: feat
 - Resumo: o `ConsertaPraMim.Web.TelegramBridge` passou a ser publicado como servico proprio do workflow `deploy-vps`, com `Dockerfile`/compose dedicados, suporte de scripts `vps-deploy`, healthcheck `GET /health`, propagacao de `PUBLIC_TELEGRAM_BRIDGE_URL` e secrets `TELEGRAM_BRIDGE_*` / `TELEGRAM_AUTOMATION_*` no `Backend/.env.vps`, alem de suporte a `ForwardedHeaders` para operar o webhook seguro atras do Nginx sem redirect indevido.

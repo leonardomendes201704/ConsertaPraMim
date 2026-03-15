@@ -451,6 +451,7 @@ Como operacao, queremos publicar o `ConsertaPraMim.Web.TelegramBridge` como serv
 3. O `ConsertaPraMim.Web.TelegramBridge` passou a responder `GET /health` e a interpretar `X-Forwarded-*` por `ForwardedHeaders`, evitando redirecionamento HTTPS indevido atras do Nginx.
 4. A stack VPS agora inclui compose e Dockerfile dedicados do bridge, e os scripts `scripts/deploy/vps-deploy.sh` / `scripts/deploy/vps-deploy-service.sh` passaram a aceitar `web-telegrambridge`.
 5. A documentacao operacional foi atualizada para recomendar `https://telegram.consertapramim.com`, orientar `PUBLIC_TELEGRAM_BRIDGE_URL` por environment e validar o webhook seguro do Telegram em ambiente publicado.
+6. Um hotfix pos-publicacao alinhou a imagem final do bridge para `.NET 8`, removendo o restart loop observado no `dev-local` quando o runtime final estava em `aspnet:9.0` para um app `net8.0`.
 
 ## 8. Sequencia de entrega recomendada
 1. Sprint 1:

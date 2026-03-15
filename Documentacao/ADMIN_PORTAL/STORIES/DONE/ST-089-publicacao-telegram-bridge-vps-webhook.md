@@ -23,3 +23,7 @@ operar o modo `Webhook` do Telegram em ambiente publicado, sem depender apenas d
 - [x] ajustar `vps-deploy.sh` e `vps-deploy-service.sh` para o novo servico;
 - [x] adicionar `GET /health` e `ForwardedHeaders` no runtime do bridge publicado;
 - [x] atualizar `DEPLOY_VPS.md`, manual QA/Operacao, README, epic, indice e changelog com a publicacao do bridge.
+
+## Observacao pos-release
+
+- Em `2026-03-14`, a story recebeu hotfix operacional para alinhar `Backend/docker/vps/Dockerfile.web.telegrambridge` ao `TargetFramework` real do projeto (`net8.0`), trocando a imagem final `aspnet:9.0` por `aspnet:8.0` e eliminando o restart loop do container observado na homologacao.
