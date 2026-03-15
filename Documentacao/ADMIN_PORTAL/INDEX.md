@@ -72,6 +72,7 @@
 
 ### Done
 
+- [ST-090 - Ativacao operacional do bot Telegram no ambiente publicado](STORIES/DONE/ST-090-ativacao-operacional-bot-telegram-publicado.md)
 - [ST-089 - Publicacao do TelegramBridge na VPS com webhook HTTPS](STORIES/DONE/ST-089-publicacao-telegram-bridge-vps-webhook.md)
 - [ST-088 - Transporte webhook seguro no TelegramBridge](STORIES/DONE/ST-088-telegram-webhook-seguro-bridge.md)
 - [ST-087 - QA, homologacao e rollback da trilha Telegram no CPM Full](STORIES/DONE/ST-087-qa-homologacao-rollback-telegram-cpmfull.md)

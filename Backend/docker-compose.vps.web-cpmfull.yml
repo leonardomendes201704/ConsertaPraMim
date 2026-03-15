@@ -36,6 +36,22 @@ services:
       Chatwoot__WebhookPayloadCleanupEnabled: "${CPMFULL_CHATWOOT_WEBHOOK_PAYLOAD_CLEANUP_ENABLED:-true}"
       Chatwoot__WebhookPayloadRetentionDays: "${CPMFULL_CHATWOOT_WEBHOOK_PAYLOAD_RETENTION_DAYS:-14}"
       Chatwoot__WebhookPayloadCleanupIntervalMinutes: "${CPMFULL_CHATWOOT_WEBHOOK_PAYLOAD_CLEANUP_INTERVAL_MINUTES:-360}"
+      TelegramAutomation__Enabled: "${TELEGRAM_AUTOMATION_ENABLED:-false}"
+      TelegramAutomation__ClientsAutomationEnabled: "${TELEGRAM_AUTOMATION_CLIENTS_ENABLED:-true}"
+      TelegramAutomation__ProvidersAutomationEnabled: "${TELEGRAM_AUTOMATION_PROVIDERS_ENABLED:-true}"
+      TelegramAutomation__MirrorMessagesEnabled: "${TELEGRAM_AUTOMATION_MIRROR_MESSAGES_ENABLED:-false}"
+      TelegramAutomation__RequireHumanHandoffForOutbound: "${TELEGRAM_AUTOMATION_REQUIRE_HANDOFF_FOR_OUTBOUND:-true}"
+      TelegramAutomation__AllowedBotSources: "${TELEGRAM_AUTOMATION_ALLOWED_BOT_SOURCES:-telegram}"
+      TelegramAutomation__TelegramBridgeBaseUrl: "${TELEGRAM_AUTOMATION_TELEGRAM_BRIDGE_BASE_URL:-http://${CONTAINER_PREFIX:-cpm-prd}-telegrambridge:${TELEGRAM_BRIDGE_PORT:-5175}}"
+      TelegramAutomation__SharedSecret: "${TELEGRAM_AUTOMATION_SHARED_SECRET:-}"
+      TelegramAutomation__RequestTimeoutSeconds: "${TELEGRAM_AUTOMATION_REQUEST_TIMEOUT_SECONDS:-15}"
+      TelegramAutomation__DeliveryWorkerEnabled: "${TELEGRAM_AUTOMATION_DELIVERY_WORKER_ENABLED:-true}"
+      TelegramAutomation__DeliveryWorkerIntervalSeconds: "${TELEGRAM_AUTOMATION_DELIVERY_WORKER_INTERVAL_SECONDS:-20}"
+      TelegramAutomation__DeliveryWorkerBatchSize: "${TELEGRAM_AUTOMATION_DELIVERY_WORKER_BATCH_SIZE:-20}"
+      TelegramAutomation__DeliveryQueueMaxAttempts: "${TELEGRAM_AUTOMATION_DELIVERY_QUEUE_MAX_ATTEMPTS:-10}"
+      TelegramAutomation__DeliveryPayloadCleanupEnabled: "${TELEGRAM_AUTOMATION_DELIVERY_PAYLOAD_CLEANUP_ENABLED:-true}"
+      TelegramAutomation__DeliveryPayloadRetentionDays: "${TELEGRAM_AUTOMATION_DELIVERY_PAYLOAD_RETENTION_DAYS:-14}"
+      TelegramAutomation__DeliveryPayloadCleanupIntervalMinutes: "${TELEGRAM_AUTOMATION_DELIVERY_PAYLOAD_CLEANUP_INTERVAL_MINUTES:-360}"
     networks:
       - conserta_net
 
