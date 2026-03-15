@@ -530,6 +530,7 @@ Comportamento do workflow:
 - no `health-web-telegrambridge`, o workflow passa a preferir `PUBLIC_TELEGRAM_BRIDGE_URL` quando a branch for `dev-local` e esse secret estiver preenchido; sem isso, continua o fallback para `http://<VPS_PUBLIC_HOST>:6175`.
 - o `Dockerfile` do `TelegramBridge` precisa manter a mesma major do `TargetFramework` do projeto na imagem final (`net8.0` -> `mcr.microsoft.com/dotnet/aspnet:8.0`), senao o container entra em restart loop por framework ausente.
 - em `LongPolling`, nao configurar o mesmo `TELEGRAM_BRIDGE_BOT_TOKEN` simultaneamente em `development` e `production`, porque dois consumidores no mesmo bot causam disputa de `getUpdates` e comportamento nao deterministico.
+- o job `deploy-web-cpmfull` tambem precisa escrever no `Backend/.env.vps` todo o bloco `TELEGRAM_AUTOMATION_*`; se esse bloco ficar ausente, o `telegrambridge` recebe a mensagem do bot, mas o `cpmfull` responde `409 Automacao Telegram desabilitada no ambiente atual.`.
 
 Observacoes sobre metadados de APK e push de resumo:
 - a publicacao de metadados dos APKs (`/api/internal/deploy/apk-publication`) e enviada pelo runner self-hosted para `http://127.0.0.1:<API_PORT>` na propria VPS;
@@ -640,6 +641,8 @@ docker logs --tail 200 cpm-hml-telegrambridge
 5. Se o `telegrambridge` estiver reiniciando com erro `You must install or update .NET`, revisar `Backend/docker/vps/Dockerfile.web.telegrambridge` e alinhar `sdk`/`aspnet` com a major do `TargetFramework` do projeto (`net8.0` -> `8.0`).
 
 6. Se o bridge estiver recebendo mensagens do Telegram, mas o CPM Full nao criar lead nem espelhar handoff, revisar se o `web-cpmfull` recebeu `TELEGRAM_AUTOMATION_ENABLED`, `TELEGRAM_AUTOMATION_SHARED_SECRET` e `TELEGRAM_AUTOMATION_TELEGRAM_BRIDGE_BASE_URL` no compose publicado.
+
+7. Se o bridge estiver recebendo mensagens e respondendo `409 Automacao Telegram desabilitada no ambiente atual.`, executar `docker exec cpm-prd-cpmfull printenv | grep '^TelegramAutomation__'` e confirmar `Enabled=true`, `MirrorMessagesEnabled=true` e `SharedSecret` preenchido.
 ```
 
 5. Se a API cair com `PendingModelChangesWarning` no `cpm-hml-api`:

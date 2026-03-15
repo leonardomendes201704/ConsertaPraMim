@@ -160,6 +160,7 @@ No `ConsertaPraMim.Web.CpmFull`, configurar a secao `TelegramAutomation`:
 
 - `401` na automacao interna: validar se bridge e CPM Full usam exatamente o mesmo `TelegramAutomation:SharedSecret`.
 - `409` com automacao desabilitada: conferir `TelegramAutomation:Enabled` e a flag correta (`ClientsAutomationEnabled` ou `ProvidersAutomationEnabled`) nos dois projetos.
+- `409` com automacao desabilitada apenas no ambiente publicado: revisar se o job `deploy-web-cpmfull` escreveu todas as variaveis `TELEGRAM_AUTOMATION_*` no `Backend/.env.vps` e se o container `cpm-prd-cpmfull` foi recriado apos a mudanca.
 - Pedido criado, mas sem lead no CPM Full: revisar `TelegramAutomation:CpmFullBaseUrl`, reachability HTTP e logs do `TelegramLeadAutomationClient`.
 - Lead duplicado: validar se a mesma conversa esta preservando o mesmo `ChatbotConversationId` na trilha do chatbot.
 - Modal sem `Vinculo Telegram`: validar se existe registro em `dbo.cpm_web_telegram_funil_links` para o `LeadId` e se o detalhe do lead foi recarregado apos a automacao.
@@ -171,6 +172,7 @@ No `ConsertaPraMim.Web.CpmFull`, configurar a secao `TelegramAutomation`:
 - Mensagem humana do Chatwoot nao voltou ao Telegram: validar se a mensagem no Chatwoot e publica, se o lead possui `TelegramChatId`, se o webhook inbound do Chatwoot esta saudavel e se o bridge aceita `POST /api/internal/telegram/messages/send`.
 - Fila presa em retentativa: revisar `LastError`, `AttemptCount`, `NextAttemptAt`, reachability entre CPM Full e bridge, e se `DeliveryQueueMaxAttempts` nao ja levou o item para `dead_letter`.
 - Bot continuou respondendo apos handoff humano: validar se `RequireHumanHandoffForOutbound=true`, se o primeiro outbound humano chegou a ativar o handoff e se a conversa esta passando pela trilha web controlada pelo `ChatApiController`.
+- Bridge recebe updates, mas nada aparece no funil: abrir `docker logs --tail 200 cpm-prd-telegrambridge` e procurar `409 Automacao Telegram desabilitada no ambiente atual.`; se aparecer, validar `docker exec cpm-prd-cpmfull printenv | grep '^TelegramAutomation__'`.
 
 ### Checklist complementar para diagnostico operacional
 

@@ -506,6 +506,31 @@ Como operacao, queremos que a primeira mensagem recebida diretamente pelo bot pu
 4. O mirror inbound passou a carregar `ChatbotConversationId` no payload, aumentando a chance de o CPM Full localizar corretamente o lead mesmo na primeira mensagem.
 5. Quando o bootstrap cria o lead e ainda nao existe handoff humano ativo, o bot envia um ACK inicial ao usuario no Telegram para evitar a sensacao de silencio operacional.
 
+## Pos-epico - ST-092 - Hotfix do deploy do CPM Full para ativar TelegramAutomation no ambiente publicado
+
+### Descricao
+Como operacao, queremos garantir que o `ConsertaPraMim.Web.CpmFull` publicado receba a mesma configuracao `TelegramAutomation` ja ativa no bridge, evitando o falso negativo em que o bot recebe o update real, mas o CPM Full responde `Automacao Telegram desabilitada no ambiente atual.`.
+
+### Status
+- Concluida em `2026-03-14` como correcao de deploy pos-epic no ambiente publicado.
+
+### Criterios de aceite
+1. O job `deploy-web-cpmfull` escreve todas as variaveis `TELEGRAM_AUTOMATION_*` exigidas pelo compose e pelo runtime do CPM Full.
+2. O container publicado do `web-cpmfull` sobe com `TelegramAutomation__Enabled=true`, `MirrorMessagesEnabled=true` e `SharedSecret` preenchido quando os secrets do environment estiverem configurados.
+3. O bridge publicado deixa de receber `409` do CPM Full ao bootstrapar lead e espelhar mensagem real do bot.
+4. O troubleshooting operacional deixa explicito esse sintoma e a forma de validar o runtime do container.
+
+### Tasks
+- `TASK-15.01` Corrigir o bloco `Write VPS env file` do job `deploy-web-cpmfull`.
+- `TASK-15.02` Recriar o container publicado do `web-cpmfull` com as envs de Telegram ativas.
+- `TASK-15.03` Atualizar changelog, manual operacional e story de pos-epic com a causa raiz do `409`.
+
+### Entrega aplicada
+1. O workflow `.github/workflows/deploy-vps.yml` passou a propagar no job `deploy-web-cpmfull` os mesmos parametros `TELEGRAM_AUTOMATION_*` ja usados pelo compose do CPM Full.
+2. O fallback de `TELEGRAM_AUTOMATION_TELEGRAM_BRIDGE_BASE_URL` ficou alinhado ao endereco interno `http://<container-prefix>-telegrambridge:<porta>`.
+3. O hotfix operacional publicado recriou o `cpm-prd-cpmfull` com `TelegramAutomation` e espelhamento inbound realmente habilitados.
+4. O manual passou a orientar a verificacao de `printenv` no container do CPM Full quando o bridge estiver recebendo updates, mas o lead nao aparecer no funil.
+
 ## 8. Sequencia de entrega recomendada
 1. Sprint 1:
 - US-01
