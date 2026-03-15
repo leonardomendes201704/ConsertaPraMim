@@ -19,7 +19,7 @@ Orientar validacao funcional e operacao basica do projeto `ConsertaPraMim.Web.Cp
 - O CPM Full cria ou atualiza lead no board `clientes` quando o usuario autenticado e `Client` e no board `prestadores` quando o usuario autenticado e `Provider`.
 - A deduplicacao desta fase e feita por `ChatbotConversationId`.
 - O lead nasce com `Source = Telegram`, contexto inicial da conversa e vinculo tecnico persistido em `dbo.cpm_web_telegram_funil_links`.
-- O detalhe do lead no Kanban agora exibe a secao `Vinculo Telegram` com `ChatbotConversationId`, `ChannelConversationId`, `TelegramChatId`, `ClientId`, `ClientEmail`, `ServiceRequestId`, `HumanHandoffStartedAt`, `LastTelegramMessageSyncedAt`, `LastChatwootMessageSyncedAt` e horario da ultima atualizacao do vinculo.
+- O detalhe do lead no Kanban agora exibe a secao `Vinculo Telegram` com `ChatbotConversationId`, `ChannelConversationId`, `TelegramChatId`, `ClientId`, `ClientPhone`, `ClientEmail`, `ServiceRequestId`, `HumanHandoffStartedAt`, `LastTelegramMessageSyncedAt`, `LastChatwootMessageSyncedAt` e horario da ultima atualizacao do vinculo.
 - O Chatwoot continua sendo alimentado pela trilha ja existente do lead do Kanban, agora com bootstrap operacional dedicado para leads Telegram no inbox correto de `clientes` ou `prestadores`.
 - O `TelegramChatbotController` da API agora aceita sessao, mensagens, snapshots, actions, estado e historico para `Client` e `Provider`, mantendo pedidos/agendamentos como `client-only`.
 - Mensagens recebidas do Telegram agora podem ser espelhadas para o Chatwoot pela fila `telegram_to_chatwoot`, com deduplicacao por `ChannelMessageId`.
@@ -29,7 +29,11 @@ Orientar validacao funcional e operacao basica do projeto `ConsertaPraMim.Web.Cp
 - O bridge agora suporta dois modos inbound: `LongPolling` e `Webhook`.
 - Em `LongPolling`, o bootstrap remove webhook anterior do bot e continua usando `getUpdates`.
 - Em `Webhook`, o bridge registra automaticamente `setWebhook`, exige `X-Telegram-Bot-Api-Secret-Token` no endpoint `POST /api/integrations/telegram/webhook` e desabilita o worker de polling.
-- O enriquecimento automatico do telefone do usuario continua pendente porque o contrato autenticado atual do bridge ainda nao expoe esse dado.
+- O primeiro ACK do bot agora pode solicitar telefone com botao nativo `request_contact`, sem bloquear a jornada.
+- Quando o usuario compartilha contato no Telegram ou envia telefone/e-mail por texto em formato seguro, o mesmo lead do CPM Full e o mesmo contato do Chatwoot sao enriquecidos automaticamente.
+- O modal de detalhes do lead no Kanban agora expõe a acao `Excluir lead`, removendo o lead local, historico, vinculo Telegram e filas relacionadas.
+- Quando o lead possui `TelegramChatId`, a exclusao tenta resetar o handoff humano em memoria no `TelegramBridge` antes de concluir o reset local.
+- O fluxo de exclusao agora tambem pode apagar opcionalmente o contato tecnico no Chatwoot quando o lead ja possui `ChatwootContactId`, por meio de checkbox desmarcado por padrao no modal.
 
 ### Configuracao minima
 
@@ -85,6 +89,10 @@ No `ConsertaPraMim.Web.CpmFull`, configurar a secao `TelegramAutomation`:
 - registrar historico `Bootstrap Telegram no Chatwoot` quando o lead ainda nao possuía conversa vinculada.
 - A mesma `ChatbotConversationId` deve reaproveitar o mesmo lead no CPM Full.
 - O lead deve exibir `Source = Telegram` e historico do tipo `Lead criado via bot Telegram` / `Lead atualizado via bot Telegram`.
+- No primeiro ACK de um lead Telegram sem telefone, o bridge deve enviar teclado com botao nativo `request_contact` para capturar o numero sem interromper a conversa.
+- Quando o usuario compartilhar o contato pelo Telegram, o mesmo lead e o mesmo vinculo tecnico devem ser enriquecidos com `ClientPhone`, sem duplicar lead nem apagar dados anteriores.
+- Quando o usuario informar telefone ou e-mail em texto livre, o bridge deve aceitar apenas fallbacks seguros e atualizar o mesmo lead do CPM Full.
+- O modal `Vinculo Telegram` deve exibir `Telefone capturado (mascarado)` quando o enriquecimento ja tiver ocorrido.
 - Fluxos autenticados como `Provider` nao devem abrir pedido de cliente nem consultar carteira/agendamentos do cliente.
 - Com `MirrorMessagesEnabled=true` nos dois lados, cada mensagem nova do Telegram deve ser enfileirada no CPM Full e entregue como mensagem `incoming` na conversa correta do Chatwoot.
 - A mesma mensagem do Telegram nao deve duplicar entrega quando o mesmo `ChannelMessageId` voltar a ser processado.
@@ -128,6 +136,19 @@ No `ConsertaPraMim.Web.CpmFull`, configurar a secao `TelegramAutomation`:
 26. Abrir o detalhe do lead e validar que o vinculo Telegram reaproveitou a mesma `ChatbotConversationId` e registrou o `ClientId`/`ClientEmail` autenticados do prestador por compatibilidade tecnica.
 27. Confirmar historico `Bootstrap Telegram no Chatwoot` tambem para o fluxo de prestadores quando o lead ainda nao tinha conversa vinculada.
 
+### Checklist complementar para captura de contato e enriquecimento
+
+1. Iniciar uma conversa nova com o bot Telegram em um chat sem telefone previamente enriquecido.
+2. Confirmar que o primeiro ACK do bot inclui botao nativo para compartilhar contato.
+3. Compartilhar o telefone usando o recurso `request_contact` do Telegram.
+4. Reabrir o detalhe do lead no CPM Full e validar `Telefone capturado (mascarado)` na secao `Vinculo Telegram`.
+5. Confirmar em banco que `dbo.cpm_web_telegram_funil_links.ClientPhone` foi preenchido para o mesmo `ChatbotConversationId`.
+6. Confirmar que o telefone do lead no CPM Full foi atualizado sem criar novo lead.
+7. Reenviar mensagem comum no mesmo chat e validar que o telefone continua preservado no lead e no vinculo.
+8. Em outra conversa de teste, informar telefone em texto livre com formato valido e confirmar enriquecimento no mesmo lead.
+9. Informar e-mail em texto livre e confirmar que o vinculo Telegram e o lead reaproveitam o mesmo registro, sem limpar telefone/cidade/categoria ja existentes.
+10. Abrir o contato no Chatwoot e validar que o contato tecnico foi enriquecido com o telefone real capturado apos o bootstrap inicial.
+
 ### Checklist complementar para espelhamento e handoff
 
 1. Habilitar `MirrorMessagesEnabled=true` no bridge e no CPM Full.
@@ -157,6 +178,19 @@ No `ConsertaPraMim.Web.CpmFull`, configurar a secao `TelegramAutomation`:
 11. Repetir o teste com texto de onboarding de prestador, por exemplo `Quero me cadastrar como prestador parceiro`.
 12. Confirmar que o lead caiu em `/admin/funil/prestadores` e que a conversa humana foi criada ou reaproveitada na inbox `CPM Prestadores`.
 
+### Checklist complementar para exclusao operacional do lead
+
+1. Abrir o detalhe de um lead no Kanban de `clientes` ou `prestadores`.
+2. Validar que o checkbox `Excluir tambem o contato no Chatwoot` inicia desmarcado.
+3. Se o lead ja possuir `ChatwootContactId`, marcar o checkbox para teste de limpeza remota; se nao possuir, confirmar que o checkbox permanece desabilitado.
+4. Clicar em `Excluir lead`.
+5. Confirmar que o modal de confirmacao informa explicitamente quando o contato remoto sera apagado e quando nao sera.
+6. Confirmar que o lead desaparece do quadro apos a exclusao.
+7. Validar em banco que nao restaram registros para o `LeadId` em `dbo.cpm_web_kanban_leads`, `dbo.cpm_web_kanban_lead_history`, `dbo.cpm_web_telegram_funil_links`, `dbo.cpm_web_telegram_delivery_queue` e `dbo.cpm_web_chatwoot_sync_queue`.
+8. Para lead Telegram com handoff humano previo, reenviar mensagem no mesmo chat e validar que o bot voltou a responder sem exigir restart manual do bridge.
+9. Quando o checkbox tiver sido marcado, validar no Chatwoot que o contato tecnico foi removido; quando o checkbox nao tiver sido marcado, confirmar que o contato continua existindo.
+10. Confirmar que a conversa no Chatwoot segue o comportamento da propria plataforma e nao e prometida como excluida pelo CPM Full.
+
 ### Roteiro rapido de validacao em producao
 
 - Para uma execucao objetiva do smoke E2E publicado, usar o documento `ROTEIRO_TESTE_E2E_TELEGRAM_PRODUCAO.md` nesta mesma pasta.
@@ -170,6 +204,13 @@ No `ConsertaPraMim.Web.CpmFull`, configurar a secao `TelegramAutomation`:
 - Pedido criado, mas sem lead no CPM Full: revisar `TelegramAutomation:CpmFullBaseUrl`, reachability HTTP e logs do `TelegramLeadAutomationClient`.
 - Lead duplicado: validar se a mesma conversa esta preservando o mesmo `ChatbotConversationId` na trilha do chatbot.
 - Modal sem `Vinculo Telegram`: validar se existe registro em `dbo.cpm_web_telegram_funil_links` para o `LeadId` e se o detalhe do lead foi recarregado apos a automacao.
+- Bot nao pediu telefone no primeiro ACK: validar se a conversa ainda nao tinha `ClientPhone` no vinculo Telegram e se o bridge publicado contem a entrega da `ST-095`.
+- Telefone compartilhado nao apareceu no funil: validar se o update recebido possui `message.contact`, se o `user_id` do contato corresponde ao remetente e se o `TelegramInboundUpdateProcessor` nao descartou o payload por seguranca.
+- Telefone ou e-mail sumiram apos nova mensagem: validar se o ambiente publicado contem o endurecimento do `SqlAdminKanbanService` com `COALESCE` para nao apagar dados opcionais em reprocessamentos.
+- Exclusao do lead falhou antes de concluir: validar reachability do `TelegramBridge`, `TelegramAutomation:Enabled`, `TelegramBridgeBaseUrl`, `SharedSecret` e se o endpoint interno `/api/internal/telegram/messages/handoff/reset` esta acessivel.
+- Checkbox de exclusao remota esta desabilitado: comportamento esperado quando o lead ainda nao possui `ChatwootContactId`; sincronizar o lead antes se quiser limpar tambem o contato remoto.
+- Exclusao remota no Chatwoot falhou: validar `Chatwoot:Enabled`, conectividade com a API oficial, `ApiAccessToken`, `AccountId` e se o contato ainda existe no account configurado.
+- Lead foi excluido, mas o mesmo chat ainda nao voltou a responder no bot: validar se a nova mensagem foi enviada apos a exclusao, se o handoff realmente foi resetado no bridge e, como ultimo recurso, reiniciar o `TelegramBridge` para limpar estado em memoria residual.
 - Lead Telegram caiu no inbox errado do Chatwoot: revisar `BoardType` do lead, `ClientsInboxId`, `ProvidersInboxId` e se o board atual no CPM Full esta coerente com o papel autenticado.
 - Lead Telegram sem historico `Bootstrap Telegram no Chatwoot`: validar se o lead ja possuia `ChatwootConversationId`; o evento so aparece quando o bootstrap precisa criar ou reaproveitar a conversa humana a partir do funil.
 - Lead Telegram sem telefone/e-mail no primeiro contato: comportamento esperado; a sincronizacao com Chatwoot deve usar `TelegramChatId`, `ChatbotConversationId` ou `ChannelConversationId` como identificador tecnico do contato.
@@ -929,6 +970,7 @@ Equivalentes no deploy VPS:
 
 ### Proxima evolucao documentada
 
-- A automacao Telegram -> CPM Full -> Chatwoot continua sendo tratada pelo documento `EPIC-TELEGRAM-001 - Automacao do Bot Telegram com Funis CPM e Chatwoot`.
-- A base ja cobre configuracao, lead automatico de `clientes`, lead automatico de `prestadores`, vinculo tecnico visivel no admin, bootstrap Chatwoot, espelhamento bidirecional de mensagens, handoff humano e observabilidade ampliada.
-- O epic Telegram foi encerrado com a `US-10`, consolidando cobertura automatizada, checklist final de homologacao e plano de rollback por feature flags.
+- A base funcional da automacao publicada continua registrada no documento `EPIC-TELEGRAM-001 - Automacao do Bot Telegram com Funis CPM e Chatwoot`.
+- O proximo ciclo de evolucao agora segue em `EPIC-TELEGRAM-002 - Enriquecimento Operacional do Bot Telegram no CPM e Chatwoot`.
+- A nova trilha prioriza quatro frentes: captura de contato no primeiro atendimento, qualificacao inicial do lead, regras operacionais de handoff e observabilidade de negocio.
+- A primeira entrega em andamento e a `ST-095 - Captura de contato do Telegram e enriquecimento automatico do lead`.

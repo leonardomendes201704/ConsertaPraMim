@@ -14,7 +14,12 @@ public interface ITelegramBotApiClient
 
     Task<TelegramWebhookInfo?> GetWebhookInfoAsync(CancellationToken cancellationToken);
 
-    Task SendMessageAsync(long chatId, string? text, IReadOnlyList<StoredLocalFile> attachments, CancellationToken cancellationToken);
+    Task SendMessageAsync(
+        long chatId,
+        string? text,
+        IReadOnlyList<StoredLocalFile> attachments,
+        CancellationToken cancellationToken,
+        TelegramMessageSendOptions? options = null);
 
     Task<string?> GetFilePathAsync(string fileId, CancellationToken cancellationToken);
 

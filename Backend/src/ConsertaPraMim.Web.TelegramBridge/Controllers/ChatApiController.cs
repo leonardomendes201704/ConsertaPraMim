@@ -279,6 +279,8 @@ public sealed class ChatApiController : ControllerBase
         {
         }
 
+        public bool Deactivate(long chatId) => false;
+
         public bool IsActive(long chatId) => false;
     }
 }

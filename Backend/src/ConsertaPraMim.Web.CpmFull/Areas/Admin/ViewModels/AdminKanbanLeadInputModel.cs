@@ -57,6 +57,11 @@ public sealed class AdminKanbanLeadNoteInputModel
     public string Note { get; set; } = string.Empty;
 }
 
+public sealed class AdminKanbanLeadDeleteInputModel
+{
+    public bool DeleteChatwootContact { get; set; }
+}
+
 public sealed class AdminKanbanOrderInputModel
 {
     [Required]

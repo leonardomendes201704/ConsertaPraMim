@@ -192,6 +192,7 @@
                     <div class="col-12 col-md-6"><strong>Conversa do canal:</strong> <span id="detailsTelegramChannelConversationId"></span></div>
                     <div class="col-12 col-md-6"><strong>Chat ID Telegram (mascarado):</strong> <span id="detailsTelegramChatId"></span></div>
                     <div class="col-12 col-md-6"><strong>Cliente vinculado:</strong> <span id="detailsTelegramClientId"></span></div>
+                    <div class="col-12 col-md-6"><strong>Telefone capturado (mascarado):</strong> <span id="detailsTelegramClientPhone"></span></div>
                     <div class="col-12 col-md-6"><strong>E-mail autenticado (mascarado):</strong> <span id="detailsTelegramClientEmail"></span></div>
                     <div class="col-12 col-md-6"><strong>Pedido vinculado:</strong> <span id="detailsTelegramServiceRequestId"></span></div>
                     <div class="col-12 col-md-6"><strong>Handoff humano iniciado:</strong> <span id="detailsTelegramHumanHandoffStartedAt"></span></div>
@@ -225,11 +226,23 @@
                    rel="noopener noreferrer">
                     Abrir no Chatwoot
                 </a>
+                <div class="form-check text-start me-auto ms-md-2">
+                    <input class="form-check-input" type="checkbox" value="" id="deleteLeadChatwootContactCheckbox">
+                    <label class="form-check-label" for="deleteLeadChatwootContactCheckbox">
+                        Excluir tambem o contato no Chatwoot
+                    </label>
+                    <div id="deleteLeadChatwootContactHelp" class="small text-secondary">
+                        Opcional. O contato remoto so sera apagado se este lead ja estiver sincronizado no Chatwoot.
+                    </div>
+                </div>
                 <button type="button" id="syncLeadChatwootBtn" class="btn btn-outline-success">
                     Sincronizar Chatwoot
                 </button>
                 <button type="button" id="enqueueLeadChatwootRetryBtn" class="btn btn-outline-warning">
                     Enfileirar retentativa
+                </button>
+                <button type="button" id="deleteLeadBtn" class="btn btn-outline-danger">
+                    Excluir lead
                 </button>
                 <button type="button" id="openEditLeadBtn" class="btn btn-primary">Editar lead</button>
             </div>
@@ -645,6 +658,7 @@
                 details: (id) => `/admin/funil/lead/${id}/json`,
                 sync: (id) => `/admin/funil/lead/${id}/chatwoot/sincronizar`,
                 retry: (id) => `/admin/funil/lead/${id}/chatwoot/retentativa`,
+                deleteLead: (id) => `/admin/funil/lead/${id}/excluir`,
                 create: "/admin/funil/lead/novo",
                 update: "/admin/funil/lead/editar",
                 order: "/admin/funil/lead/ordem",
@@ -1309,6 +1323,7 @@
                 document.getElementById("detailsTelegramChannelConversationId").textContent = telegram.channelConversationId || "-";
                 document.getElementById("detailsTelegramChatId").textContent = telegram.telegramChatId || "-";
                 document.getElementById("detailsTelegramClientId").textContent = telegram.clientId || "-";
+                document.getElementById("detailsTelegramClientPhone").textContent = telegram.clientPhone || "-";
                 document.getElementById("detailsTelegramClientEmail").textContent = telegram.clientEmail || "-";
                 document.getElementById("detailsTelegramServiceRequestId").textContent = telegram.serviceRequestId || "-";
                 document.getElementById("detailsTelegramHumanHandoffStartedAt").textContent = telegram.humanHandoffStartedAt || "-";
@@ -1320,6 +1335,18 @@
                 document.getElementById("detailsStatusNote").textContent = lead.statusNote || "-";
                 document.getElementById("detailsInternalNotes").textContent = lead.internalNotes || "-";
                 document.getElementById("detailsChatwootLastError").textContent = chatwoot.lastError || "-";
+                const deleteLeadChatwootContactCheckbox = document.getElementById("deleteLeadChatwootContactCheckbox");
+                const deleteLeadChatwootContactHelp = document.getElementById("deleteLeadChatwootContactHelp");
+                if (deleteLeadChatwootContactCheckbox) {
+                    const hasChatwootContact = Boolean(chatwoot.contactId);
+                    deleteLeadChatwootContactCheckbox.checked = false;
+                    deleteLeadChatwootContactCheckbox.disabled = !hasChatwootContact;
+                    if (deleteLeadChatwootContactHelp) {
+                        deleteLeadChatwootContactHelp.textContent = hasChatwootContact
+                            ? "Opcional. Se marcado, o contato remoto sera apagado no Chatwoot antes do reset local."
+                            : "Este lead ainda nao possui contato sincronizado no Chatwoot.";
+                    }
+                }
                 if (conversationLink) {
                     if (chatwoot.conversationUrl) {
                         conversationLink.href = chatwoot.conversationUrl;
@@ -1525,6 +1552,41 @@
                     } catch { }
 
                     alert(error.message || "Nao foi possivel enfileirar a retentativa do Chatwoot.");
+                } finally {
+                    button.disabled = false;
+                    button.textContent = originalText;
+                }
+            });
+
+            document.getElementById("deleteLeadBtn")?.addEventListener("click", async (event) => {
+                if (!currentLead?.id) {
+                    return;
+                }
+
+                const deleteChatwootContact = document.getElementById("deleteLeadChatwootContactCheckbox")?.checked === true;
+                const confirmed = window.confirm(
+                    deleteChatwootContact
+                        ? "Excluir este lead do CPM Full?\n\nEssa acao remove o lead, o historico, o vinculo Telegram e as filas locais relacionadas.\nO contato remoto tambem sera apagado no Chatwoot antes do reset local."
+                        : "Excluir este lead do CPM Full?\n\nEssa acao remove o lead, o historico, o vinculo Telegram e as filas locais relacionadas.\nO contato no Chatwoot nao sera apagado automaticamente."
+                );
+                if (!confirmed) {
+                    return;
+                }
+
+                const button = event.currentTarget;
+                const originalText = button.textContent;
+                button.disabled = true;
+                button.textContent = "Excluindo...";
+
+                try {
+                    const response = await postJson(endpoint.deleteLead(currentLead.id), {
+                        deleteChatwootContact
+                    });
+                    detailsModal?.hide();
+                    alert(response.message || "Lead excluido com sucesso.");
+                    window.location.reload();
+                } catch (error) {
+                    alert(error.message || "Nao foi possivel excluir o lead.");
                 } finally {
                     button.disabled = false;
                     button.textContent = originalText;

@@ -7,6 +7,7 @@ public interface IChatwootApiClient
     Task<IReadOnlyList<ChatwootContactSummary>> SearchContactsAsync(string query, CancellationToken cancellationToken = default);
     Task<ChatwootContactSummary> CreateContactAsync(ChatwootUpsertContactRequest request, CancellationToken cancellationToken = default);
     Task<ChatwootContactSummary> UpdateContactAsync(long contactId, ChatwootUpsertContactRequest request, CancellationToken cancellationToken = default);
+    Task<ChatwootDeleteContactResult> DeleteContactAsync(long contactId, CancellationToken cancellationToken = default);
     Task<ChatwootContactInboxSummary> CreateContactInboxAsync(long contactId, ChatwootCreateContactInboxRequest request, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<ChatwootConversationSummary>> ListContactConversationsAsync(long contactId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<string>> ListContactLabelsAsync(long contactId, CancellationToken cancellationToken = default);

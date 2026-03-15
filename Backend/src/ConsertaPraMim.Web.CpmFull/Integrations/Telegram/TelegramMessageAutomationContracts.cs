@@ -152,3 +152,33 @@ public sealed class TelegramBridgeHumanReplyResult
             Message = message
         };
 }
+
+public sealed class TelegramBridgeResetHandoffRequest
+{
+    public long TelegramChatId { get; init; }
+}
+
+public sealed class TelegramBridgeResetHandoffResponse
+{
+    public bool Success { get; init; }
+    public string Message { get; init; } = string.Empty;
+    [JsonNumberHandling(JsonNumberHandling.WriteAsString)]
+    public long TelegramChatId { get; init; }
+    public bool HandoffWasActive { get; init; }
+}
+
+public sealed class TelegramBridgeResetHandoffResult
+{
+    public bool Success { get; init; }
+    public int HttpStatusCode { get; init; }
+    public string Message { get; init; } = string.Empty;
+    public bool HandoffWasActive { get; init; }
+
+    public static TelegramBridgeResetHandoffResult Failed(int httpStatusCode, string message) =>
+        new()
+        {
+            Success = false,
+            HttpStatusCode = httpStatusCode,
+            Message = message
+        };
+}

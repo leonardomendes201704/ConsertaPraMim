@@ -249,6 +249,7 @@ SELECT TOP (1)
     ChannelConversationId,
     TelegramChatId,
     ClientId,
+    ClientPhone,
     ClientEmail,
     ServiceRequestId,
     HumanHandoffStartedAt,
@@ -270,12 +271,13 @@ ORDER BY UpdatedAt DESC, Id DESC;
                     ChannelConversationId = reader.IsDBNull(1) ? string.Empty : reader.GetString(1),
                     TelegramChatId = ReadNullableInt64(reader, 2),
                     ClientId = reader.IsDBNull(3) ? null : reader.GetGuid(3),
-                    ClientEmail = reader.IsDBNull(4) ? string.Empty : reader.GetString(4),
-                    ServiceRequestId = reader.IsDBNull(5) ? null : reader.GetGuid(5),
-                    HumanHandoffStartedAt = reader.IsDBNull(6) ? null : reader.GetDateTime(6),
-                    LastTelegramMessageSyncedAt = reader.IsDBNull(7) ? null : reader.GetDateTime(7),
-                    LastChatwootMessageSyncedAt = reader.IsDBNull(8) ? null : reader.GetDateTime(8),
-                    UpdatedAt = reader.IsDBNull(9) ? null : reader.GetDateTime(9)
+                    ClientPhone = reader.IsDBNull(4) ? string.Empty : reader.GetString(4),
+                    ClientEmail = reader.IsDBNull(5) ? string.Empty : reader.GetString(5),
+                    ServiceRequestId = reader.IsDBNull(6) ? null : reader.GetGuid(6),
+                    HumanHandoffStartedAt = reader.IsDBNull(7) ? null : reader.GetDateTime(7),
+                    LastTelegramMessageSyncedAt = reader.IsDBNull(8) ? null : reader.GetDateTime(8),
+                    LastChatwootMessageSyncedAt = reader.IsDBNull(9) ? null : reader.GetDateTime(9),
+                    UpdatedAt = reader.IsDBNull(10) ? null : reader.GetDateTime(10)
                 };
             }
         }
@@ -386,6 +388,47 @@ SELECT CAST(SCOPE_IDENTITY() AS INT);
 
         transaction.Commit();
         return leadId;
+    }
+
+    public bool DeleteLead(int leadId)
+    {
+        EnsureInitialized();
+
+        using var connection = OpenConnection();
+        using var transaction = connection.BeginTransaction();
+
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = $"""
+DELETE FROM dbo.{TablePrefix}telegram_delivery_queue
+WHERE LeadId = @leadId;
+
+DELETE FROM dbo.{TablePrefix}chatwoot_sync_queue
+WHERE LeadId = @leadId;
+
+DELETE FROM dbo.{TablePrefix}telegram_funil_links
+WHERE LeadId = @leadId;
+
+DELETE FROM dbo.{TablePrefix}kanban_lead_history
+WHERE LeadId = @leadId;
+
+DELETE FROM dbo.{TablePrefix}kanban_leads
+WHERE Id = @leadId
+  AND IsActive = 1;
+
+SELECT @@ROWCOUNT;
+""";
+        command.Parameters.Add(new SqlParameter("@leadId", SqlDbType.Int) { Value = leadId });
+
+        var deleted = Convert.ToInt32(command.ExecuteScalar()) > 0;
+        if (!deleted)
+        {
+            transaction.Rollback();
+            return false;
+        }
+
+        transaction.Commit();
+        return true;
     }
 
     public AdminKanbanTelegramLeadUpsertResult UpsertTelegramLead(AdminKanbanTelegramLeadUpsertRequest request)
@@ -2111,6 +2154,7 @@ CREATE TABLE dbo.{TablePrefix}telegram_funil_links
     ChannelConversationId NVARCHAR(128) NOT NULL,
     TelegramChatId BIGINT NOT NULL,
     ClientId UNIQUEIDENTIFIER NULL,
+    ClientPhone NVARCHAR(30) NULL,
     ClientEmail NVARCHAR(180) NULL,
     ServiceRequestId UNIQUEIDENTIFIER NULL,
     HumanHandoffStartedAt DATETIME2 NULL,
@@ -2216,6 +2260,9 @@ CREATE INDEX IX_{TablePrefix}telegram_funil_links_lead
 
 IF COL_LENGTH('dbo.{TablePrefix}telegram_funil_links', 'HumanHandoffStartedAt') IS NULL
 ALTER TABLE dbo.{TablePrefix}telegram_funil_links ADD HumanHandoffStartedAt DATETIME2 NULL;
+
+IF COL_LENGTH('dbo.{TablePrefix}telegram_funil_links', 'ClientPhone') IS NULL
+ALTER TABLE dbo.{TablePrefix}telegram_funil_links ADD ClientPhone NVARCHAR(30) NULL;
 
 IF COL_LENGTH('dbo.{TablePrefix}telegram_funil_links', 'LastTelegramMessageSyncedAt') IS NULL
 ALTER TABLE dbo.{TablePrefix}telegram_funil_links ADD LastTelegramMessageSyncedAt DATETIME2 NULL;
@@ -2762,7 +2809,7 @@ WHERE BoardType = @boardType AND StageId = @stageId AND IsActive = 1;
 INSERT INTO dbo.{TablePrefix}kanban_leads
 (BoardType, StageId, SortOrder, Name, Phone, Email, ServiceCategory, PostalCode, City, Source, Priority, StatusNote, InternalNotes, LastContactAt, IsActive, CreatedAt, UpdatedAt)
 VALUES
-(@boardType, @stageId, @sortOrder, @name, NULL, @email, @serviceCategory, @postalCode, @city, 'Telegram', 'normal', @statusNote, @internalNotes, @lastContactAt, 1, SYSUTCDATETIME(), NULL);
+(@boardType, @stageId, @sortOrder, @name, @phone, @email, @serviceCategory, @postalCode, @city, 'Telegram', 'normal', @statusNote, @internalNotes, @lastContactAt, 1, SYSUTCDATETIME(), NULL);
 SELECT CAST(SCOPE_IDENTITY() AS INT);
 """;
         insertCommand.Parameters.AddRange(
@@ -2771,6 +2818,7 @@ SELECT CAST(SCOPE_IDENTITY() AS INT);
             new SqlParameter("@stageId", SqlDbType.Int) { Value = stageId },
             new SqlParameter("@sortOrder", SqlDbType.Int) { Value = nextSortOrder },
             new SqlParameter("@name", SqlDbType.NVarChar, 140) { Value = TrimTo(request.ClientName, 140) },
+            new SqlParameter("@phone", SqlDbType.NVarChar, 30) { Value = ToDbValue(request.ClientPhone) },
             new SqlParameter("@email", SqlDbType.NVarChar, 180) { Value = ToDbValue(request.ClientEmail) },
             new SqlParameter("@serviceCategory", SqlDbType.NVarChar, 140) { Value = ToDbValue(request.ServiceCategory) },
             new SqlParameter("@postalCode", SqlDbType.NVarChar, 9) { Value = ToDbValue(request.PostalCode) },
@@ -2807,10 +2855,11 @@ SELECT CAST(SCOPE_IDENTITY() AS INT);
 UPDATE dbo.{TablePrefix}kanban_leads
 SET StageId = @stageId,
     Name = @name,
-    Email = @email,
-    ServiceCategory = @serviceCategory,
-    PostalCode = @postalCode,
-    City = @city,
+    Phone = COALESCE(@phone, Phone),
+    Email = COALESCE(@email, Email),
+    ServiceCategory = COALESCE(@serviceCategory, ServiceCategory),
+    PostalCode = COALESCE(@postalCode, PostalCode),
+    City = COALESCE(@city, City),
     Source = 'Telegram',
     Priority = 'normal',
     StatusNote = CASE WHEN @statusNote IS NULL THEN StatusNote ELSE @statusNote END,
@@ -2823,6 +2872,7 @@ WHERE Id = @leadId AND IsActive = 1;
         [
             new SqlParameter("@stageId", SqlDbType.Int) { Value = stageId },
             new SqlParameter("@name", SqlDbType.NVarChar, 140) { Value = TrimTo(request.ClientName, 140) },
+            new SqlParameter("@phone", SqlDbType.NVarChar, 30) { Value = ToDbValue(request.ClientPhone) },
             new SqlParameter("@email", SqlDbType.NVarChar, 180) { Value = ToDbValue(request.ClientEmail) },
             new SqlParameter("@serviceCategory", SqlDbType.NVarChar, 140) { Value = ToDbValue(request.ServiceCategory) },
             new SqlParameter("@postalCode", SqlDbType.NVarChar, 9) { Value = ToDbValue(request.PostalCode) },
@@ -2854,6 +2904,7 @@ USING (
         @channelConversationId AS ChannelConversationId,
         @telegramChatId AS TelegramChatId,
         @clientId AS ClientId,
+        @clientPhone AS ClientPhone,
         @clientEmail AS ClientEmail,
         @serviceRequestId AS ServiceRequestId
 ) AS source
@@ -2865,12 +2916,13 @@ WHEN MATCHED THEN
         ChannelConversationId = source.ChannelConversationId,
         TelegramChatId = source.TelegramChatId,
         ClientId = source.ClientId,
-        ClientEmail = source.ClientEmail,
-        ServiceRequestId = source.ServiceRequestId,
+        ClientPhone = COALESCE(source.ClientPhone, target.ClientPhone),
+        ClientEmail = COALESCE(source.ClientEmail, target.ClientEmail),
+        ServiceRequestId = COALESCE(source.ServiceRequestId, target.ServiceRequestId),
         UpdatedAt = SYSUTCDATETIME()
 WHEN NOT MATCHED THEN
-    INSERT (ChatbotConversationId, LeadId, BoardType, ChannelConversationId, TelegramChatId, ClientId, ClientEmail, ServiceRequestId, CreatedAt, UpdatedAt)
-    VALUES (source.ChatbotConversationId, source.LeadId, source.BoardType, source.ChannelConversationId, source.TelegramChatId, source.ClientId, source.ClientEmail, source.ServiceRequestId, SYSUTCDATETIME(), SYSUTCDATETIME());
+    INSERT (ChatbotConversationId, LeadId, BoardType, ChannelConversationId, TelegramChatId, ClientId, ClientPhone, ClientEmail, ServiceRequestId, CreatedAt, UpdatedAt)
+    VALUES (source.ChatbotConversationId, source.LeadId, source.BoardType, source.ChannelConversationId, source.TelegramChatId, source.ClientId, source.ClientPhone, source.ClientEmail, source.ServiceRequestId, SYSUTCDATETIME(), SYSUTCDATETIME());
 """;
         command.Parameters.AddRange(
         [
@@ -2880,6 +2932,7 @@ WHEN NOT MATCHED THEN
             new SqlParameter("@channelConversationId", SqlDbType.NVarChar, 128) { Value = TrimTo(request.ChannelConversationId, 128) },
             new SqlParameter("@telegramChatId", SqlDbType.BigInt) { Value = request.TelegramChatId },
             new SqlParameter("@clientId", SqlDbType.UniqueIdentifier) { Value = request.ClientId },
+            new SqlParameter("@clientPhone", SqlDbType.NVarChar, 30) { Value = ToDbValue(request.ClientPhone) },
             new SqlParameter("@clientEmail", SqlDbType.NVarChar, 180) { Value = ToDbValue(request.ClientEmail) },
             new SqlParameter("@serviceRequestId", SqlDbType.UniqueIdentifier) { Value = request.ServiceRequestId.HasValue ? request.ServiceRequestId.Value : DBNull.Value }
         ]);

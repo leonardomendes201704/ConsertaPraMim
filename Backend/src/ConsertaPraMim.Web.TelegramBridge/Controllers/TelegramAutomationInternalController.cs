@@ -81,6 +81,40 @@ public sealed class TelegramAutomationInternalController : ControllerBase
         });
     }
 
+    [HttpPost("handoff/reset")]
+    public IActionResult ResetHumanHandoff([FromBody] TelegramBridgeResetHandoffRequest request)
+    {
+        if (!IsSecretValid(Request.Headers[SharedSecretHeaderName].ToString()))
+        {
+            return Unauthorized(new
+            {
+                success = false,
+                message = "Chave de automacao Telegram invalida."
+            });
+        }
+
+        if (request.TelegramChatId <= 0)
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message = "TelegramChatId invalido para reset de handoff."
+            });
+        }
+
+        var wasActive = _handoffStateService.Deactivate(request.TelegramChatId);
+
+        return Ok(new TelegramBridgeResetHandoffResponse
+        {
+            Success = true,
+            TelegramChatId = request.TelegramChatId,
+            HandoffWasActive = wasActive,
+            Message = wasActive
+                ? "Handoff humano do chat Telegram foi resetado com sucesso."
+                : "Nao havia handoff humano ativo para esse chat Telegram."
+        });
+    }
+
     private bool IsSecretValid(string providedSecret) =>
         !string.IsNullOrWhiteSpace(providedSecret) &&
         string.Equals(providedSecret.Trim(), _options.SharedSecret.Trim(), StringComparison.Ordinal);

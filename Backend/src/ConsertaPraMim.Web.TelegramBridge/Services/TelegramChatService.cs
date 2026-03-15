@@ -134,7 +134,9 @@ public sealed class TelegramChatService : ITelegramChatService
             return null;
         }
 
-        var safeText = NormalizeOptionalText(message.Text) ?? NormalizeOptionalText(message.Caption);
+        var safeText = NormalizeOptionalText(message.Text)
+            ?? NormalizeOptionalText(message.Caption)
+            ?? BuildContactMessageSummary(message.Contact);
         var storedIncomingFiles = await _attachmentStorage.SaveIncomingTelegramFilesAsync(chatId, message, cancellationToken);
 
         if (string.IsNullOrWhiteSpace(safeText) && storedIncomingFiles.Count == 0)
@@ -240,6 +242,16 @@ public sealed class TelegramChatService : ITelegramChatService
         }
 
         return value.Trim();
+    }
+
+    private static string? BuildContactMessageSummary(TelegramContact? contact)
+    {
+        if (contact is null || string.IsNullOrWhiteSpace(contact.PhoneNumber))
+        {
+            return null;
+        }
+
+        return "Contato compartilhado pelo Telegram.";
     }
 
     private static string? BuildInboundTelegramMessageId(long chatId, long messageId)

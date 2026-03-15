@@ -20,6 +20,11 @@ public sealed class TelegramHumanHandoffStateService : ITelegramHumanHandoffStat
         _activatedChats.AddOrUpdate(chatId, utcValue, (_, current) => utcValue > current ? utcValue : current);
     }
 
+    public bool Deactivate(long chatId)
+    {
+        return chatId > 0 && _activatedChats.TryRemove(chatId, out _);
+    }
+
     public bool IsActive(long chatId)
     {
         return chatId > 0 && _activatedChats.ContainsKey(chatId);

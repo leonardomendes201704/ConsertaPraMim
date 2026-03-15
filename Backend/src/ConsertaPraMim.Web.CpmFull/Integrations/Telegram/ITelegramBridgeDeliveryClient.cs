@@ -5,4 +5,8 @@ public interface ITelegramBridgeDeliveryClient
     Task<TelegramBridgeHumanReplyResult> SendHumanReplyAsync(
         TelegramBridgeHumanReplyRequest request,
         CancellationToken cancellationToken = default);
+
+    Task<TelegramBridgeResetHandoffResult> ResetHumanHandoffAsync(
+        TelegramBridgeResetHandoffRequest request,
+        CancellationToken cancellationToken = default);
 }

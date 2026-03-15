@@ -90,6 +90,8 @@ public sealed class TelegramInboundUpdateProcessorTests
                     request.ChannelConversationId == "5513997114422" &&
                     request.TelegramChatId == 5513997114422 &&
                     request.UserName == "Ricardo Almeida" &&
+                    string.IsNullOrWhiteSpace(request.UserPhone) &&
+                    string.IsNullOrWhiteSpace(request.UserEmail) &&
                     request.StatusNote == "Contato inicial recebido pelo bot Telegram."),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(new TelegramLeadAutomationUpsertResult
@@ -127,9 +129,10 @@ public sealed class TelegramInboundUpdateProcessorTests
         botApiClient
             .Setup(client => client.SendMessageAsync(
                 5513997114422,
-                It.Is<string>(text => text.Contains("Recebi sua mensagem", StringComparison.Ordinal)),
+                It.Is<string>(text => text.Contains("Recebi sua mensagem", StringComparison.Ordinal) && text.Contains("compartilhe seu telefone", StringComparison.Ordinal)),
                 It.Is<IReadOnlyList<StoredLocalFile>>(files => files.Count == 0),
-                It.IsAny<CancellationToken>()))
+                It.IsAny<CancellationToken>(),
+                It.Is<TelegramMessageSendOptions?>(options => options is not null && options.RequestContactButton && !options.RemoveReplyKeyboard)))
             .Returns(Task.CompletedTask);
 
         var sut = CreateSut(
@@ -155,6 +158,131 @@ public sealed class TelegramInboundUpdateProcessorTests
         chatService.VerifyAll();
         automationClient.VerifyAll();
         leadAutomationClient.VerifyAll();
+        botApiClient.VerifyAll();
+        handoffStateService.VerifyAll();
+        observability.VerifyAll();
+    }
+
+    [Fact(DisplayName = "Telegram inbound update processor | Deve capturar telefone nativo e enriquecer o mesmo lead")]
+    public async Task ProcessAsync_DeveCapturarTelefoneNativoEEnriquecerLeadExistente()
+    {
+        var update = new TelegramUpdate
+        {
+            UpdateId = 9004,
+            Message = new TelegramMessage
+            {
+                MessageId = 777,
+                DateUnix = 1_773_512_550,
+                Chat = new TelegramChat
+                {
+                    Id = 5513997114422,
+                    FirstName = "Ricardo"
+                },
+                From = new TelegramUser
+                {
+                    Id = 5513997114422,
+                    FirstName = "Ricardo"
+                },
+                Contact = new TelegramContact
+                {
+                    PhoneNumber = "+55 (13) 99711-4422",
+                    FirstName = "Ricardo",
+                    UserId = 5513997114422
+                }
+            }
+        };
+
+        var storedMessage = new ChatMessageDto(
+            Id: "telegram:5513997114422:777",
+            ChatId: 5513997114422,
+            IsOutgoing: false,
+            SenderDisplayName: "Ricardo",
+            Text: "Contato compartilhado pelo Telegram.",
+            SentAtUtc: new DateTimeOffset(2026, 3, 14, 18, 10, 0, TimeSpan.Zero),
+            Attachments: []);
+
+        var chatService = new Mock<ITelegramChatService>(MockBehavior.Strict);
+        var leadAutomationClient = new Mock<ITelegramLeadAutomationClient>(MockBehavior.Strict);
+        var automationClient = new Mock<ITelegramMessageAutomationClient>(MockBehavior.Strict);
+        var botApiClient = new Mock<ITelegramBotApiClient>(MockBehavior.Strict);
+        var handoffStateService = new Mock<ITelegramHumanHandoffStateService>(MockBehavior.Strict);
+        var observability = new Mock<ITelegramChatbotObservabilityService>(MockBehavior.Strict);
+
+        observability
+            .Setup(service => service.RecordInboundMessage(0));
+        chatService
+            .Setup(service => service.ReceiveFromTelegramAsync(update.Message, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(storedMessage);
+        leadAutomationClient
+            .Setup(client => client.UpsertLeadAsync(
+                It.Is<TelegramLeadAutomationUpsertRequest>(request =>
+                    request.BoardType == "clientes" &&
+                    request.TelegramChatId == 5513997114422 &&
+                    request.UserPhone == "+5513997114422" &&
+                    string.IsNullOrWhiteSpace(request.UserEmail)),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TelegramLeadAutomationUpsertResult
+            {
+                Success = true,
+                HttpStatusCode = StatusCodes.Status200OK,
+                LeadId = 81,
+                Created = false,
+                BoardType = "clientes",
+                Message = "Lead atualizado via automacao do bot Telegram."
+            });
+        automationClient
+            .Setup(client => client.MirrorInboundMessageAsync(
+                It.Is<TelegramInboundMessageAutomationRequest>(request =>
+                    request.ChatbotConversationId.HasValue &&
+                    request.TelegramChatId == 5513997114422 &&
+                    request.MessageText == "Contato compartilhado pelo Telegram."),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TelegramInboundMessageAutomationResult
+            {
+                Success = true,
+                HttpStatusCode = StatusCodes.Status202Accepted,
+                LeadId = 81,
+                QueueStatus = "queued",
+                Message = "Mensagem enfileirada."
+            });
+        botApiClient
+            .SetupGet(client => client.IsConfigured)
+            .Returns(true);
+        handoffStateService
+            .Setup(service => service.IsActive(5513997114422))
+            .Returns(false);
+        botApiClient
+            .Setup(client => client.SendMessageAsync(
+                5513997114422,
+                It.Is<string>(text => text.Contains("Recebi seu telefone", StringComparison.Ordinal)),
+                It.Is<IReadOnlyList<StoredLocalFile>>(files => files.Count == 0),
+                It.IsAny<CancellationToken>(),
+                It.Is<TelegramMessageSendOptions?>(options => options is not null && options.RemoveReplyKeyboard)))
+            .Returns(Task.CompletedTask);
+
+        var sut = CreateSut(
+            chatService.Object,
+            leadAutomationClient.Object,
+            automationClient.Object,
+            botApiClient.Object,
+            handoffStateService.Object,
+            observability.Object,
+            new TelegramAutomationOptions
+            {
+                Enabled = true,
+                ClientsAutomationEnabled = true,
+                MirrorMessagesEnabled = true,
+                SharedSecret = "segredo-compartilhado",
+                CpmFullBaseUrl = "https://www.consertapramim.com",
+                RequestTimeoutSeconds = 15
+            });
+
+        var result = await sut.ProcessAsync(update, "webhook", CancellationToken.None);
+
+        Assert.True(result);
+        chatService.VerifyAll();
+        leadAutomationClient.VerifyAll();
+        automationClient.VerifyAll();
         botApiClient.VerifyAll();
         handoffStateService.VerifyAll();
         observability.VerifyAll();

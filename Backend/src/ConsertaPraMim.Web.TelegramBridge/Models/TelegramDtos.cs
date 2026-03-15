@@ -46,6 +46,9 @@ public sealed class TelegramMessage
     [JsonPropertyName("from")]
     public TelegramUser? From { get; init; }
 
+    [JsonPropertyName("contact")]
+    public TelegramContact? Contact { get; init; }
+
     [JsonPropertyName("photo")]
     public IReadOnlyList<TelegramPhotoSize>? Photo { get; init; }
 
@@ -99,6 +102,21 @@ public sealed class TelegramUser
 
     [JsonPropertyName("last_name")]
     public string? LastName { get; init; }
+}
+
+public sealed class TelegramContact
+{
+    [JsonPropertyName("phone_number")]
+    public string? PhoneNumber { get; init; }
+
+    [JsonPropertyName("first_name")]
+    public string? FirstName { get; init; }
+
+    [JsonPropertyName("last_name")]
+    public string? LastName { get; init; }
+
+    [JsonPropertyName("user_id")]
+    public long? UserId { get; init; }
 }
 
 public sealed class TelegramPhotoSize

@@ -26,6 +26,7 @@ public sealed class TelegramLeadAutomationServiceTests
                 request.ChannelConversationId == "chat-telegram-5513" &&
                 request.TelegramChatId == 5513997114422 &&
                 request.ClientId == userId &&
+                request.ClientPhone == "+5513997114422" &&
                 request.ClientEmail == "cliente@telegram.com" &&
                 request.ServiceCategory == "Eletricista" &&
                 request.City == "Praia Grande")))
@@ -67,6 +68,7 @@ public sealed class TelegramLeadAutomationServiceTests
                 TelegramChatId = 5513997114422,
                 UserId = userId,
                 UserName = "Ricardo Almeida",
+                UserPhone = "+5513997114422",
                 UserEmail = "cliente@telegram.com",
                 ServiceCategory = "Eletricista",
                 PostalCode = "11701-200",
