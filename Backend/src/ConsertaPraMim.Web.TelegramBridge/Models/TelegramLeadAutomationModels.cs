@@ -8,6 +8,7 @@ public sealed class TelegramLeadAutomationUpsertRequest
     public long TelegramChatId { get; init; }
     public Guid UserId { get; init; }
     public string UserName { get; init; } = string.Empty;
+    public string UserPhone { get; init; } = string.Empty;
     public string UserEmail { get; init; } = string.Empty;
     public Guid? ServiceRequestId { get; init; }
     public string ServiceCategory { get; init; } = string.Empty;

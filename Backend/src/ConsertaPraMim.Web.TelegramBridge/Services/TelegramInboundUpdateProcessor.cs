@@ -4,6 +4,7 @@ using ConsertaPraMim.Web.TelegramBridge.Security;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Options;
 
 namespace ConsertaPraMim.Web.TelegramBridge.Services;
@@ -12,6 +13,12 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
 {
     private const string ClientsBoardType = "clientes";
     private const string ProvidersBoardType = "prestadores";
+    private static readonly Regex EmailRegex = new(
+        @"(?<![\w.+-])[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}(?![\w.\-])",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
+    private static readonly Regex PhoneRegex = new(
+        @"(?<!\d)(?:\+?\d[\d\-\s().]{7,}\d)(?!\d)",
+        RegexOptions.CultureInvariant | RegexOptions.Compiled);
 
     private readonly ITelegramChatService _telegramChatService;
     private readonly TelegramAutomationOptions _automationOptions;
@@ -60,9 +67,10 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
             _observabilityService.RecordInboundMessage(attachmentCount);
 
             var storedMessage = await _telegramChatService.ReceiveFromTelegramAsync(update.Message, cancellationToken);
-            var bootstrap = await TryBootstrapLeadAsync(update.Message, storedMessage, cancellationToken);
+            var capturedContact = ResolveCapturedContact(update.Message);
+            var bootstrap = await TryBootstrapLeadAsync(update.Message, storedMessage, capturedContact, cancellationToken);
             await TryMirrorInboundMessageAsync(update.Message, storedMessage, bootstrap.ChatbotConversationId, cancellationToken);
-            await TrySendAutomaticAcknowledgementAsync(update.Message, bootstrap, cancellationToken);
+            await TrySendAutomaticResponseAsync(update.Message, bootstrap, capturedContact, cancellationToken);
             return storedMessage is not null;
         }
         catch (Exception exception)
@@ -90,6 +98,7 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
     private async Task<TelegramInboundBootstrapResult> TryBootstrapLeadAsync(
         TelegramMessage updateMessage,
         ChatMessageDto? storedMessage,
+        TelegramCapturedContact capturedContact,
         CancellationToken cancellationToken)
     {
         var chatId = updateMessage.Chat?.Id ?? 0;
@@ -127,7 +136,8 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
                     TelegramChatId = chatId,
                     UserId = userId,
                     UserName = senderName,
-                    UserEmail = string.Empty,
+                    UserPhone = capturedContact.Phone,
+                    UserEmail = capturedContact.Email,
                     StatusNote = "Contato inicial recebido pelo bot Telegram.",
                     InternalNotes = BuildInitialInternalNotes(updateMessage, boardType, messageText),
                     LastContactAtUtc = storedMessage?.SentAtUtc.UtcDateTime ?? ResolveSentAtUtc(updateMessage)
@@ -219,13 +229,14 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
         }
     }
 
-    private async Task TrySendAutomaticAcknowledgementAsync(
+    private async Task TrySendAutomaticResponseAsync(
         TelegramMessage updateMessage,
         TelegramInboundBootstrapResult bootstrap,
+        TelegramCapturedContact capturedContact,
         CancellationToken cancellationToken)
     {
         var chatId = updateMessage.Chat?.Id ?? 0;
-        if (!bootstrap.Enabled || !bootstrap.LeadCreated || chatId <= 0 || !_telegramBotApiClient.IsConfigured)
+        if (!bootstrap.Enabled || chatId <= 0 || !_telegramBotApiClient.IsConfigured)
         {
             return;
         }
@@ -237,17 +248,24 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
 
         try
         {
+            var response = BuildAutomaticResponse(bootstrap, capturedContact);
+            if (response is null)
+            {
+                return;
+            }
+
             await _telegramBotApiClient.SendMessageAsync(
                 chatId,
-                BuildAutomaticAcknowledgement(bootstrap.BoardType),
+                response.Value.Text,
                 [],
-                cancellationToken);
+                cancellationToken,
+                response.Value.Options);
         }
         catch (Exception exception)
         {
             _logger.LogWarning(
                 exception,
-                "Falha ao enviar ACK inicial do bot Telegram para o chat {ChatId}.",
+                "Falha ao enviar resposta automatica do bot Telegram para o chat {ChatId}.",
                 TelegramSecuritySanitizer.MaskChatId(chatId));
         }
     }
@@ -266,10 +284,57 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
         return $"Lead originado automaticamente pelo bot Telegram no board {boardType}.{usernameFragment} Mensagem inicial: {messageSummary}";
     }
 
-    private static string BuildAutomaticAcknowledgement(string boardType) =>
-        string.Equals(boardType, ProvidersBoardType, StringComparison.OrdinalIgnoreCase)
-            ? "Recebi seu contato e ja registrei seu atendimento no funil de prestadores da ConsertaPraMim. Nosso time vai continuar por aqui em instantes."
-            : "Recebi sua mensagem e ja registrei seu atendimento na ConsertaPraMim. Nosso time vai continuar por aqui em instantes.";
+    private static TelegramAutomaticResponse? BuildAutomaticResponse(
+        TelegramInboundBootstrapResult bootstrap,
+        TelegramCapturedContact capturedContact)
+    {
+        if ((capturedContact.HasPhone || capturedContact.HasEmail) && !bootstrap.Succeeded)
+        {
+            return null;
+        }
+
+        if (capturedContact.HasPhone)
+        {
+            var text = capturedContact.HasEmail
+                ? "Recebi seu telefone e seu e-mail, e atualizei seu atendimento na ConsertaPraMim. Nosso time segue acompanhando por aqui."
+                : "Recebi seu telefone e atualizei seu atendimento na ConsertaPraMim. Se quiser, voce tambem pode enviar seu e-mail por mensagem.";
+
+            return new TelegramAutomaticResponse(
+                text,
+                new TelegramMessageSendOptions
+                {
+                    RemoveReplyKeyboard = true
+                });
+        }
+
+        if (capturedContact.HasEmail)
+        {
+            return new TelegramAutomaticResponse(
+                "Recebi seu e-mail e atualizei seu atendimento. Se quiser agilizar, compartilhe seu telefone no botao abaixo ou envie o numero por mensagem.",
+                new TelegramMessageSendOptions
+                {
+                    RequestContactButton = true,
+                    ContactButtonLabel = "Compartilhar telefone"
+                });
+        }
+
+        if (!bootstrap.LeadCreated)
+        {
+            return null;
+        }
+
+        var acknowledgement = string.Equals(bootstrap.BoardType, ProvidersBoardType, StringComparison.OrdinalIgnoreCase)
+            ? "Recebi seu contato e ja registrei seu atendimento no funil de prestadores da ConsertaPraMim. Para agilizar, toque no botao abaixo e compartilhe seu telefone ou envie o numero por mensagem."
+            : "Recebi sua mensagem e ja registrei seu atendimento na ConsertaPraMim. Para agilizar, toque no botao abaixo e compartilhe seu telefone ou envie o numero por mensagem.";
+
+        return new TelegramAutomaticResponse(
+            acknowledgement,
+            new TelegramMessageSendOptions
+            {
+                RequestContactButton = true,
+                ContactButtonLabel = "Compartilhar telefone"
+            });
+    }
 
     private static string ResolveBoardType(TelegramMessage message)
     {
@@ -319,6 +384,60 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
         }
 
         return "Contato Telegram";
+    }
+
+    private static TelegramCapturedContact ResolveCapturedContact(TelegramMessage message)
+    {
+        var phone = ExtractPhone(message);
+        var email = ExtractEmail(message);
+
+        return new TelegramCapturedContact(
+            Phone: phone ?? string.Empty,
+            Email: email ?? string.Empty,
+            SharedNativeContact: !string.IsNullOrWhiteSpace(phone) && message.Contact is not null);
+    }
+
+    private static string? ExtractPhone(TelegramMessage message)
+    {
+        if (message.Contact is not null &&
+            IsTrustedSharedContact(message.Contact, message) &&
+            TryNormalizePhone(message.Contact.PhoneNumber, out var sharedPhone))
+        {
+            return sharedPhone;
+        }
+
+        var candidateText = NormalizeOptionalText(message.Text) ?? NormalizeOptionalText(message.Caption);
+        if (string.IsNullOrWhiteSpace(candidateText))
+        {
+            return null;
+        }
+
+        var match = PhoneRegex.Match(candidateText);
+        if (!match.Success || !ShouldAcceptTextualPhone(candidateText))
+        {
+            return null;
+        }
+
+        return TryNormalizePhone(match.Value, out var normalizedPhone)
+            ? normalizedPhone
+            : null;
+    }
+
+    private static string? ExtractEmail(TelegramMessage message)
+    {
+        var candidateText = NormalizeOptionalText(message.Text) ?? NormalizeOptionalText(message.Caption);
+        if (string.IsNullOrWhiteSpace(candidateText))
+        {
+            return null;
+        }
+
+        var match = EmailRegex.Match(candidateText);
+        if (!match.Success || !ShouldAcceptTextualEmail(candidateText, match.Value))
+        {
+            return null;
+        }
+
+        return match.Value.Trim();
     }
 
     private static DateTime ResolveSentAtUtc(TelegramMessage message)
@@ -378,6 +497,72 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
             : value[..maxLength];
     }
 
+    private static bool IsTrustedSharedContact(TelegramContact contact, TelegramMessage message)
+    {
+        if (!contact.UserId.HasValue)
+        {
+            return true;
+        }
+
+        if (message.From?.Id > 0)
+        {
+            return contact.UserId.Value == message.From.Id;
+        }
+
+        return contact.UserId.Value == message.Chat?.Id;
+    }
+
+    private static bool ShouldAcceptTextualPhone(string value)
+    {
+        var normalized = NormalizeMessage(value) ?? string.Empty;
+        var digitsOnly = new string(value.Where(char.IsDigit).ToArray());
+        var compact = new string(value.Where(character => !char.IsWhiteSpace(character)).ToArray());
+        var looksLikeDirectPhone = digitsOnly.Length is >= 10 and <= 15 && compact.Length <= 24;
+
+        return looksLikeDirectPhone ||
+               normalized.Contains("telefone", StringComparison.Ordinal) ||
+               normalized.Contains("fone", StringComparison.Ordinal) ||
+               normalized.Contains("contato", StringComparison.Ordinal) ||
+               normalized.Contains("numero", StringComparison.Ordinal) ||
+               normalized.Contains("whatsapp", StringComparison.Ordinal);
+    }
+
+    private static bool ShouldAcceptTextualEmail(string value, string email)
+    {
+        var trimmed = value.Trim();
+        if (string.Equals(trimmed, email, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var normalized = NormalizeMessage(value) ?? string.Empty;
+        return normalized.Contains("email", StringComparison.Ordinal) ||
+               normalized.Contains("e-mail", StringComparison.Ordinal) ||
+               normalized.Contains("meu email", StringComparison.Ordinal);
+    }
+
+    private static bool TryNormalizePhone(string? value, out string normalizedPhone)
+    {
+        normalizedPhone = string.Empty;
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        var trimmed = value.Trim();
+        var digits = new string(trimmed.Where(char.IsDigit).ToArray());
+        if (digits.Length is < 10 or > 15)
+        {
+            return false;
+        }
+
+        normalizedPhone = trimmed.StartsWith('+')
+            ? $"+{digits}"
+            : digits;
+
+        return true;
+    }
+
     private readonly record struct TelegramInboundBootstrapResult(
         bool Enabled,
         Guid ChatbotConversationId,
@@ -389,4 +574,17 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
         public static TelegramInboundBootstrapResult Disabled =>
             new(false, Guid.Empty, string.Empty, false, 0, false);
     }
+
+    private readonly record struct TelegramCapturedContact(
+        string Phone,
+        string Email,
+        bool SharedNativeContact)
+    {
+        public bool HasPhone => !string.IsNullOrWhiteSpace(Phone);
+        public bool HasEmail => !string.IsNullOrWhiteSpace(Email);
+    }
+
+    private readonly record struct TelegramAutomaticResponse(
+        string Text,
+        TelegramMessageSendOptions? Options);
 }

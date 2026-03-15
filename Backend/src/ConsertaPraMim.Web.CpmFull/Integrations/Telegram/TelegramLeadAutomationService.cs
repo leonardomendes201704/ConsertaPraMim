@@ -99,6 +99,7 @@ public sealed class TelegramLeadAutomationService : ITelegramLeadAutomationServi
             ClientName = string.IsNullOrWhiteSpace(request.UserName)
                 ? (normalizedBoardType == AdminKanbanBoardTypes.Providers ? "Prestador Telegram" : "Cliente Telegram")
                 : request.UserName.Trim(),
+            ClientPhone = request.UserPhone,
             ClientEmail = request.UserEmail,
             ServiceRequestId = request.ServiceRequestId,
             ServiceCategory = request.ServiceCategory,

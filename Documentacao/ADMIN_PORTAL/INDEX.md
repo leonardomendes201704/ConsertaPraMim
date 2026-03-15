@@ -38,11 +38,15 @@
 
 - [EPIC-CHATWOOT-001 - Integracao Chatwoot com Funis CPM](../../Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/EPIC_CHATWOOT_FUNIS_CPM.md)
 - [EPIC-TELEGRAM-001 - Automacao do Bot Telegram com Funis CPM e Chatwoot](../../Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/EPIC_TELEGRAM_AUTOMACAO_FUNIL_CPM.md)
+- [EPIC-TELEGRAM-002 - Enriquecimento operacional do bot Telegram no CPM e Chatwoot](../../Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/EPIC_TELEGRAM_ENRIQUECIMENTO_OPERACIONAL.md)
 
 ## Stories
 
 ### Backlog
 
+- [ST-096 - Qualificacao inicial do lead Telegram com cidade, categoria e intencao](STORIES/BACKLOG/ST-096-qualificacao-inicial-lead-telegram.md)
+- [ST-097 - Politica operacional de handoff entre Telegram e Chatwoot](STORIES/BACKLOG/ST-097-politica-handoff-telegram-chatwoot.md)
+- [ST-098 - Observabilidade de negocio do canal Telegram](STORIES/BACKLOG/ST-098-observabilidade-negocio-canal-telegram.md)
 - [ST-022 - API de atendimento para portal admin](STORIES/BACKLOG/ST-022-api-atendimento-portal-admin.md)
 - [ST-023 - UI de suporte no portal prestador](STORIES/BACKLOG/ST-023-ui-suporte-portal-prestador.md)
 - [ST-024 - UI de atendimento no portal admin](STORIES/BACKLOG/ST-024-ui-atendimento-portal-admin.md)
@@ -72,6 +76,7 @@
 
 ### Done
 
+- [ST-095 - Captura de contato do Telegram e enriquecimento automatico do lead](STORIES/DONE/ST-095-captura-contato-telegram-enriquecimento-lead.md)
 - [ST-094 - Ativacao publica do webhook do TelegramBridge](STORIES/DONE/ST-094-ativacao-publica-webhook-telegram-bridge.md)
 - [ST-093 - Lead Telegram sem telefone/e-mail sincroniza no Chatwoot via identificador tecnico](STORIES/DONE/ST-093-lead-telegram-sem-contato-sincroniza-chatwoot.md)
 - [ST-092 - Hotfix do deploy do CPM Full para ativar TelegramAutomation no ambiente publicado](STORIES/DONE/ST-092-hotfix-deploy-cpmfull-telegram-automation-publicado.md)

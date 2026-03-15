@@ -88,6 +88,9 @@ public sealed class KanbanController : Controller
                     ? TelegramSecuritySanitizer.MaskChatId(lead.Telegram.TelegramChatId)
                     : string.Empty,
                 clientId = lead.Telegram.ClientId?.ToString() ?? string.Empty,
+                clientPhone = string.IsNullOrWhiteSpace(lead.Telegram.ClientPhone)
+                    ? string.Empty
+                    : TelegramSecuritySanitizer.MaskPhone(lead.Telegram.ClientPhone),
                 clientEmail = string.IsNullOrWhiteSpace(lead.Telegram.ClientEmail)
                     ? string.Empty
                     : TelegramSecuritySanitizer.MaskEmail(lead.Telegram.ClientEmail),

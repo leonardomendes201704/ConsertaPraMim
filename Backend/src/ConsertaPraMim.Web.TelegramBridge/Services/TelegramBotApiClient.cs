@@ -109,11 +109,13 @@ public sealed class TelegramBotApiClient : ITelegramBotApiClient
         long chatId,
         string? text,
         IReadOnlyList<StoredLocalFile> attachments,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        TelegramMessageSendOptions? options = null)
     {
         EnsureConfigured();
 
         var safeText = string.IsNullOrWhiteSpace(text) ? null : text.Trim();
+        var replyMarkup = BuildReplyMarkup(options);
 
         if (attachments.Count == 0)
         {
@@ -124,11 +126,7 @@ public sealed class TelegramBotApiClient : ITelegramBotApiClient
 
             await PostForResultAsync<JsonElement>(
                 "sendMessage",
-                new
-                {
-                    chat_id = chatId,
-                    text = safeText
-                },
+                BuildSendMessagePayload(chatId, safeText, replyMarkup),
                 cancellationToken);
 
             return;
@@ -160,6 +158,11 @@ public sealed class TelegramBotApiClient : ITelegramBotApiClient
                 content.Add(new StringContent(captionToUse), "caption");
             }
 
+            if (replyMarkup is not null)
+            {
+                content.Add(new StringContent(JsonSerializer.Serialize(replyMarkup, JsonOptions)), "reply_markup");
+            }
+
             await using var stream = File.OpenRead(attachment.PhysicalPath);
             var streamContent = new StreamContent(stream);
             streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(attachment.ContentType);
@@ -173,11 +176,7 @@ public sealed class TelegramBotApiClient : ITelegramBotApiClient
         {
             await PostForResultAsync<JsonElement>(
                 "sendMessage",
-                new
-                {
-                    chat_id = chatId,
-                    text = captionToUse
-                },
+                BuildSendMessagePayload(chatId, captionToUse, replyMarkup),
                 cancellationToken);
         }
     }
@@ -276,6 +275,67 @@ public sealed class TelegramBotApiClient : ITelegramBotApiClient
     private string BuildApiUrl(string method) => $"https://api.telegram.org/bot{_botToken}/{method}";
 
     private string BuildFileUrl(string filePath) => $"https://api.telegram.org/file/bot{_botToken}/{filePath}";
+
+    private static object BuildSendMessagePayload(long chatId, string? text, object? replyMarkup)
+    {
+        if (replyMarkup is null)
+        {
+            return new
+            {
+                chat_id = chatId,
+                text
+            };
+        }
+
+        return new
+        {
+            chat_id = chatId,
+            text,
+            reply_markup = replyMarkup
+        };
+    }
+
+    private static object? BuildReplyMarkup(TelegramMessageSendOptions? options)
+    {
+        if (options is null)
+        {
+            return null;
+        }
+
+        if (options.RemoveReplyKeyboard)
+        {
+            return new
+            {
+                remove_keyboard = true
+            };
+        }
+
+        if (options.RequestContactButton)
+        {
+            var label = string.IsNullOrWhiteSpace(options.ContactButtonLabel)
+                ? "Compartilhar telefone"
+                : options.ContactButtonLabel.Trim();
+
+            return new
+            {
+                keyboard = new object[]
+                {
+                    new object[]
+                    {
+                        new
+                        {
+                            text = label,
+                            request_contact = true
+                        }
+                    }
+                },
+                resize_keyboard = true,
+                one_time_keyboard = true
+            };
+        }
+
+        return null;
+    }
 
     private void EnsureConfigured()
     {

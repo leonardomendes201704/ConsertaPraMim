@@ -106,6 +106,7 @@ public sealed class AdminKanbanLeadTelegramLinkRecord
     public string ChannelConversationId { get; init; } = string.Empty;
     public long? TelegramChatId { get; init; }
     public Guid? ClientId { get; init; }
+    public string ClientPhone { get; init; } = string.Empty;
     public string ClientEmail { get; init; } = string.Empty;
     public Guid? ServiceRequestId { get; init; }
     public DateTime? HumanHandoffStartedAt { get; init; }
@@ -161,6 +162,7 @@ public sealed class AdminKanbanTelegramLeadUpsertRequest
     public long TelegramChatId { get; init; }
     public Guid ClientId { get; init; }
     public required string ClientName { get; init; }
+    public string ClientPhone { get; init; } = string.Empty;
     public string ClientEmail { get; init; } = string.Empty;
     public Guid? ServiceRequestId { get; init; }
     public string ServiceCategory { get; init; } = string.Empty;
