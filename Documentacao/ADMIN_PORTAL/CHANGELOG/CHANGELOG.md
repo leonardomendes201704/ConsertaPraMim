@@ -12,6 +12,12 @@
 
 ## Released
 
+- [2026-03-15] [CPMFULL-037][TELEGRAM-POST-EPIC-WEBHOOK-ACTIVATION] Webhook publico do Telegram ativado em `telegram.consertapramim.com`
+- Tipo: chore
+- Resumo: a borda publica do `ConsertaPraMim.Web.TelegramBridge` foi ativada em `https://telegram.consertapramim.com`, com DNS apontando para a VPS, proxy reverso Nginx para `127.0.0.1:5175`, certificado TLS valido e `setWebhook` registrado na Bot API para `POST /api/integrations/telegram/webhook`. Com isso, o bot publicado deixou de depender de `LongPolling` em producao e passou a operar em `Webhook` com `X-Telegram-Bot-Api-Secret-Token`.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/MANUAL_QA_OPERACAO.md`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/EPIC_TELEGRAM_AUTOMACAO_FUNIL_CPM.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-094-ativacao-publica-webhook-telegram-bridge.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: alto
+
 - [2026-03-15] [CPMFULL-036][TELEGRAM-POST-EPIC-CHATWOOT-IDENTIFIER-FALLBACK] Lead Telegram sem telefone/e-mail passa a sincronizar no Chatwoot via identificador tecnico
 - Tipo: fix
 - Resumo: o `ConsertaPraMim.Web.CpmFull` passou a sincronizar com o Chatwoot leads `Source = Telegram` mesmo quando o primeiro contato ainda nao trouxe telefone ou e-mail, reaproveitando `TelegramChatId`, `ChatbotConversationId` ou `ChannelConversationId` como identificador deterministico do contato. O `dry-run` do backfill tambem foi alinhado para reconhecer esses leads como elegiveis quando houver vinculo tecnico suficiente, sem afrouxar a regra para outras origens.

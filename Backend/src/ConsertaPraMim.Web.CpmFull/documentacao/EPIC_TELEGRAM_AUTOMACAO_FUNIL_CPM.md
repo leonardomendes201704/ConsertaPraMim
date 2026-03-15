@@ -558,6 +558,33 @@ Como operacao, queremos que o primeiro contato publico do Telegram sincronize no
 4. O `ChatwootBackfillService` passou a tratar leads Telegram sem telefone/e-mail como elegiveis no `dry-run` quando o vinculo tecnico estiver preenchido, mantendo a regra antiga para outras origens.
 5. A suite ganhou testes de regressao cobrindo a sincronizacao do lead Telegram sem telefone/e-mail e o dry-run do backfill com identificador tecnico do bot.
 
+## Pos-epico - ST-094 - Ativacao publica do webhook do TelegramBridge
+
+### Descricao
+Como operacao, queremos tirar o bot publicado de `LongPolling` e operar em `Webhook` com host HTTPS dedicado, para reduzir dependencia de polling continuo e endurecer a borda publica do canal Telegram.
+
+### Status
+- Concluida em `2026-03-15` como ativacao operacional pos-epic na borda publicada.
+
+### Criterios de aceite
+1. `telegram.consertapramim.com` resolve para a VPS publicada e responde `GET /health` com TLS valido.
+2. O `TelegramBridge` publicado passa a operar com `TelegramBridge:UpdateTransport=Webhook`.
+3. A Bot API registra `setWebhook` para `https://telegram.consertapramim.com/api/integrations/telegram/webhook`.
+4. O bot continua entregando o fluxo `Telegram -> CPM Full -> Chatwoot` apos a troca de transporte.
+
+### Tasks
+- `TASK-17.01` Ativar DNS e borda Nginx/TLS para `telegram.consertapramim.com`.
+- `TASK-17.02` Ajustar os secrets publicados para `WebhookPublicBaseUrl`, `WebhookPath` e `WebhookSecretToken`.
+- `TASK-17.03` Validar `getWebhookInfo`, healthcheck HTTPS e mensagem real apos a virada.
+- `TASK-17.04` Atualizar changelog, manual operacional, indice e story de operacao.
+
+### Entrega aplicada
+1. O host `telegram.consertapramim.com` passou a responder na mesma VPS do ecossistema publicado, com proxy reverso para `127.0.0.1:5175`.
+2. O certificado TLS do host foi emitido e o endpoint `https://telegram.consertapramim.com/health` ficou saudavel.
+3. O environment `production` passou a usar `TelegramBridge:UpdateTransport=Webhook`, `WebhookPublicBaseUrl=https://telegram.consertapramim.com` e `WebhookSecretToken` dedicado.
+4. A Bot API passou a devolver `getWebhookInfo.url = https://telegram.consertapramim.com/api/integrations/telegram/webhook`, confirmando o `setWebhook` do bridge publicado.
+5. O transporte inbound do bot publicado saiu de `LongPolling` e passou a operar com `Webhook`, preservando a mesma trilha `Telegram -> CPM Full -> Chatwoot` ja homologada no pos-epico.
+
 ## 8. Sequencia de entrega recomendada
 1. Sprint 1:
 - US-01

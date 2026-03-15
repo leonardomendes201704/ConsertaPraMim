@@ -212,6 +212,14 @@ No `ConsertaPraMim.Web.CpmFull`, configurar a secao `TelegramAutomation`:
 6. Confirmar que o worker de long polling nao ficou ativo no runtime quando o modo `Webhook` estiver ligado.
 7. Repetir a validacao de lead, inbox Chatwoot, espelhamento inbound e handoff humano com o modo webhook ativo.
 
+### Estado publicado validado em producao
+
+- Host publicado: `https://telegram.consertapramim.com`
+- Endpoint de webhook esperado: `https://telegram.consertapramim.com/api/integrations/telegram/webhook`
+- Transporte inbound publicado: `Webhook`
+- Healthcheck esperado: `curl https://telegram.consertapramim.com/health` -> `Healthy`
+- Validacao da Bot API: `getWebhookInfo.url` deve refletir exatamente a URL publica do webhook e `pending_update_count` deve permanecer controlado.
+
 ### Publicacao do TelegramBridge na VPS
 
 #### Objetivo
