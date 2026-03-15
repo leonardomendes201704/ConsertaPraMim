@@ -12,6 +12,12 @@
 
 ## Released
 
+- [2026-03-14] [CPMFULL-035][TELEGRAM-POST-EPIC-CPMFULL-DEPLOY-HOTFIX] Deploy do CPM Full passa a publicar TelegramAutomation corretamente
+- Tipo: fix
+- Resumo: corrigido o job `deploy-web-cpmfull` do workflow `deploy-vps`, que ainda escrevia `Backend/.env.vps` sem o bloco `TELEGRAM_AUTOMATION_*`. O erro fazia o `ConsertaPraMim.Web.TelegramBridge` receber a mensagem real do bot, mas o `ConsertaPraMim.Web.CpmFull` publicado responder `409 Automacao Telegram desabilitada no ambiente atual.`, bloqueando a criacao do lead e o espelhamento com o Chatwoot.
+- Arquivos principais: `.github/workflows/deploy-vps.yml`, `Backend/DEPLOY_VPS.md`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/MANUAL_QA_OPERACAO.md`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/EPIC_TELEGRAM_AUTOMACAO_FUNIL_CPM.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-092-hotfix-deploy-cpmfull-telegram-automation-publicado.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: alto
+
 - [2026-03-14] [CPMFULL-034][TELEGRAM-POST-EPIC-PUBLIC-INBOUND-BOOTSTRAP] Primeira mensagem publica do bot Telegram agora bootstrapa lead e Chatwoot
 - Tipo: fix
 - Resumo: o `ConsertaPraMim.Web.TelegramBridge` passou a tratar a primeira mensagem real recebida diretamente do bot publicado como bootstrap operacional da trilha `Telegram -> CPM Full -> Chatwoot`, criando ou atualizando um lead tecnico deterministico por `TelegramChatId`, roteando o board por heuristica inicial (`clientes` ou `prestadores`), espelhando a mensagem ao CPM Full com `ChatbotConversationId` estavel e enviando um ACK simples ao usuario quando o lead nasce. A correcao fecha o gap em que o bot publicado consumia o update, mas nada aparecia no funil e no Chatwoot porque a automacao anterior dependia apenas da trilha autenticada do bridge.
