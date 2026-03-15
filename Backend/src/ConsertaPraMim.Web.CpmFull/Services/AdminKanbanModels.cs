@@ -110,6 +110,9 @@ public sealed class AdminKanbanLeadTelegramLinkRecord
     public string ClientEmail { get; init; } = string.Empty;
     public Guid? ServiceRequestId { get; init; }
     public DateTime? HumanHandoffStartedAt { get; init; }
+    public string HumanHandoffStatus { get; init; } = string.Empty;
+    public string HumanHandoffReason { get; init; } = string.Empty;
+    public DateTime? HumanHandoffUpdatedAt { get; init; }
     public DateTime? LastTelegramMessageSyncedAt { get; init; }
     public DateTime? LastChatwootMessageSyncedAt { get; init; }
     public DateTime? UpdatedAt { get; init; }
@@ -176,6 +179,9 @@ public sealed class AdminKanbanTelegramLeadUpsertRequest
 public sealed class AdminKanbanTelegramLinkTouchRequest
 {
     public DateTime? HumanHandoffStartedAt { get; init; }
+    public string HumanHandoffStatus { get; init; } = string.Empty;
+    public string HumanHandoffReason { get; init; } = string.Empty;
+    public DateTime? HumanHandoffUpdatedAt { get; init; }
     public DateTime? LastTelegramMessageSyncedAt { get; init; }
     public DateTime? LastChatwootMessageSyncedAt { get; init; }
 }
@@ -282,6 +288,92 @@ public sealed record class AdminKanbanTelegramDiagnosticsSnapshot
     public int DeadLetterCount { get; init; }
     public IReadOnlyList<AdminKanbanTelegramSyncIssueRecord> RecentIssues { get; init; } = [];
     public IReadOnlyList<AdminKanbanTelegramQueueDiagnosticRecord> RecentQueueItems { get; init; } = [];
+}
+
+public sealed class AdminKanbanTelegramBusinessDashboardFilter
+{
+    public string? BoardType { get; init; }
+    public DateTime CreatedFromUtc { get; init; }
+    public DateTime CreatedToUtcExclusive { get; init; }
+    public int BreakdownLimit { get; init; } = 8;
+}
+
+public sealed record class AdminKanbanTelegramBusinessBoardBreakdownRecord
+{
+    public string BoardType { get; init; } = string.Empty;
+    public int TotalLeads { get; init; }
+    public int QualifiedLeadCount { get; init; }
+    public int LeadsWithContactInfo { get; init; }
+    public int LeadsWithChatwootConversation { get; init; }
+    public int LeadsWithHumanHandoff { get; init; }
+    public decimal? AverageMinutesToChatwoot { get; init; }
+    public decimal? AverageMinutesToHandoff { get; init; }
+}
+
+public sealed record class AdminKanbanTelegramBusinessDailyVolumeRecord
+{
+    public DateTime ReferenceDateLocal { get; init; }
+    public int ClientsLeads { get; init; }
+    public int ProvidersLeads { get; init; }
+    public int TotalLeads { get; init; }
+}
+
+public sealed record class AdminKanbanTelegramBusinessCategoryRecord
+{
+    public string ServiceCategory { get; init; } = string.Empty;
+    public int TotalLeads { get; init; }
+    public int LeadsWithChatwootConversation { get; init; }
+    public int LeadsWithHumanHandoff { get; init; }
+}
+
+public sealed record class AdminKanbanTelegramBusinessCityRecord
+{
+    public string City { get; init; } = string.Empty;
+    public int TotalLeads { get; init; }
+    public int LeadsWithChatwootConversation { get; init; }
+    public int LeadsWithHumanHandoff { get; init; }
+}
+
+public sealed record class AdminKanbanTelegramBusinessStagePressureRecord
+{
+    public string BoardType { get; init; } = string.Empty;
+    public string StageName { get; init; } = string.Empty;
+    public int TotalLeads { get; init; }
+    public int LeadsWithoutContactInfo { get; init; }
+    public int LeadsWithoutChatwootConversation { get; init; }
+    public int LeadsWithoutRecentContact { get; init; }
+    public decimal? AverageLeadAgeHours { get; init; }
+}
+
+public sealed record class AdminKanbanTelegramBusinessHandoffReasonRecord
+{
+    public string Reason { get; init; } = string.Empty;
+    public int TotalLeads { get; init; }
+}
+
+public sealed record class AdminKanbanTelegramBusinessDashboardSnapshot
+{
+    public string ScopeBoardType { get; init; } = string.Empty;
+    public DateTime CreatedFromUtc { get; init; }
+    public DateTime CreatedToUtcExclusive { get; init; }
+    public int TotalTelegramLeads { get; init; }
+    public int ClientsLeads { get; init; }
+    public int ProvidersLeads { get; init; }
+    public int LeadsWithPhone { get; init; }
+    public int LeadsWithEmail { get; init; }
+    public int LeadsWithContactInfo { get; init; }
+    public int LeadsWithQualifiedCategory { get; init; }
+    public int LeadsWithQualifiedCity { get; init; }
+    public int LeadsWithChatwootConversation { get; init; }
+    public int LeadsWithHumanHandoff { get; init; }
+    public int MedianMinutesToChatwoot { get; init; }
+    public int MedianMinutesToHandoff { get; init; }
+    public IReadOnlyList<AdminKanbanTelegramBusinessBoardBreakdownRecord> BoardBreakdown { get; init; } = [];
+    public IReadOnlyList<AdminKanbanTelegramBusinessDailyVolumeRecord> DailyVolumes { get; init; } = [];
+    public IReadOnlyList<AdminKanbanTelegramBusinessCategoryRecord> TopCategories { get; init; } = [];
+    public IReadOnlyList<AdminKanbanTelegramBusinessCityRecord> TopCities { get; init; } = [];
+    public IReadOnlyList<AdminKanbanTelegramBusinessStagePressureRecord> StagePressures { get; init; } = [];
+    public IReadOnlyList<AdminKanbanTelegramBusinessHandoffReasonRecord> HandoffReasons { get; init; } = [];
 }
 
 public sealed class AdminKanbanBoardOrderUpdateRequest

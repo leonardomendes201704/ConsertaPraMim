@@ -34,6 +34,8 @@ Orientar validacao funcional e operacao basica do projeto `ConsertaPraMim.Web.Cp
 - O modal de detalhes do lead no Kanban agora expõe a acao `Excluir lead`, removendo o lead local, historico, vinculo Telegram e filas relacionadas.
 - Quando o lead possui `TelegramChatId`, a exclusao tenta resetar o handoff humano em memoria no `TelegramBridge` antes de concluir o reset local.
 - O fluxo de exclusao agora tambem pode apagar opcionalmente o contato tecnico no Chatwoot quando o lead ja possui `ChatwootContactId`, por meio de checkbox desmarcado por padrao no modal.
+- O modal `Vinculo Telegram` agora tambem exibe `Estado do handoff`, `Motivo do handoff` e `Ultima atualizacao do handoff`, com acoes `Ativar handoff` e `Retomar bot`.
+- O CPM Full agora possui a view administrativa `/admin/telegram/painel`, dedicada a KPIs de negocio do canal Telegram com filtros em drawer, cards de conversao, volume diario, comparativo por board, top categorias/cidades e gargalos por etapa.
 
 ### Configuracao minima
 
@@ -100,6 +102,7 @@ No `ConsertaPraMim.Web.CpmFull`, configurar a secao `TelegramAutomation`:
 - O primeiro outbound humano deve marcar `HumanHandoffStartedAt` no vinculo do lead e registrar historico `Handoff humano iniciado`.
 - O bridge deve aceitar o envio humano apenas pelo endpoint interno `POST /api/internal/telegram/messages/send`, protegido por `X-Telegram-Automation-Key`.
 - Quando o handoff humano estiver ativo, a trilha web do bridge que passa pelo `ChatApiController` deve deixar de emitir nova resposta automatica para o `chatId` marcado.
+- O operador do CPM Full deve conseguir ativar manualmente o handoff e retomar o bot no mesmo modal do lead, com historico auditavel no funil.
 - O modal `Vinculo Telegram` e o drawer `Diagnostico Telegram` devem exibir `Chat ID Telegram`, `E-mail autenticado` e mensagens de erro apenas em formato mascarado.
 - Em `LongPolling`, o bridge deve remover qualquer webhook anterior do bot e continuar recebendo updates por `getUpdates`.
 - Em `Webhook`, o bridge deve publicar `POST /api/integrations/telegram/webhook` em HTTPS, registrar automaticamente a URL publica na Bot API e rejeitar requests sem `X-Telegram-Bot-Api-Secret-Token` valido.
@@ -149,6 +152,19 @@ No `ConsertaPraMim.Web.CpmFull`, configurar a secao `TelegramAutomation`:
 9. Informar e-mail em texto livre e confirmar que o vinculo Telegram e o lead reaproveitam o mesmo registro, sem limpar telefone/cidade/categoria ja existentes.
 10. Abrir o contato no Chatwoot e validar que o contato tecnico foi enriquecido com o telefone real capturado apos o bootstrap inicial.
 
+### Checklist complementar para qualificacao inicial do lead Telegram
+
+1. Iniciar uma conversa nova com o bot Telegram em um chat sem cidade/categoria previamente enriquecidas.
+2. Enviar uma mensagem de cliente como `Preciso de ajuda urgente com meu chuveiro em Santos`.
+3. Confirmar que o primeiro ACK do bot pede telefone e tambem orienta o usuario a informar cidade, tipo de servico e o que precisa resolver.
+4. Abrir o lead em `/admin/funil/clientes` e validar `ServiceCategory = Eletricista` e `City = Santos`.
+5. Confirmar que o `StatusNote` do lead resume `cidade`, `categoria` e `intencao` em PT-BR operacional.
+6. Reenviar mensagem complementar do mesmo chat, por exemplo `Meu CEP e 11035-010`, e confirmar enriquecimento do mesmo lead sem duplicidade.
+7. Em outro chat, enviar uma mensagem de prestador como `Sou eletricista em Praia Grande e quero me cadastrar como prestador parceiro`.
+8. Confirmar que o lead cai em `/admin/funil/prestadores`, com `ServiceCategory = Eletricista`, `City = Praia Grande` e objetivo de cadastro refletido no `StatusNote`.
+9. Validar que o roteamento `clientes` x `prestadores` ocorreu sem depender de ajuste manual no board.
+10. Revisar `InternalNotes` do lead e confirmar que cidade/regiao, categoria e intencao ficaram registradas junto da mensagem inicial.
+
 ### Checklist complementar para espelhamento e handoff
 
 1. Habilitar `MirrorMessagesEnabled=true` no bridge e no CPM Full.
@@ -161,7 +177,9 @@ No `ConsertaPraMim.Web.CpmFull`, configurar a secao `TelegramAutomation`:
 8. No Chatwoot, enviar uma resposta humana publica para a conversa originada do Telegram.
 9. Confirmar que a mensagem chega no chat do Telegram do usuario.
 10. Reabrir o detalhe do lead e validar historico `Handoff humano iniciado` no primeiro outbound e `Mensagem humana sincronizada para Telegram`.
-11. Validar no modal `Handoff humano iniciado` e `Ultima msg Chatwoot sincronizada` preenchidos.
+11. Validar no modal `Handoff humano iniciado`, `Estado do handoff = Handoff humano ativo`, `Motivo do handoff = Primeira resposta humana do Chatwoot` e `Ultima msg Chatwoot sincronizada`.
+12. Clicar em `Retomar bot` no modal do lead e confirmar historico `Bot Telegram retomado manualmente`.
+13. Enviar nova mensagem no mesmo chat e validar que o bot voltou a responder automaticamente.
 
 ### Checklist complementar para bot publico sem login previo
 
@@ -190,6 +208,21 @@ No `ConsertaPraMim.Web.CpmFull`, configurar a secao `TelegramAutomation`:
 8. Para lead Telegram com handoff humano previo, reenviar mensagem no mesmo chat e validar que o bot voltou a responder sem exigir restart manual do bridge.
 9. Quando o checkbox tiver sido marcado, validar no Chatwoot que o contato tecnico foi removido; quando o checkbox nao tiver sido marcado, confirmar que o contato continua existindo.
 10. Confirmar que a conversa no Chatwoot segue o comportamento da propria plataforma e nao e prometida como excluida pelo CPM Full.
+
+### Checklist complementar para painel Telegram de negocio
+
+1. Acessar `/admin/telegram/painel`.
+2. Confirmar que a tela abre em view dedicada, fora do Kanban, com botao `Filtros` no cabecalho.
+3. Abrir o drawer `Filtros` e validar os campos `Board`, `Data inicial` e `Data final`.
+4. Aplicar filtro para `Clientes` e confirmar que o resumo considera apenas leads Telegram do board `clientes`.
+5. Aplicar filtro para `Prestadores` e confirmar o mesmo comportamento para `prestadores`.
+6. Voltar para `Todos os boards` e validar os cards `Leads Telegram`, `Contato enriquecido`, `Bootstrap Chatwoot`, `Handoff humano`, `Qualificacao minima`, `Mediana ate Chatwoot`, `Mediana ate handoff` e `Contato capturado`.
+7. Confirmar que a tabela `Volume diario` agrupa os leads do periodo no fuso de negocio.
+8. Validar `Resumo por board` com totais, qualificacao, contato, bootstrap Chatwoot e handoff.
+9. Confirmar que `Top categorias` e `Top cidades` refletem o mesmo recorte filtrado.
+10. Revisar `Gargalos por etapa` e validar as colunas `Sem contato`, `Sem Chatwoot`, `Sem contato recente (+24h)` e `Idade media`.
+11. Revisar `Motivos de handoff` e confirmar que a lista reflete os handoffs registrados no periodo.
+12. Acionar `Limpar filtros` e confirmar retorno ao recorte padrao da tela.
 
 ### Roteiro rapido de validacao em producao
 
@@ -221,6 +254,9 @@ No `ConsertaPraMim.Web.CpmFull`, configurar a secao `TelegramAutomation`:
 - Fila presa em retentativa: revisar `LastError`, `AttemptCount`, `NextAttemptAt`, reachability entre CPM Full e bridge, e se `DeliveryQueueMaxAttempts` nao ja levou o item para `dead_letter`.
 - Bot continuou respondendo apos handoff humano: validar se `RequireHumanHandoffForOutbound=true`, se o primeiro outbound humano chegou a ativar o handoff e se a conversa esta passando pela trilha web controlada pelo `ChatApiController`.
 - Bridge recebe updates, mas nada aparece no funil: abrir `docker logs --tail 200 cpm-prd-telegrambridge` e procurar `409 Automacao Telegram desabilitada no ambiente atual.`; se aparecer, validar `docker exec cpm-prd-cpmfull printenv | grep '^TelegramAutomation__'`.
+- Painel Telegram sem dados no periodo: validar se o recorte por data nao ficou invertido, se o board filtrado e o correto e se existem leads `Source = Telegram` criados no intervalo.
+- Cards do painel divergindo do Kanban: lembrar que o painel trabalha por coorte de criacao do lead no periodo filtrado, enquanto o Kanban mostra o estoque atual do board.
+- `Gargalos por etapa` com tudo zerado: validar se o ambiente publicado contem a entrega da ST-098 e se a leitura esta sendo feita na view `/admin/telegram/painel`, nao apenas no drawer tecnico do Kanban.
 
 ### Checklist complementar para diagnostico operacional
 
@@ -966,11 +1002,11 @@ Equivalentes no deploy VPS:
 
 - O `ConsertaPraMim.Web.TelegramBridge` ja alimenta automaticamente os funis `clientes` e `prestadores` do CPM Full, preservando a trilha conversacional propria (`ChatbotConversations`, `ChatbotMessages`, `ChatbotContextSnapshots`, `ChatbotActionLogs`) como origem tecnica da conversa.
 - O bot publicado agora pode operar por `long polling` ou `webhook` seguro, conforme `TelegramBridge:UpdateTransport`.
-- O enriquecimento automatico de telefone do usuario continua pendente porque o contrato autenticado atual do bridge ainda nao expoe esse dado.
+- O primeiro ciclo de enriquecimento operacional do bot ja cobre telefone/e-mail, qualificacao inicial com cidade/categoria/intencao e reset operacional do lead para testes recorrentes.
 
 ### Proxima evolucao documentada
 
 - A base funcional da automacao publicada continua registrada no documento `EPIC-TELEGRAM-001 - Automacao do Bot Telegram com Funis CPM e Chatwoot`.
 - O proximo ciclo de evolucao agora segue em `EPIC-TELEGRAM-002 - Enriquecimento Operacional do Bot Telegram no CPM e Chatwoot`.
-- A nova trilha prioriza quatro frentes: captura de contato no primeiro atendimento, qualificacao inicial do lead, regras operacionais de handoff e observabilidade de negocio.
-- A primeira entrega em andamento e a `ST-095 - Captura de contato do Telegram e enriquecimento automatico do lead`.
+- O `EPIC-TELEGRAM-002` ja concluiu `ST-095`, `ST-096`, `ST-097`, `ST-099` e `ST-100`.
+- A proxima entrega planejada da trilha e `ST-098 - Observabilidade de negocio do canal Telegram`.

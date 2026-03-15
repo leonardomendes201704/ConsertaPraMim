@@ -6,7 +6,7 @@
 - Produto: `ConsertaPraMim`
 - Data de criacao: `2026-03-15`
 - Prioridade: `Alta`
-- Status atual: `In Progress`
+- Status atual: `Completed`
 - Time alvo: `Backend`, `TelegramBridge`, `CPM Full`, `Chatwoot`, `QA`, `Operacao`
 - Objetivo macro: elevar a qualidade operacional da trilha publicada `Telegram -> CPM Full -> Chatwoot`, capturando melhor os dados do lead, refinando qualificacao/handoff e criando observabilidade orientada a negocio.
 
@@ -158,7 +158,7 @@ Como operacao, queremos qualificar melhor o lead Telegram no inicio da conversa,
 
 ### Status
 
-- Planejada.
+- Concluida em `2026-03-15`.
 
 ### Criterios de aceite
 
@@ -169,11 +169,18 @@ Como operacao, queremos qualificar melhor o lead Telegram no inicio da conversa,
 
 ### Tasks
 
-- `TASK-02.01` Definir os campos minimos de qualificacao inicial por jornada (`cliente` x `prestador`).
-- `TASK-02.02` Ajustar prompts/etapas do bot para coletar cidade, categoria e intencao.
-- `TASK-02.03` Projetar os novos dados no lead, no historico e nos atributos do Chatwoot.
-- `TASK-02.04` Refinar o roteamento de board e etapa inicial no funil.
-- `TASK-02.05` Cobrir cenarios ambigos e fallback para classificacao manual.
+- `TASK-02.01` Concluida. Os campos minimos definidos foram `cidade/regiao`, `categoria`, `CEP` e `intencao`, reutilizando `City`, `ServiceCategory`, `StatusNote` e `InternalNotes` do lead.
+- `TASK-02.02` Concluida. O ACK inicial do bot passou a pedir explicitamente cidade, tipo de servico e objetivo principal, com variacao entre `clientes` e `prestadores`.
+- `TASK-02.03` Concluida. A automacao publica do `TelegramBridge` agora projeta cidade, categoria, CEP e intencao no mesmo lead do CPM Full e no historico operacional.
+- `TASK-02.04` Concluida. O roteamento de board foi refinado com palavras-chave de onboarding, autoidentificacao profissional e categoria tecnica.
+- `TASK-02.05` Concluida. Foram cobertos cenarios de cliente urgente e onboarding de prestador, mantendo fallback seguro quando o texto vier pouco estruturado.
+
+### Entrega realizada
+
+1. O `TelegramInboundUpdateProcessor` passou a extrair `cidade/regiao`, `categoria`, `CEP` e `intencao` diretamente do texto livre enviado no bot.
+2. O primeiro ACK do bot agora orienta o usuario a informar cidade, tipo de servico e objetivo principal, sem exigir state machine nova para a coleta inicial.
+3. O `StatusNote` e as `InternalNotes` do lead passaram a registrar o contexto de qualificacao em PT-BR operacional, reduzindo a dependencia de leitura da mensagem crua.
+4. O board `clientes` x `prestadores` deixou de depender apenas de poucas palavras fixas e passou a considerar tambem autoidentificacao profissional e intencao de cadastro/parceria.
 
 ## US-03 / ST-097 - Regras operacionais de handoff entre bot e humano
 
@@ -183,7 +190,7 @@ Como operacao, queremos regras claras de handoff para decidir quando o bot conti
 
 ### Status
 
-- Planejada.
+- Concluida em `2026-03-15`.
 
 ### Criterios de aceite
 
@@ -194,11 +201,18 @@ Como operacao, queremos regras claras de handoff para decidir quando o bot conti
 
 ### Tasks
 
-- `TASK-03.01` Definir gatilhos de handoff por intencao, erro, SLA e comando operacional.
-- `TASK-03.02` Persistir estado operacional mais rico para handoff, pausa e retomada.
-- `TASK-03.03` Expor os novos estados e comandos no CPM Full para suporte e operacao.
-- `TASK-03.04` Ajustar espelhamento e webhook para respeitar as novas regras.
-- `TASK-03.05` Cobrir regressao para evitar concorrencia entre bot e humano.
+- `TASK-03.01` Concluida. Os gatilhos operacionais passaram a ser `primeira resposta humana do Chatwoot` como ativacao automatica e `Ativar handoff` / `Retomar bot` como comandos manuais no CPM Full.
+- `TASK-03.02` Concluida. O bridge e o vinculo Telegram do CPM Full agora persistem `status`, `motivo`, `source`, `startedAtUtc` e `updatedAtUtc` do handoff.
+- `TASK-03.03` Concluida. O modal do lead exibe `Estado do handoff`, `Motivo do handoff` e `Ultima atualizacao do handoff`, com acoes administrativas de ativacao e retomada.
+- `TASK-03.04` Concluida. O espelhamento `Chatwoot -> Telegram` passou a reativar handoff com base em `HumanHandoffStatus`, permitindo nova ativacao apos o bot ser retomado.
+- `TASK-03.05` Concluida. Foram adicionados testes de regressao para estado do bridge, automacao outbound, acoes do Kanban e supressao do bot durante handoff ativo.
+
+### Entrega realizada
+
+1. O `ConsertaPraMim.Web.TelegramBridge` passou a manter estado rico de handoff por chat e expor endpoints internos autenticados para `ativar` e `retomar` o bot sem reset total do estado.
+2. O `ConsertaPraMim.Web.CpmFull` passou a persistir `HumanHandoffStatus`, `HumanHandoffReason` e `HumanHandoffUpdatedAt` no vinculo `dbo.cpm_web_telegram_funil_links`.
+3. O modal do lead no Kanban agora mostra o estado do handoff em PT-BR e permite `Ativar handoff` / `Retomar bot` de forma auditavel.
+4. A fila `Chatwoot -> Telegram` deixou de depender apenas de `HumanHandoffStartedAt`, permitindo reativacao correta do handoff depois de retomadas manuais.
 
 ## US-04 / ST-098 - Observabilidade de negocio do canal Telegram
 
@@ -208,22 +222,28 @@ Como gestao e operacao, queremos acompanhar indicadores reais do canal Telegram 
 
 ### Status
 
-- Planejada.
+- Concluida em `2026-03-15`.
 
 ### Criterios de aceite
 
 1. A operacao consegue ver volume de leads, handoffs, tempos e conversoes do canal Telegram.
 2. O diagnostico deixa de ser apenas tecnico e passa a apoiar rotina operacional.
-3. O CPM Full expõe indicadores suficientes para leitura diaria do canal.
+3. O CPM Full expoe indicadores suficientes para leitura diaria do canal.
 4. O runbook cobre os principais sinais de degradacao operacional e negocio.
 
 ### Tasks
 
-- `TASK-04.01` Definir KPIs principais do canal Telegram.
-- `TASK-04.02` Criar consultas/agregacoes para tempos, volumes e conversao por jornada.
-- `TASK-04.03` Expor visao operacional e gerencial no CPM Full.
-- `TASK-04.04` Documentar rotina de acompanhamento e limiares de alerta.
-- `TASK-04.05` Cobrir QA funcional e troubleshooting da leitura operacional.
+- `TASK-04.01` Concluida. Os KPIs definidos para a rotina diaria foram volume diario, contato enriquecido, bootstrap no Chatwoot, handoff humano, qualificacao minima e tempos de passagem para Chatwoot/handoff.
+- `TASK-04.02` Concluida. O `SqlAdminKanbanService` passou a consolidar snapshot com coorte por periodo, comparativo por board, top cidades/categorias, motivos de handoff e gargalos por etapa.
+- `TASK-04.03` Concluida. O CPM Full passou a expor a nova view administrativa `/admin/telegram/painel`, com cards, tabelas e drawer `Filtros`.
+- `TASK-04.04` Concluida. O manual QA/Operacao passou a orientar a leitura diaria do painel e os principais sinais de atencao da operacao.
+- `TASK-04.05` Concluida. Foram adicionados testes de regressao para agregacao SQL e para a montagem da nova view administrativa.
+
+### Entrega realizada
+
+1. O `ConsertaPraMim.Web.CpmFull` ganhou o painel Telegram em view dedicada, separado do Kanban e acessivel tanto pelo dashboard administrativo quanto pelo topo dos funis.
+2. O painel agora mostra coorte de leads Telegram por periodo com filtros de board, volume diario, qualificacao minima, bootstrap no Chatwoot, handoff humano, top categorias/cidades e gargalos por etapa.
+3. A leitura deixa de depender apenas do drawer tecnico `Diagnostico Telegram` e passa a apoiar rotina operacional e gerencial do canal.
 
 ## 7. Sequencia de entrega recomendada
 
@@ -233,6 +253,11 @@ Como gestao e operacao, queremos acompanhar indicadores reais do canal Telegram 
 4. `ST-096` - Qualificacao inicial do lead Telegram.
 5. `ST-097` - Regras operacionais de handoff.
 6. `ST-098` - Observabilidade de negocio do canal Telegram.
+
+## 10. Encerramento
+
+- Epic concluida em `2026-03-15`.
+- Resultado: a trilha Telegram passou a ter captura de contato, qualificacao inicial, handoff auditavel, reset operacional e observabilidade de negocio na mesma superficie administrativa do CPM Full.
 
 ## 8. Dependencias externas
 

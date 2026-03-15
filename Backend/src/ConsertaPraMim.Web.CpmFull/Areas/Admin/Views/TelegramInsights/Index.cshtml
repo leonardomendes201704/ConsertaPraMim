@@ -1,0 +1,434 @@
+@model AdminTelegramBusinessDashboardPageViewModel
+@{
+    ViewData["Title"] = Model.Title;
+
+    static string BoardLabel(string boardType) => boardType switch
+    {
+        "prestadores" => "Prestadores",
+        "clientes" => "Clientes",
+        _ => "Todos"
+    };
+
+    static string PercentLabel(int part, int total)
+    {
+        if (total <= 0)
+        {
+            return "0%";
+        }
+
+        return $"{(part * 100.0 / total):N0}%";
+    }
+
+    static string MinutesLabel(int minutes)
+    {
+        if (minutes <= 0)
+        {
+            return "-";
+        }
+
+        if (minutes < 60)
+        {
+            return $"{minutes} min";
+        }
+
+        var hours = minutes / 60;
+        var remainingMinutes = minutes % 60;
+        return remainingMinutes == 0 ? $"{hours} h" : $"{hours} h {remainingMinutes} min";
+    }
+
+    static string AverageMinutesLabel(decimal? minutes)
+    {
+        if (!minutes.HasValue || minutes.Value <= 0)
+        {
+            return "-";
+        }
+
+        var rounded = (int)Math.Round(minutes.Value, MidpointRounding.AwayFromZero);
+        return MinutesLabel(rounded);
+    }
+
+    static string HoursLabel(decimal? hours)
+    {
+        if (!hours.HasValue || hours.Value <= 0)
+        {
+            return "-";
+        }
+
+        var rounded = Math.Round(hours.Value, 1, MidpointRounding.AwayFromZero);
+        return $"{rounded:N1} h";
+    }
+}
+
+<div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
+    <div>
+        <h1 class="h4 fw-bold mb-1">@Model.Title</h1>
+        <p class="text-secondary mb-0">@Model.Subtitle</p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        <a class="btn btn-outline-secondary" href="@Model.DashboardUrl">Painel admin</a>
+        <a class="btn btn-outline-secondary" href="@Model.ClientsBoardUrl">Funil clientes</a>
+        <a class="btn btn-outline-secondary" href="@Model.ProvidersBoardUrl">Onboarding prestadores</a>
+        <button type="button" class="btn btn-primary" data-bs-toggle="offcanvas" data-bs-target="#telegramInsightsFiltersDrawer" aria-controls="telegramInsightsFiltersDrawer">
+            Filtros
+        </button>
+    </div>
+</div>
+
+<div class="d-flex flex-wrap align-items-center gap-2 small text-secondary mb-4">
+    <span>Escopo: <strong>@Model.SelectedBoardLabel</strong></span>
+    <span>Periodo: <strong>@Model.PeriodLabel</strong></span>
+    <span>Leitura: <strong>leads Telegram criados no periodo</strong></span>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="small text-uppercase text-secondary fw-semibold mb-1">Leads Telegram</div>
+                <div class="display-6 fw-bold">@Model.Snapshot.TotalTelegramLeads</div>
+                <div class="small text-secondary">Clientes: @Model.Snapshot.ClientsLeads | Prestadores: @Model.Snapshot.ProvidersLeads</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="small text-uppercase text-secondary fw-semibold mb-1">Contato enriquecido</div>
+                <div class="display-6 fw-bold">@Model.Snapshot.LeadsWithContactInfo</div>
+                <div class="small text-secondary">@PercentLabel(Model.Snapshot.LeadsWithContactInfo, Model.Snapshot.TotalTelegramLeads) com telefone ou e-mail</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="small text-uppercase text-secondary fw-semibold mb-1">Bootstrap Chatwoot</div>
+                <div class="display-6 fw-bold">@Model.Snapshot.LeadsWithChatwootConversation</div>
+                <div class="small text-secondary">@PercentLabel(Model.Snapshot.LeadsWithChatwootConversation, Model.Snapshot.TotalTelegramLeads) com conversa humana</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="small text-uppercase text-secondary fw-semibold mb-1">Handoff humano</div>
+                <div class="display-6 fw-bold">@Model.Snapshot.LeadsWithHumanHandoff</div>
+                <div class="small text-secondary">@PercentLabel(Model.Snapshot.LeadsWithHumanHandoff, Model.Snapshot.TotalTelegramLeads) chegaram a operador</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="small text-uppercase text-secondary fw-semibold mb-1">Qualificacao minima</div>
+                <div class="display-6 fw-bold">@Math.Min(Model.Snapshot.LeadsWithQualifiedCategory, Model.Snapshot.LeadsWithQualifiedCity)</div>
+                <div class="small text-secondary">@PercentLabel(Math.Min(Model.Snapshot.LeadsWithQualifiedCategory, Model.Snapshot.LeadsWithQualifiedCity), Model.Snapshot.TotalTelegramLeads) com categoria e cidade</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="small text-uppercase text-secondary fw-semibold mb-1">Mediana ate Chatwoot</div>
+                <div class="display-6 fw-bold">@MinutesLabel(Model.Snapshot.MedianMinutesToChatwoot)</div>
+                <div class="small text-secondary">Tempo entre criacao do lead e sync humana</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="small text-uppercase text-secondary fw-semibold mb-1">Mediana ate handoff</div>
+                <div class="display-6 fw-bold">@MinutesLabel(Model.Snapshot.MedianMinutesToHandoff)</div>
+                <div class="small text-secondary">Tempo entre criacao do lead e passagem ao humano</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="small text-uppercase text-secondary fw-semibold mb-1">Contato capturado</div>
+                <div class="display-6 fw-bold">@Model.Snapshot.LeadsWithPhone</div>
+                <div class="small text-secondary">@PercentLabel(Model.Snapshot.LeadsWithPhone, Model.Snapshot.TotalTelegramLeads) com telefone | @Model.Snapshot.LeadsWithEmail com e-mail</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (!Model.HasData)
+{
+    <div class="alert alert-info border-0 shadow-sm">
+        Nao ha leads Telegram no periodo filtrado. Ajuste datas ou o board no drawer de filtros para ampliar a leitura.
+    </div>
+}
+else
+{
+    <div class="row g-4">
+        <div class="col-12 col-xxl-7">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <h2 class="h5 mb-1">Volume diario</h2>
+                            <p class="text-secondary small mb-0">Distribuicao do canal por dia no fuso de negocio.</p>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Data</th>
+                                    <th class="text-end">Clientes</th>
+                                    <th class="text-end">Prestadores</th>
+                                    <th class="text-end">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var day in Model.Snapshot.DailyVolumes)
+                                {
+                                    <tr>
+                                        <td>@day.ReferenceDateLocal.ToString("dd/MM/yyyy")</td>
+                                        <td class="text-end">@day.ClientsLeads</td>
+                                        <td class="text-end">@day.ProvidersLeads</td>
+                                        <td class="text-end fw-semibold">@day.TotalLeads</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-xxl-5">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h2 class="h5 mb-1">Leitura rapida do canal</h2>
+                    <p class="text-secondary small mb-3">Sinais para a rotina diaria da operacao.</p>
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item px-0 d-flex justify-content-between">
+                            <span>Leads sem contato enriquecido</span>
+                            <strong>@(Model.Snapshot.TotalTelegramLeads - Model.Snapshot.LeadsWithContactInfo)</strong>
+                        </li>
+                        <li class="list-group-item px-0 d-flex justify-content-between">
+                            <span>Leads sem conversa no Chatwoot</span>
+                            <strong>@(Model.Snapshot.TotalTelegramLeads - Model.Snapshot.LeadsWithChatwootConversation)</strong>
+                        </li>
+                        <li class="list-group-item px-0 d-flex justify-content-between">
+                            <span>Leads sem handoff humano</span>
+                            <strong>@(Model.Snapshot.TotalTelegramLeads - Model.Snapshot.LeadsWithHumanHandoff)</strong>
+                        </li>
+                        <li class="list-group-item px-0 d-flex justify-content-between">
+                            <span>Leads sem categoria qualificada</span>
+                            <strong>@(Model.Snapshot.TotalTelegramLeads - Model.Snapshot.LeadsWithQualifiedCategory)</strong>
+                        </li>
+                        <li class="list-group-item px-0 d-flex justify-content-between">
+                            <span>Leads sem cidade qualificada</span>
+                            <strong>@(Model.Snapshot.TotalTelegramLeads - Model.Snapshot.LeadsWithQualifiedCity)</strong>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <h2 class="h5 mb-1">Resumo por board</h2>
+                    <p class="text-secondary small mb-3">Comparativo operacional entre clientes e prestadores.</p>
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Board</th>
+                                    <th class="text-end">Leads</th>
+                                    <th class="text-end">Qualificados</th>
+                                    <th class="text-end">Contato</th>
+                                    <th class="text-end">Chatwoot</th>
+                                    <th class="text-end">Handoff</th>
+                                    <th class="text-end">Tempo medio ate Chatwoot</th>
+                                    <th class="text-end">Tempo medio ate handoff</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in Model.Snapshot.BoardBreakdown)
+                                {
+                                    <tr>
+                                        <td class="fw-semibold">@BoardLabel(item.BoardType)</td>
+                                        <td class="text-end">@item.TotalLeads</td>
+                                        <td class="text-end">@item.QualifiedLeadCount</td>
+                                        <td class="text-end">@item.LeadsWithContactInfo <span class="text-secondary small">(@PercentLabel(item.LeadsWithContactInfo, item.TotalLeads))</span></td>
+                                        <td class="text-end">@item.LeadsWithChatwootConversation <span class="text-secondary small">(@PercentLabel(item.LeadsWithChatwootConversation, item.TotalLeads))</span></td>
+                                        <td class="text-end">@item.LeadsWithHumanHandoff <span class="text-secondary small">(@PercentLabel(item.LeadsWithHumanHandoff, item.TotalLeads))</span></td>
+                                        <td class="text-end">@AverageMinutesLabel(item.AverageMinutesToChatwoot)</td>
+                                        <td class="text-end">@AverageMinutesLabel(item.AverageMinutesToHandoff)</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-xl-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h2 class="h5 mb-1">Top categorias</h2>
+                    <p class="text-secondary small mb-3">Onde o canal Telegram esta concentrando demanda.</p>
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Categoria</th>
+                                    <th class="text-end">Leads</th>
+                                    <th class="text-end">Chatwoot</th>
+                                    <th class="text-end">Handoff</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in Model.Snapshot.TopCategories)
+                                {
+                                    <tr>
+                                        <td>@item.ServiceCategory</td>
+                                        <td class="text-end">@item.TotalLeads</td>
+                                        <td class="text-end">@item.LeadsWithChatwootConversation</td>
+                                        <td class="text-end">@item.LeadsWithHumanHandoff</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-xl-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h2 class="h5 mb-1">Top cidades</h2>
+                    <p class="text-secondary small mb-3">Base geografica atual dos leads Telegram.</p>
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Cidade</th>
+                                    <th class="text-end">Leads</th>
+                                    <th class="text-end">Chatwoot</th>
+                                    <th class="text-end">Handoff</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in Model.Snapshot.TopCities)
+                                {
+                                    <tr>
+                                        <td>@item.City</td>
+                                        <td class="text-end">@item.TotalLeads</td>
+                                        <td class="text-end">@item.LeadsWithChatwootConversation</td>
+                                        <td class="text-end">@item.LeadsWithHumanHandoff</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-xl-8">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h2 class="h5 mb-1">Gargalos por etapa</h2>
+                    <p class="text-secondary small mb-3">Etapas com mais leads Telegram acumulados e menor maturidade operacional.</p>
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Board</th>
+                                    <th>Etapa</th>
+                                    <th class="text-end">Leads</th>
+                                    <th class="text-end">Sem contato</th>
+                                    <th class="text-end">Sem Chatwoot</th>
+                                    <th class="text-end">Sem contato recente (+24h)</th>
+                                    <th class="text-end">Idade media</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in Model.Snapshot.StagePressures)
+                                {
+                                    <tr>
+                                        <td>@BoardLabel(item.BoardType)</td>
+                                        <td class="fw-semibold">@item.StageName</td>
+                                        <td class="text-end">@item.TotalLeads</td>
+                                        <td class="text-end">@item.LeadsWithoutContactInfo</td>
+                                        <td class="text-end">@item.LeadsWithoutChatwootConversation</td>
+                                        <td class="text-end">@item.LeadsWithoutRecentContact</td>
+                                        <td class="text-end">@HoursLabel(item.AverageLeadAgeHours)</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-12 col-xl-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h2 class="h5 mb-1">Motivos de handoff</h2>
+                    <p class="text-secondary small mb-3">Leitura do que mais leva a conversa do bot para o operador.</p>
+                    @if (Model.Snapshot.HandoffReasons.Count == 0)
+                    {
+                        <div class="text-secondary small">Nenhum handoff registrado no recorte atual.</div>
+                    }
+                    else
+                    {
+                        <ul class="list-group list-group-flush">
+                            @foreach (var reason in Model.Snapshot.HandoffReasons)
+                            {
+                                <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                                    <span>@reason.Reason</span>
+                                    <span class="badge text-bg-dark rounded-pill">@reason.TotalLeads</span>
+                                </li>
+                            }
+                        </ul>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<div class="offcanvas offcanvas-end" tabindex="-1" id="telegramInsightsFiltersDrawer" aria-labelledby="telegramInsightsFiltersDrawerLabel">
+    <div class="offcanvas-header">
+        <div>
+            <h2 class="offcanvas-title h5 mb-1" id="telegramInsightsFiltersDrawerLabel">Filtros</h2>
+            <p class="small text-secondary mb-0">Refine a leitura gerencial do canal Telegram.</p>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Fechar"></button>
+    </div>
+    <div class="offcanvas-body">
+        <form method="get" asp-area="Admin" asp-controller="TelegramInsights" asp-action="Index" class="d-grid gap-3">
+            <div>
+                <label class="form-label" for="telegramBoardType">Board</label>
+                <select class="form-select" id="telegramBoardType" name="boardType">
+                    <option value="" selected="@(string.IsNullOrWhiteSpace(Model.SelectedBoardType) ? "selected" : null)">Todos os boards</option>
+                    <option value="clientes" selected="@(Model.SelectedBoardType == "clientes" ? "selected" : null)">Clientes</option>
+                    <option value="prestadores" selected="@(Model.SelectedBoardType == "prestadores" ? "selected" : null)">Prestadores</option>
+                </select>
+            </div>
+            <div>
+                <label class="form-label" for="telegramStartDate">Data inicial</label>
+                <input class="form-control" type="date" id="telegramStartDate" name="startDate" value="@Model.PeriodStartValue" />
+            </div>
+            <div>
+                <label class="form-label" for="telegramEndDate">Data final</label>
+                <input class="form-control" type="date" id="telegramEndDate" name="endDate" value="@Model.PeriodEndValue" />
+            </div>
+            <div class="d-flex gap-2 pt-2">
+                <button type="submit" class="btn btn-primary flex-fill">Aplicar filtros</button>
+                <a class="btn btn-outline-secondary flex-fill" href="@Model.FiltersClearUrl">Limpar filtros</a>
+            </div>
+        </form>
+    </div>
+</div>

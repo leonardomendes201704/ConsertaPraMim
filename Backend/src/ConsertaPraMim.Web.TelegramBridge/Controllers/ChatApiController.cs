@@ -275,9 +275,31 @@ public sealed class ChatApiController : ControllerBase
     {
         public static readonly NullTelegramHumanHandoffStateService Instance = new();
 
-        public void Activate(long chatId, DateTime activatedAtUtc)
-        {
-        }
+        public TelegramHumanHandoffState Activate(long chatId, DateTime activatedAtUtc, string? reasonCode, string? reasonLabel, string? source) =>
+            new()
+            {
+                TelegramChatId = chatId,
+                IsActive = false,
+                Status = "noop",
+                ReasonCode = string.Empty,
+                ReasonLabel = string.Empty,
+                Source = string.Empty,
+                UpdatedAtUtc = activatedAtUtc.Kind == DateTimeKind.Utc ? activatedAtUtc : activatedAtUtc.ToUniversalTime()
+            };
+
+        public TelegramHumanHandoffState ResumeBot(long chatId, DateTime resumedAtUtc, string? reasonCode, string? reasonLabel, string? source) =>
+            new()
+            {
+                TelegramChatId = chatId,
+                IsActive = false,
+                Status = "noop",
+                ReasonCode = string.Empty,
+                ReasonLabel = string.Empty,
+                Source = string.Empty,
+                UpdatedAtUtc = resumedAtUtc.Kind == DateTimeKind.Utc ? resumedAtUtc : resumedAtUtc.ToUniversalTime()
+            };
+
+        public TelegramHumanHandoffState? GetState(long chatId) => null;
 
         public bool Deactivate(long chatId) => false;
 

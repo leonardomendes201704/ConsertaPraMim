@@ -44,9 +44,6 @@
 
 ### Backlog
 
-- [ST-096 - Qualificacao inicial do lead Telegram com cidade, categoria e intencao](STORIES/BACKLOG/ST-096-qualificacao-inicial-lead-telegram.md)
-- [ST-097 - Politica operacional de handoff entre Telegram e Chatwoot](STORIES/BACKLOG/ST-097-politica-handoff-telegram-chatwoot.md)
-- [ST-098 - Observabilidade de negocio do canal Telegram](STORIES/BACKLOG/ST-098-observabilidade-negocio-canal-telegram.md)
 - [ST-022 - API de atendimento para portal admin](STORIES/BACKLOG/ST-022-api-atendimento-portal-admin.md)
 - [ST-023 - UI de suporte no portal prestador](STORIES/BACKLOG/ST-023-ui-suporte-portal-prestador.md)
 - [ST-024 - UI de atendimento no portal admin](STORIES/BACKLOG/ST-024-ui-atendimento-portal-admin.md)
@@ -76,6 +73,9 @@
 
 ### Done
 
+- [ST-098 - Observabilidade de negocio do canal Telegram](STORIES/DONE/ST-098-observabilidade-negocio-canal-telegram.md)
+- [ST-097 - Politica operacional de handoff entre Telegram e Chatwoot](STORIES/DONE/ST-097-politica-handoff-telegram-chatwoot.md)
+- [ST-096 - Qualificacao inicial do lead Telegram com cidade, categoria e intencao](STORIES/DONE/ST-096-qualificacao-inicial-lead-telegram.md)
 - [ST-100 - Exclusao opcional do contato no Chatwoot durante o reset do lead](STORIES/DONE/ST-100-exclusao-opcional-contato-chatwoot-reset-lead.md)
 - [ST-099 - Exclusao operacional de lead no CPM Full](STORIES/DONE/ST-099-exclusao-operacional-lead-cpmfull.md)
 - [ST-095 - Captura de contato do Telegram e enriquecimento automatico do lead](STORIES/DONE/ST-095-captura-contato-telegram-enriquecimento-lead.md)

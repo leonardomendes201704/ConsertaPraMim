@@ -184,6 +184,10 @@ public sealed class TelegramMessageAutomationServiceTests
                     request.ChatwootConversationId == 903 &&
                     request.ChatwootMessageId == 777 &&
                     request.ActivateHumanHandoff &&
+                    request.HandoffReasonCode == TelegramHandoffPolicy.ChatwootFirstHumanReplyReasonCode &&
+                    request.HandoffReasonLabel == TelegramHandoffPolicy.ChatwootFirstHumanReplyReasonLabel &&
+                    request.HandoffSource == TelegramHandoffPolicy.ChatwootOutboundSource &&
+                    request.HandoffActivatedAtUtc.HasValue &&
                     request.MessageText == "Oi! Vou assumir seu atendimento agora."),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(new TelegramBridgeHumanReplyResult
@@ -198,6 +202,9 @@ public sealed class TelegramMessageAutomationServiceTests
                 82,
                 It.Is<AdminKanbanTelegramLinkTouchRequest>(request =>
                     request.HumanHandoffStartedAt.HasValue &&
+                    request.HumanHandoffStatus == TelegramHandoffPolicy.ActiveStatus &&
+                    request.HumanHandoffReason == TelegramHandoffPolicy.ChatwootFirstHumanReplyReasonLabel &&
+                    request.HumanHandoffUpdatedAt.HasValue &&
                     request.LastChatwootMessageSyncedAt.HasValue)))
             .Returns(true);
         kanbanService
@@ -249,6 +256,62 @@ public sealed class TelegramMessageAutomationServiceTests
         Assert.Contains("Telegram", result.Message, StringComparison.OrdinalIgnoreCase);
         bridgeClient.VerifyAll();
         kanbanService.VerifyAll();
+    }
+
+    [Fact(DisplayName = "Telegram Automation | Deve reativar handoff quando o bot ja foi retomado antes de nova resposta humana")]
+    public async Task TryEnqueueOutboundMessageFromChatwootAsync_DeveReativarHandoffQuandoLeadEstiverComBotRetomado()
+    {
+        var kanbanService = new Mock<IAdminKanbanService>(MockBehavior.Strict);
+        var leadSyncService = new Mock<IChatwootLeadSyncService>(MockBehavior.Strict);
+        var chatwootApiClient = new Mock<IChatwootApiClient>(MockBehavior.Strict);
+        var queueService = new Mock<ITelegramDeliveryQueueService>(MockBehavior.Strict);
+        var bridgeClient = new Mock<ITelegramBridgeDeliveryClient>(MockBehavior.Strict);
+        var lead = CreateLead(
+            84,
+            source: "Telegram",
+            conversationId: 905,
+            telegramChatId: 5513997004321,
+            handoffStatus: TelegramHandoffPolicy.BotResumedStatus);
+
+        queueService
+            .Setup(service => service.Enqueue(
+                84,
+                TelegramDeliveryDirections.ChatwootToTelegram,
+                It.IsAny<string>(),
+                It.Is<string>(payloadJson =>
+                    payloadJson.Contains("\"ActivateHumanHandoff\":true", StringComparison.OrdinalIgnoreCase)),
+                905,
+                5513997004321,
+                It.IsAny<string>(),
+                true))
+            .Returns(new AdminKanbanTelegramDeliveryQueueItemRecord
+            {
+                Id = 62,
+                LeadId = 84,
+                Direction = TelegramDeliveryDirections.ChatwootToTelegram,
+                DeliveryKey = "chatwoot:888",
+                Status = TelegramDeliveryQueueStatuses.Queued,
+                AttemptCount = 0,
+                MaxAttempts = 10,
+                NextAttemptAt = DateTime.UtcNow
+            });
+
+        var sut = CreateSut(
+            kanbanService.Object,
+            leadSyncService.Object,
+            chatwootApiClient.Object,
+            queueService.Object,
+            bridgeClient.Object);
+
+        var result = await sut.TryEnqueueOutboundMessageFromChatwootAsync(
+            lead,
+            888,
+            "Agora um humano vai voltar a falar com voce.",
+            "Atendente CPM",
+            new DateTime(2026, 3, 15, 12, 0, 0, DateTimeKind.Utc));
+
+        Assert.True(result);
+        queueService.VerifyAll();
     }
 
     [Fact(DisplayName = "Telegram Automation | Outbound fallback idempotencia | Deve gerar a mesma chave quando nao houver ChatwootMessageId")]
@@ -354,7 +417,8 @@ public sealed class TelegramMessageAutomationServiceTests
         int leadId,
         string source,
         long conversationId,
-        long telegramChatId) =>
+        long telegramChatId,
+        string handoffStatus = "") =>
         new()
         {
             Id = leadId,
@@ -382,7 +446,8 @@ public sealed class TelegramMessageAutomationServiceTests
             },
             Telegram = new AdminKanbanLeadTelegramLinkRecord
             {
-                TelegramChatId = telegramChatId
+                TelegramChatId = telegramChatId,
+                HumanHandoffStatus = handoffStatus
             },
             History = []
         };

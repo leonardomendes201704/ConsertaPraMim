@@ -126,6 +126,10 @@ public sealed class TelegramBridgeHumanReplyRequest
     public string SenderName { get; init; } = string.Empty;
     public string MessageText { get; init; } = string.Empty;
     public bool ActivateHumanHandoff { get; init; }
+    public string HandoffReasonCode { get; init; } = string.Empty;
+    public string HandoffReasonLabel { get; init; } = string.Empty;
+    public string HandoffSource { get; init; } = string.Empty;
+    public DateTime? HandoffActivatedAtUtc { get; init; }
 }
 
 public sealed class TelegramBridgeHumanReplyResponse
@@ -145,6 +149,50 @@ public sealed class TelegramBridgeHumanReplyResult
     public bool HumanHandoffActivated { get; init; }
 
     public static TelegramBridgeHumanReplyResult Failed(int httpStatusCode, string message) =>
+        new()
+        {
+            Success = false,
+            HttpStatusCode = httpStatusCode,
+            Message = message
+        };
+}
+
+public sealed class TelegramBridgeSetHandoffRequest
+{
+    public long TelegramChatId { get; init; }
+    public string ReasonCode { get; init; } = string.Empty;
+    public string ReasonLabel { get; init; } = string.Empty;
+    public string Source { get; init; } = string.Empty;
+    public DateTime? OccurredAtUtc { get; init; }
+}
+
+public sealed class TelegramBridgeSetHandoffResponse
+{
+    public bool Success { get; init; }
+    public string Message { get; init; } = string.Empty;
+    [JsonNumberHandling(JsonNumberHandling.WriteAsString)]
+    public long TelegramChatId { get; init; }
+    public bool IsActive { get; init; }
+    public string HandoffStatus { get; init; } = string.Empty;
+    public string ReasonCode { get; init; } = string.Empty;
+    public string ReasonLabel { get; init; } = string.Empty;
+    public DateTime? StartedAtUtc { get; init; }
+    public DateTime UpdatedAtUtc { get; init; }
+}
+
+public sealed class TelegramBridgeSetHandoffResult
+{
+    public bool Success { get; init; }
+    public int HttpStatusCode { get; init; }
+    public string Message { get; init; } = string.Empty;
+    public bool IsActive { get; init; }
+    public string HandoffStatus { get; init; } = string.Empty;
+    public string ReasonCode { get; init; } = string.Empty;
+    public string ReasonLabel { get; init; } = string.Empty;
+    public DateTime? StartedAtUtc { get; init; }
+    public DateTime? UpdatedAtUtc { get; init; }
+
+    public static TelegramBridgeSetHandoffResult Failed(int httpStatusCode, string message) =>
         new()
         {
             Success = false,

@@ -191,7 +191,7 @@ public sealed class TelegramMessageAutomationService : ITelegramMessageAutomatio
             SenderName = senderName,
             MessageText = messageText.Trim(),
             OccurredAtUtc = occurredAtUtc == default ? DateTime.UtcNow : occurredAtUtc.ToUniversalTime(),
-            ActivateHumanHandoff = _options.RequireHumanHandoffForOutbound && !lead.Telegram.HumanHandoffStartedAt.HasValue
+            ActivateHumanHandoff = _options.RequireHumanHandoffForOutbound && !TelegramHandoffPolicy.IsActiveStatus(lead.Telegram.HumanHandoffStatus)
         };
 
         var queueItem = _deliveryQueueService.Enqueue(
@@ -322,7 +322,11 @@ public sealed class TelegramMessageAutomationService : ITelegramMessageAutomatio
                 ChatwootMessageId = payload.ChatwootMessageId,
                 SenderName = payload.SenderName,
                 MessageText = payload.MessageText,
-                ActivateHumanHandoff = payload.ActivateHumanHandoff
+                ActivateHumanHandoff = payload.ActivateHumanHandoff,
+                HandoffReasonCode = payload.ActivateHumanHandoff ? TelegramHandoffPolicy.ChatwootFirstHumanReplyReasonCode : string.Empty,
+                HandoffReasonLabel = payload.ActivateHumanHandoff ? TelegramHandoffPolicy.ChatwootFirstHumanReplyReasonLabel : string.Empty,
+                HandoffSource = payload.ActivateHumanHandoff ? TelegramHandoffPolicy.ChatwootOutboundSource : string.Empty,
+                HandoffActivatedAtUtc = payload.ActivateHumanHandoff ? payload.OccurredAtUtc : null
             },
             cancellationToken);
 
@@ -338,15 +342,18 @@ public sealed class TelegramMessageAutomationService : ITelegramMessageAutomatio
             new AdminKanbanTelegramLinkTouchRequest
             {
                 HumanHandoffStartedAt = payload.ActivateHumanHandoff ? payload.OccurredAtUtc : null,
+                HumanHandoffStatus = payload.ActivateHumanHandoff ? TelegramHandoffPolicy.ActiveStatus : string.Empty,
+                HumanHandoffReason = payload.ActivateHumanHandoff ? TelegramHandoffPolicy.ChatwootFirstHumanReplyReasonLabel : string.Empty,
+                HumanHandoffUpdatedAt = payload.ActivateHumanHandoff ? payload.OccurredAtUtc : null,
                 LastChatwootMessageSyncedAt = payload.OccurredAtUtc
             });
 
-        if (payload.ActivateHumanHandoff && !lead.Telegram.HumanHandoffStartedAt.HasValue)
+        if (payload.ActivateHumanHandoff && !TelegramHandoffPolicy.IsActiveStatus(lead.Telegram.HumanHandoffStatus))
         {
             _ = _kanbanService.AddHistoryEvent(
                 lead.Id,
                 "chatwoot_handoff_humano_iniciado",
-                $"Atendimento humano iniciado no Chatwoot para o chat Telegram #{TelegramSecuritySanitizer.MaskChatId(payload.TelegramChatId)}.");
+                $"Atendimento humano iniciado no Chatwoot para o chat Telegram #{TelegramSecuritySanitizer.MaskChatId(payload.TelegramChatId)}. Motivo: {TelegramHandoffPolicy.ChatwootFirstHumanReplyReasonLabel}.");
         }
 
         _ = _kanbanService.AddHistoryEvent(
