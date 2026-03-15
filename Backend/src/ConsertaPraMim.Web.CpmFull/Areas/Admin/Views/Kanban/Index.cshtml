@@ -70,6 +70,9 @@
         <a class="btn btn-outline-secondary" href="@Model.AlternateBoardUrl">
             @Model.AlternateBoardLabel
         </a>
+        <a class="btn btn-outline-secondary" asp-area="Admin" asp-controller="TelegramInsights" asp-action="Index" asp-route-boardType="@Model.BoardType">
+            Painel Telegram
+        </a>
         <button type="button" class="btn btn-outline-dark" data-bs-toggle="offcanvas" data-bs-target="#telegramDiagnosticsDrawer" aria-controls="telegramDiagnosticsDrawer">
             Diagnostico Telegram
         </button>

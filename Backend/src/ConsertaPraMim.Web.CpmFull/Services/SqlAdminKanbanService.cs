@@ -1745,6 +1745,358 @@ ORDER BY
         };
     }
 
+    public AdminKanbanTelegramBusinessDashboardSnapshot GetTelegramBusinessDashboard(AdminKanbanTelegramBusinessDashboardFilter filter)
+    {
+        ArgumentNullException.ThrowIfNull(filter);
+
+        EnsureInitialized();
+
+        if (filter.CreatedToUtcExclusive <= filter.CreatedFromUtc)
+        {
+            throw new InvalidOperationException("Periodo invalido para o painel Telegram.");
+        }
+
+        var normalizedBoardType = string.IsNullOrWhiteSpace(filter.BoardType)
+            ? null
+            : AdminKanbanBoardTypes.Normalize(filter.BoardType);
+        var normalizedBreakdownLimit = Math.Clamp(filter.BreakdownLimit, 3, 20);
+
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = $"""
+DECLARE @scoped TABLE
+(
+    LeadId INT NOT NULL,
+    BoardType NVARCHAR(30) NOT NULL,
+    StageName NVARCHAR(120) NOT NULL,
+    Phone NVARCHAR(80) NULL,
+    Email NVARCHAR(160) NULL,
+    ServiceCategory NVARCHAR(120) NULL,
+    City NVARCHAR(120) NULL,
+    CreatedAt DATETIME2 NOT NULL,
+    LastContactAt DATETIME2 NULL,
+    ChatwootConversationId BIGINT NULL,
+    ChatwootLastSyncAt DATETIME2 NULL,
+    ClientPhone NVARCHAR(80) NULL,
+    ClientEmail NVARCHAR(160) NULL,
+    HumanHandoffStartedAt DATETIME2 NULL,
+    HumanHandoffReason NVARCHAR(200) NULL
+);
+
+INSERT INTO @scoped
+(
+    LeadId,
+    BoardType,
+    StageName,
+    Phone,
+    Email,
+    ServiceCategory,
+    City,
+    CreatedAt,
+    LastContactAt,
+    ChatwootConversationId,
+    ChatwootLastSyncAt,
+    ClientPhone,
+    ClientEmail,
+    HumanHandoffStartedAt,
+    HumanHandoffReason
+)
+SELECT
+    l.Id,
+    l.BoardType,
+    s.Name,
+    l.Phone,
+    l.Email,
+    l.ServiceCategory,
+    l.City,
+    l.CreatedAt,
+    l.LastContactAt,
+    l.ChatwootConversationId,
+    l.ChatwootLastSyncAt,
+    tl.ClientPhone,
+    tl.ClientEmail,
+    tl.HumanHandoffStartedAt,
+    tl.HumanHandoffReason
+FROM dbo.{TablePrefix}kanban_leads l
+INNER JOIN dbo.{TablePrefix}kanban_stages s ON s.Id = l.StageId
+OUTER APPLY (
+    SELECT TOP (1)
+        link.ClientPhone,
+        link.ClientEmail,
+        link.HumanHandoffStartedAt,
+        link.HumanHandoffReason
+    FROM dbo.{TablePrefix}telegram_funil_links link
+    WHERE link.LeadId = l.Id
+    ORDER BY link.UpdatedAt DESC, link.Id DESC
+) tl
+WHERE l.IsActive = 1
+  AND l.Source = 'Telegram'
+  AND EXISTS (
+        SELECT 1
+        FROM dbo.{TablePrefix}telegram_funil_links existingLink
+        WHERE existingLink.LeadId = l.Id
+    )
+  AND l.CreatedAt >= @createdFromUtc
+  AND l.CreatedAt < @createdToUtcExclusive
+  AND (@boardType IS NULL OR l.BoardType = @boardType);
+
+SELECT
+    COUNT(1) AS TotalTelegramLeads,
+    SUM(CASE WHEN BoardType = @clientsBoardType THEN 1 ELSE 0 END) AS ClientsLeads,
+    SUM(CASE WHEN BoardType = @providersBoardType THEN 1 ELSE 0 END) AS ProvidersLeads,
+    SUM(CASE WHEN NULLIF(LTRIM(RTRIM(COALESCE(Phone, ClientPhone, ''))), '') IS NOT NULL THEN 1 ELSE 0 END) AS LeadsWithPhone,
+    SUM(CASE WHEN NULLIF(LTRIM(RTRIM(COALESCE(Email, ClientEmail, ''))), '') IS NOT NULL THEN 1 ELSE 0 END) AS LeadsWithEmail,
+    SUM(CASE WHEN
+            NULLIF(LTRIM(RTRIM(COALESCE(Phone, ClientPhone, ''))), '') IS NOT NULL
+            OR NULLIF(LTRIM(RTRIM(COALESCE(Email, ClientEmail, ''))), '') IS NOT NULL
+        THEN 1 ELSE 0 END) AS LeadsWithContactInfo,
+    SUM(CASE WHEN NULLIF(LTRIM(RTRIM(COALESCE(ServiceCategory, ''))), '') IS NOT NULL THEN 1 ELSE 0 END) AS LeadsWithQualifiedCategory,
+    SUM(CASE WHEN NULLIF(LTRIM(RTRIM(COALESCE(City, ''))), '') IS NOT NULL THEN 1 ELSE 0 END) AS LeadsWithQualifiedCity,
+    SUM(CASE WHEN ChatwootConversationId IS NOT NULL THEN 1 ELSE 0 END) AS LeadsWithChatwootConversation,
+    SUM(CASE WHEN HumanHandoffStartedAt IS NOT NULL THEN 1 ELSE 0 END) AS LeadsWithHumanHandoff
+FROM @scoped;
+
+SELECT
+    (
+        SELECT CAST(ROUND(MAX(MedianValue), 0) AS INT)
+        FROM (
+            SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY DATEDIFF(MINUTE, CreatedAt, ChatwootLastSyncAt)) OVER () AS MedianValue
+            FROM @scoped
+            WHERE ChatwootLastSyncAt IS NOT NULL
+        ) chatwootMedian
+    ) AS MedianMinutesToChatwoot,
+    (
+        SELECT CAST(ROUND(MAX(MedianValue), 0) AS INT)
+        FROM (
+            SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY DATEDIFF(MINUTE, CreatedAt, HumanHandoffStartedAt)) OVER () AS MedianValue
+            FROM @scoped
+            WHERE HumanHandoffStartedAt IS NOT NULL
+        ) handoffMedian
+    ) AS MedianMinutesToHandoff;
+
+SELECT
+    BoardType,
+    COUNT(1) AS TotalLeads,
+    SUM(CASE WHEN
+            NULLIF(LTRIM(RTRIM(COALESCE(ServiceCategory, ''))), '') IS NOT NULL
+            AND NULLIF(LTRIM(RTRIM(COALESCE(City, ''))), '') IS NOT NULL
+        THEN 1 ELSE 0 END) AS QualifiedLeadCount,
+    SUM(CASE WHEN
+            NULLIF(LTRIM(RTRIM(COALESCE(Phone, ClientPhone, ''))), '') IS NOT NULL
+            OR NULLIF(LTRIM(RTRIM(COALESCE(Email, ClientEmail, ''))), '') IS NOT NULL
+        THEN 1 ELSE 0 END) AS LeadsWithContactInfo,
+    SUM(CASE WHEN ChatwootConversationId IS NOT NULL THEN 1 ELSE 0 END) AS LeadsWithChatwootConversation,
+    SUM(CASE WHEN HumanHandoffStartedAt IS NOT NULL THEN 1 ELSE 0 END) AS LeadsWithHumanHandoff,
+    CAST(AVG(CASE WHEN ChatwootLastSyncAt IS NOT NULL THEN CAST(DATEDIFF(MINUTE, CreatedAt, ChatwootLastSyncAt) AS DECIMAL(18, 2)) END) AS DECIMAL(18, 2)) AS AverageMinutesToChatwoot,
+    CAST(AVG(CASE WHEN HumanHandoffStartedAt IS NOT NULL THEN CAST(DATEDIFF(MINUTE, CreatedAt, HumanHandoffStartedAt) AS DECIMAL(18, 2)) END) AS DECIMAL(18, 2)) AS AverageMinutesToHandoff
+FROM @scoped
+GROUP BY BoardType
+ORDER BY CASE WHEN BoardType = @clientsBoardType THEN 0 ELSE 1 END, BoardType;
+
+SELECT
+    CAST(DATEADD(HOUR, -3, CreatedAt) AS date) AS ReferenceDateLocal,
+    SUM(CASE WHEN BoardType = @clientsBoardType THEN 1 ELSE 0 END) AS ClientsLeads,
+    SUM(CASE WHEN BoardType = @providersBoardType THEN 1 ELSE 0 END) AS ProvidersLeads,
+    COUNT(1) AS TotalLeads
+FROM @scoped
+GROUP BY CAST(DATEADD(HOUR, -3, CreatedAt) AS date)
+ORDER BY ReferenceDateLocal DESC;
+
+SELECT TOP (@breakdownLimit)
+    COALESCE(NULLIF(LTRIM(RTRIM(ServiceCategory)), ''), 'Nao informado') AS ServiceCategory,
+    COUNT(1) AS TotalLeads,
+    SUM(CASE WHEN ChatwootConversationId IS NOT NULL THEN 1 ELSE 0 END) AS LeadsWithChatwootConversation,
+    SUM(CASE WHEN HumanHandoffStartedAt IS NOT NULL THEN 1 ELSE 0 END) AS LeadsWithHumanHandoff
+FROM @scoped
+GROUP BY COALESCE(NULLIF(LTRIM(RTRIM(ServiceCategory)), ''), 'Nao informado')
+ORDER BY COUNT(1) DESC, ServiceCategory;
+
+SELECT TOP (@breakdownLimit)
+    COALESCE(NULLIF(LTRIM(RTRIM(City)), ''), 'Nao informada') AS City,
+    COUNT(1) AS TotalLeads,
+    SUM(CASE WHEN ChatwootConversationId IS NOT NULL THEN 1 ELSE 0 END) AS LeadsWithChatwootConversation,
+    SUM(CASE WHEN HumanHandoffStartedAt IS NOT NULL THEN 1 ELSE 0 END) AS LeadsWithHumanHandoff
+FROM @scoped
+GROUP BY COALESCE(NULLIF(LTRIM(RTRIM(City)), ''), 'Nao informada')
+ORDER BY COUNT(1) DESC, City;
+
+SELECT TOP (@breakdownLimit)
+    BoardType,
+    StageName,
+    COUNT(1) AS TotalLeads,
+    SUM(CASE WHEN
+            NULLIF(LTRIM(RTRIM(COALESCE(Phone, ClientPhone, ''))), '') IS NULL
+            AND NULLIF(LTRIM(RTRIM(COALESCE(Email, ClientEmail, ''))), '') IS NULL
+        THEN 1 ELSE 0 END) AS LeadsWithoutContactInfo,
+    SUM(CASE WHEN ChatwootConversationId IS NULL THEN 1 ELSE 0 END) AS LeadsWithoutChatwootConversation,
+    SUM(CASE WHEN LastContactAt IS NULL OR DATEDIFF(HOUR, LastContactAt, SYSUTCDATETIME()) >= 24 THEN 1 ELSE 0 END) AS LeadsWithoutRecentContact,
+    CAST(AVG(CAST(DATEDIFF(HOUR, CreatedAt, SYSUTCDATETIME()) AS DECIMAL(18, 2))) AS DECIMAL(18, 2)) AS AverageLeadAgeHours
+FROM @scoped
+GROUP BY BoardType, StageName
+ORDER BY
+    COUNT(1) DESC,
+    SUM(CASE WHEN ChatwootConversationId IS NULL THEN 1 ELSE 0 END) DESC,
+    AVG(CAST(DATEDIFF(HOUR, CreatedAt, SYSUTCDATETIME()) AS DECIMAL(18, 2))) DESC,
+    StageName;
+
+SELECT TOP (@breakdownLimit)
+    COALESCE(NULLIF(LTRIM(RTRIM(HumanHandoffReason)), ''), 'Sem motivo registrado') AS Reason,
+    COUNT(1) AS TotalLeads
+FROM @scoped
+WHERE HumanHandoffStartedAt IS NOT NULL
+GROUP BY COALESCE(NULLIF(LTRIM(RTRIM(HumanHandoffReason)), ''), 'Sem motivo registrado')
+ORDER BY COUNT(1) DESC, Reason;
+""";
+        command.Parameters.AddRange(
+        [
+            new SqlParameter("@createdFromUtc", SqlDbType.DateTime2) { Value = filter.CreatedFromUtc },
+            new SqlParameter("@createdToUtcExclusive", SqlDbType.DateTime2) { Value = filter.CreatedToUtcExclusive },
+            new SqlParameter("@boardType", SqlDbType.NVarChar, 30) { Value = ToDbValue(normalizedBoardType) },
+            new SqlParameter("@clientsBoardType", SqlDbType.NVarChar, 30) { Value = AdminKanbanBoardTypes.Clients },
+            new SqlParameter("@providersBoardType", SqlDbType.NVarChar, 30) { Value = AdminKanbanBoardTypes.Providers },
+            new SqlParameter("@breakdownLimit", SqlDbType.Int) { Value = normalizedBreakdownLimit }
+        ]);
+
+        var snapshot = new AdminKanbanTelegramBusinessDashboardSnapshot
+        {
+            ScopeBoardType = normalizedBoardType ?? string.Empty,
+            CreatedFromUtc = filter.CreatedFromUtc,
+            CreatedToUtcExclusive = filter.CreatedToUtcExclusive
+        };
+
+        using var reader = command.ExecuteReader();
+        if (reader.Read())
+        {
+            snapshot = snapshot with
+            {
+                TotalTelegramLeads = reader.IsDBNull(0) ? 0 : reader.GetInt32(0),
+                ClientsLeads = reader.IsDBNull(1) ? 0 : reader.GetInt32(1),
+                ProvidersLeads = reader.IsDBNull(2) ? 0 : reader.GetInt32(2),
+                LeadsWithPhone = reader.IsDBNull(3) ? 0 : reader.GetInt32(3),
+                LeadsWithEmail = reader.IsDBNull(4) ? 0 : reader.GetInt32(4),
+                LeadsWithContactInfo = reader.IsDBNull(5) ? 0 : reader.GetInt32(5),
+                LeadsWithQualifiedCategory = reader.IsDBNull(6) ? 0 : reader.GetInt32(6),
+                LeadsWithQualifiedCity = reader.IsDBNull(7) ? 0 : reader.GetInt32(7),
+                LeadsWithChatwootConversation = reader.IsDBNull(8) ? 0 : reader.GetInt32(8),
+                LeadsWithHumanHandoff = reader.IsDBNull(9) ? 0 : reader.GetInt32(9)
+            };
+        }
+
+        if (reader.NextResult() && reader.Read())
+        {
+            snapshot = snapshot with
+            {
+                MedianMinutesToChatwoot = reader.IsDBNull(0) ? 0 : reader.GetInt32(0),
+                MedianMinutesToHandoff = reader.IsDBNull(1) ? 0 : reader.GetInt32(1)
+            };
+        }
+
+        var boardBreakdown = new List<AdminKanbanTelegramBusinessBoardBreakdownRecord>();
+        if (reader.NextResult())
+        {
+            while (reader.Read())
+            {
+                boardBreakdown.Add(new AdminKanbanTelegramBusinessBoardBreakdownRecord
+                {
+                    BoardType = reader.GetString(0),
+                    TotalLeads = reader.GetInt32(1),
+                    QualifiedLeadCount = reader.IsDBNull(2) ? 0 : reader.GetInt32(2),
+                    LeadsWithContactInfo = reader.IsDBNull(3) ? 0 : reader.GetInt32(3),
+                    LeadsWithChatwootConversation = reader.IsDBNull(4) ? 0 : reader.GetInt32(4),
+                    LeadsWithHumanHandoff = reader.IsDBNull(5) ? 0 : reader.GetInt32(5),
+                    AverageMinutesToChatwoot = reader.IsDBNull(6) ? null : reader.GetDecimal(6),
+                    AverageMinutesToHandoff = reader.IsDBNull(7) ? null : reader.GetDecimal(7)
+                });
+            }
+        }
+
+        var dailyVolumes = new List<AdminKanbanTelegramBusinessDailyVolumeRecord>();
+        if (reader.NextResult())
+        {
+            while (reader.Read())
+            {
+                dailyVolumes.Add(new AdminKanbanTelegramBusinessDailyVolumeRecord
+                {
+                    ReferenceDateLocal = reader.GetDateTime(0),
+                    ClientsLeads = reader.IsDBNull(1) ? 0 : reader.GetInt32(1),
+                    ProvidersLeads = reader.IsDBNull(2) ? 0 : reader.GetInt32(2),
+                    TotalLeads = reader.IsDBNull(3) ? 0 : reader.GetInt32(3)
+                });
+            }
+        }
+
+        var topCategories = new List<AdminKanbanTelegramBusinessCategoryRecord>();
+        if (reader.NextResult())
+        {
+            while (reader.Read())
+            {
+                topCategories.Add(new AdminKanbanTelegramBusinessCategoryRecord
+                {
+                    ServiceCategory = reader.GetString(0),
+                    TotalLeads = reader.IsDBNull(1) ? 0 : reader.GetInt32(1),
+                    LeadsWithChatwootConversation = reader.IsDBNull(2) ? 0 : reader.GetInt32(2),
+                    LeadsWithHumanHandoff = reader.IsDBNull(3) ? 0 : reader.GetInt32(3)
+                });
+            }
+        }
+
+        var topCities = new List<AdminKanbanTelegramBusinessCityRecord>();
+        if (reader.NextResult())
+        {
+            while (reader.Read())
+            {
+                topCities.Add(new AdminKanbanTelegramBusinessCityRecord
+                {
+                    City = reader.GetString(0),
+                    TotalLeads = reader.IsDBNull(1) ? 0 : reader.GetInt32(1),
+                    LeadsWithChatwootConversation = reader.IsDBNull(2) ? 0 : reader.GetInt32(2),
+                    LeadsWithHumanHandoff = reader.IsDBNull(3) ? 0 : reader.GetInt32(3)
+                });
+            }
+        }
+
+        var stagePressures = new List<AdminKanbanTelegramBusinessStagePressureRecord>();
+        if (reader.NextResult())
+        {
+            while (reader.Read())
+            {
+                stagePressures.Add(new AdminKanbanTelegramBusinessStagePressureRecord
+                {
+                    BoardType = reader.GetString(0),
+                    StageName = reader.GetString(1),
+                    TotalLeads = reader.IsDBNull(2) ? 0 : reader.GetInt32(2),
+                    LeadsWithoutContactInfo = reader.IsDBNull(3) ? 0 : reader.GetInt32(3),
+                    LeadsWithoutChatwootConversation = reader.IsDBNull(4) ? 0 : reader.GetInt32(4),
+                    LeadsWithoutRecentContact = reader.IsDBNull(5) ? 0 : reader.GetInt32(5),
+                    AverageLeadAgeHours = reader.IsDBNull(6) ? null : reader.GetDecimal(6)
+                });
+            }
+        }
+
+        var handoffReasons = new List<AdminKanbanTelegramBusinessHandoffReasonRecord>();
+        if (reader.NextResult())
+        {
+            while (reader.Read())
+            {
+                handoffReasons.Add(new AdminKanbanTelegramBusinessHandoffReasonRecord
+                {
+                    Reason = reader.GetString(0),
+                    TotalLeads = reader.IsDBNull(1) ? 0 : reader.GetInt32(1)
+                });
+            }
+        }
+
+        return snapshot with
+        {
+            BoardBreakdown = boardBreakdown,
+            DailyVolumes = dailyVolumes,
+            TopCategories = topCategories,
+            TopCities = topCities,
+            StagePressures = stagePressures,
+            HandoffReasons = handoffReasons
+        };
+    }
+
     public AdminKanbanChatwootDiagnosticsSnapshot GetChatwootDiagnostics(string? boardType, int issueLimit, int queueLimit)
     {
         EnsureInitialized();

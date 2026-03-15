@@ -6,7 +6,7 @@
 - Produto: `ConsertaPraMim`
 - Data de criacao: `2026-03-15`
 - Prioridade: `Alta`
-- Status atual: `In Progress`
+- Status atual: `Completed`
 - Time alvo: `Backend`, `TelegramBridge`, `CPM Full`, `Chatwoot`, `QA`, `Operacao`
 - Objetivo macro: elevar a qualidade operacional da trilha publicada `Telegram -> CPM Full -> Chatwoot`, capturando melhor os dados do lead, refinando qualificacao/handoff e criando observabilidade orientada a negocio.
 
@@ -222,7 +222,7 @@ Como gestao e operacao, queremos acompanhar indicadores reais do canal Telegram 
 
 ### Status
 
-- Planejada.
+- Concluida em `2026-03-15`.
 
 ### Criterios de aceite
 
@@ -233,11 +233,17 @@ Como gestao e operacao, queremos acompanhar indicadores reais do canal Telegram 
 
 ### Tasks
 
-- `TASK-04.01` Definir KPIs principais do canal Telegram.
-- `TASK-04.02` Criar consultas/agregacoes para tempos, volumes e conversao por jornada.
-- `TASK-04.03` Expor visao operacional e gerencial no CPM Full.
-- `TASK-04.04` Documentar rotina de acompanhamento e limiares de alerta.
-- `TASK-04.05` Cobrir QA funcional e troubleshooting da leitura operacional.
+- `TASK-04.01` Concluida. Os KPIs definidos para a rotina diaria foram volume diario, contato enriquecido, bootstrap no Chatwoot, handoff humano, qualificacao minima e tempos de passagem para Chatwoot/handoff.
+- `TASK-04.02` Concluida. O `SqlAdminKanbanService` passou a consolidar snapshot com coorte por periodo, comparativo por board, top cidades/categorias, motivos de handoff e gargalos por etapa.
+- `TASK-04.03` Concluida. O CPM Full passou a expor a nova view administrativa `/admin/telegram/painel`, com cards, tabelas e drawer `Filtros`.
+- `TASK-04.04` Concluida. O manual QA/Operacao passou a orientar a leitura diaria do painel e os principais sinais de atencao da operacao.
+- `TASK-04.05` Concluida. Foram adicionados testes de regressao para agregacao SQL e para a montagem da nova view administrativa.
+
+### Entrega realizada
+
+1. O `ConsertaPraMim.Web.CpmFull` ganhou o painel Telegram em view dedicada, separado do Kanban e acessivel tanto pelo dashboard administrativo quanto pelo topo dos funis.
+2. O painel agora mostra coorte de leads Telegram por periodo com filtros de board, volume diario, qualificacao minima, bootstrap no Chatwoot, handoff humano, top categorias/cidades e gargalos por etapa.
+3. A leitura deixa de depender apenas do drawer tecnico `Diagnostico Telegram` e passa a apoiar rotina operacional e gerencial do canal.
 
 ## 7. Sequencia de entrega recomendada
 
@@ -247,6 +253,11 @@ Como gestao e operacao, queremos acompanhar indicadores reais do canal Telegram 
 4. `ST-096` - Qualificacao inicial do lead Telegram.
 5. `ST-097` - Regras operacionais de handoff.
 6. `ST-098` - Observabilidade de negocio do canal Telegram.
+
+## 10. Encerramento
+
+- Epic concluida em `2026-03-15`.
+- Resultado: a trilha Telegram passou a ter captura de contato, qualificacao inicial, handoff auditavel, reset operacional e observabilidade de negocio na mesma superficie administrativa do CPM Full.
 
 ## 8. Dependencias externas
 

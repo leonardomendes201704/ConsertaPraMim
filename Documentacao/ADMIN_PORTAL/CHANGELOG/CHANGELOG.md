@@ -12,6 +12,12 @@
 
 ## Released
 
+- [2026-03-15] [CPMFULL-045][ST-098] Painel Telegram de negocio em view dedicada do admin
+- Tipo: feat
+- Resumo: o `ConsertaPraMim.Web.CpmFull` passou a expor a nova view administrativa `/admin/telegram/painel`, separada do Kanban, com filtros em drawer, cards de conversao, volume diario, comparativo por board, top categorias/cidades, motivos de handoff e gargalos por etapa para leitura gerencial e operacional do canal Telegram. As agregacoes agora saem do `SqlAdminKanbanService` respeitando o periodo filtrado e o board opcional.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.CpmFull/Areas/Admin/Controllers/TelegramInsightsController.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Areas/Admin/ViewModels/AdminTelegramBusinessDashboardPageViewModel.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Areas/Admin/Views/TelegramInsights/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.CpmFull/Areas/Admin/Views/Dashboard/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.CpmFull/Areas/Admin/Views/Kanban/Index.cshtml`, `Backend/src/ConsertaPraMim.Web.CpmFull/Services/AdminKanbanModels.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Services/IAdminKanbanService.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Services/SqlAdminKanbanService.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Controllers/TelegramInsightsControllerTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/SqlAdminKanbanServiceChatwootPersistenceTests.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/EPIC_TELEGRAM_ENRIQUECIMENTO_OPERACIONAL.md`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/MANUAL_QA_OPERACAO.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-098-observabilidade-negocio-canal-telegram.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: medio
+
 - [2026-03-15] [CPMFULL-044][ST-097] Politica operacional de handoff Telegram fica auditavel no CPM Full
 - Tipo: feat
 - Resumo: o `ConsertaPraMim.Web.TelegramBridge` passou a manter estado rico de handoff por chat, com ativacao e retomada controladas, enquanto o `ConsertaPraMim.Web.CpmFull` passou a persistir `HumanHandoffStatus`, `HumanHandoffReason` e `HumanHandoffUpdatedAt`, exibir esse contexto no modal do lead e permitir as acoes `Ativar handoff` e `Retomar bot`. O espelhamento `Chatwoot -> Telegram` tambem foi ajustado para reativar handoff corretamente depois de uma retomada manual.

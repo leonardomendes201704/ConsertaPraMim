@@ -1073,6 +1073,138 @@ SELECT
             item.Status == ChatwootSyncQueueStatuses.DeadLetter);
     }
 
+    [Fact(DisplayName = "Painel Telegram deve agregar leitura de negocio por periodo e board")]
+    public void TelegramBusinessDashboard_DeveAgregarVolumeConversaoEGargalos()
+    {
+        using var database = new LocalDbKanbanDatabaseScope();
+        if (!database.IsAvailable)
+        {
+            return;
+        }
+
+        var service = CreateService(database.ConnectionString);
+
+        var clientLead = service.UpsertTelegramLead(new AdminKanbanTelegramLeadUpsertRequest
+        {
+            BoardType = AdminKanbanBoardTypes.Clients,
+            ChatbotConversationId = Guid.Parse("c96ab1e0-718a-495f-b146-f84c76a80d4e"),
+            ChannelConversationId = "telegram-client-business-dashboard",
+            TelegramChatId = 5513997000100,
+            ClientId = Guid.Parse("23c32e56-ebfa-44dd-ab0a-c0ef4257f4e1"),
+            ClientName = "Cliente Dashboard Telegram",
+            ClientPhone = "+5513997000100",
+            ServiceCategory = "Eletricista",
+            City = "Santos",
+            StatusNote = "Lead de cliente para validar painel Telegram."
+        });
+
+        var providerLead = service.UpsertTelegramLead(new AdminKanbanTelegramLeadUpsertRequest
+        {
+            BoardType = AdminKanbanBoardTypes.Providers,
+            ChatbotConversationId = Guid.Parse("8bb58d65-cd1b-4de9-b648-41ef4d58bdbb"),
+            ChannelConversationId = "telegram-provider-business-dashboard",
+            TelegramChatId = 5513997000200,
+            ClientId = Guid.Parse("6b150119-2d7b-45b9-b227-0a0f67e1f98d"),
+            ClientName = "Prestador Dashboard Telegram",
+            ClientEmail = "prestador.dashboard@teste.com",
+            ServiceCategory = "Encanador",
+            City = "Praia Grande",
+            StatusNote = "Lead de prestador para validar painel Telegram."
+        });
+
+        _ = service.CreateLead(new AdminKanbanLeadUpsertRequest
+        {
+            BoardType = AdminKanbanBoardTypes.Clients,
+            StageId = 0,
+            Name = "Lead fora do painel Telegram",
+            Phone = "(13) 99999-2222",
+            Email = "nao.telegram@teste.com",
+            ServiceCategory = "Chaveiro",
+            City = "Sao Vicente",
+            Source = "Landing",
+            StatusNote = "Nao deve entrar na agregacao Telegram."
+        });
+
+        Assert.True(service.UpdateLeadChatwootSync(clientLead.LeadId, new AdminKanbanLeadChatwootSyncUpdateRequest
+        {
+            ChatwootContactId = 501,
+            ChatwootConversationId = 601,
+            ChatwootInboxId = 1,
+            ChatwootSyncStatus = "synced",
+            ChatwootLastSyncAt = new DateTime(2026, 3, 15, 13, 30, 0, DateTimeKind.Utc)
+        }));
+
+        Assert.True(service.TouchTelegramLeadLink(clientLead.LeadId, new AdminKanbanTelegramLinkTouchRequest
+        {
+            HumanHandoffStartedAt = new DateTime(2026, 3, 15, 14, 30, 0, DateTimeKind.Utc),
+            HumanHandoffStatus = TelegramHandoffPolicy.ActiveStatus,
+            HumanHandoffReason = "Primeira resposta humana do Chatwoot",
+            HumanHandoffUpdatedAt = new DateTime(2026, 3, 15, 14, 30, 0, DateTimeKind.Utc)
+        }));
+
+        using (var connection = new SqlConnection(database.ConnectionString))
+        {
+            connection.Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = """
+UPDATE dbo.cpm_web_kanban_leads
+SET CreatedAt = CASE
+        WHEN Id = @clientLeadId THEN @clientCreatedAt
+        WHEN Id = @providerLeadId THEN @providerCreatedAt
+        ELSE CreatedAt
+    END,
+    LastContactAt = CASE
+        WHEN Id = @clientLeadId THEN @clientLastContactAt
+        WHEN Id = @providerLeadId THEN NULL
+        ELSE LastContactAt
+    END
+WHERE Id IN (@clientLeadId, @providerLeadId);
+""";
+            command.Parameters.AddRange(
+            [
+                new SqlParameter("@clientLeadId", SqlDbType.Int) { Value = clientLead.LeadId },
+                new SqlParameter("@providerLeadId", SqlDbType.Int) { Value = providerLead.LeadId },
+                new SqlParameter("@clientCreatedAt", SqlDbType.DateTime2) { Value = new DateTime(2026, 3, 15, 12, 0, 0, DateTimeKind.Utc) },
+                new SqlParameter("@providerCreatedAt", SqlDbType.DateTime2) { Value = new DateTime(2026, 3, 15, 15, 0, 0, DateTimeKind.Utc) },
+                new SqlParameter("@clientLastContactAt", SqlDbType.DateTime2) { Value = new DateTime(2026, 3, 15, 14, 45, 0, DateTimeKind.Utc) }
+            ]);
+            _ = command.ExecuteNonQuery();
+        }
+
+        var snapshot = service.GetTelegramBusinessDashboard(new AdminKanbanTelegramBusinessDashboardFilter
+        {
+            CreatedFromUtc = new DateTime(2026, 3, 15, 0, 0, 0, DateTimeKind.Utc),
+            CreatedToUtcExclusive = new DateTime(2026, 3, 16, 0, 0, 0, DateTimeKind.Utc),
+            BreakdownLimit = 8
+        });
+
+        Assert.Equal(2, snapshot.TotalTelegramLeads);
+        Assert.Equal(1, snapshot.ClientsLeads);
+        Assert.Equal(1, snapshot.ProvidersLeads);
+        Assert.Equal(1, snapshot.LeadsWithPhone);
+        Assert.Equal(1, snapshot.LeadsWithEmail);
+        Assert.Equal(2, snapshot.LeadsWithContactInfo);
+        Assert.Equal(2, snapshot.LeadsWithQualifiedCategory);
+        Assert.Equal(2, snapshot.LeadsWithQualifiedCity);
+        Assert.Equal(1, snapshot.LeadsWithChatwootConversation);
+        Assert.Equal(1, snapshot.LeadsWithHumanHandoff);
+        Assert.Equal(90, snapshot.MedianMinutesToChatwoot);
+        Assert.Equal(150, snapshot.MedianMinutesToHandoff);
+        Assert.Equal(2, snapshot.BoardBreakdown.Count);
+        Assert.Contains(snapshot.BoardBreakdown, item => item.BoardType == AdminKanbanBoardTypes.Clients && item.TotalLeads == 1 && item.LeadsWithChatwootConversation == 1);
+        Assert.Contains(snapshot.BoardBreakdown, item => item.BoardType == AdminKanbanBoardTypes.Providers && item.TotalLeads == 1 && item.LeadsWithChatwootConversation == 0);
+        Assert.Contains(snapshot.TopCategories, item => item.ServiceCategory == "Eletricista" && item.TotalLeads == 1);
+        Assert.Contains(snapshot.TopCategories, item => item.ServiceCategory == "Encanador" && item.TotalLeads == 1);
+        Assert.Contains(snapshot.TopCities, item => item.City == "Santos" && item.TotalLeads == 1);
+        Assert.Contains(snapshot.TopCities, item => item.City == "Praia Grande" && item.TotalLeads == 1);
+        Assert.Contains(snapshot.StagePressures, item => item.BoardType == AdminKanbanBoardTypes.Clients && item.StageName == "Novo lead");
+        Assert.Contains(snapshot.StagePressures, item => item.BoardType == AdminKanbanBoardTypes.Providers && item.StageName == "Novo cadastro");
+        Assert.Single(snapshot.HandoffReasons);
+        Assert.Equal("Primeira resposta humana do Chatwoot", snapshot.HandoffReasons[0].Reason);
+        Assert.Single(snapshot.DailyVolumes);
+        Assert.Equal(2, snapshot.DailyVolumes[0].TotalLeads);
+    }
+
     [Fact(DisplayName = "UpdateLeadChatwootSync deve mascarar PII antes de persistir ultimo erro")]
     public void UpdateLeadChatwootSync_DeveMascararPiiAntesDePersistirUltimoErro()
     {

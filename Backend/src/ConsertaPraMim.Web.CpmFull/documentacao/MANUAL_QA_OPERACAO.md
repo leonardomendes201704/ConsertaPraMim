@@ -35,6 +35,7 @@ Orientar validacao funcional e operacao basica do projeto `ConsertaPraMim.Web.Cp
 - Quando o lead possui `TelegramChatId`, a exclusao tenta resetar o handoff humano em memoria no `TelegramBridge` antes de concluir o reset local.
 - O fluxo de exclusao agora tambem pode apagar opcionalmente o contato tecnico no Chatwoot quando o lead ja possui `ChatwootContactId`, por meio de checkbox desmarcado por padrao no modal.
 - O modal `Vinculo Telegram` agora tambem exibe `Estado do handoff`, `Motivo do handoff` e `Ultima atualizacao do handoff`, com acoes `Ativar handoff` e `Retomar bot`.
+- O CPM Full agora possui a view administrativa `/admin/telegram/painel`, dedicada a KPIs de negocio do canal Telegram com filtros em drawer, cards de conversao, volume diario, comparativo por board, top categorias/cidades e gargalos por etapa.
 
 ### Configuracao minima
 
@@ -208,6 +209,21 @@ No `ConsertaPraMim.Web.CpmFull`, configurar a secao `TelegramAutomation`:
 9. Quando o checkbox tiver sido marcado, validar no Chatwoot que o contato tecnico foi removido; quando o checkbox nao tiver sido marcado, confirmar que o contato continua existindo.
 10. Confirmar que a conversa no Chatwoot segue o comportamento da propria plataforma e nao e prometida como excluida pelo CPM Full.
 
+### Checklist complementar para painel Telegram de negocio
+
+1. Acessar `/admin/telegram/painel`.
+2. Confirmar que a tela abre em view dedicada, fora do Kanban, com botao `Filtros` no cabecalho.
+3. Abrir o drawer `Filtros` e validar os campos `Board`, `Data inicial` e `Data final`.
+4. Aplicar filtro para `Clientes` e confirmar que o resumo considera apenas leads Telegram do board `clientes`.
+5. Aplicar filtro para `Prestadores` e confirmar o mesmo comportamento para `prestadores`.
+6. Voltar para `Todos os boards` e validar os cards `Leads Telegram`, `Contato enriquecido`, `Bootstrap Chatwoot`, `Handoff humano`, `Qualificacao minima`, `Mediana ate Chatwoot`, `Mediana ate handoff` e `Contato capturado`.
+7. Confirmar que a tabela `Volume diario` agrupa os leads do periodo no fuso de negocio.
+8. Validar `Resumo por board` com totais, qualificacao, contato, bootstrap Chatwoot e handoff.
+9. Confirmar que `Top categorias` e `Top cidades` refletem o mesmo recorte filtrado.
+10. Revisar `Gargalos por etapa` e validar as colunas `Sem contato`, `Sem Chatwoot`, `Sem contato recente (+24h)` e `Idade media`.
+11. Revisar `Motivos de handoff` e confirmar que a lista reflete os handoffs registrados no periodo.
+12. Acionar `Limpar filtros` e confirmar retorno ao recorte padrao da tela.
+
 ### Roteiro rapido de validacao em producao
 
 - Para uma execucao objetiva do smoke E2E publicado, usar o documento `ROTEIRO_TESTE_E2E_TELEGRAM_PRODUCAO.md` nesta mesma pasta.
@@ -238,6 +254,9 @@ No `ConsertaPraMim.Web.CpmFull`, configurar a secao `TelegramAutomation`:
 - Fila presa em retentativa: revisar `LastError`, `AttemptCount`, `NextAttemptAt`, reachability entre CPM Full e bridge, e se `DeliveryQueueMaxAttempts` nao ja levou o item para `dead_letter`.
 - Bot continuou respondendo apos handoff humano: validar se `RequireHumanHandoffForOutbound=true`, se o primeiro outbound humano chegou a ativar o handoff e se a conversa esta passando pela trilha web controlada pelo `ChatApiController`.
 - Bridge recebe updates, mas nada aparece no funil: abrir `docker logs --tail 200 cpm-prd-telegrambridge` e procurar `409 Automacao Telegram desabilitada no ambiente atual.`; se aparecer, validar `docker exec cpm-prd-cpmfull printenv | grep '^TelegramAutomation__'`.
+- Painel Telegram sem dados no periodo: validar se o recorte por data nao ficou invertido, se o board filtrado e o correto e se existem leads `Source = Telegram` criados no intervalo.
+- Cards do painel divergindo do Kanban: lembrar que o painel trabalha por coorte de criacao do lead no periodo filtrado, enquanto o Kanban mostra o estoque atual do board.
+- `Gargalos por etapa` com tudo zerado: validar se o ambiente publicado contem a entrega da ST-098 e se a leitura esta sendo feita na view `/admin/telegram/painel`, nao apenas no drawer tecnico do Kanban.
 
 ### Checklist complementar para diagnostico operacional
 
