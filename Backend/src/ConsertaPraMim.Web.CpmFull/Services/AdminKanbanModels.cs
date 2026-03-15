@@ -110,6 +110,9 @@ public sealed class AdminKanbanLeadTelegramLinkRecord
     public string ClientEmail { get; init; } = string.Empty;
     public Guid? ServiceRequestId { get; init; }
     public DateTime? HumanHandoffStartedAt { get; init; }
+    public string HumanHandoffStatus { get; init; } = string.Empty;
+    public string HumanHandoffReason { get; init; } = string.Empty;
+    public DateTime? HumanHandoffUpdatedAt { get; init; }
     public DateTime? LastTelegramMessageSyncedAt { get; init; }
     public DateTime? LastChatwootMessageSyncedAt { get; init; }
     public DateTime? UpdatedAt { get; init; }
@@ -176,6 +179,9 @@ public sealed class AdminKanbanTelegramLeadUpsertRequest
 public sealed class AdminKanbanTelegramLinkTouchRequest
 {
     public DateTime? HumanHandoffStartedAt { get; init; }
+    public string HumanHandoffStatus { get; init; } = string.Empty;
+    public string HumanHandoffReason { get; init; } = string.Empty;
+    public DateTime? HumanHandoffUpdatedAt { get; init; }
     public DateTime? LastTelegramMessageSyncedAt { get; init; }
     public DateTime? LastChatwootMessageSyncedAt { get; init; }
 }

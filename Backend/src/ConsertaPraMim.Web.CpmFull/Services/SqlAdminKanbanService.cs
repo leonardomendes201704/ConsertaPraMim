@@ -253,6 +253,9 @@ SELECT TOP (1)
     ClientEmail,
     ServiceRequestId,
     HumanHandoffStartedAt,
+    HumanHandoffStatus,
+    HumanHandoffReason,
+    HumanHandoffUpdatedAt,
     LastTelegramMessageSyncedAt,
     LastChatwootMessageSyncedAt,
     UpdatedAt
@@ -275,9 +278,12 @@ ORDER BY UpdatedAt DESC, Id DESC;
                     ClientEmail = reader.IsDBNull(5) ? string.Empty : reader.GetString(5),
                     ServiceRequestId = reader.IsDBNull(6) ? null : reader.GetGuid(6),
                     HumanHandoffStartedAt = reader.IsDBNull(7) ? null : reader.GetDateTime(7),
-                    LastTelegramMessageSyncedAt = reader.IsDBNull(8) ? null : reader.GetDateTime(8),
-                    LastChatwootMessageSyncedAt = reader.IsDBNull(9) ? null : reader.GetDateTime(9),
-                    UpdatedAt = reader.IsDBNull(10) ? null : reader.GetDateTime(10)
+                    HumanHandoffStatus = reader.IsDBNull(8) ? string.Empty : reader.GetString(8),
+                    HumanHandoffReason = reader.IsDBNull(9) ? string.Empty : reader.GetString(9),
+                    HumanHandoffUpdatedAt = reader.IsDBNull(10) ? null : reader.GetDateTime(10),
+                    LastTelegramMessageSyncedAt = reader.IsDBNull(11) ? null : reader.GetDateTime(11),
+                    LastChatwootMessageSyncedAt = reader.IsDBNull(12) ? null : reader.GetDateTime(12),
+                    UpdatedAt = reader.IsDBNull(13) ? null : reader.GetDateTime(13)
                 };
             }
         }
@@ -554,8 +560,22 @@ ORDER BY link.UpdatedAt DESC, link.Id DESC;
         command.CommandText = $"""
 UPDATE dbo.{TablePrefix}telegram_funil_links
 SET HumanHandoffStartedAt = CASE
-        WHEN @humanHandoffStartedAt IS NOT NULL AND HumanHandoffStartedAt IS NULL THEN @humanHandoffStartedAt
+        WHEN @humanHandoffStartedAt IS NOT NULL THEN @humanHandoffStartedAt
         ELSE HumanHandoffStartedAt
+    END,
+    HumanHandoffStatus = CASE
+        WHEN NULLIF(LTRIM(RTRIM(@humanHandoffStatus)), '') IS NOT NULL THEN LTRIM(RTRIM(@humanHandoffStatus))
+        ELSE HumanHandoffStatus
+    END,
+    HumanHandoffReason = CASE
+        WHEN NULLIF(LTRIM(RTRIM(@humanHandoffReason)), '') IS NOT NULL THEN LTRIM(RTRIM(@humanHandoffReason))
+        ELSE HumanHandoffReason
+    END,
+    HumanHandoffUpdatedAt = CASE
+        WHEN @humanHandoffUpdatedAt IS NOT NULL
+             AND (HumanHandoffUpdatedAt IS NULL OR @humanHandoffUpdatedAt >= HumanHandoffUpdatedAt)
+        THEN @humanHandoffUpdatedAt
+        ELSE HumanHandoffUpdatedAt
     END,
     LastTelegramMessageSyncedAt = CASE
         WHEN @lastTelegramMessageSyncedAt IS NOT NULL
@@ -575,6 +595,9 @@ WHERE LeadId = @leadId;
         command.Parameters.AddRange(
         [
             new SqlParameter("@humanHandoffStartedAt", SqlDbType.DateTime2) { Value = request.HumanHandoffStartedAt.HasValue ? request.HumanHandoffStartedAt.Value : DBNull.Value },
+            new SqlParameter("@humanHandoffStatus", SqlDbType.NVarChar, 40) { Value = string.IsNullOrWhiteSpace(request.HumanHandoffStatus) ? DBNull.Value : request.HumanHandoffStatus.Trim() },
+            new SqlParameter("@humanHandoffReason", SqlDbType.NVarChar, 180) { Value = string.IsNullOrWhiteSpace(request.HumanHandoffReason) ? DBNull.Value : request.HumanHandoffReason.Trim() },
+            new SqlParameter("@humanHandoffUpdatedAt", SqlDbType.DateTime2) { Value = request.HumanHandoffUpdatedAt.HasValue ? request.HumanHandoffUpdatedAt.Value : DBNull.Value },
             new SqlParameter("@lastTelegramMessageSyncedAt", SqlDbType.DateTime2) { Value = request.LastTelegramMessageSyncedAt.HasValue ? request.LastTelegramMessageSyncedAt.Value : DBNull.Value },
             new SqlParameter("@lastChatwootMessageSyncedAt", SqlDbType.DateTime2) { Value = request.LastChatwootMessageSyncedAt.HasValue ? request.LastChatwootMessageSyncedAt.Value : DBNull.Value },
             new SqlParameter("@leadId", SqlDbType.Int) { Value = leadId }
@@ -2158,6 +2181,9 @@ CREATE TABLE dbo.{TablePrefix}telegram_funil_links
     ClientEmail NVARCHAR(180) NULL,
     ServiceRequestId UNIQUEIDENTIFIER NULL,
     HumanHandoffStartedAt DATETIME2 NULL,
+    HumanHandoffStatus NVARCHAR(40) NULL,
+    HumanHandoffReason NVARCHAR(180) NULL,
+    HumanHandoffUpdatedAt DATETIME2 NULL,
     LastTelegramMessageSyncedAt DATETIME2 NULL,
     LastChatwootMessageSyncedAt DATETIME2 NULL,
     CreatedAt DATETIME2 NOT NULL DEFAULT(SYSUTCDATETIME()),
@@ -2260,6 +2286,15 @@ CREATE INDEX IX_{TablePrefix}telegram_funil_links_lead
 
 IF COL_LENGTH('dbo.{TablePrefix}telegram_funil_links', 'HumanHandoffStartedAt') IS NULL
 ALTER TABLE dbo.{TablePrefix}telegram_funil_links ADD HumanHandoffStartedAt DATETIME2 NULL;
+
+IF COL_LENGTH('dbo.{TablePrefix}telegram_funil_links', 'HumanHandoffStatus') IS NULL
+ALTER TABLE dbo.{TablePrefix}telegram_funil_links ADD HumanHandoffStatus NVARCHAR(40) NULL;
+
+IF COL_LENGTH('dbo.{TablePrefix}telegram_funil_links', 'HumanHandoffReason') IS NULL
+ALTER TABLE dbo.{TablePrefix}telegram_funil_links ADD HumanHandoffReason NVARCHAR(180) NULL;
+
+IF COL_LENGTH('dbo.{TablePrefix}telegram_funil_links', 'HumanHandoffUpdatedAt') IS NULL
+ALTER TABLE dbo.{TablePrefix}telegram_funil_links ADD HumanHandoffUpdatedAt DATETIME2 NULL;
 
 IF COL_LENGTH('dbo.{TablePrefix}telegram_funil_links', 'ClientPhone') IS NULL
 ALTER TABLE dbo.{TablePrefix}telegram_funil_links ADD ClientPhone NVARCHAR(30) NULL;

@@ -34,6 +34,7 @@ Orientar validacao funcional e operacao basica do projeto `ConsertaPraMim.Web.Cp
 - O modal de detalhes do lead no Kanban agora expõe a acao `Excluir lead`, removendo o lead local, historico, vinculo Telegram e filas relacionadas.
 - Quando o lead possui `TelegramChatId`, a exclusao tenta resetar o handoff humano em memoria no `TelegramBridge` antes de concluir o reset local.
 - O fluxo de exclusao agora tambem pode apagar opcionalmente o contato tecnico no Chatwoot quando o lead ja possui `ChatwootContactId`, por meio de checkbox desmarcado por padrao no modal.
+- O modal `Vinculo Telegram` agora tambem exibe `Estado do handoff`, `Motivo do handoff` e `Ultima atualizacao do handoff`, com acoes `Ativar handoff` e `Retomar bot`.
 
 ### Configuracao minima
 
@@ -100,6 +101,7 @@ No `ConsertaPraMim.Web.CpmFull`, configurar a secao `TelegramAutomation`:
 - O primeiro outbound humano deve marcar `HumanHandoffStartedAt` no vinculo do lead e registrar historico `Handoff humano iniciado`.
 - O bridge deve aceitar o envio humano apenas pelo endpoint interno `POST /api/internal/telegram/messages/send`, protegido por `X-Telegram-Automation-Key`.
 - Quando o handoff humano estiver ativo, a trilha web do bridge que passa pelo `ChatApiController` deve deixar de emitir nova resposta automatica para o `chatId` marcado.
+- O operador do CPM Full deve conseguir ativar manualmente o handoff e retomar o bot no mesmo modal do lead, com historico auditavel no funil.
 - O modal `Vinculo Telegram` e o drawer `Diagnostico Telegram` devem exibir `Chat ID Telegram`, `E-mail autenticado` e mensagens de erro apenas em formato mascarado.
 - Em `LongPolling`, o bridge deve remover qualquer webhook anterior do bot e continuar recebendo updates por `getUpdates`.
 - Em `Webhook`, o bridge deve publicar `POST /api/integrations/telegram/webhook` em HTTPS, registrar automaticamente a URL publica na Bot API e rejeitar requests sem `X-Telegram-Bot-Api-Secret-Token` valido.
@@ -174,7 +176,9 @@ No `ConsertaPraMim.Web.CpmFull`, configurar a secao `TelegramAutomation`:
 8. No Chatwoot, enviar uma resposta humana publica para a conversa originada do Telegram.
 9. Confirmar que a mensagem chega no chat do Telegram do usuario.
 10. Reabrir o detalhe do lead e validar historico `Handoff humano iniciado` no primeiro outbound e `Mensagem humana sincronizada para Telegram`.
-11. Validar no modal `Handoff humano iniciado` e `Ultima msg Chatwoot sincronizada` preenchidos.
+11. Validar no modal `Handoff humano iniciado`, `Estado do handoff = Handoff humano ativo`, `Motivo do handoff = Primeira resposta humana do Chatwoot` e `Ultima msg Chatwoot sincronizada`.
+12. Clicar em `Retomar bot` no modal do lead e confirmar historico `Bot Telegram retomado manualmente`.
+13. Enviar nova mensagem no mesmo chat e validar que o bot voltou a responder automaticamente.
 
 ### Checklist complementar para bot publico sem login previo
 
@@ -985,5 +989,5 @@ Equivalentes no deploy VPS:
 
 - A base funcional da automacao publicada continua registrada no documento `EPIC-TELEGRAM-001 - Automacao do Bot Telegram com Funis CPM e Chatwoot`.
 - O proximo ciclo de evolucao agora segue em `EPIC-TELEGRAM-002 - Enriquecimento Operacional do Bot Telegram no CPM e Chatwoot`.
-- O `EPIC-TELEGRAM-002` ja concluiu `ST-095`, `ST-096`, `ST-099` e `ST-100`.
-- As proximas entregas planejadas da trilha sao `ST-097 - Politica operacional de handoff entre Telegram e Chatwoot` e `ST-098 - Observabilidade de negocio do canal Telegram`.
+- O `EPIC-TELEGRAM-002` ja concluiu `ST-095`, `ST-096`, `ST-097`, `ST-099` e `ST-100`.
+- A proxima entrega planejada da trilha e `ST-098 - Observabilidade de negocio do canal Telegram`.

@@ -14,6 +14,14 @@ namespace ConsertaPraMim.Web.TelegramBridge.Controllers;
 public sealed class TelegramAutomationInternalController : ControllerBase
 {
     private const string SharedSecretHeaderName = "X-Telegram-Automation-Key";
+    private const string ActiveStatus = "active";
+    private const string BotResumedStatus = "bot_resumed";
+    private const string DefaultActivationReasonCode = "human_handoff";
+    private const string DefaultActivationReasonLabel = "Handoff humano ativo";
+    private const string DefaultActivationSource = "telegram_bridge";
+    private const string DefaultResumeReasonCode = "bot_resumed";
+    private const string DefaultResumeReasonLabel = "Bot retomado";
+    private const string DefaultResumeSource = "telegram_bridge";
 
     private readonly ITelegramChatService _telegramChatService;
     private readonly ITelegramHumanHandoffStateService _handoffStateService;
@@ -63,7 +71,12 @@ public sealed class TelegramAutomationInternalController : ControllerBase
 
         if (request.ActivateHumanHandoff)
         {
-            _handoffStateService.Activate(request.TelegramChatId, DateTime.UtcNow);
+            _handoffStateService.Activate(
+                request.TelegramChatId,
+                request.HandoffActivatedAtUtc ?? DateTime.UtcNow,
+                request.HandoffReasonCode,
+                request.HandoffReasonLabel,
+                request.HandoffSource);
         }
 
         await _telegramChatService.SendFromPanelAsync(
@@ -79,6 +92,72 @@ public sealed class TelegramAutomationInternalController : ControllerBase
             humanHandoffActivated = request.ActivateHumanHandoff,
             message = "Mensagem humana enviada ao Telegram com sucesso."
         });
+    }
+
+    [HttpPost("handoff/activate")]
+    public IActionResult ActivateHumanHandoff([FromBody] TelegramBridgeSetHandoffRequest request)
+    {
+        if (!IsSecretValid(Request.Headers[SharedSecretHeaderName].ToString()))
+        {
+            return Unauthorized(new
+            {
+                success = false,
+                message = "Chave de automacao Telegram invalida."
+            });
+        }
+
+        if (request.TelegramChatId <= 0)
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message = "TelegramChatId invalido para ativacao de handoff."
+            });
+        }
+
+        var state = _handoffStateService.Activate(
+            request.TelegramChatId,
+            request.OccurredAtUtc ?? DateTime.UtcNow,
+            request.ReasonCode,
+            request.ReasonLabel,
+            request.Source);
+
+        return Ok(ToSetHandoffResponse(
+            state,
+            "Handoff humano do chat Telegram ativado com sucesso."));
+    }
+
+    [HttpPost("handoff/resume")]
+    public IActionResult ResumeBot([FromBody] TelegramBridgeSetHandoffRequest request)
+    {
+        if (!IsSecretValid(Request.Headers[SharedSecretHeaderName].ToString()))
+        {
+            return Unauthorized(new
+            {
+                success = false,
+                message = "Chave de automacao Telegram invalida."
+            });
+        }
+
+        if (request.TelegramChatId <= 0)
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message = "TelegramChatId invalido para retomada do bot."
+            });
+        }
+
+        var state = _handoffStateService.ResumeBot(
+            request.TelegramChatId,
+            request.OccurredAtUtc ?? DateTime.UtcNow,
+            request.ReasonCode,
+            request.ReasonLabel,
+            request.Source);
+
+        return Ok(ToSetHandoffResponse(
+            state,
+            "Bot do chat Telegram retomado com sucesso."));
     }
 
     [HttpPost("handoff/reset")]
@@ -118,4 +197,34 @@ public sealed class TelegramAutomationInternalController : ControllerBase
     private bool IsSecretValid(string providedSecret) =>
         !string.IsNullOrWhiteSpace(providedSecret) &&
         string.Equals(providedSecret.Trim(), _options.SharedSecret.Trim(), StringComparison.Ordinal);
+
+    private static TelegramBridgeSetHandoffResponse ToSetHandoffResponse(
+        TelegramHumanHandoffState state,
+        string message) =>
+        new()
+        {
+            Success = true,
+            Message = message,
+            TelegramChatId = state.TelegramChatId,
+            IsActive = state.IsActive,
+            HandoffStatus = NormalizeStatus(state.Status),
+            ReasonCode = string.IsNullOrWhiteSpace(state.ReasonCode)
+                ? (state.IsActive ? DefaultActivationReasonCode : DefaultResumeReasonCode)
+                : state.ReasonCode,
+            ReasonLabel = string.IsNullOrWhiteSpace(state.ReasonLabel)
+                ? (state.IsActive ? DefaultActivationReasonLabel : DefaultResumeReasonLabel)
+                : state.ReasonLabel,
+            StartedAtUtc = state.StartedAtUtc,
+            UpdatedAtUtc = state.UpdatedAtUtc
+        };
+
+    private static string NormalizeStatus(string? status) =>
+        string.IsNullOrWhiteSpace(status)
+            ? ActiveStatus
+            : status.Trim().ToLowerInvariant() switch
+            {
+                ActiveStatus => ActiveStatus,
+                BotResumedStatus => BotResumedStatus,
+                _ => status.Trim().ToLowerInvariant()
+            };
 }

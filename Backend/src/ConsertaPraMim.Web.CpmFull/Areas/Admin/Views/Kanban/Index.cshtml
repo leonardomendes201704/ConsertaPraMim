@@ -196,6 +196,9 @@
                     <div class="col-12 col-md-6"><strong>E-mail autenticado (mascarado):</strong> <span id="detailsTelegramClientEmail"></span></div>
                     <div class="col-12 col-md-6"><strong>Pedido vinculado:</strong> <span id="detailsTelegramServiceRequestId"></span></div>
                     <div class="col-12 col-md-6"><strong>Handoff humano iniciado:</strong> <span id="detailsTelegramHumanHandoffStartedAt"></span></div>
+                    <div class="col-12 col-md-6"><strong>Estado do handoff:</strong> <span id="detailsTelegramHandoffStatus"></span></div>
+                    <div class="col-12 col-md-6"><strong>Motivo do handoff:</strong> <span id="detailsTelegramHandoffReason"></span></div>
+                    <div class="col-12 col-md-6"><strong>Ultima atualizacao do handoff:</strong> <span id="detailsTelegramHandoffUpdatedAt"></span></div>
                     <div class="col-12 col-md-6"><strong>Ultima msg Telegram sincronizada:</strong> <span id="detailsTelegramLastMessageSyncedAt"></span></div>
                     <div class="col-12 col-md-6"><strong>Ultima msg Chatwoot sincronizada:</strong> <span id="detailsTelegramLastChatwootMessageSyncedAt"></span></div>
                     <div class="col-12"><hr class="my-1" /></div>
@@ -240,6 +243,9 @@
                 </button>
                 <button type="button" id="enqueueLeadChatwootRetryBtn" class="btn btn-outline-warning">
                     Enfileirar retentativa
+                </button>
+                <button type="button" id="toggleTelegramHandoffBtn" class="btn btn-outline-info d-none">
+                    Ativar handoff
                 </button>
                 <button type="button" id="deleteLeadBtn" class="btn btn-outline-danger">
                     Excluir lead
@@ -659,6 +665,8 @@
                 sync: (id) => `/admin/funil/lead/${id}/chatwoot/sincronizar`,
                 retry: (id) => `/admin/funil/lead/${id}/chatwoot/retentativa`,
                 deleteLead: (id) => `/admin/funil/lead/${id}/excluir`,
+                activateTelegramHandoff: (id) => `/admin/funil/lead/${id}/telegram/handoff/ativar`,
+                resumeTelegramBot: (id) => `/admin/funil/lead/${id}/telegram/handoff/retomar`,
                 create: "/admin/funil/lead/novo",
                 update: "/admin/funil/lead/editar",
                 order: "/admin/funil/lead/ordem",
@@ -1327,6 +1335,9 @@
                 document.getElementById("detailsTelegramClientEmail").textContent = telegram.clientEmail || "-";
                 document.getElementById("detailsTelegramServiceRequestId").textContent = telegram.serviceRequestId || "-";
                 document.getElementById("detailsTelegramHumanHandoffStartedAt").textContent = telegram.humanHandoffStartedAt || "-";
+                document.getElementById("detailsTelegramHandoffStatus").textContent = telegram.humanHandoffStatusLabel || "Bot em atendimento automatico";
+                document.getElementById("detailsTelegramHandoffReason").textContent = telegram.humanHandoffReason || "-";
+                document.getElementById("detailsTelegramHandoffUpdatedAt").textContent = telegram.humanHandoffUpdatedAt || "-";
                 document.getElementById("detailsTelegramLastMessageSyncedAt").textContent = telegram.lastTelegramMessageSyncedAt || "-";
                 document.getElementById("detailsTelegramLastChatwootMessageSyncedAt").textContent = telegram.lastChatwootMessageSyncedAt || "-";
                 document.getElementById("detailsChatwootContactId").textContent = chatwoot.contactId || "-";
@@ -1354,6 +1365,20 @@
                     } else {
                         conversationLink.href = "#";
                         conversationLink.classList.add("d-none");
+                    }
+                }
+                const toggleTelegramHandoffBtn = document.getElementById("toggleTelegramHandoffBtn");
+                if (toggleTelegramHandoffBtn) {
+                    const canManageHandoff = telegram.canManageHandoff === true && telegram.hasTelegramChat === true;
+                    if (canManageHandoff) {
+                        const handoffActive = telegram.humanHandoffIsActive === true;
+                        toggleTelegramHandoffBtn.classList.remove("d-none");
+                        toggleTelegramHandoffBtn.textContent = handoffActive ? "Retomar bot" : "Ativar handoff";
+                        toggleTelegramHandoffBtn.dataset.action = handoffActive ? "resume" : "activate";
+                    } else {
+                        toggleTelegramHandoffBtn.classList.add("d-none");
+                        toggleTelegramHandoffBtn.textContent = "Ativar handoff";
+                        toggleTelegramHandoffBtn.dataset.action = "";
                     }
                 }
                 renderHistory(lead.history || []);
@@ -1590,6 +1615,49 @@
                 } finally {
                     button.disabled = false;
                     button.textContent = originalText;
+                }
+            });
+
+            document.getElementById("toggleTelegramHandoffBtn")?.addEventListener("click", async (event) => {
+                if (!currentLead?.id) {
+                    return;
+                }
+
+                const button = event.currentTarget;
+                const action = button.dataset.action || "activate";
+                const isResume = action === "resume";
+                const confirmed = window.confirm(
+                    isResume
+                        ? "Retomar o bot neste chat Telegram?\n\nO proximo contato do usuario podera voltar ao fluxo automatico."
+                        : "Ativar handoff humano neste chat Telegram?\n\nEnquanto o handoff estiver ativo, o bot deixara de responder automaticamente."
+                );
+                if (!confirmed) {
+                    return;
+                }
+
+                const originalText = button.textContent;
+                button.disabled = true;
+                button.textContent = isResume ? "Retomando..." : "Ativando...";
+
+                try {
+                    const response = await postJson(
+                        isResume ? endpoint.resumeTelegramBot(currentLead.id) : endpoint.activateTelegramHandoff(currentLead.id),
+                        {});
+                    currentLead = await loadLeadDetails(currentLead.id);
+                    fillDetails(currentLead);
+                    alert(response.message || (isResume ? "Bot retomado com sucesso." : "Handoff ativado com sucesso."));
+                } catch (error) {
+                    try {
+                        currentLead = await loadLeadDetails(currentLead.id);
+                        fillDetails(currentLead);
+                    } catch { }
+
+                    alert(error.message || "Nao foi possivel atualizar o handoff Telegram.");
+                } finally {
+                    button.disabled = false;
+                    if (!currentLead?.telegram?.canManageHandoff) {
+                        button.textContent = originalText;
+                    }
                 }
             });
 

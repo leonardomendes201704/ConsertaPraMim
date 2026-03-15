@@ -1,5 +1,6 @@
 using System.Data;
 using AppMobileCPM.Integrations.Chatwoot;
+using AppMobileCPM.Integrations.Telegram;
 using AppMobileCPM.Services;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
@@ -210,6 +211,12 @@ ORDER BY c.column_id;
         Assert.Contains("ClientPhone", telegramColumnNames);
         Assert.Contains("ClientEmail", telegramColumnNames);
         Assert.Contains("ServiceRequestId", telegramColumnNames);
+        Assert.Contains("HumanHandoffStartedAt", telegramColumnNames);
+        Assert.Contains("HumanHandoffStatus", telegramColumnNames);
+        Assert.Contains("HumanHandoffReason", telegramColumnNames);
+        Assert.Contains("HumanHandoffUpdatedAt", telegramColumnNames);
+        Assert.Contains("LastTelegramMessageSyncedAt", telegramColumnNames);
+        Assert.Contains("LastChatwootMessageSyncedAt", telegramColumnNames);
 
         using var telegramUniqueIndexCommand = connection.CreateCommand();
         telegramUniqueIndexCommand.CommandText = """
@@ -418,11 +425,23 @@ WHERE LeadId = @leadId;
         var touched = service.TouchTelegramLeadLink(upsert.LeadId, new AdminKanbanTelegramLinkTouchRequest
         {
             HumanHandoffStartedAt = referenceUtc.AddMinutes(3),
+            HumanHandoffStatus = TelegramHandoffPolicy.ActiveStatus,
+            HumanHandoffReason = TelegramHandoffPolicy.ChatwootFirstHumanReplyReasonLabel,
+            HumanHandoffUpdatedAt = referenceUtc.AddMinutes(3),
             LastTelegramMessageSyncedAt = referenceUtc.AddMinutes(1),
             LastChatwootMessageSyncedAt = referenceUtc.AddMinutes(2)
         });
 
         Assert.True(touched);
+
+        var touchedDetails = service.GetLeadDetails(upsert.LeadId);
+        Assert.NotNull(touchedDetails);
+        Assert.Equal(referenceUtc.AddMinutes(3), touchedDetails!.Telegram.HumanHandoffStartedAt);
+        Assert.Equal(TelegramHandoffPolicy.ActiveStatus, touchedDetails.Telegram.HumanHandoffStatus);
+        Assert.Equal(TelegramHandoffPolicy.ChatwootFirstHumanReplyReasonLabel, touchedDetails.Telegram.HumanHandoffReason);
+        Assert.Equal(referenceUtc.AddMinutes(3), touchedDetails.Telegram.HumanHandoffUpdatedAt);
+        Assert.Equal(referenceUtc.AddMinutes(1), touchedDetails.Telegram.LastTelegramMessageSyncedAt);
+        Assert.Equal(referenceUtc.AddMinutes(2), touchedDetails.Telegram.LastChatwootMessageSyncedAt);
 
         var queued = service.EnqueueTelegramDeliveryQueueItem(new AdminKanbanTelegramDeliveryQueueEnqueueRequest
         {

@@ -190,7 +190,7 @@ Como operacao, queremos regras claras de handoff para decidir quando o bot conti
 
 ### Status
 
-- Planejada.
+- Concluida em `2026-03-15`.
 
 ### Criterios de aceite
 
@@ -201,11 +201,18 @@ Como operacao, queremos regras claras de handoff para decidir quando o bot conti
 
 ### Tasks
 
-- `TASK-03.01` Definir gatilhos de handoff por intencao, erro, SLA e comando operacional.
-- `TASK-03.02` Persistir estado operacional mais rico para handoff, pausa e retomada.
-- `TASK-03.03` Expor os novos estados e comandos no CPM Full para suporte e operacao.
-- `TASK-03.04` Ajustar espelhamento e webhook para respeitar as novas regras.
-- `TASK-03.05` Cobrir regressao para evitar concorrencia entre bot e humano.
+- `TASK-03.01` Concluida. Os gatilhos operacionais passaram a ser `primeira resposta humana do Chatwoot` como ativacao automatica e `Ativar handoff` / `Retomar bot` como comandos manuais no CPM Full.
+- `TASK-03.02` Concluida. O bridge e o vinculo Telegram do CPM Full agora persistem `status`, `motivo`, `source`, `startedAtUtc` e `updatedAtUtc` do handoff.
+- `TASK-03.03` Concluida. O modal do lead exibe `Estado do handoff`, `Motivo do handoff` e `Ultima atualizacao do handoff`, com acoes administrativas de ativacao e retomada.
+- `TASK-03.04` Concluida. O espelhamento `Chatwoot -> Telegram` passou a reativar handoff com base em `HumanHandoffStatus`, permitindo nova ativacao apos o bot ser retomado.
+- `TASK-03.05` Concluida. Foram adicionados testes de regressao para estado do bridge, automacao outbound, acoes do Kanban e supressao do bot durante handoff ativo.
+
+### Entrega realizada
+
+1. O `ConsertaPraMim.Web.TelegramBridge` passou a manter estado rico de handoff por chat e expor endpoints internos autenticados para `ativar` e `retomar` o bot sem reset total do estado.
+2. O `ConsertaPraMim.Web.CpmFull` passou a persistir `HumanHandoffStatus`, `HumanHandoffReason` e `HumanHandoffUpdatedAt` no vinculo `dbo.cpm_web_telegram_funil_links`.
+3. O modal do lead no Kanban agora mostra o estado do handoff em PT-BR e permite `Ativar handoff` / `Retomar bot` de forma auditavel.
+4. A fila `Chatwoot -> Telegram` deixou de depender apenas de `HumanHandoffStartedAt`, permitindo reativacao correta do handoff depois de retomadas manuais.
 
 ## US-04 / ST-098 - Observabilidade de negocio do canal Telegram
 
@@ -221,7 +228,7 @@ Como gestao e operacao, queremos acompanhar indicadores reais do canal Telegram 
 
 1. A operacao consegue ver volume de leads, handoffs, tempos e conversoes do canal Telegram.
 2. O diagnostico deixa de ser apenas tecnico e passa a apoiar rotina operacional.
-3. O CPM Full expõe indicadores suficientes para leitura diaria do canal.
+3. O CPM Full expoe indicadores suficientes para leitura diaria do canal.
 4. O runbook cobre os principais sinais de degradacao operacional e negocio.
 
 ### Tasks

@@ -90,6 +90,7 @@ public sealed class KanbanController : Controller
                 originLabel = string.Equals(lead.Source, "Telegram", StringComparison.OrdinalIgnoreCase) ? "Telegram" : "-",
                 chatbotConversationId = lead.Telegram.ChatbotConversationId?.ToString() ?? string.Empty,
                 channelConversationId = lead.Telegram.ChannelConversationId,
+                hasTelegramChat = lead.Telegram.TelegramChatId.HasValue && lead.Telegram.TelegramChatId.Value > 0,
                 telegramChatId = lead.Telegram.TelegramChatId.HasValue
                     ? TelegramSecuritySanitizer.MaskChatId(lead.Telegram.TelegramChatId)
                     : string.Empty,
@@ -102,6 +103,15 @@ public sealed class KanbanController : Controller
                     : TelegramSecuritySanitizer.MaskEmail(lead.Telegram.ClientEmail),
                 serviceRequestId = lead.Telegram.ServiceRequestId?.ToString() ?? string.Empty,
                 humanHandoffStartedAt = lead.Telegram.HumanHandoffStartedAt?.ToString("dd/MM/yyyy HH:mm") ?? "-",
+                humanHandoffStatus = lead.Telegram.HumanHandoffStatus,
+                humanHandoffStatusLabel = FormatTelegramHandoffStatusLabel(lead.Telegram.HumanHandoffStatus),
+                humanHandoffReason = string.IsNullOrWhiteSpace(lead.Telegram.HumanHandoffReason) ? "-" : lead.Telegram.HumanHandoffReason,
+                humanHandoffUpdatedAt = lead.Telegram.HumanHandoffUpdatedAt?.ToString("dd/MM/yyyy HH:mm") ?? "-",
+                humanHandoffIsActive = TelegramHandoffPolicy.IsActiveStatus(lead.Telegram.HumanHandoffStatus),
+                canManageHandoff = lead.Telegram.TelegramChatId.HasValue &&
+                                   lead.Telegram.TelegramChatId.Value > 0 &&
+                                   _telegramAutomationOptions.Enabled &&
+                                   !string.IsNullOrWhiteSpace(_telegramAutomationOptions.TelegramBridgeBaseUrl),
                 lastTelegramMessageSyncedAt = lead.Telegram.LastTelegramMessageSyncedAt?.ToString("dd/MM/yyyy HH:mm") ?? "-",
                 lastChatwootMessageSyncedAt = lead.Telegram.LastChatwootMessageSyncedAt?.ToString("dd/MM/yyyy HH:mm") ?? "-",
                 updatedAt = lead.Telegram.UpdatedAt?.ToString("dd/MM/yyyy HH:mm") ?? "-"
@@ -321,6 +331,123 @@ public sealed class KanbanController : Controller
             chatwootContactWasMissing,
             chatwootContactDeletionSkipped,
             message
+        });
+    }
+
+    [HttpPost("lead/{id:int}/telegram/handoff/ativar")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ActivateTelegramHandoff(int id)
+    {
+        var lead = _kanbanService.GetLeadDetails(id);
+        if (lead is null)
+        {
+            return NotFound(new { success = false, message = "Lead nao encontrado para ativar o handoff Telegram." });
+        }
+
+        if (!TryValidateTelegramHandoffOperation(lead, out var validationError))
+        {
+            return BadRequest(new { success = false, message = validationError });
+        }
+
+        var occurredAtUtc = DateTime.UtcNow;
+        var result = await _telegramBridgeDeliveryClient.ActivateHumanHandoffAsync(
+            new TelegramBridgeSetHandoffRequest
+            {
+                TelegramChatId = lead.Telegram.TelegramChatId!.Value,
+                ReasonCode = TelegramHandoffPolicy.ManualActivationReasonCode,
+                ReasonLabel = TelegramHandoffPolicy.ManualActivationReasonLabel,
+                Source = TelegramHandoffPolicy.AdminSource,
+                OccurredAtUtc = occurredAtUtc
+            },
+            HttpContext.RequestAborted);
+
+        if (!result.Success)
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message = $"Nao foi possivel ativar o handoff Telegram. {result.Message}"
+            });
+        }
+
+        _ = _kanbanService.TouchTelegramLeadLink(
+            lead.Id,
+            new AdminKanbanTelegramLinkTouchRequest
+            {
+                HumanHandoffStartedAt = result.StartedAtUtc ?? occurredAtUtc,
+                HumanHandoffStatus = TelegramHandoffPolicy.ActiveStatus,
+                HumanHandoffReason = string.IsNullOrWhiteSpace(result.ReasonLabel)
+                    ? TelegramHandoffPolicy.ManualActivationReasonLabel
+                    : result.ReasonLabel,
+                HumanHandoffUpdatedAt = result.UpdatedAtUtc ?? occurredAtUtc
+            });
+        _ = _kanbanService.AddHistoryEvent(
+            lead.Id,
+            "telegram_handoff_operacional_ativado",
+            $"Handoff humano ativado manualmente para o chat Telegram #{TelegramSecuritySanitizer.MaskChatId(lead.Telegram.TelegramChatId)}.");
+
+        return Json(new
+        {
+            success = true,
+            message = "Handoff Telegram ativado com sucesso. O bot deixara de responder ate a retomada manual."
+        });
+    }
+
+    [HttpPost("lead/{id:int}/telegram/handoff/retomar")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ResumeTelegramBot(int id)
+    {
+        var lead = _kanbanService.GetLeadDetails(id);
+        if (lead is null)
+        {
+            return NotFound(new { success = false, message = "Lead nao encontrado para retomar o bot Telegram." });
+        }
+
+        if (!TryValidateTelegramHandoffOperation(lead, out var validationError))
+        {
+            return BadRequest(new { success = false, message = validationError });
+        }
+
+        var occurredAtUtc = DateTime.UtcNow;
+        var result = await _telegramBridgeDeliveryClient.ResumeBotAsync(
+            new TelegramBridgeSetHandoffRequest
+            {
+                TelegramChatId = lead.Telegram.TelegramChatId!.Value,
+                ReasonCode = TelegramHandoffPolicy.ManualResumeReasonCode,
+                ReasonLabel = TelegramHandoffPolicy.ManualResumeReasonLabel,
+                Source = TelegramHandoffPolicy.AdminSource,
+                OccurredAtUtc = occurredAtUtc
+            },
+            HttpContext.RequestAborted);
+
+        if (!result.Success)
+        {
+            return BadRequest(new
+            {
+                success = false,
+                message = $"Nao foi possivel retomar o bot Telegram. {result.Message}"
+            });
+        }
+
+        _ = _kanbanService.TouchTelegramLeadLink(
+            lead.Id,
+            new AdminKanbanTelegramLinkTouchRequest
+            {
+                HumanHandoffStatus = TelegramHandoffPolicy.BotResumedStatus,
+                HumanHandoffReason = string.IsNullOrWhiteSpace(result.ReasonLabel)
+                    ? TelegramHandoffPolicy.ManualResumeReasonLabel
+                    : result.ReasonLabel,
+                HumanHandoffUpdatedAt = result.UpdatedAtUtc ?? occurredAtUtc
+            });
+        _ = _kanbanService.AddHistoryEvent(
+            lead.Id,
+            "telegram_handoff_bot_retomado",
+            $"Bot Telegram retomado manualmente para o chat #{TelegramSecuritySanitizer.MaskChatId(lead.Telegram.TelegramChatId)}.");
+
+        return Json(new
+        {
+            success = true,
+            message = "Bot Telegram retomado com sucesso. Novas mensagens poderao voltar ao fluxo automatico."
         });
     }
 
@@ -865,6 +992,8 @@ public sealed class KanbanController : Controller
             "telegram_message_synced_to_chatwoot" => "Mensagem Telegram espelhada no Chatwoot",
             "chatwoot_handoff_humano_iniciado" => "Handoff humano iniciado no Chatwoot",
             "chatwoot_message_synced_to_telegram" => "Mensagem humana enviada ao Telegram",
+            "telegram_handoff_operacional_ativado" => "Handoff Telegram ativado manualmente",
+            "telegram_handoff_bot_retomado" => "Bot Telegram retomado manualmente",
             "telegram_dead_letter" => "Entrega Telegram esgotada",
             "chatwoot_bootstrap_via_telegram" => "Bootstrap Telegram no Chatwoot",
             "chatwoot_contato_sincronizado" => "Contato sincronizado no Chatwoot",
@@ -883,6 +1012,32 @@ public sealed class KanbanController : Controller
             "chatwoot_dead_letter" => "Retentativa Chatwoot esgotada",
             _ => "Evento do funil"
         };
+
+    private static string FormatTelegramHandoffStatusLabel(string? status) =>
+        (status ?? string.Empty).Trim().ToLowerInvariant() switch
+        {
+            TelegramHandoffPolicy.ActiveStatus => "Handoff humano ativo",
+            TelegramHandoffPolicy.BotResumedStatus => "Bot retomado",
+            _ => "Bot em atendimento automatico"
+        };
+
+    private bool TryValidateTelegramHandoffOperation(AdminKanbanLeadDetailsRecord lead, out string errorMessage)
+    {
+        if (!_telegramAutomationOptions.Enabled || string.IsNullOrWhiteSpace(_telegramAutomationOptions.TelegramBridgeBaseUrl))
+        {
+            errorMessage = "Automacao Telegram desabilitada no ambiente atual.";
+            return false;
+        }
+
+        if (!lead.Telegram.TelegramChatId.HasValue || lead.Telegram.TelegramChatId.Value <= 0)
+        {
+            errorMessage = "Este lead nao possui chat Telegram valido para gerenciar handoff.";
+            return false;
+        }
+
+        errorMessage = string.Empty;
+        return true;
+    }
 
     private static string FormatBackfillRunStatusLabel(string? status) =>
         (status ?? string.Empty).Trim().ToLowerInvariant() switch
