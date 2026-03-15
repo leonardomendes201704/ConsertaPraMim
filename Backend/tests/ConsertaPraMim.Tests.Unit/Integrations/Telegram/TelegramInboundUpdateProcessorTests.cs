@@ -46,7 +46,7 @@ public sealed class TelegramInboundUpdateProcessorTests
             {
                 MessageId = 321,
                 DateUnix = 1_773_512_400,
-                Text = "Preciso de ajuda com meu chuveiro.",
+                Text = "Preciso de ajuda urgente com meu chuveiro em Santos.",
                 Chat = new TelegramChat
                 {
                     Id = 5513997114422,
@@ -67,7 +67,7 @@ public sealed class TelegramInboundUpdateProcessorTests
             ChatId: 5513997114422,
             IsOutgoing: false,
             SenderDisplayName: "Ricardo Almeida",
-            Text: "Preciso de ajuda com meu chuveiro.",
+            Text: "Preciso de ajuda urgente com meu chuveiro em Santos.",
             SentAtUtc: new DateTimeOffset(2026, 3, 14, 18, 0, 0, TimeSpan.Zero),
             Attachments: []);
 
@@ -90,9 +90,13 @@ public sealed class TelegramInboundUpdateProcessorTests
                     request.ChannelConversationId == "5513997114422" &&
                     request.TelegramChatId == 5513997114422 &&
                     request.UserName == "Ricardo Almeida" &&
+                    request.ServiceCategory == "Eletricista" &&
+                    request.City == "Santos" &&
                     string.IsNullOrWhiteSpace(request.UserPhone) &&
                     string.IsNullOrWhiteSpace(request.UserEmail) &&
-                    request.StatusNote == "Contato inicial recebido pelo bot Telegram."),
+                    request.StatusNote.Contains("cidade Santos", StringComparison.Ordinal) &&
+                    request.StatusNote.Contains("categoria Eletricista", StringComparison.Ordinal) &&
+                    request.StatusNote.Contains("Atendimento urgente", StringComparison.Ordinal)),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(new TelegramLeadAutomationUpsertResult
             {
@@ -116,7 +120,7 @@ public sealed class TelegramInboundUpdateProcessorTests
                     request.TelegramChatId == 5513997114422 &&
                     request.ChannelConversationId == "5513997114422" &&
                     request.ChannelMessageId == "telegram:5513997114422:321" &&
-                    request.MessageText == "Preciso de ajuda com meu chuveiro."),
+                    request.MessageText == "Preciso de ajuda urgente com meu chuveiro em Santos."),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(new TelegramInboundMessageAutomationResult
             {
@@ -129,7 +133,11 @@ public sealed class TelegramInboundUpdateProcessorTests
         botApiClient
             .Setup(client => client.SendMessageAsync(
                 5513997114422,
-                It.Is<string>(text => text.Contains("Recebi sua mensagem", StringComparison.Ordinal) && text.Contains("compartilhe seu telefone", StringComparison.Ordinal)),
+                It.Is<string>(text =>
+                    text.Contains("Recebi sua mensagem", StringComparison.Ordinal) &&
+                    text.Contains("compartilhe seu telefone", StringComparison.Ordinal) &&
+                    text.Contains("sua cidade", StringComparison.Ordinal) &&
+                    text.Contains("tipo de servico", StringComparison.Ordinal)),
                 It.Is<IReadOnlyList<StoredLocalFile>>(files => files.Count == 0),
                 It.IsAny<CancellationToken>(),
                 It.Is<TelegramMessageSendOptions?>(options => options is not null && options.RequestContactButton && !options.RemoveReplyKeyboard)))
@@ -254,7 +262,10 @@ public sealed class TelegramInboundUpdateProcessorTests
         botApiClient
             .Setup(client => client.SendMessageAsync(
                 5513997114422,
-                It.Is<string>(text => text.Contains("Recebi seu telefone", StringComparison.Ordinal)),
+                It.Is<string>(text =>
+                    text.Contains("Recebi seu telefone", StringComparison.Ordinal) &&
+                    text.Contains("sua cidade", StringComparison.Ordinal) &&
+                    text.Contains("tipo de servico", StringComparison.Ordinal)),
                 It.Is<IReadOnlyList<StoredLocalFile>>(files => files.Count == 0),
                 It.IsAny<CancellationToken>(),
                 It.Is<TelegramMessageSendOptions?>(options => options is not null && options.RemoveReplyKeyboard)))
@@ -298,7 +309,7 @@ public sealed class TelegramInboundUpdateProcessorTests
             {
                 MessageId = 654,
                 DateUnix = 1_773_512_500,
-                Text = "Quero me cadastrar como prestador parceiro da plataforma.",
+                Text = "Sou eletricista em Praia Grande e quero me cadastrar como prestador parceiro da plataforma.",
                 Chat = new TelegramChat
                 {
                     Id = 5513997000001,
@@ -317,7 +328,7 @@ public sealed class TelegramInboundUpdateProcessorTests
             ChatId: 5513997000001,
             IsOutgoing: false,
             SenderDisplayName: "Marcio",
-            Text: "Quero me cadastrar como prestador parceiro da plataforma.",
+            Text: "Sou eletricista em Praia Grande e quero me cadastrar como prestador parceiro da plataforma.",
             SentAtUtc: new DateTimeOffset(2026, 3, 14, 18, 5, 0, TimeSpan.Zero),
             Attachments: []);
 
@@ -337,7 +348,11 @@ public sealed class TelegramInboundUpdateProcessorTests
             .Setup(client => client.UpsertLeadAsync(
                 It.Is<TelegramLeadAutomationUpsertRequest>(request =>
                     request.BoardType == "prestadores" &&
-                    request.TelegramChatId == 5513997000001),
+                    request.TelegramChatId == 5513997000001 &&
+                    request.ServiceCategory == "Eletricista" &&
+                    request.City == "Praia Grande" &&
+                    request.StatusNote.Contains("categoria tecnica Eletricista", StringComparison.Ordinal) &&
+                    request.StatusNote.Contains("Cadastro como prestador", StringComparison.Ordinal)),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(new TelegramLeadAutomationUpsertResult
             {

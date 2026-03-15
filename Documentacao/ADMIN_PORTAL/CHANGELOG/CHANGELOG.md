@@ -12,6 +12,12 @@
 
 ## Released
 
+- [2026-03-15] [CPMFULL-043][ST-096] Qualificacao inicial do lead Telegram com cidade, categoria e intencao
+- Tipo: feat
+- Resumo: o `ConsertaPraMim.Web.TelegramBridge` passou a extrair cidade/regiao, categoria, CEP e intencao a partir do texto livre recebido no bot, enriquecer o mesmo lead do CPM Full com `ServiceCategory`, `City`, `StatusNote` e `InternalNotes`, e orientar o usuario no primeiro ACK a informar cidade, tipo de servico e objetivo principal. O roteamento `clientes` x `prestadores` tambem foi refinado com palavras-chave de onboarding e autoidentificacao profissional.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramInboundUpdateProcessor.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Integrations/Telegram/TelegramInboundUpdateProcessorTests.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/EPIC_TELEGRAM_ENRIQUECIMENTO_OPERACIONAL.md`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/MANUAL_QA_OPERACAO.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-096-qualificacao-inicial-lead-telegram.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: medio
+
 - [2026-03-15] [CPMFULL-042][ST-100] Exclusao opcional do contato no Chatwoot durante o reset do lead
 - Tipo: feat
 - Resumo: o modal de exclusao do lead no CPM Full passou a expor o checkbox `Excluir tambem o contato no Chatwoot`, desmarcado por padrao e habilitado apenas quando o lead ja possui `ChatwootContactId`. Quando marcado, o backend apaga o contato remoto via API oficial do Chatwoot antes de concluir a exclusao local; se a delecao remota falhar, o reset local e bloqueado.

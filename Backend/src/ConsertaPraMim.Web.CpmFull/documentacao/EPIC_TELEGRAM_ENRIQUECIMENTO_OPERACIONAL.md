@@ -158,7 +158,7 @@ Como operacao, queremos qualificar melhor o lead Telegram no inicio da conversa,
 
 ### Status
 
-- Planejada.
+- Concluida em `2026-03-15`.
 
 ### Criterios de aceite
 
@@ -169,11 +169,18 @@ Como operacao, queremos qualificar melhor o lead Telegram no inicio da conversa,
 
 ### Tasks
 
-- `TASK-02.01` Definir os campos minimos de qualificacao inicial por jornada (`cliente` x `prestador`).
-- `TASK-02.02` Ajustar prompts/etapas do bot para coletar cidade, categoria e intencao.
-- `TASK-02.03` Projetar os novos dados no lead, no historico e nos atributos do Chatwoot.
-- `TASK-02.04` Refinar o roteamento de board e etapa inicial no funil.
-- `TASK-02.05` Cobrir cenarios ambigos e fallback para classificacao manual.
+- `TASK-02.01` Concluida. Os campos minimos definidos foram `cidade/regiao`, `categoria`, `CEP` e `intencao`, reutilizando `City`, `ServiceCategory`, `StatusNote` e `InternalNotes` do lead.
+- `TASK-02.02` Concluida. O ACK inicial do bot passou a pedir explicitamente cidade, tipo de servico e objetivo principal, com variacao entre `clientes` e `prestadores`.
+- `TASK-02.03` Concluida. A automacao publica do `TelegramBridge` agora projeta cidade, categoria, CEP e intencao no mesmo lead do CPM Full e no historico operacional.
+- `TASK-02.04` Concluida. O roteamento de board foi refinado com palavras-chave de onboarding, autoidentificacao profissional e categoria tecnica.
+- `TASK-02.05` Concluida. Foram cobertos cenarios de cliente urgente e onboarding de prestador, mantendo fallback seguro quando o texto vier pouco estruturado.
+
+### Entrega realizada
+
+1. O `TelegramInboundUpdateProcessor` passou a extrair `cidade/regiao`, `categoria`, `CEP` e `intencao` diretamente do texto livre enviado no bot.
+2. O primeiro ACK do bot agora orienta o usuario a informar cidade, tipo de servico e objetivo principal, sem exigir state machine nova para a coleta inicial.
+3. O `StatusNote` e as `InternalNotes` do lead passaram a registrar o contexto de qualificacao em PT-BR operacional, reduzindo a dependencia de leitura da mensagem crua.
+4. O board `clientes` x `prestadores` deixou de depender apenas de poucas palavras fixas e passou a considerar tambem autoidentificacao profissional e intencao de cadastro/parceria.
 
 ## US-03 / ST-097 - Regras operacionais de handoff entre bot e humano
 

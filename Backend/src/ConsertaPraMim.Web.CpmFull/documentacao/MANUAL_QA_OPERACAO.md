@@ -149,6 +149,19 @@ No `ConsertaPraMim.Web.CpmFull`, configurar a secao `TelegramAutomation`:
 9. Informar e-mail em texto livre e confirmar que o vinculo Telegram e o lead reaproveitam o mesmo registro, sem limpar telefone/cidade/categoria ja existentes.
 10. Abrir o contato no Chatwoot e validar que o contato tecnico foi enriquecido com o telefone real capturado apos o bootstrap inicial.
 
+### Checklist complementar para qualificacao inicial do lead Telegram
+
+1. Iniciar uma conversa nova com o bot Telegram em um chat sem cidade/categoria previamente enriquecidas.
+2. Enviar uma mensagem de cliente como `Preciso de ajuda urgente com meu chuveiro em Santos`.
+3. Confirmar que o primeiro ACK do bot pede telefone e tambem orienta o usuario a informar cidade, tipo de servico e o que precisa resolver.
+4. Abrir o lead em `/admin/funil/clientes` e validar `ServiceCategory = Eletricista` e `City = Santos`.
+5. Confirmar que o `StatusNote` do lead resume `cidade`, `categoria` e `intencao` em PT-BR operacional.
+6. Reenviar mensagem complementar do mesmo chat, por exemplo `Meu CEP e 11035-010`, e confirmar enriquecimento do mesmo lead sem duplicidade.
+7. Em outro chat, enviar uma mensagem de prestador como `Sou eletricista em Praia Grande e quero me cadastrar como prestador parceiro`.
+8. Confirmar que o lead cai em `/admin/funil/prestadores`, com `ServiceCategory = Eletricista`, `City = Praia Grande` e objetivo de cadastro refletido no `StatusNote`.
+9. Validar que o roteamento `clientes` x `prestadores` ocorreu sem depender de ajuste manual no board.
+10. Revisar `InternalNotes` do lead e confirmar que cidade/regiao, categoria e intencao ficaram registradas junto da mensagem inicial.
+
 ### Checklist complementar para espelhamento e handoff
 
 1. Habilitar `MirrorMessagesEnabled=true` no bridge e no CPM Full.
@@ -966,11 +979,11 @@ Equivalentes no deploy VPS:
 
 - O `ConsertaPraMim.Web.TelegramBridge` ja alimenta automaticamente os funis `clientes` e `prestadores` do CPM Full, preservando a trilha conversacional propria (`ChatbotConversations`, `ChatbotMessages`, `ChatbotContextSnapshots`, `ChatbotActionLogs`) como origem tecnica da conversa.
 - O bot publicado agora pode operar por `long polling` ou `webhook` seguro, conforme `TelegramBridge:UpdateTransport`.
-- O enriquecimento automatico de telefone do usuario continua pendente porque o contrato autenticado atual do bridge ainda nao expoe esse dado.
+- O primeiro ciclo de enriquecimento operacional do bot ja cobre telefone/e-mail, qualificacao inicial com cidade/categoria/intencao e reset operacional do lead para testes recorrentes.
 
 ### Proxima evolucao documentada
 
 - A base funcional da automacao publicada continua registrada no documento `EPIC-TELEGRAM-001 - Automacao do Bot Telegram com Funis CPM e Chatwoot`.
 - O proximo ciclo de evolucao agora segue em `EPIC-TELEGRAM-002 - Enriquecimento Operacional do Bot Telegram no CPM e Chatwoot`.
-- A nova trilha prioriza quatro frentes: captura de contato no primeiro atendimento, qualificacao inicial do lead, regras operacionais de handoff e observabilidade de negocio.
-- A primeira entrega em andamento e a `ST-095 - Captura de contato do Telegram e enriquecimento automatico do lead`.
+- O `EPIC-TELEGRAM-002` ja concluiu `ST-095`, `ST-096`, `ST-099` e `ST-100`.
+- As proximas entregas planejadas da trilha sao `ST-097 - Politica operacional de handoff entre Telegram e Chatwoot` e `ST-098 - Observabilidade de negocio do canal Telegram`.

@@ -19,6 +19,132 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
     private static readonly Regex PhoneRegex = new(
         @"(?<!\d)(?:\+?\d[\d\-\s().]{7,}\d)(?!\d)",
         RegexOptions.CultureInvariant | RegexOptions.Compiled);
+    private static readonly Regex PostalCodeRegex = new(
+        @"(?<!\d)\d{5}-?\d{3}(?!\d)",
+        RegexOptions.CultureInvariant | RegexOptions.Compiled);
+    private static readonly Regex LocationPatternRegex = new(
+        @"\b(?:moro em|sou de|aqui em|estou em|na cidade de|cidade de|atendo em|trabalho em|atuo em|regiao de|regiao do|regiao da|regiao|em)\s+([\p{L}][\p{L}'\/\- ]{2,80})",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
+    private static readonly string[] ProviderBoardKeywords =
+    [
+        "prestador",
+        "prestadora",
+        "prestadores",
+        "cadastro de prestador",
+        "quero me cadastrar",
+        "quero trabalhar",
+        "quero ser parceiro",
+        "sou parceiro",
+        "sou prestador",
+        "sou prestadora",
+        "sou tecnico",
+        "sou tecnica",
+        "trabalho com manutencao",
+        "trabalho com conserto",
+        "quero atender",
+        "quero receber chamados",
+        "quero receber leads",
+        "ofereco servicos"
+    ];
+    private static readonly string[] ProviderProfessionKeywords =
+    [
+        "eletricista",
+        "encanador",
+        "tecnico",
+        "tecnica",
+        "marceneiro",
+        "marceneira",
+        "pintor",
+        "pintora",
+        "serralheiro",
+        "serralheira",
+        "chaveiro",
+        "dedetizador",
+        "dedetizadora",
+        "refrigeracao",
+        "refrigerista",
+        "instalador",
+        "instaladora"
+    ];
+    private static readonly string[] ClientUrgencyKeywords =
+    [
+        "urgente",
+        "urgencia",
+        "emergencia",
+        "agora",
+        "hoje",
+        "o quanto antes"
+    ];
+    private static readonly string[] ClientBudgetKeywords =
+    [
+        "orcamento",
+        "cotacao",
+        "quanto custa",
+        "preco",
+        "valor"
+    ];
+    private static readonly string[] ClientSchedulingKeywords =
+    [
+        "agendar",
+        "agendamento",
+        "marcar",
+        "visita tecnica",
+        "visita"
+    ];
+    private static readonly string[] ClientQuestionKeywords =
+    [
+        "duvida",
+        "informacao",
+        "orientacao",
+        "como funciona"
+    ];
+    private static readonly string[] ProviderRegistrationKeywords =
+    [
+        "quero me cadastrar",
+        "cadastro",
+        "quero ser parceiro",
+        "sou parceiro",
+        "entrar na plataforma"
+    ];
+    private static readonly string[] ProviderOpportunityKeywords =
+    [
+        "quero atender",
+        "quero receber chamados",
+        "quero receber leads",
+        "quero pegar servico",
+        "captar clientes"
+    ];
+    private static readonly string[] LocationNoiseTokens =
+    [
+        "casa",
+        "apartamento",
+        "predio",
+        "condominio",
+        "residencia",
+        "comercio",
+        "loja",
+        "bairro",
+        "centro",
+        "online"
+    ];
+    private static readonly (string Category, string[] Keywords)[] ServiceCategoryMap =
+    [
+        ("Ar-condicionado", ["ar condicionado", "ar-condicionado", "split"]),
+        ("Geladeira e refrigeracao", ["geladeira", "freezer", "refrigerador", "refrigeracao", "refrigerista"]),
+        ("Maquina de lavar", ["maquina de lavar", "lava e seca", "lavadora", "tanquinho"]),
+        ("Fogao e forno", ["fogao", "forno", "cooktop"]),
+        ("Eletricista", ["eletricista", "chuveiro", "disjuntor", "tomada", "fiacao", "curto", "energia", "luz"]),
+        ("Encanador", ["encanador", "hidraulica", "vazamento", "torneira", "cano", "esgoto", "descarga", "registro"]),
+        ("Chaveiro", ["chaveiro", "fechadura", "chave"]),
+        ("Marcenaria", ["marcenaria", "marceneiro", "armario", "guarda roupa", "movel planejado"]),
+        ("Serralheria", ["serralheria", "serralheiro", "portao", "grade", "solda"]),
+        ("Pintura", ["pintura", "pintor", "pintora"]),
+        ("TV e audio", ["televisao", "tv", "audio", "som", "home theater"]),
+        ("Celular e tablet", ["celular", "smartphone", "iphone", "tablet"]),
+        ("Computador e notebook", ["computador", "notebook", "pc", "impressora"]),
+        ("Dedetizacao", ["dedetizacao", "praga", "cupim", "barata", "formiga"]),
+        ("Limpeza", ["limpeza", "diarista", "faxina"])
+    ];
 
     private readonly ITelegramChatService _telegramChatService;
     private readonly TelegramAutomationOptions _automationOptions;
@@ -112,7 +238,6 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
             ? updateMessage.From.Id.ToString(CultureInfo.InvariantCulture)
             : chatId.ToString(CultureInfo.InvariantCulture);
         var userId = BuildDeterministicGuid("telegram-user", userKey);
-        var boardType = ResolveBoardType(updateMessage);
         var senderName = storedMessage?.SenderDisplayName;
         if (string.IsNullOrWhiteSpace(senderName))
         {
@@ -125,12 +250,14 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
             messageText = NormalizeOptionalText(updateMessage.Text) ?? NormalizeOptionalText(updateMessage.Caption) ?? string.Empty;
         }
 
+        var qualification = ResolveLeadQualification(updateMessage, messageText);
+
         try
         {
             var result = await _telegramLeadAutomationClient.UpsertLeadAsync(
                 new TelegramLeadAutomationUpsertRequest
                 {
-                    BoardType = boardType,
+                    BoardType = qualification.BoardType,
                     ChatbotConversationId = chatbotConversationId,
                     ChannelConversationId = chatId.ToString(CultureInfo.InvariantCulture),
                     TelegramChatId = chatId,
@@ -138,8 +265,11 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
                     UserName = senderName,
                     UserPhone = capturedContact.Phone,
                     UserEmail = capturedContact.Email,
-                    StatusNote = "Contato inicial recebido pelo bot Telegram.",
-                    InternalNotes = BuildInitialInternalNotes(updateMessage, boardType, messageText),
+                    ServiceCategory = qualification.ServiceCategory,
+                    PostalCode = qualification.PostalCode,
+                    City = qualification.City,
+                    StatusNote = BuildStatusNote(qualification),
+                    InternalNotes = BuildInitialInternalNotes(updateMessage, qualification, messageText),
                     LastContactAtUtc = storedMessage?.SentAtUtc.UtcDateTime ?? ResolveSentAtUtc(updateMessage)
                 },
                 cancellationToken);
@@ -149,7 +279,7 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
                 _logger.LogWarning(
                     "Bootstrap do lead Telegram falhou para o chat {ChatId}. BoardType={BoardType} StatusCode={StatusCode} Message={Message}",
                     TelegramSecuritySanitizer.MaskChatId(chatId),
-                    boardType,
+                    qualification.BoardType,
                     result.HttpStatusCode,
                     TelegramSecuritySanitizer.SanitizeMessage(result.Message, 300));
             }
@@ -157,10 +287,11 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
             return new TelegramInboundBootstrapResult(
                 Enabled: true,
                 ChatbotConversationId: chatbotConversationId,
-                BoardType: boardType,
+                BoardType: qualification.BoardType,
                 LeadCreated: result.Success && result.Created,
                 LeadId: result.LeadId,
-                Succeeded: result.Success);
+                Succeeded: result.Success,
+                Qualification: qualification);
         }
         catch (Exception exception)
         {
@@ -172,10 +303,11 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
             return new TelegramInboundBootstrapResult(
                 Enabled: true,
                 ChatbotConversationId: chatbotConversationId,
-                BoardType: boardType,
+                BoardType: qualification.BoardType,
                 LeadCreated: false,
                 LeadId: 0,
-                Succeeded: false);
+                Succeeded: false,
+                Qualification: qualification);
         }
     }
 
@@ -270,7 +402,10 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
         }
     }
 
-    private static string BuildInitialInternalNotes(TelegramMessage updateMessage, string boardType, string? messageText)
+    private static string BuildInitialInternalNotes(
+        TelegramMessage updateMessage,
+        TelegramLeadQualification qualification,
+        string? messageText)
     {
         var messageSummary = string.IsNullOrWhiteSpace(messageText)
             ? "sem texto legivel"
@@ -281,7 +416,38 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
             ? string.Empty
             : $" Username: @{username.Trim()}.";
 
-        return $"Lead originado automaticamente pelo bot Telegram no board {boardType}.{usernameFragment} Mensagem inicial: {messageSummary}";
+        var details = new List<string>();
+        if (!string.IsNullOrWhiteSpace(qualification.Intent))
+        {
+            details.Add($"Intencao identificada: {qualification.Intent}.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(qualification.ServiceCategory))
+        {
+            var categoryLabel = string.Equals(qualification.BoardType, ProvidersBoardType, StringComparison.OrdinalIgnoreCase)
+                ? "Categoria tecnica"
+                : "Categoria";
+            details.Add($"{categoryLabel}: {qualification.ServiceCategory}.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(qualification.City))
+        {
+            var locationLabel = string.Equals(qualification.BoardType, ProvidersBoardType, StringComparison.OrdinalIgnoreCase)
+                ? "Regiao identificada"
+                : "Cidade identificada";
+            details.Add($"{locationLabel}: {qualification.City}.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(qualification.PostalCode))
+        {
+            details.Add($"CEP informado: {qualification.PostalCode}.");
+        }
+
+        var detailsFragment = details.Count == 0
+            ? " Qualificacao inicial pendente."
+            : $" {string.Join(" ", details)}";
+
+        return $"Lead originado automaticamente pelo bot Telegram no board {qualification.BoardType}.{usernameFragment}{detailsFragment} Mensagem inicial: {messageSummary}";
     }
 
     private static TelegramAutomaticResponse? BuildAutomaticResponse(
@@ -295,9 +461,7 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
 
         if (capturedContact.HasPhone)
         {
-            var text = capturedContact.HasEmail
-                ? "Recebi seu telefone e seu e-mail, e atualizei seu atendimento na ConsertaPraMim. Nosso time segue acompanhando por aqui."
-                : "Recebi seu telefone e atualizei seu atendimento na ConsertaPraMim. Se quiser, voce tambem pode enviar seu e-mail por mensagem.";
+            var text = BuildQualificationPrompt(bootstrap.Qualification, capturedContact, leadCreatedNow: false);
 
             return new TelegramAutomaticResponse(
                 text,
@@ -310,7 +474,7 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
         if (capturedContact.HasEmail)
         {
             return new TelegramAutomaticResponse(
-                "Recebi seu e-mail e atualizei seu atendimento. Se quiser agilizar, compartilhe seu telefone no botao abaixo ou envie o numero por mensagem.",
+                BuildQualificationPrompt(bootstrap.Qualification, capturedContact, leadCreatedNow: false),
                 new TelegramMessageSendOptions
                 {
                     RequestContactButton = true,
@@ -323,9 +487,7 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
             return null;
         }
 
-        var acknowledgement = string.Equals(bootstrap.BoardType, ProvidersBoardType, StringComparison.OrdinalIgnoreCase)
-            ? "Recebi seu contato e ja registrei seu atendimento no funil de prestadores da ConsertaPraMim. Para agilizar, toque no botao abaixo e compartilhe seu telefone ou envie o numero por mensagem."
-            : "Recebi sua mensagem e ja registrei seu atendimento na ConsertaPraMim. Para agilizar, toque no botao abaixo e compartilhe seu telefone ou envie o numero por mensagem.";
+        var acknowledgement = BuildQualificationPrompt(bootstrap.Qualification, capturedContact, leadCreatedNow: true);
 
         return new TelegramAutomaticResponse(
             acknowledgement,
@@ -336,26 +498,27 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
             });
     }
 
-    private static string ResolveBoardType(TelegramMessage message)
+    private static TelegramLeadQualification ResolveLeadQualification(TelegramMessage message, string? messageText)
     {
-        var normalized = NormalizeMessage(message.Text) ?? NormalizeMessage(message.Caption) ?? string.Empty;
-        if (string.IsNullOrWhiteSpace(normalized))
-        {
-            return ClientsBoardType;
-        }
+        var originalText = NormalizeOptionalText(messageText) ??
+                           NormalizeOptionalText(message.Text) ??
+                           NormalizeOptionalText(message.Caption) ??
+                           string.Empty;
+        var normalized = NormalizeMessage(originalText) ?? string.Empty;
+        var boardType = ResolveBoardType(normalized);
+        var serviceCategory = ExtractServiceCategory(normalized);
+        var city = ExtractCityOrRegion(originalText);
+        var postalCode = ExtractPostalCode(originalText);
+        var intent = string.Equals(boardType, ProvidersBoardType, StringComparison.OrdinalIgnoreCase)
+            ? ResolveProviderIntent(normalized)
+            : ResolveClientIntent(normalized);
 
-        return normalized.Contains("prestador", StringComparison.Ordinal)
-               || normalized.Contains("prestadores", StringComparison.Ordinal)
-               || normalized.Contains("cadastro de prestador", StringComparison.Ordinal)
-               || normalized.Contains("quero me cadastrar", StringComparison.Ordinal)
-               || normalized.Contains("quero trabalhar", StringComparison.Ordinal)
-               || normalized.Contains("sou parceiro", StringComparison.Ordinal)
-               || normalized.Contains("quero ser parceiro", StringComparison.Ordinal)
-               || normalized.Contains("sou tecnico", StringComparison.Ordinal)
-               || normalized.Contains("sou prestadora", StringComparison.Ordinal)
-               || normalized.Contains("sou prestador", StringComparison.Ordinal)
-            ? ProvidersBoardType
-            : ClientsBoardType;
+        return new TelegramLeadQualification(
+            BoardType: boardType,
+            ServiceCategory: serviceCategory,
+            City: city,
+            PostalCode: postalCode,
+            Intent: intent);
     }
 
     private static string ResolveSenderName(TelegramMessage message)
@@ -438,6 +601,252 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
         }
 
         return match.Value.Trim();
+    }
+
+    private static string ResolveBoardType(string normalizedText)
+    {
+        if (string.IsNullOrWhiteSpace(normalizedText))
+        {
+            return ClientsBoardType;
+        }
+
+        if (ContainsAny(normalizedText, ProviderBoardKeywords))
+        {
+            return ProvidersBoardType;
+        }
+
+        var hasProviderSelfIntroduction = ProviderProfessionKeywords.Any(keyword =>
+            normalizedText.Contains($"sou {keyword}", StringComparison.Ordinal) ||
+            normalizedText.Contains($"sou uma {keyword}", StringComparison.Ordinal) ||
+            normalizedText.Contains($"sou um {keyword}", StringComparison.Ordinal) ||
+            normalizedText.Contains($"trabalho como {keyword}", StringComparison.Ordinal) ||
+            normalizedText.Contains($"atuo como {keyword}", StringComparison.Ordinal));
+
+        return hasProviderSelfIntroduction
+            ? ProvidersBoardType
+            : ClientsBoardType;
+    }
+
+    private static string ResolveClientIntent(string normalizedText)
+    {
+        if (string.IsNullOrWhiteSpace(normalizedText))
+        {
+            return "Solicitar atendimento";
+        }
+
+        if (ContainsAny(normalizedText, ClientUrgencyKeywords))
+        {
+            return "Atendimento urgente";
+        }
+
+        if (ContainsAny(normalizedText, ClientBudgetKeywords))
+        {
+            return "Solicitar orcamento";
+        }
+
+        if (ContainsAny(normalizedText, ClientSchedulingKeywords))
+        {
+            return "Agendar atendimento";
+        }
+
+        if (ContainsAny(normalizedText, ClientQuestionKeywords))
+        {
+            return "Tirar duvidas";
+        }
+
+        return "Solicitar atendimento";
+    }
+
+    private static string ResolveProviderIntent(string normalizedText)
+    {
+        if (string.IsNullOrWhiteSpace(normalizedText))
+        {
+            return "Cadastro como prestador";
+        }
+
+        if (ContainsAny(normalizedText, ProviderRegistrationKeywords))
+        {
+            return "Cadastro como prestador";
+        }
+
+        if (ContainsAny(normalizedText, ProviderOpportunityKeywords))
+        {
+            return "Receber oportunidades";
+        }
+
+        return "Parceria operacional";
+    }
+
+    private static string ExtractServiceCategory(string normalizedText)
+    {
+        if (string.IsNullOrWhiteSpace(normalizedText))
+        {
+            return string.Empty;
+        }
+
+        foreach (var category in ServiceCategoryMap)
+        {
+            if (ContainsAny(normalizedText, category.Keywords))
+            {
+                return category.Category;
+            }
+        }
+
+        return string.Empty;
+    }
+
+    private static string ExtractCityOrRegion(string originalText)
+    {
+        if (string.IsNullOrWhiteSpace(originalText))
+        {
+            return string.Empty;
+        }
+
+        foreach (Match match in LocationPatternRegex.Matches(originalText))
+        {
+            var candidate = CleanLocationCandidate(match.Groups[1].Value);
+            if (!string.IsNullOrWhiteSpace(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        return string.Empty;
+    }
+
+    private static string ExtractPostalCode(string originalText)
+    {
+        if (string.IsNullOrWhiteSpace(originalText))
+        {
+            return string.Empty;
+        }
+
+        var match = PostalCodeRegex.Match(originalText);
+        if (!match.Success)
+        {
+            return string.Empty;
+        }
+
+        var digits = new string(match.Value.Where(char.IsDigit).ToArray());
+        return digits.Length == 8
+            ? $"{digits[..5]}-{digits[5..]}"
+            : string.Empty;
+    }
+
+    private static string BuildStatusNote(TelegramLeadQualification qualification)
+    {
+        var fragments = new List<string>();
+        var boardIsProvider = string.Equals(qualification.BoardType, ProvidersBoardType, StringComparison.OrdinalIgnoreCase);
+
+        if (!string.IsNullOrWhiteSpace(qualification.City))
+        {
+            fragments.Add(boardIsProvider
+                ? $"regiao {qualification.City}"
+                : $"cidade {qualification.City}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(qualification.ServiceCategory))
+        {
+            fragments.Add(boardIsProvider
+                ? $"categoria tecnica {qualification.ServiceCategory}"
+                : $"categoria {qualification.ServiceCategory}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(qualification.Intent))
+        {
+            fragments.Add(boardIsProvider
+                ? $"objetivo {qualification.Intent}"
+                : $"intencao {qualification.Intent}");
+        }
+
+        if (fragments.Count == 0)
+        {
+            return boardIsProvider
+                ? "Contato inicial de prestador recebido pelo bot Telegram."
+                : "Contato inicial recebido pelo bot Telegram.";
+        }
+
+        return $"Lead Telegram qualificado: {string.Join("; ", fragments)}.";
+    }
+
+    private static string BuildQualificationPrompt(
+        TelegramLeadQualification qualification,
+        TelegramCapturedContact capturedContact,
+        bool leadCreatedNow)
+    {
+        var boardIsProvider = string.Equals(qualification.BoardType, ProvidersBoardType, StringComparison.OrdinalIgnoreCase);
+        var needsLocation = string.IsNullOrWhiteSpace(qualification.City);
+        var needsCategory = string.IsNullOrWhiteSpace(qualification.ServiceCategory);
+        var hasPhone = capturedContact.HasPhone;
+        var hasEmail = capturedContact.HasEmail;
+
+        if (!hasPhone)
+        {
+            return boardIsProvider
+                ? "Recebi seu contato e ja registrei seu atendimento no funil de prestadores da ConsertaPraMim. Para agilizar, toque no botao abaixo e compartilhe seu telefone. Se puder, me diga tambem sua regiao de atendimento, categoria tecnica e objetivo principal."
+                : "Recebi sua mensagem e ja registrei seu atendimento na ConsertaPraMim. Para agilizar, toque no botao abaixo e compartilhe seu telefone. Se puder, me diga tambem sua cidade, o tipo de servico e o que voce precisa resolver.";
+        }
+
+        if (needsLocation || needsCategory)
+        {
+            return boardIsProvider
+                ? "Recebi seu telefone e atualizei seu atendimento. Agora me diga sua regiao de atendimento, categoria tecnica e objetivo principal para qualificar melhor o lead."
+                : "Recebi seu telefone e atualizei seu atendimento. Agora me diga sua cidade, o tipo de servico e o que voce precisa resolver para qualificar melhor o lead.";
+        }
+
+        if (hasEmail)
+        {
+            return leadCreatedNow
+                ? "Recebi seu contato, ja qualifiquei o lead e atualizei seu atendimento na ConsertaPraMim. Nosso time segue acompanhando por aqui."
+                : "Recebi seu telefone e seu e-mail, e atualizei seu atendimento na ConsertaPraMim. Nosso time segue acompanhando por aqui.";
+        }
+
+        return boardIsProvider
+            ? "Recebi seu telefone e ja qualifiquei seu cadastro inicial de prestador. Se quiser, voce tambem pode enviar seu e-mail por mensagem."
+            : "Recebi seu telefone e ja qualifiquei seu atendimento inicial. Se quiser, voce tambem pode enviar seu e-mail por mensagem.";
+    }
+
+    private static string CleanLocationCandidate(string candidate)
+    {
+        if (string.IsNullOrWhiteSpace(candidate))
+        {
+            return string.Empty;
+        }
+
+        var cleaned = candidate.Trim().Trim('.', ',', ';', ':', '-', '/');
+        cleaned = Regex.Replace(
+            cleaned,
+            @"\s+(?:e\s+)?(?:quero|preciso|gostaria|sou|tenho|estou|busco|procuro|para|pra|com|porque|pois)\b.*$",
+            string.Empty,
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        cleaned = Regex.Replace(cleaned, @"\s+", " ").Trim();
+
+        var normalized = NormalizeMessage(cleaned) ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(normalized) || LocationNoiseTokens.Contains(normalized, StringComparer.Ordinal))
+        {
+            return string.Empty;
+        }
+
+        if (normalized.Length < 3)
+        {
+            return string.Empty;
+        }
+
+        var textInfo = new CultureInfo("pt-BR").TextInfo;
+        return textInfo.ToTitleCase(cleaned.ToLowerInvariant());
+    }
+
+    private static bool ContainsAny(string source, IEnumerable<string> keywords)
+    {
+        foreach (var keyword in keywords)
+        {
+            if (source.Contains(keyword, StringComparison.Ordinal))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static DateTime ResolveSentAtUtc(TelegramMessage message)
@@ -569,10 +978,11 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
         string BoardType,
         bool LeadCreated,
         int LeadId,
-        bool Succeeded)
+        bool Succeeded,
+        TelegramLeadQualification Qualification)
     {
         public static TelegramInboundBootstrapResult Disabled =>
-            new(false, Guid.Empty, string.Empty, false, 0, false);
+            new(false, Guid.Empty, string.Empty, false, 0, false, TelegramLeadQualification.Empty);
     }
 
     private readonly record struct TelegramCapturedContact(
@@ -587,4 +997,15 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
     private readonly record struct TelegramAutomaticResponse(
         string Text,
         TelegramMessageSendOptions? Options);
+
+    private readonly record struct TelegramLeadQualification(
+        string BoardType,
+        string ServiceCategory,
+        string City,
+        string PostalCode,
+        string Intent)
+    {
+        public static TelegramLeadQualification Empty =>
+            new(ClientsBoardType, string.Empty, string.Empty, string.Empty, string.Empty);
+    }
 }
