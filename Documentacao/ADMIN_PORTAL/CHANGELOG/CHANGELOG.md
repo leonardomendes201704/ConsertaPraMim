@@ -12,6 +12,12 @@
 
 ## Released
 
+- [2026-03-14] [CPMFULL-034][TELEGRAM-POST-EPIC-PUBLIC-INBOUND-BOOTSTRAP] Primeira mensagem publica do bot Telegram agora bootstrapa lead e Chatwoot
+- Tipo: fix
+- Resumo: o `ConsertaPraMim.Web.TelegramBridge` passou a tratar a primeira mensagem real recebida diretamente do bot publicado como bootstrap operacional da trilha `Telegram -> CPM Full -> Chatwoot`, criando ou atualizando um lead tecnico deterministico por `TelegramChatId`, roteando o board por heuristica inicial (`clientes` ou `prestadores`), espelhando a mensagem ao CPM Full com `ChatbotConversationId` estavel e enviando um ACK simples ao usuario quando o lead nasce. A correcao fecha o gap em que o bot publicado consumia o update, mas nada aparecia no funil e no Chatwoot porque a automacao anterior dependia apenas da trilha autenticada do bridge.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramInboundUpdateProcessor.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Integrations/Telegram/TelegramInboundUpdateProcessorTests.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/README.md`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/MANUAL_QA_OPERACAO.md`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/EPIC_TELEGRAM_AUTOMACAO_FUNIL_CPM.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-091-bootstrap-publico-primeira-mensagem-bot-telegram.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: alto
+
 - [2026-03-14] [CPMFULL-033][TELEGRAM-POST-EPIC-BOT-ACTIVATION] Ativacao operacional do bot Telegram no ambiente publicado
 - Tipo: feat
 - Resumo: o deploy publicado passou a propagar `TelegramAutomation` tambem para o `web-cpmfull`, com novo env interno `TELEGRAM_AUTOMATION_TELEGRAM_BRIDGE_BASE_URL`, permitindo que a trilha Telegram -> CPM Full -> Chatwoot funcione de fato em runtime. A documentacao operacional tambem passou a bloquear o uso simultaneo do mesmo `BotToken` em `development` e `production` enquanto o transporte estiver em `LongPolling`.

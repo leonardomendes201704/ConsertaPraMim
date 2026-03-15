@@ -142,6 +142,20 @@ No `ConsertaPraMim.Web.CpmFull`, configurar a secao `TelegramAutomation`:
 10. Reabrir o detalhe do lead e validar historico `Handoff humano iniciado` no primeiro outbound e `Mensagem humana sincronizada para Telegram`.
 11. Validar no modal `Handoff humano iniciado` e `Ultima msg Chatwoot sincronizada` preenchidos.
 
+### Checklist complementar para bot publico sem login previo
+
+1. Confirmar que o bot publicado esta ativo em `LongPolling` ou `Webhook`, com `TelegramAutomation:Enabled=true` e `MirrorMessagesEnabled=true`.
+2. Abrir o Telegram e iniciar conversa direta com o bot publicado sem acessar o painel web do bridge.
+3. Enviar uma mensagem simples de cliente, por exemplo `Preciso de ajuda com meu chuveiro`.
+4. Confirmar que o usuario recebe um ACK inicial do bot informando que o atendimento foi registrado.
+5. Acessar `/admin/funil/clientes` no CPM Full.
+6. Confirmar a criacao ou atualizacao de um lead com `Source = Telegram` e historico `Lead criado automaticamente a partir da conversa do bot Telegram`.
+7. Abrir o detalhe do lead e validar a secao `Vinculo Telegram` com `ChatbotConversationId` preenchido, `Chat ID Telegram` mascarado e `ChannelConversationId` igual ao `chatId` original.
+8. Validar no Chatwoot que a conversa humana foi criada ou reaproveitada na inbox `CPM Clientes`.
+9. Enviar uma mensagem publica no Chatwoot e confirmar o retorno ao mesmo chat do Telegram.
+10. Repetir o teste com texto de onboarding de prestador, por exemplo `Quero me cadastrar como prestador parceiro`.
+11. Confirmar que o lead caiu em `/admin/funil/prestadores` e que a conversa humana foi criada ou reaproveitada na inbox `CPM Prestadores`.
+
 ### Troubleshooting
 
 - `401` na automacao interna: validar se bridge e CPM Full usam exatamente o mesmo `TelegramAutomation:SharedSecret`.
@@ -252,6 +266,7 @@ No `ConsertaPraMim.Web.CpmFull`, configurar a secao `TelegramAutomation`:
 - Bridge sobe, mas o webhook recebe `307/308`: validar se a publicacao contem `ForwardedHeaders` e se o Nginx esta encaminhando `X-Forwarded-Proto=https`.
 - Webhook seguro nao registra `setWebhook`: revisar `TELEGRAM_BRIDGE_BOT_TOKEN`, `TELEGRAM_BRIDGE_WEBHOOK_PUBLIC_BASE_URL`, `TELEGRAM_BRIDGE_WEBHOOK_PATH` e `TELEGRAM_BRIDGE_WEBHOOK_SECRET_TOKEN`.
 - Bot recebe mensagem, mas o CPM Full nao reage: validar `TelegramAutomation:Enabled=true` no `web-cpmfull`, `TelegramAutomation:SharedSecret` identico nos dois lados e `TelegramAutomation:TelegramBridgeBaseUrl` apontando para `http://<container-prefix>-telegrambridge:<porta>`.
+- Bot recebe mensagem, mas nao cria lead nem conversa no Chatwoot: validar se a publicacao contem a correcao pos-epico de bootstrap publico da primeira mensagem (`TelegramInboundUpdateProcessor` com lead bootstrap antes do mirror), se `ClientsAutomationEnabled/ProvidersAutomationEnabled` estao habilitados e se o bridge nao ficou apenas na trilha autenticada do painel web.
 
 ### Runbook de rotacao do token e segredo do bot
 
