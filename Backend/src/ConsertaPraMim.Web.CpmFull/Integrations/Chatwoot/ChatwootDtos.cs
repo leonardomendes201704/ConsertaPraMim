@@ -55,6 +55,41 @@ public sealed class ChatwootContactInboxSummary
     public string SourceId { get; init; } = string.Empty;
 }
 
+public sealed class ChatwootDeleteContactResult
+{
+    public bool Success { get; init; }
+    public bool Deleted { get; init; }
+    public bool Missing { get; init; }
+    public int HttpStatusCode { get; init; }
+    public string Message { get; init; } = string.Empty;
+
+    public static ChatwootDeleteContactResult DeletedResult(string message) =>
+        new()
+        {
+            Success = true,
+            Deleted = true,
+            HttpStatusCode = StatusCodes.Status200OK,
+            Message = message
+        };
+
+    public static ChatwootDeleteContactResult MissingResult(string message) =>
+        new()
+        {
+            Success = true,
+            Missing = true,
+            HttpStatusCode = StatusCodes.Status404NotFound,
+            Message = message
+        };
+
+    public static ChatwootDeleteContactResult Failed(int httpStatusCode, string message) =>
+        new()
+        {
+            Success = false,
+            HttpStatusCode = httpStatusCode,
+            Message = message
+        };
+}
+
 public sealed class ChatwootConversationSummary
 {
     public long Id { get; init; }

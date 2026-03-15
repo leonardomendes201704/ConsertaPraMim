@@ -12,6 +12,12 @@
 
 ## Released
 
+- [2026-03-15] [CPMFULL-042][ST-100] Exclusao opcional do contato no Chatwoot durante o reset do lead
+- Tipo: feat
+- Resumo: o modal de exclusao do lead no CPM Full passou a expor o checkbox `Excluir tambem o contato no Chatwoot`, desmarcado por padrao e habilitado apenas quando o lead ja possui `ChatwootContactId`. Quando marcado, o backend apaga o contato remoto via API oficial do Chatwoot antes de concluir a exclusao local; se a delecao remota falhar, o reset local e bloqueado.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/IChatwootApiClient.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/ChatwootDtos.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Chatwoot/ChatwootApiClient.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Areas/Admin/ViewModels/AdminKanbanLeadInputModel.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Areas/Admin/Controllers/KanbanController.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Areas/Admin/Views/Kanban/Index.cshtml`, `Backend/tests/ConsertaPraMim.Tests.Unit/Controllers/KanbanControllerTests.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/EPIC_TELEGRAM_ENRIQUECIMENTO_OPERACIONAL.md`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/MANUAL_QA_OPERACAO.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-100-exclusao-opcional-contato-chatwoot-reset-lead.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: medio
+
 - [2026-03-15] [CPMFULL-041][ST-099] Exclusao operacional de lead no CPM Full com reset de handoff do Telegram
 - Tipo: feat
 - Resumo: o modal de detalhes do lead no Kanban passou a expor a acao `Excluir lead`, removendo em transacao o lead local, historico, vinculo Telegram e filas locais relacionadas. Para leads com `TelegramChatId`, o CPM Full agora chama um endpoint interno autenticado no `TelegramBridge` para limpar o handoff humano em memoria antes da exclusao, permitindo retestar o mesmo chat sem SQL manual nem restart obrigatorio do bridge.

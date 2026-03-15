@@ -119,6 +119,37 @@ Como operacao, queremos excluir um lead diretamente no CPM Full para resetar tes
 2. A exclusao local agora remove em transacao o lead, o historico, o vinculo `dbo.cpm_web_telegram_funil_links` e as filas `telegram_delivery_queue` e `chatwoot_sync_queue`.
 3. O `ConsertaPraMim.Web.TelegramBridge` recebeu um endpoint interno autenticado para resetar o handoff humano em memoria por `TelegramChatId`, permitindo retestar o mesmo chat sem restart manual do bridge.
 
+## US-01C / ST-100 - Exclusao opcional do contato no Chatwoot durante o reset do lead
+
+### Descricao
+
+Como operacao, queremos escolher no proprio CPM Full se a exclusao do lead deve apagar tambem o contato tecnico no Chatwoot, para limpar ambientes de teste sem depender de exclusao manual na plataforma externa.
+
+### Status
+
+- Concluida em `2026-03-15`.
+
+### Criterios de aceite
+
+1. O modal de exclusao do lead exibe um checkbox opcional para excluir tambem o contato no Chatwoot.
+2. O checkbox fica claro sobre o que sera apagado remotamente e permanece desmarcado por padrao.
+3. Quando marcado, o CPM Full apaga o contato no Chatwoot antes de concluir a exclusao local do lead.
+4. Se a delecao remota no Chatwoot falhar, a exclusao local nao e concluida.
+5. Quando nao houver `ChatwootContactId`, o fluxo continua funcionando localmente e deixa claro que nao existe contato remoto para apagar.
+
+### Tasks
+
+- `TASK-01C.01` Estender o `IChatwootApiClient` com delecao de contato usando a API oficial do Chatwoot.
+- `TASK-01C.02` Ajustar o modal do Kanban para expor o checkbox opcional, com estado coerente quando o lead ainda nao tem contato sincronizado.
+- `TASK-01C.03` Atualizar o `KanbanController` para orquestrar delecao remota opcional do contato antes do reset local.
+- `TASK-01C.04` Cobrir regressao automatizada e atualizar manual QA/Operacao, changelog, epic e story.
+
+### Entrega realizada
+
+1. O modal de detalhes do lead no CPM Full passou a exibir o checkbox `Excluir tambem o contato no Chatwoot`, desmarcado por padrao e desabilitado quando o lead ainda nao possui `ChatwootContactId`.
+2. O `ConsertaPraMim.Web.CpmFull` passou a chamar a API oficial de delecao de contato do Chatwoot antes do reset local quando a opcao estiver marcada, bloqueando a exclusao local se a delecao remota falhar.
+3. Quando o contato remoto ja nao existe ou o lead ainda nao possui contato sincronizado, o fluxo conclui o reset local com mensagem operacional explicita, sem prometer delecao de conversa.
+
 ## US-02 / ST-096 - Qualificacao inicial do lead Telegram
 
 ### Descricao
@@ -198,9 +229,10 @@ Como gestao e operacao, queremos acompanhar indicadores reais do canal Telegram 
 
 1. `ST-095` - Captura de contato e enriquecimento do lead.
 2. `ST-099` - Exclusao operacional de lead no CPM Full para reset de teste.
-3. `ST-096` - Qualificacao inicial do lead Telegram.
-4. `ST-097` - Regras operacionais de handoff.
-5. `ST-098` - Observabilidade de negocio do canal Telegram.
+3. `ST-100` - Exclusao opcional do contato no Chatwoot durante o reset do lead.
+4. `ST-096` - Qualificacao inicial do lead Telegram.
+5. `ST-097` - Regras operacionais de handoff.
+6. `ST-098` - Observabilidade de negocio do canal Telegram.
 
 ## 8. Dependencias externas
 

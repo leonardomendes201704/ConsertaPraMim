@@ -33,6 +33,7 @@ Orientar validacao funcional e operacao basica do projeto `ConsertaPraMim.Web.Cp
 - Quando o usuario compartilha contato no Telegram ou envia telefone/e-mail por texto em formato seguro, o mesmo lead do CPM Full e o mesmo contato do Chatwoot sao enriquecidos automaticamente.
 - O modal de detalhes do lead no Kanban agora expõe a acao `Excluir lead`, removendo o lead local, historico, vinculo Telegram e filas relacionadas.
 - Quando o lead possui `TelegramChatId`, a exclusao tenta resetar o handoff humano em memoria no `TelegramBridge` antes de concluir o reset local.
+- O fluxo de exclusao agora tambem pode apagar opcionalmente o contato tecnico no Chatwoot quando o lead ja possui `ChatwootContactId`, por meio de checkbox desmarcado por padrao no modal.
 
 ### Configuracao minima
 
@@ -180,12 +181,15 @@ No `ConsertaPraMim.Web.CpmFull`, configurar a secao `TelegramAutomation`:
 ### Checklist complementar para exclusao operacional do lead
 
 1. Abrir o detalhe de um lead no Kanban de `clientes` ou `prestadores`.
-2. Clicar em `Excluir lead`.
-3. Confirmar que o modal de confirmacao informa explicitamente que o Chatwoot nao sera apagado automaticamente.
-4. Confirmar que o lead desaparece do quadro apos a exclusao.
-5. Validar em banco que nao restaram registros para o `LeadId` em `dbo.cpm_web_kanban_leads`, `dbo.cpm_web_kanban_lead_history`, `dbo.cpm_web_telegram_funil_links`, `dbo.cpm_web_telegram_delivery_queue` e `dbo.cpm_web_chatwoot_sync_queue`.
-6. Para lead Telegram com handoff humano previo, reenviar mensagem no mesmo chat e validar que o bot voltou a responder sem exigir restart manual do bridge.
-7. Confirmar no Chatwoot que contato e conversa antigos continuam existindo, salvo exclusao manual separada.
+2. Validar que o checkbox `Excluir tambem o contato no Chatwoot` inicia desmarcado.
+3. Se o lead ja possuir `ChatwootContactId`, marcar o checkbox para teste de limpeza remota; se nao possuir, confirmar que o checkbox permanece desabilitado.
+4. Clicar em `Excluir lead`.
+5. Confirmar que o modal de confirmacao informa explicitamente quando o contato remoto sera apagado e quando nao sera.
+6. Confirmar que o lead desaparece do quadro apos a exclusao.
+7. Validar em banco que nao restaram registros para o `LeadId` em `dbo.cpm_web_kanban_leads`, `dbo.cpm_web_kanban_lead_history`, `dbo.cpm_web_telegram_funil_links`, `dbo.cpm_web_telegram_delivery_queue` e `dbo.cpm_web_chatwoot_sync_queue`.
+8. Para lead Telegram com handoff humano previo, reenviar mensagem no mesmo chat e validar que o bot voltou a responder sem exigir restart manual do bridge.
+9. Quando o checkbox tiver sido marcado, validar no Chatwoot que o contato tecnico foi removido; quando o checkbox nao tiver sido marcado, confirmar que o contato continua existindo.
+10. Confirmar que a conversa no Chatwoot segue o comportamento da propria plataforma e nao e prometida como excluida pelo CPM Full.
 
 ### Roteiro rapido de validacao em producao
 
@@ -204,6 +208,8 @@ No `ConsertaPraMim.Web.CpmFull`, configurar a secao `TelegramAutomation`:
 - Telefone compartilhado nao apareceu no funil: validar se o update recebido possui `message.contact`, se o `user_id` do contato corresponde ao remetente e se o `TelegramInboundUpdateProcessor` nao descartou o payload por seguranca.
 - Telefone ou e-mail sumiram apos nova mensagem: validar se o ambiente publicado contem o endurecimento do `SqlAdminKanbanService` com `COALESCE` para nao apagar dados opcionais em reprocessamentos.
 - Exclusao do lead falhou antes de concluir: validar reachability do `TelegramBridge`, `TelegramAutomation:Enabled`, `TelegramBridgeBaseUrl`, `SharedSecret` e se o endpoint interno `/api/internal/telegram/messages/handoff/reset` esta acessivel.
+- Checkbox de exclusao remota esta desabilitado: comportamento esperado quando o lead ainda nao possui `ChatwootContactId`; sincronizar o lead antes se quiser limpar tambem o contato remoto.
+- Exclusao remota no Chatwoot falhou: validar `Chatwoot:Enabled`, conectividade com a API oficial, `ApiAccessToken`, `AccountId` e se o contato ainda existe no account configurado.
 - Lead foi excluido, mas o mesmo chat ainda nao voltou a responder no bot: validar se a nova mensagem foi enviada apos a exclusao, se o handoff realmente foi resetado no bridge e, como ultimo recurso, reiniciar o `TelegramBridge` para limpar estado em memoria residual.
 - Lead Telegram caiu no inbox errado do Chatwoot: revisar `BoardType` do lead, `ClientsInboxId`, `ProvidersInboxId` e se o board atual no CPM Full esta coerente com o papel autenticado.
 - Lead Telegram sem historico `Bootstrap Telegram no Chatwoot`: validar se o lead ja possuia `ChatwootConversationId`; o evento so aparece quando o bootstrap precisa criar ou reaproveitar a conversa humana a partir do funil.

@@ -226,6 +226,15 @@
                    rel="noopener noreferrer">
                     Abrir no Chatwoot
                 </a>
+                <div class="form-check text-start me-auto ms-md-2">
+                    <input class="form-check-input" type="checkbox" value="" id="deleteLeadChatwootContactCheckbox">
+                    <label class="form-check-label" for="deleteLeadChatwootContactCheckbox">
+                        Excluir tambem o contato no Chatwoot
+                    </label>
+                    <div id="deleteLeadChatwootContactHelp" class="small text-secondary">
+                        Opcional. O contato remoto so sera apagado se este lead ja estiver sincronizado no Chatwoot.
+                    </div>
+                </div>
                 <button type="button" id="syncLeadChatwootBtn" class="btn btn-outline-success">
                     Sincronizar Chatwoot
                 </button>
@@ -1326,6 +1335,18 @@
                 document.getElementById("detailsStatusNote").textContent = lead.statusNote || "-";
                 document.getElementById("detailsInternalNotes").textContent = lead.internalNotes || "-";
                 document.getElementById("detailsChatwootLastError").textContent = chatwoot.lastError || "-";
+                const deleteLeadChatwootContactCheckbox = document.getElementById("deleteLeadChatwootContactCheckbox");
+                const deleteLeadChatwootContactHelp = document.getElementById("deleteLeadChatwootContactHelp");
+                if (deleteLeadChatwootContactCheckbox) {
+                    const hasChatwootContact = Boolean(chatwoot.contactId);
+                    deleteLeadChatwootContactCheckbox.checked = false;
+                    deleteLeadChatwootContactCheckbox.disabled = !hasChatwootContact;
+                    if (deleteLeadChatwootContactHelp) {
+                        deleteLeadChatwootContactHelp.textContent = hasChatwootContact
+                            ? "Opcional. Se marcado, o contato remoto sera apagado no Chatwoot antes do reset local."
+                            : "Este lead ainda nao possui contato sincronizado no Chatwoot.";
+                    }
+                }
                 if (conversationLink) {
                     if (chatwoot.conversationUrl) {
                         conversationLink.href = chatwoot.conversationUrl;
@@ -1542,8 +1563,11 @@
                     return;
                 }
 
+                const deleteChatwootContact = document.getElementById("deleteLeadChatwootContactCheckbox")?.checked === true;
                 const confirmed = window.confirm(
-                    "Excluir este lead do CPM Full?\n\nEssa acao remove o lead, o historico, o vinculo Telegram e as filas locais relacionadas.\nContato e conversa no Chatwoot nao serao apagados automaticamente."
+                    deleteChatwootContact
+                        ? "Excluir este lead do CPM Full?\n\nEssa acao remove o lead, o historico, o vinculo Telegram e as filas locais relacionadas.\nO contato remoto tambem sera apagado no Chatwoot antes do reset local."
+                        : "Excluir este lead do CPM Full?\n\nEssa acao remove o lead, o historico, o vinculo Telegram e as filas locais relacionadas.\nO contato no Chatwoot nao sera apagado automaticamente."
                 );
                 if (!confirmed) {
                     return;
@@ -1555,7 +1579,9 @@
                 button.textContent = "Excluindo...";
 
                 try {
-                    const response = await postJson(endpoint.deleteLead(currentLead.id), {});
+                    const response = await postJson(endpoint.deleteLead(currentLead.id), {
+                        deleteChatwootContact
+                    });
                     detailsModal?.hide();
                     alert(response.message || "Lead excluido com sucesso.");
                     window.location.reload();

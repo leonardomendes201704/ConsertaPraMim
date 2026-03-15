@@ -14,6 +14,7 @@ namespace AppMobileCPM.Areas.Admin.Controllers;
 public sealed class KanbanController : Controller
 {
     private readonly IAdminKanbanService _kanbanService;
+    private readonly IChatwootApiClient _chatwootApiClient;
     private readonly IChatwootSyncQueueService _chatwootSyncQueueService;
     private readonly IChatwootLeadSyncService _chatwootLeadSyncService;
     private readonly IChatwootBackfillService _chatwootBackfillService;
@@ -24,6 +25,7 @@ public sealed class KanbanController : Controller
 
     public KanbanController(
         IAdminKanbanService kanbanService,
+        IChatwootApiClient chatwootApiClient,
         IChatwootSyncQueueService chatwootSyncQueueService,
         IChatwootLeadSyncService chatwootLeadSyncService,
         IChatwootBackfillService chatwootBackfillService,
@@ -33,6 +35,7 @@ public sealed class KanbanController : Controller
         IOptions<TelegramAutomationOptions> telegramAutomationOptions)
     {
         _kanbanService = kanbanService;
+        _chatwootApiClient = chatwootApiClient;
         _chatwootSyncQueueService = chatwootSyncQueueService;
         _chatwootLeadSyncService = chatwootLeadSyncService;
         _chatwootBackfillService = chatwootBackfillService;
@@ -225,7 +228,7 @@ public sealed class KanbanController : Controller
 
     [HttpPost("lead/{id:int}/excluir")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> DeleteLead(int id)
+    public async Task<IActionResult> DeleteLead(int id, [FromBody] AdminKanbanLeadDeleteInputModel? model)
     {
         var lead = _kanbanService.GetLeadDetails(id);
         if (lead is null)
@@ -233,6 +236,7 @@ public sealed class KanbanController : Controller
             return NotFound(new { success = false, message = "Lead nao encontrado para exclusao." });
         }
 
+        var deleteChatwootContact = model?.DeleteChatwootContact == true;
         var telegramHandoffReset = false;
         if (lead.Telegram.TelegramChatId.HasValue &&
             lead.Telegram.TelegramChatId.Value > 0 &&
@@ -258,19 +262,65 @@ public sealed class KanbanController : Controller
             telegramHandoffReset = true;
         }
 
+        var chatwootContactDeleted = false;
+        var chatwootContactWasMissing = false;
+        var chatwootContactDeletionSkipped = false;
+        if (deleteChatwootContact)
+        {
+            if (!lead.Chatwoot.ContactId.HasValue || lead.Chatwoot.ContactId.Value <= 0)
+            {
+                chatwootContactDeletionSkipped = true;
+            }
+            else
+            {
+                if (!_chatwootOptions.Enabled)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = "Nao foi possivel excluir o contato no Chatwoot porque a integracao esta desabilitada no ambiente atual."
+                    });
+                }
+
+                var deleteResult = await _chatwootApiClient.DeleteContactAsync(
+                    lead.Chatwoot.ContactId.Value,
+                    HttpContext.RequestAborted);
+
+                if (!deleteResult.Success)
+                {
+                    return BadRequest(new
+                    {
+                        success = false,
+                        message = $"Nao foi possivel excluir o contato no Chatwoot antes da exclusao local. {deleteResult.Message}"
+                    });
+                }
+
+                chatwootContactDeleted = deleteResult.Deleted;
+                chatwootContactWasMissing = deleteResult.Missing;
+            }
+        }
+
         var deleted = _kanbanService.DeleteLead(id);
         if (!deleted)
         {
             return NotFound(new { success = false, message = "Lead nao encontrado para exclusao." });
         }
 
+        var message = BuildDeleteLeadSuccessMessage(
+            telegramHandoffReset,
+            deleteChatwootContact,
+            chatwootContactDeleted,
+            chatwootContactWasMissing,
+            chatwootContactDeletionSkipped);
+
         return Json(new
         {
             success = true,
             telegramHandoffReset,
-            message = telegramHandoffReset
-                ? "Lead excluido do CPM Full e handoff do Telegram resetado com sucesso. O Chatwoot nao foi apagado automaticamente."
-                : "Lead excluido do CPM Full com sucesso. O Chatwoot nao foi apagado automaticamente."
+            chatwootContactDeleted,
+            chatwootContactWasMissing,
+            chatwootContactDeletionSkipped,
+            message
         });
     }
 
@@ -894,6 +944,43 @@ public sealed class KanbanController : Controller
         return string.IsNullOrWhiteSpace(boardType)
             ? "Clientes e prestadores"
             : AdminKanbanBoardTypes.GetTitle(boardType);
+    }
+
+    private static string BuildDeleteLeadSuccessMessage(
+        bool telegramHandoffReset,
+        bool deleteChatwootContact,
+        bool chatwootContactDeleted,
+        bool chatwootContactWasMissing,
+        bool chatwootContactDeletionSkipped)
+    {
+        var parts = new List<string>
+        {
+            "Lead excluido do CPM Full com sucesso."
+        };
+
+        if (telegramHandoffReset)
+        {
+            parts.Add("Handoff do Telegram resetado com sucesso.");
+        }
+
+        if (!deleteChatwootContact)
+        {
+            parts.Add("O contato no Chatwoot nao foi apagado automaticamente.");
+        }
+        else if (chatwootContactDeleted)
+        {
+            parts.Add("Contato do Chatwoot excluido com sucesso.");
+        }
+        else if (chatwootContactWasMissing)
+        {
+            parts.Add("O contato informado ja nao existia no Chatwoot.");
+        }
+        else if (chatwootContactDeletionSkipped)
+        {
+            parts.Add("Nao havia contato sincronizado no Chatwoot para excluir.");
+        }
+
+        return string.Join(" ", parts);
     }
 
     private string BuildChatwootConversationUrl(long? conversationId)

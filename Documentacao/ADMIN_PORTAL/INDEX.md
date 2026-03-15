@@ -76,6 +76,7 @@
 
 ### Done
 
+- [ST-100 - Exclusao opcional do contato no Chatwoot durante o reset do lead](STORIES/DONE/ST-100-exclusao-opcional-contato-chatwoot-reset-lead.md)
 - [ST-099 - Exclusao operacional de lead no CPM Full](STORIES/DONE/ST-099-exclusao-operacional-lead-cpmfull.md)
 - [ST-095 - Captura de contato do Telegram e enriquecimento automatico do lead](STORIES/DONE/ST-095-captura-contato-telegram-enriquecimento-lead.md)
 - [ST-094 - Ativacao publica do webhook do TelegramBridge](STORIES/DONE/ST-094-ativacao-publica-webhook-telegram-bridge.md)
