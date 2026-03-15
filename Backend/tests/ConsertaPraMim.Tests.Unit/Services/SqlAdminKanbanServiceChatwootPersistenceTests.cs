@@ -863,6 +863,83 @@ WHERE ChatbotConversationId = @chatbotConversationId;
         Assert.Equal(serviceRequestId, reader.GetGuid(7));
     }
 
+    [Fact(DisplayName = "DeleteLead deve remover lead local, historico, vinculo Telegram e filas relacionadas")]
+    public void DeleteLead_DeveRemoverLeadEArtefatosRelacionados()
+    {
+        using var database = new LocalDbKanbanDatabaseScope();
+        if (!database.IsAvailable)
+        {
+            return;
+        }
+
+        var service = CreateService(database.ConnectionString);
+        var chatbotConversationId = Guid.NewGuid();
+
+        var upsert = service.UpsertTelegramLead(new AdminKanbanTelegramLeadUpsertRequest
+        {
+            BoardType = AdminKanbanBoardTypes.Clients,
+            ChatbotConversationId = chatbotConversationId,
+            ChannelConversationId = "telegram-reset-001",
+            TelegramChatId = 5513997114422,
+            ClientId = Guid.NewGuid(),
+            ClientName = "Lead Reset Telegram",
+            ClientPhone = "+5513997114422",
+            ClientEmail = "reset.telegram@teste.com",
+            ServiceCategory = "Eletricista",
+            City = "Santos",
+            StatusNote = "Lead criado para exclusao operacional."
+        });
+
+        service.AddHistoryNote(upsert.LeadId, "Nota de teste para exclusao.");
+        service.EnqueueTelegramDeliveryQueueItem(new AdminKanbanTelegramDeliveryQueueEnqueueRequest
+        {
+            LeadId = upsert.LeadId,
+            Direction = TelegramDeliveryDirections.TelegramToChatwoot,
+            DeliveryKey = "telegram-delete-001",
+            PayloadJson = """{"message":"reset"}""",
+            ChatwootConversationId = 7788,
+            TelegramChatId = 5513997114422,
+            NextAttemptAt = new DateTime(2026, 3, 15, 18, 10, 0, DateTimeKind.Utc),
+            MaxAttempts = 5,
+            LastError = "Falha de teste"
+        });
+        service.EnqueueChatwootSyncQueueItem(new AdminKanbanChatwootSyncQueueEnqueueRequest
+        {
+            LeadId = upsert.LeadId,
+            OperationType = ChatwootSyncOperationTypes.LeadSync,
+            NextAttemptAt = new DateTime(2026, 3, 15, 18, 11, 0, DateTimeKind.Utc),
+            MaxAttempts = 5,
+            LastError = "Falha Chatwoot"
+        });
+
+        var deleted = service.DeleteLead(upsert.LeadId);
+
+        Assert.True(deleted);
+        Assert.Null(service.GetLeadDetails(upsert.LeadId));
+
+        using var connection = new SqlConnection(database.ConnectionString);
+        connection.Open();
+
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+SELECT
+    (SELECT COUNT(1) FROM dbo.cpm_web_kanban_leads WHERE Id = @leadId) AS LeadCount,
+    (SELECT COUNT(1) FROM dbo.cpm_web_kanban_lead_history WHERE LeadId = @leadId) AS HistoryCount,
+    (SELECT COUNT(1) FROM dbo.cpm_web_telegram_funil_links WHERE LeadId = @leadId) AS TelegramLinkCount,
+    (SELECT COUNT(1) FROM dbo.cpm_web_telegram_delivery_queue WHERE LeadId = @leadId) AS TelegramQueueCount,
+    (SELECT COUNT(1) FROM dbo.cpm_web_chatwoot_sync_queue WHERE LeadId = @leadId) AS ChatwootQueueCount;
+""";
+        command.Parameters.Add(new SqlParameter("@leadId", SqlDbType.Int) { Value = upsert.LeadId });
+
+        using var reader = command.ExecuteReader();
+        Assert.True(reader.Read());
+        Assert.Equal(0, reader.GetInt32(0));
+        Assert.Equal(0, reader.GetInt32(1));
+        Assert.Equal(0, reader.GetInt32(2));
+        Assert.Equal(0, reader.GetInt32(3));
+        Assert.Equal(0, reader.GetInt32(4));
+    }
+
     [Fact(DisplayName = "Diagnostico Chatwoot deve resumir status, erros recentes e fila operacional")]
     public void ChatwootDiagnostics_DeveRetornarResumoErrosEFila()
     {

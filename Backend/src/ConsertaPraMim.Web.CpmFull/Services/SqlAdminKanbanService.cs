@@ -390,6 +390,47 @@ SELECT CAST(SCOPE_IDENTITY() AS INT);
         return leadId;
     }
 
+    public bool DeleteLead(int leadId)
+    {
+        EnsureInitialized();
+
+        using var connection = OpenConnection();
+        using var transaction = connection.BeginTransaction();
+
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = $"""
+DELETE FROM dbo.{TablePrefix}telegram_delivery_queue
+WHERE LeadId = @leadId;
+
+DELETE FROM dbo.{TablePrefix}chatwoot_sync_queue
+WHERE LeadId = @leadId;
+
+DELETE FROM dbo.{TablePrefix}telegram_funil_links
+WHERE LeadId = @leadId;
+
+DELETE FROM dbo.{TablePrefix}kanban_lead_history
+WHERE LeadId = @leadId;
+
+DELETE FROM dbo.{TablePrefix}kanban_leads
+WHERE Id = @leadId
+  AND IsActive = 1;
+
+SELECT @@ROWCOUNT;
+""";
+        command.Parameters.Add(new SqlParameter("@leadId", SqlDbType.Int) { Value = leadId });
+
+        var deleted = Convert.ToInt32(command.ExecuteScalar()) > 0;
+        if (!deleted)
+        {
+            transaction.Rollback();
+            return false;
+        }
+
+        transaction.Commit();
+        return true;
+    }
+
     public AdminKanbanTelegramLeadUpsertResult UpsertTelegramLead(AdminKanbanTelegramLeadUpsertRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);

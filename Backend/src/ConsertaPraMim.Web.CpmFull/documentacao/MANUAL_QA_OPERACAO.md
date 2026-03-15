@@ -31,6 +31,8 @@ Orientar validacao funcional e operacao basica do projeto `ConsertaPraMim.Web.Cp
 - Em `Webhook`, o bridge registra automaticamente `setWebhook`, exige `X-Telegram-Bot-Api-Secret-Token` no endpoint `POST /api/integrations/telegram/webhook` e desabilita o worker de polling.
 - O primeiro ACK do bot agora pode solicitar telefone com botao nativo `request_contact`, sem bloquear a jornada.
 - Quando o usuario compartilha contato no Telegram ou envia telefone/e-mail por texto em formato seguro, o mesmo lead do CPM Full e o mesmo contato do Chatwoot sao enriquecidos automaticamente.
+- O modal de detalhes do lead no Kanban agora expõe a acao `Excluir lead`, removendo o lead local, historico, vinculo Telegram e filas relacionadas.
+- Quando o lead possui `TelegramChatId`, a exclusao tenta resetar o handoff humano em memoria no `TelegramBridge` antes de concluir o reset local.
 
 ### Configuracao minima
 
@@ -175,6 +177,16 @@ No `ConsertaPraMim.Web.CpmFull`, configurar a secao `TelegramAutomation`:
 11. Repetir o teste com texto de onboarding de prestador, por exemplo `Quero me cadastrar como prestador parceiro`.
 12. Confirmar que o lead caiu em `/admin/funil/prestadores` e que a conversa humana foi criada ou reaproveitada na inbox `CPM Prestadores`.
 
+### Checklist complementar para exclusao operacional do lead
+
+1. Abrir o detalhe de um lead no Kanban de `clientes` ou `prestadores`.
+2. Clicar em `Excluir lead`.
+3. Confirmar que o modal de confirmacao informa explicitamente que o Chatwoot nao sera apagado automaticamente.
+4. Confirmar que o lead desaparece do quadro apos a exclusao.
+5. Validar em banco que nao restaram registros para o `LeadId` em `dbo.cpm_web_kanban_leads`, `dbo.cpm_web_kanban_lead_history`, `dbo.cpm_web_telegram_funil_links`, `dbo.cpm_web_telegram_delivery_queue` e `dbo.cpm_web_chatwoot_sync_queue`.
+6. Para lead Telegram com handoff humano previo, reenviar mensagem no mesmo chat e validar que o bot voltou a responder sem exigir restart manual do bridge.
+7. Confirmar no Chatwoot que contato e conversa antigos continuam existindo, salvo exclusao manual separada.
+
 ### Roteiro rapido de validacao em producao
 
 - Para uma execucao objetiva do smoke E2E publicado, usar o documento `ROTEIRO_TESTE_E2E_TELEGRAM_PRODUCAO.md` nesta mesma pasta.
@@ -191,6 +203,8 @@ No `ConsertaPraMim.Web.CpmFull`, configurar a secao `TelegramAutomation`:
 - Bot nao pediu telefone no primeiro ACK: validar se a conversa ainda nao tinha `ClientPhone` no vinculo Telegram e se o bridge publicado contem a entrega da `ST-095`.
 - Telefone compartilhado nao apareceu no funil: validar se o update recebido possui `message.contact`, se o `user_id` do contato corresponde ao remetente e se o `TelegramInboundUpdateProcessor` nao descartou o payload por seguranca.
 - Telefone ou e-mail sumiram apos nova mensagem: validar se o ambiente publicado contem o endurecimento do `SqlAdminKanbanService` com `COALESCE` para nao apagar dados opcionais em reprocessamentos.
+- Exclusao do lead falhou antes de concluir: validar reachability do `TelegramBridge`, `TelegramAutomation:Enabled`, `TelegramBridgeBaseUrl`, `SharedSecret` e se o endpoint interno `/api/internal/telegram/messages/handoff/reset` esta acessivel.
+- Lead foi excluido, mas o mesmo chat ainda nao voltou a responder no bot: validar se a nova mensagem foi enviada apos a exclusao, se o handoff realmente foi resetado no bridge e, como ultimo recurso, reiniciar o `TelegramBridge` para limpar estado em memoria residual.
 - Lead Telegram caiu no inbox errado do Chatwoot: revisar `BoardType` do lead, `ClientsInboxId`, `ProvidersInboxId` e se o board atual no CPM Full esta coerente com o papel autenticado.
 - Lead Telegram sem historico `Bootstrap Telegram no Chatwoot`: validar se o lead ja possuia `ChatwootConversationId`; o evento so aparece quando o bootstrap precisa criar ou reaproveitar a conversa humana a partir do funil.
 - Lead Telegram sem telefone/e-mail no primeiro contato: comportamento esperado; a sincronizacao com Chatwoot deve usar `TelegramChatId`, `ChatbotConversationId` ou `ChannelConversationId` como identificador tecnico do contato.

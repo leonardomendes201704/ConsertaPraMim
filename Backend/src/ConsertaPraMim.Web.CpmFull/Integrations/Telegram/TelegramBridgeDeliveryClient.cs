@@ -99,4 +99,80 @@ public sealed class TelegramBridgeDeliveryClient : ITelegramBridgeDeliveryClient
                 "Falha ao comunicar com o Telegram Bridge para entrega da mensagem humana.");
         }
     }
+
+    public async Task<TelegramBridgeResetHandoffResult> ResetHumanHandoffAsync(
+        TelegramBridgeResetHandoffRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (request.TelegramChatId <= 0)
+        {
+            return TelegramBridgeResetHandoffResult.Failed(
+                StatusCodes.Status400BadRequest,
+                "TelegramChatId invalido para reset de handoff.");
+        }
+
+        if (_httpClient.BaseAddress is null)
+        {
+            return TelegramBridgeResetHandoffResult.Failed(
+                StatusCodes.Status503ServiceUnavailable,
+                "URL do Telegram Bridge nao configurada para reset de handoff.");
+        }
+
+        using var message = new HttpRequestMessage(HttpMethod.Post, "/api/internal/telegram/messages/handoff/reset")
+        {
+            Content = JsonContent.Create(request)
+        };
+        message.Headers.TryAddWithoutValidation("Accept", "application/json");
+        message.Headers.TryAddWithoutValidation("User-Agent", "ConsertaPraMim.Web.CpmFull/1.0");
+        message.Headers.TryAddWithoutValidation(TelegramLeadAutomationService.SharedSecretHeaderName, _options.SharedSecret);
+        message.Headers.TryAddWithoutValidation(
+            ChatwootCorrelationContext.HeaderName,
+            ChatwootCorrelationContext.GetOrCreate("telegram-handoff-reset"));
+
+        try
+        {
+            using var response = await _httpClient.SendAsync(message, cancellationToken);
+            var payload = await response.Content.ReadFromJsonAsync<TelegramBridgeResetHandoffResponse>(JsonOptions, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                var failureMessage = payload?.Message;
+                if (string.IsNullOrWhiteSpace(failureMessage))
+                {
+                    failureMessage = "Falha ao resetar handoff humano no Telegram Bridge.";
+                }
+
+                _logger.LogWarning(
+                    "Telegram Bridge retornou erro HTTP {StatusCode} ao resetar handoff do chat {TelegramChatId}. Message={Message}",
+                    (int)response.StatusCode,
+                    TelegramSecuritySanitizer.MaskChatId(request.TelegramChatId),
+                    TelegramSecuritySanitizer.SanitizeMessage(failureMessage, 300));
+
+                return TelegramBridgeResetHandoffResult.Failed((int)response.StatusCode, failureMessage);
+            }
+
+            return new TelegramBridgeResetHandoffResult
+            {
+                Success = payload?.Success ?? true,
+                HttpStatusCode = (int)response.StatusCode,
+                Message = payload?.Message ?? "Handoff humano do Telegram resetado com sucesso.",
+                HandoffWasActive = payload?.HandoffWasActive ?? false
+            };
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(
+                exception,
+                "Falha ao comunicar com o Telegram Bridge para resetar handoff do chat {TelegramChatId}.",
+                TelegramSecuritySanitizer.MaskChatId(request.TelegramChatId));
+            return TelegramBridgeResetHandoffResult.Failed(
+                StatusCodes.Status502BadGateway,
+                "Falha ao comunicar com o Telegram Bridge para reset de handoff.");
+        }
+    }
 }

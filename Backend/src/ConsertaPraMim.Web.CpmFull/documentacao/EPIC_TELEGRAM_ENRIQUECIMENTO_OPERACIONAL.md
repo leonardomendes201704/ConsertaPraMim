@@ -89,6 +89,36 @@ Como operacao, queremos coletar telefone e, quando possivel, e-mail no primeiro 
 2. O `ConsertaPraMim.Web.CpmFull` agora persiste `ClientPhone` no vinculo `dbo.cpm_web_telegram_funil_links`, atualiza o mesmo lead com telefone/e-mail sem apagar dados anteriores e exibe o telefone mascarado no detalhe do lead.
 3. O enriquecimento subsequente do contato reaproveita a mesma conversa/contato tecnico do Chatwoot, reduzindo a dependencia exclusiva de `TelegramChatId`/`ChatbotConversationId`.
 
+## US-01B / ST-099 - Exclusao operacional de lead no CPM Full para reset de teste
+
+### Descricao
+
+Como operacao, queremos excluir um lead diretamente no CPM Full para resetar testes com o mesmo chat do Telegram sem depender de SQL manual.
+
+### Status
+
+- Concluida em `2026-03-15`.
+
+### Criterios de aceite
+
+1. O modal de detalhes do lead no Kanban exibe acao explicita para excluir o lead.
+2. A exclusao remove o lead local, historico, vinculo Telegram e filas locais relacionadas.
+3. Quando houver `TelegramChatId`, o fluxo tenta limpar o estado de handoff em memoria no `TelegramBridge` antes de concluir a exclusao.
+4. A acao deixa claro que contato e conversa no Chatwoot nao sao apagados automaticamente.
+
+### Tasks
+
+- `TASK-01B.01` Adicionar endpoint autenticado no `TelegramBridge` para limpar handoff ativo por `TelegramChatId`.
+- `TASK-01B.02` Expor no CPM Full a acao administrativa de exclusao do lead no modal do Kanban.
+- `TASK-01B.03` Remover em transacao o lead local, historico, vinculo Telegram e filas operacionais relacionadas.
+- `TASK-01B.04` Cobrir regressao de exclusao e atualizar manual QA/Operacao + changelog + story.
+
+### Entrega realizada
+
+1. O `ConsertaPraMim.Web.CpmFull` passou a exibir o botao `Excluir lead` no modal de detalhes do Kanban, com confirmacao explicita de que o Chatwoot nao e apagado automaticamente.
+2. A exclusao local agora remove em transacao o lead, o historico, o vinculo `dbo.cpm_web_telegram_funil_links` e as filas `telegram_delivery_queue` e `chatwoot_sync_queue`.
+3. O `ConsertaPraMim.Web.TelegramBridge` recebeu um endpoint interno autenticado para resetar o handoff humano em memoria por `TelegramChatId`, permitindo retestar o mesmo chat sem restart manual do bridge.
+
 ## US-02 / ST-096 - Qualificacao inicial do lead Telegram
 
 ### Descricao
@@ -167,9 +197,10 @@ Como gestao e operacao, queremos acompanhar indicadores reais do canal Telegram 
 ## 7. Sequencia de entrega recomendada
 
 1. `ST-095` - Captura de contato e enriquecimento do lead.
-2. `ST-096` - Qualificacao inicial do lead Telegram.
-3. `ST-097` - Regras operacionais de handoff.
-4. `ST-098` - Observabilidade de negocio do canal Telegram.
+2. `ST-099` - Exclusao operacional de lead no CPM Full para reset de teste.
+3. `ST-096` - Qualificacao inicial do lead Telegram.
+4. `ST-097` - Regras operacionais de handoff.
+5. `ST-098` - Observabilidade de negocio do canal Telegram.
 
 ## 8. Dependencias externas
 

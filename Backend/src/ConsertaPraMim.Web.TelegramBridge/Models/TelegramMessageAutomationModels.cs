@@ -55,3 +55,16 @@ public sealed class TelegramBridgeHumanReplyRequest
     public string MessageText { get; init; } = string.Empty;
     public bool ActivateHumanHandoff { get; init; }
 }
+
+public sealed class TelegramBridgeResetHandoffRequest
+{
+    public long TelegramChatId { get; init; }
+}
+
+public sealed class TelegramBridgeResetHandoffResponse
+{
+    public bool Success { get; init; }
+    public string Message { get; init; } = string.Empty;
+    public long TelegramChatId { get; init; }
+    public bool HandoffWasActive { get; init; }
+}

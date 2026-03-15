@@ -17,6 +17,7 @@ public sealed class KanbanController : Controller
     private readonly IChatwootSyncQueueService _chatwootSyncQueueService;
     private readonly IChatwootLeadSyncService _chatwootLeadSyncService;
     private readonly IChatwootBackfillService _chatwootBackfillService;
+    private readonly ITelegramBridgeDeliveryClient _telegramBridgeDeliveryClient;
     private readonly ITelegramBridgeObservabilityClient _telegramBridgeObservabilityClient;
     private readonly ChatwootOptions _chatwootOptions;
     private readonly TelegramAutomationOptions _telegramAutomationOptions;
@@ -26,6 +27,7 @@ public sealed class KanbanController : Controller
         IChatwootSyncQueueService chatwootSyncQueueService,
         IChatwootLeadSyncService chatwootLeadSyncService,
         IChatwootBackfillService chatwootBackfillService,
+        ITelegramBridgeDeliveryClient telegramBridgeDeliveryClient,
         ITelegramBridgeObservabilityClient telegramBridgeObservabilityClient,
         IOptions<ChatwootOptions> chatwootOptions,
         IOptions<TelegramAutomationOptions> telegramAutomationOptions)
@@ -34,6 +36,7 @@ public sealed class KanbanController : Controller
         _chatwootSyncQueueService = chatwootSyncQueueService;
         _chatwootLeadSyncService = chatwootLeadSyncService;
         _chatwootBackfillService = chatwootBackfillService;
+        _telegramBridgeDeliveryClient = telegramBridgeDeliveryClient;
         _telegramBridgeObservabilityClient = telegramBridgeObservabilityClient;
         _chatwootOptions = chatwootOptions.Value;
         _telegramAutomationOptions = telegramAutomationOptions.Value;
@@ -218,6 +221,57 @@ public sealed class KanbanController : Controller
         {
             return BadRequest(new { success = false, message = ex.Message });
         }
+    }
+
+    [HttpPost("lead/{id:int}/excluir")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteLead(int id)
+    {
+        var lead = _kanbanService.GetLeadDetails(id);
+        if (lead is null)
+        {
+            return NotFound(new { success = false, message = "Lead nao encontrado para exclusao." });
+        }
+
+        var telegramHandoffReset = false;
+        if (lead.Telegram.TelegramChatId.HasValue &&
+            lead.Telegram.TelegramChatId.Value > 0 &&
+            _telegramAutomationOptions.Enabled &&
+            !string.IsNullOrWhiteSpace(_telegramAutomationOptions.TelegramBridgeBaseUrl))
+        {
+            var resetResult = await _telegramBridgeDeliveryClient.ResetHumanHandoffAsync(
+                new TelegramBridgeResetHandoffRequest
+                {
+                    TelegramChatId = lead.Telegram.TelegramChatId.Value
+                },
+                HttpContext.RequestAborted);
+
+            if (!resetResult.Success)
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = $"Nao foi possivel limpar o handoff do Telegram antes da exclusao. {resetResult.Message}"
+                });
+            }
+
+            telegramHandoffReset = true;
+        }
+
+        var deleted = _kanbanService.DeleteLead(id);
+        if (!deleted)
+        {
+            return NotFound(new { success = false, message = "Lead nao encontrado para exclusao." });
+        }
+
+        return Json(new
+        {
+            success = true,
+            telegramHandoffReset,
+            message = telegramHandoffReset
+                ? "Lead excluido do CPM Full e handoff do Telegram resetado com sucesso. O Chatwoot nao foi apagado automaticamente."
+                : "Lead excluido do CPM Full com sucesso. O Chatwoot nao foi apagado automaticamente."
+        });
     }
 
     [HttpPost("lead/{id:int}/chatwoot/sincronizar")]
