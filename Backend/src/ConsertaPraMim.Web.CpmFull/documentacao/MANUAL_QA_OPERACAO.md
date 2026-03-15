@@ -225,6 +225,7 @@ No `ConsertaPraMim.Web.CpmFull`, configurar a secao `TelegramAutomation`:
 - `TELEGRAM_AUTOMATION_MIRROR_MESSAGES_ENABLED`
 - `TELEGRAM_AUTOMATION_REQUIRE_HANDOFF_FOR_OUTBOUND`
 - `TELEGRAM_AUTOMATION_CPMFULL_BASE_URL`
+- `TELEGRAM_AUTOMATION_TELEGRAM_BRIDGE_BASE_URL`
 - `TELEGRAM_AUTOMATION_SHARED_SECRET`
 
 #### Checklist operacional
@@ -232,21 +233,25 @@ No `ConsertaPraMim.Web.CpmFull`, configurar a secao `TelegramAutomation`:
 1. Cadastrar no environment correto a URL publica do bridge:
 2. `production` -> `https://telegram.consertapramim.com`
 3. `development` -> URL HML dedicada, por exemplo `https://telegram-hml.consertapramim.com`, ou manter vazio para fallback em `http://<VPS_PUBLIC_HOST>:6175`
-4. Publicar a branch desejada e acompanhar os jobs `deploy-web-telegrambridge` e `health-web-telegrambridge`.
-5. Na VPS, validar `docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep telegrambridge`.
-6. Validar `curl -I http://127.0.0.1:5175/health` em producao ou `curl -I http://127.0.0.1:6175/health` em homologacao.
-7. Validar a URL publica coerente com o environment:
-8. producao -> `curl -I https://telegram.consertapramim.com/health`
-9. homologacao -> `curl -I <PUBLIC_TELEGRAM_BRIDGE_URL do environment development>/health`
-10. Se o modo webhook estiver habilitado, enviar mensagem real ao bot e confirmar que o runtime nao caiu em `UseHttpsRedirection`/redirect loop.
+4. Se o transporte permanecer em `LongPolling`, habilitar o `TELEGRAM_BRIDGE_BOT_TOKEN` apenas em um environment por vez. O uso simultaneo do mesmo bot em `development` e `production` faz os consumidores disputarem `getUpdates`.
+5. Publicar a branch desejada e acompanhar os jobs `deploy-web-telegrambridge` e `health-web-telegrambridge`.
+6. Na VPS, validar `docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep telegrambridge`.
+7. Validar `curl -I http://127.0.0.1:5175/health` em producao ou `curl -I http://127.0.0.1:6175/health` em homologacao.
+8. Validar a URL publica coerente com o environment:
+9. producao -> `curl -I https://telegram.consertapramim.com/health`
+10. homologacao -> `curl -I <PUBLIC_TELEGRAM_BRIDGE_URL do environment development>/health`
+11. Confirmar que o `web-cpmfull` publicado recebeu `TelegramAutomation__Enabled=true`, `TelegramAutomation__SharedSecret` e `TelegramAutomation__TelegramBridgeBaseUrl`.
+12. Se o modo webhook estiver habilitado, enviar mensagem real ao bot e confirmar que o runtime nao caiu em `UseHttpsRedirection`/redirect loop.
 
 #### Troubleshooting
 
 - Workflow nao dispara o deploy do bridge: validar se a alteracao afetou `Backend/src/ConsertaPraMim.Web.TelegramBridge/**`, `Backend/docker/vps/Dockerfile.web.telegrambridge`, `Backend/docker-compose.vps.web-telegrambridge.yml` ou arquivos globais de deploy.
 - `health-web-telegrambridge` falha so em `dev-local`: revisar o secret `PUBLIC_TELEGRAM_BRIDGE_URL`; se ele estiver incorreto, o workflow tentara essa URL antes do fallback `IP:6175`.
 - Container do bridge entra em `Restarting` com erro `You must install or update .NET`: validar se `Backend/docker/vps/Dockerfile.web.telegrambridge` usa `sdk` e `aspnet` na mesma major do `TargetFramework` do projeto (`ConsertaPraMim.Web.TelegramBridge.csproj`).
+- Mesmo bot responde de forma intermitente em dev e prod: validar se o `TELEGRAM_BRIDGE_BOT_TOKEN` foi cadastrado nos dois environments ao mesmo tempo com `TelegramBridge:UpdateTransport=LongPolling`.
 - Bridge sobe, mas o webhook recebe `307/308`: validar se a publicacao contem `ForwardedHeaders` e se o Nginx esta encaminhando `X-Forwarded-Proto=https`.
 - Webhook seguro nao registra `setWebhook`: revisar `TELEGRAM_BRIDGE_BOT_TOKEN`, `TELEGRAM_BRIDGE_WEBHOOK_PUBLIC_BASE_URL`, `TELEGRAM_BRIDGE_WEBHOOK_PATH` e `TELEGRAM_BRIDGE_WEBHOOK_SECRET_TOKEN`.
+- Bot recebe mensagem, mas o CPM Full nao reage: validar `TelegramAutomation:Enabled=true` no `web-cpmfull`, `TelegramAutomation:SharedSecret` identico nos dois lados e `TelegramAutomation:TelegramBridgeBaseUrl` apontando para `http://<container-prefix>-telegrambridge:<porta>`.
 
 ### Runbook de rotacao do token e segredo do bot
 

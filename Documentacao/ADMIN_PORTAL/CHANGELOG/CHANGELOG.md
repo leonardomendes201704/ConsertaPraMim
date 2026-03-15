@@ -12,6 +12,12 @@
 
 ## Released
 
+- [2026-03-14] [CPMFULL-033][TELEGRAM-POST-EPIC-BOT-ACTIVATION] Ativacao operacional do bot Telegram no ambiente publicado
+- Tipo: feat
+- Resumo: o deploy publicado passou a propagar `TelegramAutomation` tambem para o `web-cpmfull`, com novo env interno `TELEGRAM_AUTOMATION_TELEGRAM_BRIDGE_BASE_URL`, permitindo que a trilha Telegram -> CPM Full -> Chatwoot funcione de fato em runtime. A documentacao operacional tambem passou a bloquear o uso simultaneo do mesmo `BotToken` em `development` e `production` enquanto o transporte estiver em `LongPolling`.
+- Arquivos principais: `.github/workflows/deploy-vps.yml`, `Backend/docker-compose.vps.web-cpmfull.yml`, `Backend/.env.vps.example`, `Backend/DEPLOY_VPS.md`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/MANUAL_QA_OPERACAO.md`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/EPIC_TELEGRAM_AUTOMACAO_FUNIL_CPM.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-090-ativacao-operacional-bot-telegram-publicado.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: alto
+
 - [2026-03-14] [CPMFULL-032][TELEGRAM-POST-EPIC-VPS-HOTFIX] Correcao do runtime Docker do TelegramBridge na VPS
 - Tipo: fix
 - Resumo: corrigido o `Dockerfile` publicado do `ConsertaPraMim.Web.TelegramBridge` para alinhar `sdk` e `aspnet` em `8.0`, eliminando o restart loop do container em `dev-local` causado por mismatch entre o app `net8.0` e a imagem final `aspnet:9.0`. O runbook operacional passou a orientar essa validacao quando o healthcheck falhar com erro de framework ausente.

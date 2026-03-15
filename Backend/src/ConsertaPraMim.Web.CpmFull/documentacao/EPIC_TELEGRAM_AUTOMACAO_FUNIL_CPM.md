@@ -453,6 +453,32 @@ Como operacao, queremos publicar o `ConsertaPraMim.Web.TelegramBridge` como serv
 5. A documentacao operacional foi atualizada para recomendar `https://telegram.consertapramim.com`, orientar `PUBLIC_TELEGRAM_BRIDGE_URL` por environment e validar o webhook seguro do Telegram em ambiente publicado.
 6. Um hotfix pos-publicacao alinhou a imagem final do bridge para `.NET 8`, removendo o restart loop observado no `dev-local` quando o runtime final estava em `aspnet:9.0` para um app `net8.0`.
 
+## Pos-epico - ST-090 - Ativacao operacional do bot Telegram no ambiente publicado
+
+### Descricao
+Como operacao, queremos ativar o bot Telegram no ambiente publicado com `LongPolling`, garantindo que bridge e CPM Full compartilhem a mesma configuracao `TelegramAutomation` e evitando disputa do mesmo bot entre `development` e `production`.
+
+### Status
+- Concluida em `2026-03-14` como ativacao operacional pos-epic.
+
+### Criterios de aceite
+1. O `web-cpmfull` publicado passa a consumir `TelegramAutomation__*` no compose da VPS, incluindo `TelegramBridgeBaseUrl`.
+2. O workflow `deploy-vps` escreve `TELEGRAM_AUTOMATION_TELEGRAM_BRIDGE_BASE_URL` no `Backend/.env.vps`.
+3. O bot publicado opera em `LongPolling` apenas no environment `production`, evitando dois consumidores do mesmo `BotToken`.
+4. A documentacao operacional cobre o checklist de ativacao do bot e o troubleshooting de disputa de `getUpdates`.
+
+### Tasks
+- `TASK-13.01` Propagar `TELEGRAM_AUTOMATION_TELEGRAM_BRIDGE_BASE_URL` no workflow e no `.env.vps.example`.
+- `TASK-13.02` Injetar `TelegramAutomation__*` no `Backend/docker-compose.vps.web-cpmfull.yml`.
+- `TASK-13.03` Atualizar manual, runbook e changelog com a regra de um bot por environment em `LongPolling`.
+- `TASK-13.04` Ativar os secrets do bot somente em `production`.
+
+### Entrega aplicada
+1. O workflow `.github/workflows/deploy-vps.yml` passou a derivar `TELEGRAM_AUTOMATION_TELEGRAM_BRIDGE_BASE_URL` com fallback interno para `http://<container-prefix>-telegrambridge:<porta>`.
+2. O `Backend/docker-compose.vps.web-cpmfull.yml` passou a consumir `TelegramAutomation__Enabled`, `ClientsAutomationEnabled`, `ProvidersAutomationEnabled`, `MirrorMessagesEnabled`, `RequireHumanHandoffForOutbound`, `AllowedBotSources`, `TelegramBridgeBaseUrl`, `SharedSecret` e parametros de delivery/cleanup.
+3. A ativacao operacional do bot foi planejada apenas para `production` enquanto o transporte estiver em `LongPolling`, evitando disputa do mesmo `BotToken` entre `development` e `production`.
+4. O manual operacional passou a cobrir o checklist de ativacao real do bot, incluindo validacao do bridge, do CPM Full e da configuracao compartilhada de automacao.
+
 ## 8. Sequencia de entrega recomendada
 1. Sprint 1:
 - US-01
