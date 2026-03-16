@@ -88,6 +88,12 @@ public sealed record class JourneyProviderOpportunityContext
     public bool CanRespond { get; init; }
     public bool AlreadyResponded { get; init; }
     public bool AlreadyReserved { get; init; }
+    public bool ClientContactReleased { get; init; }
+    public string ClientPhone { get; init; } = string.Empty;
+    public string ClientEmail { get; init; } = string.Empty;
+    public string ClientDisplayName { get; init; } = string.Empty;
+    public string ReservedProviderPhone { get; init; } = string.Empty;
+    public string ReservedProviderEmail { get; init; } = string.Empty;
     public string ResponseHeadline { get; init; } = string.Empty;
     public string ResponseDescription { get; init; } = string.Empty;
 }
@@ -102,4 +108,20 @@ public sealed class JourneyProviderOpportunityActionResult
     public string Message { get; init; } = string.Empty;
     public string Action { get; init; } = JourneyProviderOpportunityActions.Accept;
     public JourneyProviderOpportunityContext Context { get; init; } = new();
+}
+
+public sealed record class JourneyProviderConnectionRequest
+{
+    public required AdminKanbanLeadDetailsRecord Lead { get; init; }
+    public required AdminKanbanJourneyDispatchTargetRecord Target { get; init; }
+    public DateTime ReservedAtUtc { get; init; }
+}
+
+public sealed record class JourneyProviderConnectionResult
+{
+    public bool Success { get; init; }
+    public bool CalendarUpdated { get; init; }
+    public bool ClientNotified { get; init; }
+    public bool ProviderNotified { get; init; }
+    public string Message { get; init; } = string.Empty;
 }

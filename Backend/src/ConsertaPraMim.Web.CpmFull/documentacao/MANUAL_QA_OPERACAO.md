@@ -451,6 +451,77 @@ Pre-condicoes operacionais:
 - O modal nao mostra telemetria de entrega: validar se o snapshot da jornada foi atualizado com `DispatchSnapshotJson` apos o envio.
 - O pixel nao incrementa abertura: validar `OpenTrackingEnabled`, reachability do endpoint `/prestadores/oportunidades/rastreio-abertura` e se o cliente de e-mail carrega imagens remotas.
 
+### Reserva do caso e conexao direta entre cliente e prestador
+
+#### Objetivo desta etapa
+
+- Fazer com que o primeiro aceite valido reserve o caso de forma definitiva.
+- Liberar os dados do cliente apenas ao prestador vencedor.
+- Avisar as duas pontas da jornada sem depender de handoff humano manual.
+
+#### Escopo entregue nesta fatia
+
+- A confirmacao publica do prestador em `/prestadores/oportunidades/responder` agora executa o aceite vencedor de forma assincrona.
+- Foi criado o `JourneyProviderConnectionService`, responsavel por orquestrar a conexao direta apos a reserva.
+- O cliente passa a ser avisado preferencialmente por Telegram; sem `TelegramChatId`, o fallback operacional e e-mail.
+- O prestador vencedor recebe e-mail de confirmacao com telefone/e-mail do cliente, endereco validado e janela agendada.
+- O Google Calendar passa a receber enriquecimento do evento com o prestador reservado e os contatos das partes.
+- A pagina publica da oportunidade mostra os dados do cliente somente quando o `ProviderId` do token corresponde ao `ReservedProviderId` persistido.
+
+#### Configuracao minima
+
+No `ConsertaPraMim.Web.CpmFull`, manter configurados:
+
+- `JourneyProviderNotification:Enabled`
+- `JourneyProviderNotification:EmailEnabled`
+- `JourneyProviderNotification:EmailTransport`
+- `JourneyProviderNotification:SenderEmail`
+- `JourneyProviderNotification:SenderDisplayName`
+- `JourneyProviderNotification:SmtpHost`
+- `JourneyProviderNotification:SmtpPort`
+- `JourneyProviderNotification:SmtpUseSsl`
+- `JourneyProviderNotification:SmtpUsername`
+- `JourneyProviderNotification:SmtpPassword`
+- `TelegramAutomation:Enabled`
+- `TelegramAutomation:MirrorMessagesEnabled`
+- `TelegramAutomation:TelegramBridgeBaseUrl`
+- `TelegramAutomation:SharedSecret`
+
+Pre-condicoes operacionais:
+
+- A jornada do cliente precisa estar em `Aguardando aceite`.
+- O disparo em ondas precisa ter pelo menos um alvo ativo com `ProviderEmail` valido.
+- O Google Calendar precisa continuar configurado se houver enriquecimento da agenda oficial.
+
+#### Comportamento esperado
+
+- O primeiro prestador a confirmar o aceite reserva o caso.
+- Os demais links da mesma oportunidade deixam de aceitar novas reservas.
+- O card do lead avanca para `Prestador conectado`.
+- O prestador vencedor passa a ver telefone/e-mail do cliente na pagina segura da oportunidade.
+- O cliente recebe os dados do prestador por Telegram ou e-mail.
+- O evento do Google Calendar passa a carregar o prestador reservado e os contatos das partes.
+
+#### Checklist de QA
+
+1. Garantir um lead da jornada em `Aguardando aceite`, com agenda confirmada e pelo menos um alvo ativo no disparo.
+2. Abrir o link assinado de um prestador elegivel e confirmar `Aceitar oportunidade`.
+3. Validar que a pagina retorna `Aceite confirmado`.
+4. Confirmar na mesma pagina que os dados do cliente aparecem apenas apos o aceite vencedor.
+5. Reabrir o lead no Kanban e validar `CurrentState = prestador_conectado`, `Status do disparo = Caso reservado` e `Prestador reservado` preenchido.
+6. Validar que os demais alvos da mesma onda aparecem como `Dispensado` ou deixam de aceitar novas respostas.
+7. Se o lead tiver Telegram ativo, confirmar o aviso ao cliente no mesmo chat.
+8. Se o lead nao tiver Telegram ativo, validar o fallback por e-mail em `log` ou SMTP.
+9. Abrir o evento correspondente no Google Calendar e confirmar a presenca do prestador reservado e dos contatos atualizados.
+10. Validar no historico do lead o evento `jornada_conexao_direta_liberada`.
+
+#### Troubleshooting
+
+- O aceite confirma mas nao libera o contato: validar se o `ReservedProviderId` da jornada coincide com o `ProviderId` do token assinado.
+- O cliente nao foi avisado: revisar se existe `TelegramChatId` ativo; sem Telegram, validar `JourneyProviderNotification:EmailEnabled` e o e-mail do lead.
+- O prestador nao recebeu o e-mail final: revisar `EmailTransport`, SMTP e se `ProviderEmail` veio preenchido no alvo do disparo.
+- O Google Calendar nao foi enriquecido: validar `GoogleCalendarEventId`, credencial da `service account` e permissao de escrita na agenda.
+
 ## Automacao Telegram -> funis clientes/prestadores -> Chatwoot
 
 ### Objetivo desta etapa

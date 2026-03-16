@@ -8,17 +8,20 @@ public sealed class JourneyProviderOpportunityService : IJourneyProviderOpportun
     private readonly IAdminKanbanService _kanbanService;
     private readonly IJourneyProviderDispatchLinkService _linkService;
     private readonly IJourneyProviderDispatchService _dispatchService;
+    private readonly IJourneyProviderConnectionService _connectionService;
     private readonly JourneyProviderNotificationOptions _options;
 
     public JourneyProviderOpportunityService(
         IAdminKanbanService kanbanService,
         IJourneyProviderDispatchLinkService linkService,
         IJourneyProviderDispatchService dispatchService,
+        IJourneyProviderConnectionService connectionService,
         IOptions<JourneyProviderNotificationOptions> options)
     {
         _kanbanService = kanbanService;
         _linkService = linkService;
         _dispatchService = dispatchService;
+        _connectionService = connectionService;
         _options = options.Value;
     }
 
@@ -52,7 +55,11 @@ public sealed class JourneyProviderOpportunityService : IJourneyProviderOpportun
         return BuildContext(validation.Payload, normalizedAction);
     }
 
-    public JourneyProviderOpportunityActionResult ConfirmAction(string token, string action, DateTime nowUtc)
+    public async Task<JourneyProviderOpportunityActionResult> ConfirmActionAsync(
+        string token,
+        string action,
+        DateTime nowUtc,
+        CancellationToken cancellationToken = default)
     {
         var normalizedAction = JourneyProviderOpportunityActions.Normalize(action);
         var validation = _linkService.ValidateToken(token, JourneyProviderDispatchLinkPurposes.ResponsePage, nowUtc);
@@ -120,6 +127,32 @@ public sealed class JourneyProviderOpportunityService : IJourneyProviderOpportun
         });
 
         var acceptedContext = BuildContext(validation.Payload, normalizedAction);
+        var finalLead = reservationResult?.Succeeded == true
+            ? _kanbanService.GetLeadDetails(validation.Payload.LeadId)
+            : null;
+        JourneyProviderConnectionResult? connectionResult = null;
+        if (reservationResult?.Succeeded == true && finalLead is not null)
+        {
+            var reservedTarget = finalLead.Journey.Dispatch.Targets.FirstOrDefault(item =>
+                item.ProviderId == validation.Payload.ProviderId &&
+                string.Equals(item.TargetKey, validation.Payload.TargetKey, StringComparison.Ordinal));
+            if (reservedTarget is not null)
+            {
+                connectionResult = await _connectionService.ConnectAsync(
+                    new JourneyProviderConnectionRequest
+                    {
+                        Lead = finalLead,
+                        Target = reservedTarget,
+                        ReservedAtUtc = nowUtc
+                    },
+                    cancellationToken);
+            }
+        }
+
+        var finalContext = reservationResult?.Succeeded == true
+            ? BuildContext(validation.Payload, normalizedAction)
+            : acceptedContext;
+
         return new JourneyProviderOpportunityActionResult
         {
             Success = reservationResult?.Succeeded == true,
@@ -128,18 +161,18 @@ public sealed class JourneyProviderOpportunityService : IJourneyProviderOpportun
             TargetUnavailable = reservationResult is null,
             Action = normalizedAction,
             Message = reservationResult?.Succeeded == true
-                ? "O aceite foi confirmado com sucesso."
+                ? BuildAcceptanceMessage(connectionResult)
                 : reservationResult?.AlreadyReserved == true
                     ? "A oportunidade ja foi reservada por outro prestador."
                     : "Nao foi possivel confirmar o aceite desta oportunidade.",
-            Context = acceptedContext with
+            Context = finalContext with
             {
-                ResponseHeadline = reservationResult?.Succeeded == true ? "Aceite confirmado" : acceptedContext.ResponseHeadline,
+                ResponseHeadline = reservationResult?.Succeeded == true ? "Aceite confirmado" : finalContext.ResponseHeadline,
                 ResponseDescription = reservationResult?.Succeeded == true
-                    ? "Sua reserva foi registrada. O proximo passo da jornada libera a conexao operacional com o cliente."
+                    ? BuildAcceptanceDescription(connectionResult)
                     : reservationResult?.AlreadyReserved == true
                         ? "Outro prestador confirmou primeiro. Esta oportunidade nao esta mais disponivel."
-                        : acceptedContext.ResponseDescription
+                        : finalContext.ResponseDescription
             }
         };
     }
@@ -255,6 +288,20 @@ public sealed class JourneyProviderOpportunityService : IJourneyProviderOpportun
             CanRespond = canRespond,
             AlreadyResponded = alreadyResponded,
             AlreadyReserved = alreadyReserved,
+            ClientContactReleased = lead.Journey.Dispatch.ReservedProviderId.HasValue && lead.Journey.Dispatch.ReservedProviderId.Value == payload.ProviderId,
+            ClientDisplayName = lead.Name,
+            ClientPhone = lead.Journey.Dispatch.ReservedProviderId.HasValue && lead.Journey.Dispatch.ReservedProviderId.Value == payload.ProviderId
+                ? ResolveClientPhone(lead)
+                : string.Empty,
+            ClientEmail = lead.Journey.Dispatch.ReservedProviderId.HasValue && lead.Journey.Dispatch.ReservedProviderId.Value == payload.ProviderId
+                ? ResolveClientEmail(lead)
+                : string.Empty,
+            ReservedProviderPhone = lead.Journey.Dispatch.ReservedProviderId.HasValue && lead.Journey.Dispatch.ReservedProviderId.Value == payload.ProviderId
+                ? lead.Journey.Dispatch.ReservedProviderPhone
+                : string.Empty,
+            ReservedProviderEmail = lead.Journey.Dispatch.ReservedProviderId.HasValue && lead.Journey.Dispatch.ReservedProviderId.Value == payload.ProviderId
+                ? lead.Journey.Dispatch.ReservedProviderEmail
+                : string.Empty,
             ResponseHeadline = canRespond
                 ? JourneyProviderOpportunityActions.GetLabel(normalizedAction)
                 : alreadyReserved
@@ -266,6 +313,30 @@ public sealed class JourneyProviderOpportunityService : IJourneyProviderOpportun
                     ? "Outro prestador confirmou primeiro esta oportunidade."
                     : "Esta oportunidade nao aceita mais respostas."
         };
+    }
+
+    private static string BuildAcceptanceMessage(JourneyProviderConnectionResult? connectionResult)
+    {
+        if (connectionResult is null)
+        {
+            return "O aceite foi confirmado com sucesso.";
+        }
+
+        return string.IsNullOrWhiteSpace(connectionResult.Message)
+            ? "O aceite foi confirmado com sucesso."
+            : $"O aceite foi confirmado com sucesso. {connectionResult.Message}";
+    }
+
+    private static string BuildAcceptanceDescription(JourneyProviderConnectionResult? connectionResult)
+    {
+        if (connectionResult is null)
+        {
+            return "Sua reserva foi registrada. A conexao operacional com o cliente foi liberada.";
+        }
+
+        return connectionResult.Success
+            ? "Sua reserva foi registrada e os dados do cliente foram liberados para contato direto."
+            : "Sua reserva foi registrada. A conexao com o cliente foi liberada, mas houve alertas operacionais complementares.";
     }
 
     private DateTime ResolveTokenExpiration()
@@ -287,6 +358,36 @@ public sealed class JourneyProviderOpportunityService : IJourneyProviderOpportun
         return parts.Count == 0
             ? "Endereco validado na jornada e liberado conforme a etapa operacional."
             : string.Join(", ", parts);
+    }
+
+    private static string ResolveClientPhone(AdminKanbanLeadDetailsRecord lead)
+    {
+        if (!string.IsNullOrWhiteSpace(lead.Journey.PrimaryPhone))
+        {
+            return lead.Journey.PrimaryPhone;
+        }
+
+        if (!string.IsNullOrWhiteSpace(lead.Phone))
+        {
+            return lead.Phone;
+        }
+
+        return lead.Telegram.ClientPhone ?? string.Empty;
+    }
+
+    private static string ResolveClientEmail(AdminKanbanLeadDetailsRecord lead)
+    {
+        if (!string.IsNullOrWhiteSpace(lead.Journey.PrimaryEmail))
+        {
+            return lead.Journey.PrimaryEmail;
+        }
+
+        if (!string.IsNullOrWhiteSpace(lead.Email))
+        {
+            return lead.Email;
+        }
+
+        return lead.Telegram.ClientEmail ?? string.Empty;
     }
 
     private static string BuildSchedulingWindowLabel(AdminKanbanLeadDetailsRecord lead)

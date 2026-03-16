@@ -42,6 +42,7 @@ builder.Services.AddScoped<IJourneySchedulingService, JourneySchedulingService>(
 builder.Services.AddScoped<IJourneyProviderMatchingService, JourneyProviderMatchingService>();
 builder.Services.AddScoped<IJourneyProviderDispatchService, JourneyProviderDispatchService>();
 builder.Services.AddScoped<IJourneyProviderDispatchNotificationService, JourneyProviderDispatchNotificationService>();
+builder.Services.AddScoped<IJourneyProviderConnectionService, JourneyProviderConnectionService>();
 builder.Services.AddScoped<IJourneyProviderOpportunityService, JourneyProviderOpportunityService>();
 builder.Services.AddScoped<IJourneyStageAutomationService, JourneyStageAutomationService>();
 builder.Services.AddScoped<ITelegramLeadAutomationService, TelegramLeadAutomationService>();

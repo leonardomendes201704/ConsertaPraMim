@@ -16,6 +16,12 @@ public sealed record class JourneyProviderOpportunityPageViewModel
     public string ScheduledWindowLabel { get; init; } = string.Empty;
     public string DispatchStatusLabel { get; init; } = string.Empty;
     public string TargetStatusLabel { get; init; } = string.Empty;
+    public bool ClientContactReleased { get; init; }
+    public string ClientDisplayName { get; init; } = string.Empty;
+    public string ClientPhone { get; init; } = string.Empty;
+    public string ClientEmail { get; init; } = string.Empty;
+    public string ReservedProviderPhone { get; init; } = string.Empty;
+    public string ReservedProviderEmail { get; init; } = string.Empty;
     public string ResponseHeadline { get; init; } = string.Empty;
     public string ResponseDescription { get; init; } = string.Empty;
     public string FeedbackMessage { get; init; } = string.Empty;

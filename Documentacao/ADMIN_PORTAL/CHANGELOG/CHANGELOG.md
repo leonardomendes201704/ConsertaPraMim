@@ -12,6 +12,12 @@
 
 ## Released
 
+- [2026-03-16] [CPMFULL-054][ST-108] Reserva do caso e conexao direta entre cliente e prestador
+- Tipo: feat
+- Resumo: o `ConsertaPraMim.Web.CpmFull` passou a orquestrar a conexao direta apos o aceite vencedor do prestador, liberando os dados do cliente apenas ao reservante, avisando as duas pontas da jornada e enriquecendo o evento oficial do Google Calendar com o prestador reservado. A pagina publica da oportunidade agora mostra telefone/e-mail do cliente somente depois da reserva valida e somente para o prestador vencedor.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Journey/IJourneyProviderConnectionService.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Journey/IJourneyProviderOpportunityService.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Journey/JourneyProviderConnectionService.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Journey/JourneyProviderOpportunityModels.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Journey/JourneyProviderOpportunityService.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Controllers/JourneyProviderOpportunityController.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/ViewModels/JourneyProviderOpportunityPageViewModel.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Views/JourneyProviderOpportunity/Respond.cshtml`, `Backend/src/ConsertaPraMim.Web.CpmFull/Program.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Integrations/Journey/JourneyProviderConnectionServiceTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Integrations/Journey/JourneyProviderOpportunityServiceTests.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/EPIC_JORNADA_AUTONOMA_SERVICO_CPM.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-108-reserva-caso-conexao-direta-cliente-prestador.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: medio
+
 - [2026-03-16] [CPMFULL-053][ST-107] Notificacao confiavel para prestadores com links assinados
 - Tipo: feat
 - Resumo: o `ConsertaPraMim.Web.CpmFull` passou a notificar prestadores elegiveis por e-mail com CTAs assinados de aceite e recusa, pagina publica segura de confirmacao, rastreio de abertura/clique e snapshot de telemetria persistido por alvo dentro do disparo em ondas. O aceite oficial agora acontece via link seguro e o sistema deixa de depender de parsing de texto livre para reservar o caso.

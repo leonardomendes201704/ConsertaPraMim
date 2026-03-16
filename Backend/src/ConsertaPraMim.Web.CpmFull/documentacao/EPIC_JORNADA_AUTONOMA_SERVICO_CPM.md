@@ -618,7 +618,7 @@ Como operacao, queremos que o primeiro prestador valido que aceitar reserve o ca
 
 ### Status
 
-- Planejada.
+- Concluida localmente.
 
 ### Criterios de aceite
 
@@ -634,6 +634,15 @@ Como operacao, queremos que o primeiro prestador valido que aceitar reserve o ca
 - `TASK-08.03` Liberar telefone/WhatsApp autorizado do cliente somente apos reserva valida.
 - `TASK-08.04` Encerrar ondas pendentes e marcar alvos restantes como expirados/dispensados.
 - `TASK-08.05` Atualizar Google Calendar e historico operacional com prestador reservado.
+
+### Entrega implementada
+
+- O `JourneyProviderOpportunityService` passou a confirmar o aceite de forma assincrona e, apos a reserva valida, aciona a nova orquestracao de conexao direta.
+- O `JourneyProviderConnectionService` foi criado para liberar o contato do cliente apenas ao prestador vencedor, atualizar o evento do Google Calendar e registrar historico operacional da conexao.
+- O cliente passa a ser avisado preferencialmente por Telegram, usando o `TelegramBridgeDeliveryClient`; quando nao houver `TelegramChatId`, o fallback operacional e e-mail.
+- O prestador vencedor recebe e-mail de confirmacao com nome do cliente, telefone/WhatsApp, e-mail, endereco validado e janela confirmada.
+- A pagina publica da oportunidade passou a exibir os dados liberados do cliente somente quando o `ProviderId` do token corresponde ao `ReservedProviderId` persistido na jornada.
+- O card do Kanban continua avancando automaticamente para `Prestador conectado`, com agenda enriquecida e alvos restantes ja dispensados pela reserva atomica.
 
 ## US-09 / ST-109 - Conclusao do servico e avaliacao bilateral
 

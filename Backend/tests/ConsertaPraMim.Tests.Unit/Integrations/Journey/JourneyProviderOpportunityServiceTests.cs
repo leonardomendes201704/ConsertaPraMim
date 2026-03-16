@@ -9,7 +9,7 @@ namespace ConsertaPraMim.Tests.Unit.Integrations.Journey;
 public sealed class JourneyProviderOpportunityServiceTests
 {
     [Fact(DisplayName = "Journey Provider Opportunity | Deve confirmar aceite e reservar alvo")]
-    public void ConfirmAction_DeveConfirmarAceiteEReservarAlvo()
+    public async Task ConfirmAction_DeveConfirmarAceiteEReservarAlvo()
     {
         var nowUtc = new DateTime(2026, 3, 21, 13, 0, 0, DateTimeKind.Utc);
         var providerId = Guid.Parse("33333333-3333-3333-3333-333333333333");
@@ -24,6 +24,7 @@ public sealed class JourneyProviderOpportunityServiceTests
         var kanbanService = new Mock<IAdminKanbanService>(MockBehavior.Strict);
         var linkService = new Mock<IJourneyProviderDispatchLinkService>(MockBehavior.Strict);
         var dispatchService = new Mock<IJourneyProviderDispatchService>(MockBehavior.Strict);
+        var connectionService = new Mock<IJourneyProviderConnectionService>(MockBehavior.Strict);
 
         linkService
             .Setup(service => service.ValidateToken("token-valido", JourneyProviderDispatchLinkPurposes.ResponsePage, nowUtc))
@@ -71,24 +72,41 @@ public sealed class JourneyProviderOpportunityServiceTests
                 ReservedProviderName = "Prestador Teste"
             });
         kanbanService
-            .Setup(service => service.GetLeadDetails(601))
-            .Returns(BuildLeadDetails(601, 9601, providerId, targetKey, AdminKanbanJourneyDispatchTargetStatuses.Sent));
+            .SetupSequence(service => service.GetLeadDetails(601))
+            .Returns(BuildLeadDetails(601, 9601, providerId, targetKey, AdminKanbanJourneyDispatchTargetStatuses.Sent))
+            .Returns(BuildLeadDetails(601, 9601, providerId, targetKey, AdminKanbanJourneyDispatchTargetStatuses.Accepted, reservedProviderId: providerId));
+        connectionService
+            .Setup(service => service.ConnectAsync(It.Is<JourneyProviderConnectionRequest>(request =>
+                request.Lead.Id == 601 &&
+                request.Target.ProviderId == providerId &&
+                request.Target.TargetKey == targetKey), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JourneyProviderConnectionResult
+            {
+                Success = true,
+                CalendarUpdated = true,
+                ClientNotified = true,
+                ProviderNotified = true,
+                Message = "Conexao direta liberada para cliente e prestador."
+            });
 
-        var sut = CreateSut(kanbanService.Object, linkService.Object, dispatchService.Object);
+        var sut = CreateSut(kanbanService.Object, linkService.Object, dispatchService.Object, connectionService.Object);
 
-        var result = sut.ConfirmAction("token-valido", JourneyProviderOpportunityActions.Accept, nowUtc);
+        var result = await sut.ConfirmActionAsync("token-valido", JourneyProviderOpportunityActions.Accept, nowUtc);
 
         Assert.True(result.Success);
         Assert.Equal(JourneyProviderOpportunityActions.Accept, result.Action);
-        Assert.Contains("confirmado", result.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("conexao direta", result.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Equal("Aceite confirmado", result.Context.ResponseHeadline);
+        Assert.True(result.Context.ClientContactReleased);
+        Assert.Equal("13999990000", result.Context.ClientPhone);
         kanbanService.VerifyAll();
         linkService.VerifyAll();
         dispatchService.VerifyNoOtherCalls();
+        connectionService.VerifyAll();
     }
 
     [Fact(DisplayName = "Journey Provider Opportunity | Deve registrar recusa e acionar nova onda")]
-    public void ConfirmAction_DeveRegistrarRecusaEAcionarNovaOnda()
+    public async Task ConfirmAction_DeveRegistrarRecusaEAcionarNovaOnda()
     {
         var nowUtc = new DateTime(2026, 3, 21, 14, 0, 0, DateTimeKind.Utc);
         var providerId = Guid.Parse("44444444-4444-4444-4444-444444444444");
@@ -103,6 +121,7 @@ public sealed class JourneyProviderOpportunityServiceTests
         var kanbanService = new Mock<IAdminKanbanService>(MockBehavior.Strict);
         var linkService = new Mock<IJourneyProviderDispatchLinkService>(MockBehavior.Strict);
         var dispatchService = new Mock<IJourneyProviderDispatchService>(MockBehavior.Strict);
+        var connectionService = new Mock<IJourneyProviderConnectionService>(MockBehavior.Strict);
 
         linkService
             .Setup(service => service.ValidateToken("token-recusa", JourneyProviderDispatchLinkPurposes.ResponsePage, nowUtc))
@@ -149,9 +168,9 @@ public sealed class JourneyProviderOpportunityServiceTests
                 WavesQueuedCount = 1
             });
 
-        var sut = CreateSut(kanbanService.Object, linkService.Object, dispatchService.Object);
+        var sut = CreateSut(kanbanService.Object, linkService.Object, dispatchService.Object, connectionService.Object);
 
-        var result = sut.ConfirmAction("token-recusa", JourneyProviderOpportunityActions.Decline, nowUtc);
+        var result = await sut.ConfirmActionAsync("token-recusa", JourneyProviderOpportunityActions.Decline, nowUtc);
 
         Assert.True(result.Success);
         Assert.Equal(JourneyProviderOpportunityActions.Decline, result.Action);
@@ -159,6 +178,7 @@ public sealed class JourneyProviderOpportunityServiceTests
         kanbanService.VerifyAll();
         linkService.VerifyAll();
         dispatchService.VerifyAll();
+        connectionService.VerifyNoOtherCalls();
     }
 
     [Fact(DisplayName = "Journey Provider Opportunity | Deve rastrear abertura do e-mail")]
@@ -201,7 +221,11 @@ public sealed class JourneyProviderOpportunityServiceTests
                 TargetStatus = AdminKanbanJourneyDispatchTargetStatuses.Sent
             });
 
-        var sut = CreateSut(kanbanService.Object, linkService.Object, dispatchService.Object);
+        var sut = CreateSut(
+            kanbanService.Object,
+            linkService.Object,
+            dispatchService.Object,
+            Mock.Of<IJourneyProviderConnectionService>());
 
         var tracked = sut.TrackOpen("token-open", nowUtc);
 
@@ -214,12 +238,14 @@ public sealed class JourneyProviderOpportunityServiceTests
     private static JourneyProviderOpportunityService CreateSut(
         IAdminKanbanService kanbanService,
         IJourneyProviderDispatchLinkService linkService,
-        IJourneyProviderDispatchService dispatchService)
+        IJourneyProviderDispatchService dispatchService,
+        IJourneyProviderConnectionService connectionService)
     {
         return new JourneyProviderOpportunityService(
             kanbanService,
             linkService,
             dispatchService,
+            connectionService,
             Options.Create(new JourneyProviderNotificationOptions
             {
                 Enabled = true,
@@ -254,7 +280,8 @@ public sealed class JourneyProviderOpportunityServiceTests
         int journeyId,
         Guid providerId,
         string targetKey,
-        string targetStatus)
+        string targetStatus,
+        Guid? reservedProviderId = null)
     {
         return new AdminKanbanLeadDetailsRecord
         {
@@ -308,10 +335,14 @@ public sealed class JourneyProviderOpportunityServiceTests
                 },
                 Dispatch = new AdminKanbanJourneyDispatchRecord
                 {
-                    Status = AdminKanbanJourneyDispatchStatuses.WaitingAcceptance,
+                    Status = reservedProviderId.HasValue ? AdminKanbanJourneyDispatchStatuses.Reserved : AdminKanbanJourneyDispatchStatuses.WaitingAcceptance,
                     CurrentWaveNumber = 1,
                     TargetsCreatedCount = 1,
                     PendingTargetsCount = targetStatus == AdminKanbanJourneyDispatchTargetStatuses.Sent ? 1 : 0,
+                    ReservedProviderId = reservedProviderId,
+                    ReservedProviderName = reservedProviderId.HasValue ? "Prestador Teste" : string.Empty,
+                    ReservedProviderEmail = reservedProviderId.HasValue ? "prestador@teste.com" : string.Empty,
+                    ReservedProviderPhone = reservedProviderId.HasValue ? "13999998888" : string.Empty,
                     Targets =
                     [
                         new AdminKanbanJourneyDispatchTargetRecord

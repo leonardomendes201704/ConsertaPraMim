@@ -33,9 +33,9 @@ public sealed class JourneyProviderOpportunityController : Controller
     }
 
     [HttpPost("responder")]
-    public IActionResult Confirm([FromForm] string token, [FromForm(Name = "acao")] string action)
+    public async Task<IActionResult> Confirm([FromForm] string token, [FromForm(Name = "acao")] string action, CancellationToken cancellationToken)
     {
-        var result = _opportunityService.ConfirmAction(token, action, DateTime.UtcNow);
+        var result = await _opportunityService.ConfirmActionAsync(token, action, DateTime.UtcNow, cancellationToken);
         var model = BuildViewModel(result.Context) with
         {
             ActionCompleted = true,
@@ -73,6 +73,12 @@ public sealed class JourneyProviderOpportunityController : Controller
             ScheduledWindowLabel = context.ScheduledWindowLabel,
             DispatchStatusLabel = context.DispatchStatusLabel,
             TargetStatusLabel = context.TargetStatusLabel,
+            ClientContactReleased = context.ClientContactReleased,
+            ClientDisplayName = context.ClientDisplayName,
+            ClientPhone = context.ClientPhone,
+            ClientEmail = context.ClientEmail,
+            ReservedProviderPhone = context.ReservedProviderPhone,
+            ReservedProviderEmail = context.ReservedProviderEmail,
             ResponseHeadline = context.ResponseHeadline,
             ResponseDescription = context.ResponseDescription,
             PortalUrl = context.PortalUrl,

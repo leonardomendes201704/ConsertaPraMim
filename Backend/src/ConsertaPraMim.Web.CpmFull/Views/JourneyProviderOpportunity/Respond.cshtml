@@ -195,6 +195,24 @@
             </div>
         </section>
 
+        @if (Model.ClientContactReleased)
+        {
+            <section class="cpm-opportunity-grid" aria-label="Contato liberado do cliente">
+                <div class="cpm-opportunity-panel">
+                    <strong>Cliente liberado</strong>
+                    <span>@(string.IsNullOrWhiteSpace(Model.ClientDisplayName) ? "-" : Model.ClientDisplayName)</span>
+                </div>
+                <div class="cpm-opportunity-panel">
+                    <strong>Telefone / WhatsApp</strong>
+                    <span>@(string.IsNullOrWhiteSpace(Model.ClientPhone) ? "-" : Model.ClientPhone)</span>
+                </div>
+                <div class="cpm-opportunity-panel">
+                    <strong>E-mail do cliente</strong>
+                    <span>@(string.IsNullOrWhiteSpace(Model.ClientEmail) ? "-" : Model.ClientEmail)</span>
+                </div>
+            </section>
+        }
+
         @if (Model.CanRespond && !Model.ActionCompleted)
         {
             <form asp-controller="JourneyProviderOpportunity" asp-action="Confirm" method="post" class="cpm-opportunity-actions">
