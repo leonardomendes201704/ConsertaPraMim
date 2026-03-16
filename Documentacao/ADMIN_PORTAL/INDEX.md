@@ -45,7 +45,6 @@
 
 ### Backlog
 
-- [ST-106 - Motor de disparo em ondas para prestadores](STORIES/BACKLOG/ST-106-motor-disparo-ondas-prestadores.md)
 - [ST-107 - Notificacao confiavel para prestadores com links assinados](STORIES/BACKLOG/ST-107-notificacao-confiavel-prestadores-links-assinados.md)
 - [ST-108 - Reserva do caso e conexao direta entre cliente e prestador](STORIES/BACKLOG/ST-108-reserva-caso-conexao-direta-cliente-prestador.md)
 - [ST-109 - Conclusao do servico e avaliacao bilateral](STORIES/BACKLOG/ST-109-conclusao-servico-avaliacao-bilateral.md)
@@ -79,6 +78,7 @@
 
 ### Done
 
+- [ST-106 - Motor de disparo em ondas para prestadores](STORIES/DONE/ST-106-motor-disparo-ondas-prestadores.md)
 - [ST-105 - Matching geografico e elegibilidade de prestadores](STORIES/DONE/ST-105-matching-geografico-elegibilidade-prestadores.md)
 - [ST-104 - Kanban autonomo e timers operacionais da jornada](STORIES/DONE/ST-104-kanban-autonomo-timers-operacionais.md)
 - [ST-103 - Autoagendamento com Google Calendar](STORIES/DONE/ST-103-autoagendamento-google-calendar.md)

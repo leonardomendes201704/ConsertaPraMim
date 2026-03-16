@@ -199,11 +199,13 @@ public static class AdminKanbanJourneyAutomationOrigins
     public const string StateMachine = "state_machine";
     public const string Timer = "timer";
     public const string MatchingEngine = "matching_engine";
+    public const string DispatchEngine = "dispatch_engine";
 
     public static string Normalize(string? value) => (value ?? string.Empty).Trim().ToLowerInvariant() switch
     {
         Timer => Timer,
         MatchingEngine => MatchingEngine,
+        DispatchEngine => DispatchEngine,
         _ => StateMachine
     };
 
@@ -211,6 +213,7 @@ public static class AdminKanbanJourneyAutomationOrigins
     {
         Timer => "Timer operacional",
         MatchingEngine => "Motor de matching",
+        DispatchEngine => "Motor de disparo",
         _ => "Maquina de estados"
     };
 }
@@ -326,6 +329,111 @@ public static class AdminKanbanJourneyMatchingStatuses
         NoCoverage => "Sem cobertura",
         ReadyForDispatch => "Pronto para disparo",
         _ => "Nao iniciado"
+    };
+}
+
+public static class AdminKanbanJourneyDispatchStatuses
+{
+    public const string NotStarted = "nao_iniciado";
+    public const string WaveQueued = "onda_enfileirada";
+    public const string WaitingAcceptance = "aguardando_aceite";
+    public const string Reserved = "reservado";
+    public const string Exhausted = "esgotado";
+    public const string Cancelled = "cancelado";
+
+    public static string Normalize(string? value) => (value ?? string.Empty).Trim().ToLowerInvariant() switch
+    {
+        WaveQueued => WaveQueued,
+        WaitingAcceptance => WaitingAcceptance,
+        Reserved => Reserved,
+        Exhausted => Exhausted,
+        Cancelled => Cancelled,
+        _ => NotStarted
+    };
+
+    public static string GetLabel(string? value) => Normalize(value) switch
+    {
+        WaveQueued => "Onda enfileirada",
+        WaitingAcceptance => "Aguardando aceite",
+        Reserved => "Caso reservado",
+        Exhausted => "Ondas esgotadas",
+        Cancelled => "Cancelado",
+        _ => "Nao iniciado"
+    };
+}
+
+public static class AdminKanbanJourneyDispatchWaveStatuses
+{
+    public const string Queued = "enfileirada";
+    public const string Active = "ativa";
+    public const string Accepted = "aceita";
+    public const string Expired = "expirada";
+    public const string Stopped = "interrompida";
+
+    public static string Normalize(string? value) => (value ?? string.Empty).Trim().ToLowerInvariant() switch
+    {
+        Active => Active,
+        Accepted => Accepted,
+        Expired => Expired,
+        Stopped => Stopped,
+        _ => Queued
+    };
+
+    public static string GetLabel(string? value) => Normalize(value) switch
+    {
+        Active => "Ativa",
+        Accepted => "Aceita",
+        Expired => "Expirada",
+        Stopped => "Interrompida",
+        _ => "Enfileirada"
+    };
+}
+
+public static class AdminKanbanJourneyDispatchTargetStatuses
+{
+    public const string Queued = "enfileirado";
+    public const string Sent = "disparado";
+    public const string Accepted = "aceito";
+    public const string Declined = "recusado";
+    public const string Expired = "expirado";
+    public const string Dispensed = "dispensado";
+
+    public static string Normalize(string? value) => (value ?? string.Empty).Trim().ToLowerInvariant() switch
+    {
+        Sent => Sent,
+        Accepted => Accepted,
+        Declined => Declined,
+        Expired => Expired,
+        Dispensed => Dispensed,
+        _ => Queued
+    };
+
+    public static string GetLabel(string? value) => Normalize(value) switch
+    {
+        Sent => "Disparado",
+        Accepted => "Aceito",
+        Declined => "Recusado",
+        Expired => "Expirado",
+        Dispensed => "Dispensado",
+        _ => "Enfileirado"
+    };
+}
+
+public static class AdminKanbanJourneyDispatchQueueStatuses
+{
+    public const string Pending = "pending";
+    public const string Processing = "processing";
+    public const string Processed = "processed";
+    public const string Retrying = "retrying";
+    public const string DeadLetter = "dead_letter";
+
+    public static string Normalize(string? value) => (value ?? string.Empty).Trim().ToLowerInvariant() switch
+    {
+        Processing => Processing,
+        Processed => Processed,
+        Retrying => Retrying,
+        DeadLetter => DeadLetter,
+        _ => Pending
     };
 }
 
@@ -736,6 +844,7 @@ public sealed class AdminKanbanLeadJourneyRecord
     public AdminKanbanJourneyQualificationRecord Qualification { get; init; } = new();
     public AdminKanbanJourneySchedulingRecord Scheduling { get; init; } = new();
     public AdminKanbanJourneyMatchingRecord Matching { get; init; } = new();
+    public AdminKanbanJourneyDispatchRecord Dispatch { get; init; } = new();
     public AdminKanbanJourneyStageAutomationRecord StageAutomation { get; init; } = new();
 }
 
@@ -788,6 +897,61 @@ public sealed class AdminKanbanJourneyMatchingRecord
     public int EligibleProvidersCount { get; init; }
     public DateTime? LastRunAtUtc { get; init; }
     public IReadOnlyList<AdminKanbanJourneyProviderMatchRecord> Candidates { get; init; } = [];
+}
+
+public sealed record class AdminKanbanJourneyDispatchRecord
+{
+    public string Status { get; init; } = string.Empty;
+    public string Summary { get; init; } = string.Empty;
+    public string Strategy { get; init; } = string.Empty;
+    public int EligibleProvidersCount { get; init; }
+    public int TargetsCreatedCount { get; init; }
+    public int CurrentWaveNumber { get; init; }
+    public int MaxWaveNumber { get; init; }
+    public int SentTargetsCount { get; init; }
+    public int AcceptedTargetsCount { get; init; }
+    public int DeclinedTargetsCount { get; init; }
+    public int ExpiredTargetsCount { get; init; }
+    public int PendingTargetsCount { get; init; }
+    public DateTime? LastWaveQueuedAtUtc { get; init; }
+    public DateTime? WaitingAcceptanceUntilUtc { get; init; }
+    public Guid? ReservedProviderId { get; init; }
+    public string ReservedProviderName { get; init; } = string.Empty;
+    public string ReservedProviderEmail { get; init; } = string.Empty;
+    public string ReservedProviderPhone { get; init; } = string.Empty;
+    public DateTime? ReservedAtUtc { get; init; }
+    public IReadOnlyList<AdminKanbanJourneyDispatchWaveRecord> Waves { get; init; } = [];
+    public IReadOnlyList<AdminKanbanJourneyDispatchTargetRecord> Targets { get; init; } = [];
+}
+
+public sealed record class AdminKanbanJourneyDispatchWaveRecord
+{
+    public int WaveNumber { get; init; }
+    public string Status { get; init; } = string.Empty;
+    public int EligibleSnapshotCount { get; init; }
+    public int TargetCount { get; init; }
+    public DateTime CreatedAtUtc { get; init; }
+    public DateTime? ActivatedAtUtc { get; init; }
+    public DateTime? ExpiresAtUtc { get; init; }
+    public DateTime? CompletedAtUtc { get; init; }
+    public string Summary { get; init; } = string.Empty;
+}
+
+public sealed record class AdminKanbanJourneyDispatchTargetRecord
+{
+    public string TargetKey { get; init; } = string.Empty;
+    public Guid ProviderId { get; init; }
+    public string ProviderName { get; init; } = string.Empty;
+    public string ProviderEmail { get; init; } = string.Empty;
+    public string ProviderPhone { get; init; } = string.Empty;
+    public int RankPosition { get; init; }
+    public int WaveNumber { get; init; }
+    public string Status { get; init; } = string.Empty;
+    public DateTime CreatedAtUtc { get; init; }
+    public DateTime? SentAtUtc { get; init; }
+    public DateTime? RespondedAtUtc { get; init; }
+    public DateTime? ExpiresAtUtc { get; init; }
+    public string Note { get; init; } = string.Empty;
 }
 
 public sealed class AdminKanbanJourneyProviderMatchRecord
@@ -886,6 +1050,44 @@ public sealed record class AdminKanbanJourneyMatchingUpdateResult
     public AdminKanbanJourneyMatchingRecord Matching { get; init; } = new();
 }
 
+public sealed class AdminKanbanJourneyDispatchUpdateRequest
+{
+    public string Status { get; init; } = string.Empty;
+    public string Summary { get; init; } = string.Empty;
+    public string Strategy { get; init; } = string.Empty;
+    public int EligibleProvidersCount { get; init; }
+    public int TargetsCreatedCount { get; init; }
+    public int CurrentWaveNumber { get; init; }
+    public int MaxWaveNumber { get; init; }
+    public int SentTargetsCount { get; init; }
+    public int AcceptedTargetsCount { get; init; }
+    public int DeclinedTargetsCount { get; init; }
+    public int ExpiredTargetsCount { get; init; }
+    public int PendingTargetsCount { get; init; }
+    public DateTime? LastWaveQueuedAtUtc { get; init; }
+    public DateTime? WaitingAcceptanceUntilUtc { get; init; }
+    public Guid? ReservedProviderId { get; init; }
+    public string ReservedProviderName { get; init; } = string.Empty;
+    public string ReservedProviderEmail { get; init; } = string.Empty;
+    public string ReservedProviderPhone { get; init; } = string.Empty;
+    public DateTime? ReservedAtUtc { get; init; }
+    public string CurrentState { get; init; } = string.Empty;
+    public string HistoryEventType { get; init; } = string.Empty;
+    public string HistoryDescription { get; init; } = string.Empty;
+    public string SourceChannel { get; init; } = string.Empty;
+    public string MetadataJson { get; init; } = string.Empty;
+    public IReadOnlyList<AdminKanbanJourneyDispatchWaveRecord> Waves { get; init; } = [];
+    public IReadOnlyList<AdminKanbanJourneyDispatchTargetRecord> Targets { get; init; } = [];
+}
+
+public sealed record class AdminKanbanJourneyDispatchUpdateResult
+{
+    public int LeadId { get; init; }
+    public int JourneyId { get; init; }
+    public string CurrentState { get; init; } = string.Empty;
+    public AdminKanbanJourneyDispatchRecord Dispatch { get; init; } = new();
+}
+
 public sealed class AdminKanbanJourneyProviderProfileRecord
 {
     public Guid ProviderId { get; init; }
@@ -936,6 +1138,10 @@ public sealed record class AdminKanbanJourneyStageAutomationCandidateRecord
     public DateTime? LastIntakeAtUtc { get; init; }
     public DateTime? CurrentStateEnteredAtUtc { get; init; }
     public DateTime? SchedulingSuggestedAtUtc { get; init; }
+    public string DispatchStatus { get; init; } = string.Empty;
+    public int DispatchCurrentWaveNumber { get; init; }
+    public DateTime? DispatchWaitingAcceptanceUntilUtc { get; init; }
+    public Guid? DispatchReservedProviderId { get; init; }
     public string ActiveTimerCode { get; init; } = string.Empty;
     public DateTime? ActiveTimerDueAtUtc { get; init; }
     public string LastAutomationReason { get; init; } = string.Empty;
@@ -967,6 +1173,74 @@ public sealed record class AdminKanbanJourneyStageAutomationUpdateResult
     public string ToStageName { get; init; } = string.Empty;
     public string CurrentState { get; init; } = string.Empty;
     public bool StageChanged { get; init; }
+}
+
+public sealed class AdminKanbanJourneyDispatchQueueEnqueueRequest
+{
+    public int LeadId { get; init; }
+    public int JourneyId { get; init; }
+    public int WaveNumber { get; init; }
+    public Guid ProviderId { get; init; }
+    public string TargetKey { get; init; } = string.Empty;
+    public string PayloadJson { get; init; } = string.Empty;
+    public DateTime NextAttemptAt { get; init; }
+    public int MaxAttempts { get; init; } = 3;
+    public string LastError { get; init; } = string.Empty;
+}
+
+public sealed record class AdminKanbanJourneyDispatchQueueItemRecord
+{
+    public int Id { get; init; }
+    public int LeadId { get; init; }
+    public int JourneyId { get; init; }
+    public int WaveNumber { get; init; }
+    public Guid ProviderId { get; init; }
+    public string TargetKey { get; init; } = string.Empty;
+    public string PayloadJson { get; init; } = string.Empty;
+    public string Status { get; init; } = string.Empty;
+    public int AttemptCount { get; init; }
+    public int MaxAttempts { get; init; }
+    public DateTime NextAttemptAt { get; init; }
+    public DateTime? LastAttemptAt { get; init; }
+    public string LastError { get; init; } = string.Empty;
+    public string WorkerInstance { get; init; } = string.Empty;
+    public DateTime CreatedAt { get; init; }
+    public DateTime? UpdatedAt { get; init; }
+    public DateTime? ProcessedAt { get; init; }
+    public DateTime? DeadLetterAt { get; init; }
+    public bool IsDuplicate { get; init; }
+}
+
+public sealed class AdminKanbanJourneyDispatchQueueFinalizeRequest
+{
+    public int QueueItemId { get; init; }
+    public string FinalStatus { get; init; } = string.Empty;
+    public DateTime FinalizedAt { get; init; }
+    public DateTime? NextAttemptAt { get; init; }
+    public string LastError { get; init; } = string.Empty;
+    public bool ClearLastError { get; init; }
+    public string WorkerInstance { get; init; } = string.Empty;
+}
+
+public sealed class AdminKanbanJourneyDispatchReservationRequest
+{
+    public int LeadId { get; init; }
+    public Guid ProviderId { get; init; }
+    public string TargetKey { get; init; } = string.Empty;
+    public DateTime ReservedAtUtc { get; init; }
+    public string SourceChannel { get; init; } = string.Empty;
+    public string MetadataJson { get; init; } = string.Empty;
+}
+
+public sealed record class AdminKanbanJourneyDispatchReservationResult
+{
+    public bool Succeeded { get; init; }
+    public bool AlreadyReserved { get; init; }
+    public int LeadId { get; init; }
+    public int JourneyId { get; init; }
+    public string CurrentState { get; init; } = string.Empty;
+    public Guid? ReservedProviderId { get; init; }
+    public string ReservedProviderName { get; init; } = string.Empty;
 }
 
 public sealed class AdminKanbanBoardOrderUpdateRequest

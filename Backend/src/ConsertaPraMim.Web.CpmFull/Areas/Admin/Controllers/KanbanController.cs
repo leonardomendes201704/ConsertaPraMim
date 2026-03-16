@@ -215,6 +215,62 @@ public sealed class KanbanController : Controller
                         blockReasonLabel = item.BlockReasonLabel,
                         summary = item.Summary
                     })
+                },
+                dispatch = new
+                {
+                    status = lead.Journey.Dispatch.Status,
+                    statusLabel = string.IsNullOrWhiteSpace(lead.Journey.Dispatch.Status)
+                        ? "-"
+                        : AdminKanbanJourneyDispatchStatuses.GetLabel(lead.Journey.Dispatch.Status),
+                    summary = lead.Journey.Dispatch.Summary,
+                    strategy = lead.Journey.Dispatch.Strategy,
+                    strategyLabel = FormatJourneyDispatchStrategyLabel(lead.Journey.Dispatch.Strategy),
+                    eligibleProvidersCount = lead.Journey.Dispatch.EligibleProvidersCount,
+                    targetsCreatedCount = lead.Journey.Dispatch.TargetsCreatedCount,
+                    currentWaveNumber = lead.Journey.Dispatch.CurrentWaveNumber,
+                    maxWaveNumber = lead.Journey.Dispatch.MaxWaveNumber,
+                    sentTargetsCount = lead.Journey.Dispatch.SentTargetsCount,
+                    acceptedTargetsCount = lead.Journey.Dispatch.AcceptedTargetsCount,
+                    declinedTargetsCount = lead.Journey.Dispatch.DeclinedTargetsCount,
+                    expiredTargetsCount = lead.Journey.Dispatch.ExpiredTargetsCount,
+                    pendingTargetsCount = lead.Journey.Dispatch.PendingTargetsCount,
+                    lastWaveQueuedAt = lead.Journey.Dispatch.LastWaveQueuedAtUtc?.ToString("dd/MM/yyyy HH:mm") ?? "-",
+                    waitingAcceptanceUntil = lead.Journey.Dispatch.WaitingAcceptanceUntilUtc?.ToString("dd/MM/yyyy HH:mm") ?? "-",
+                    reservedProviderId = lead.Journey.Dispatch.ReservedProviderId?.ToString() ?? string.Empty,
+                    reservedProviderName = lead.Journey.Dispatch.ReservedProviderName,
+                    reservedProviderEmail = lead.Journey.Dispatch.ReservedProviderEmail,
+                    reservedProviderPhone = lead.Journey.Dispatch.ReservedProviderPhone,
+                    reservedAt = lead.Journey.Dispatch.ReservedAtUtc?.ToString("dd/MM/yyyy HH:mm") ?? "-",
+                    waves = lead.Journey.Dispatch.Waves.Select(item => new
+                    {
+                        waveNumber = item.WaveNumber,
+                        status = item.Status,
+                        statusLabel = AdminKanbanJourneyDispatchWaveStatuses.GetLabel(item.Status),
+                        eligibleSnapshotCount = item.EligibleSnapshotCount,
+                        targetCount = item.TargetCount,
+                        createdAt = item.CreatedAtUtc.ToString("dd/MM/yyyy HH:mm"),
+                        activatedAt = item.ActivatedAtUtc?.ToString("dd/MM/yyyy HH:mm") ?? "-",
+                        expiresAt = item.ExpiresAtUtc?.ToString("dd/MM/yyyy HH:mm") ?? "-",
+                        completedAt = item.CompletedAtUtc?.ToString("dd/MM/yyyy HH:mm") ?? "-",
+                        summary = item.Summary
+                    }),
+                    targets = lead.Journey.Dispatch.Targets.Select(item => new
+                    {
+                        targetKey = item.TargetKey,
+                        providerId = item.ProviderId.ToString(),
+                        providerName = item.ProviderName,
+                        providerEmail = item.ProviderEmail,
+                        providerPhone = item.ProviderPhone,
+                        rankPosition = item.RankPosition,
+                        waveNumber = item.WaveNumber,
+                        status = item.Status,
+                        statusLabel = AdminKanbanJourneyDispatchTargetStatuses.GetLabel(item.Status),
+                        createdAt = item.CreatedAtUtc.ToString("dd/MM/yyyy HH:mm"),
+                        sentAt = item.SentAtUtc?.ToString("dd/MM/yyyy HH:mm") ?? "-",
+                        respondedAt = item.RespondedAtUtc?.ToString("dd/MM/yyyy HH:mm") ?? "-",
+                        expiresAt = item.ExpiresAtUtc?.ToString("dd/MM/yyyy HH:mm") ?? "-",
+                        note = item.Note
+                    })
                 }
             },
             telegram = new
@@ -1130,6 +1186,11 @@ public sealed class KanbanController : Controller
             "jornada_matching_snapshot" => "Snapshot de matching atualizado",
             "jornada_matching_concluido" => "Matching geografico concluido",
             "jornada_matching_sem_cobertura" => "Sem cobertura para matching",
+            "jornada_disparo_onda_criada" => "Onda de disparo preparada",
+            "jornada_disparo_onda_enviada" => "Onda de disparo enviada",
+            "jornada_disparo_onda_expirada" => "Onda de disparo expirada",
+            "jornada_disparo_esgotado" => "Ondas de disparo esgotadas",
+            "jornada_disparo_reservado" => "Caso reservado por prestador",
             "telegram_lead_criado" => "Lead criado via bot Telegram",
             "telegram_lead_atualizado" => "Lead atualizado via bot Telegram",
             "telegram_entrega_enfileirada" => "Entrega Telegram enfileirada",
@@ -1163,6 +1224,13 @@ public sealed class KanbanController : Controller
             TelegramHandoffPolicy.ActiveStatus => "Handoff humano ativo",
             TelegramHandoffPolicy.BotResumedStatus => "Bot retomado",
             _ => "Bot em atendimento automatico"
+        };
+
+    private static string FormatJourneyDispatchStrategyLabel(string? strategy) =>
+        (strategy ?? string.Empty).Trim().ToLowerInvariant() switch
+        {
+            "top_ranked_waves" => "Ondas por ranking",
+            _ => "Estrategia padrao"
         };
 
     private bool TryValidateTelegramHandoffOperation(AdminKanbanLeadDetailsRecord lead, out string errorMessage)

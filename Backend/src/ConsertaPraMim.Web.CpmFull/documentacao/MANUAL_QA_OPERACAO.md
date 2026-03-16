@@ -307,6 +307,74 @@ Pre-condicoes operacionais:
 - Prestador esperado ficou indisponivel: revisar `ProviderAvailabilityRules`, horario local de negocio e conflitos em `ServiceAppointments`.
 - Modal sem lista de candidatos: validar se `MatchingCandidatesJson` foi persistido em `dbo.cpm_web_journey_executions`.
 
+### Disparo em ondas para prestadores
+
+#### Objetivo desta etapa
+
+- Preparar e enviar oportunidades para prestadores elegiveis em ondas controladas.
+- Evitar spam na base de prestadores e parar o disparo assim que houver reserva valida do caso.
+- Deixar auditavel no Kanban quais ondas foram abertas, quem recebeu, quem expirou e qual prestador ficou reservado.
+
+#### Escopo entregue nesta fatia
+
+- Foi criado o `JourneyProviderDispatchService`, que trabalha sobre jornadas do board `clientes` em `Em matching` e `Aguardando aceite`.
+- Foi criado o `JourneyProviderDispatchWorker`, que executa periodicamente o motor de disparo conforme a configuracao `JourneyProviderDispatch`.
+- A jornada passou a persistir `DispatchStatus`, `DispatchSummary`, `DispatchStrategy`, `DispatchCurrentWaveNumber`, `DispatchMaxWaveNumber`, contagens de alvos e o snapshot JSON completo do disparo.
+- Foi criada a fila `dbo.cpm_web_journey_dispatch_queue`, com idempotencia por `TargetKey` e estados `pending`, `processing`, `retrying`, `processed` e `dead_letter`.
+- O modal do lead agora mostra a secao `Disparo em ondas`, com estrategia, resumo, ondas registradas, alvos enviados e prestador reservado.
+- A reserva do caso passou a usar `TryReserveJourneyDispatchTarget`, com lock pessimista para impedir dois aceites validos no mesmo lead.
+
+#### Configuracao minima
+
+No `ConsertaPraMim.Web.CpmFull`, configurar a secao `JourneyProviderDispatch`:
+
+- `Enabled`
+- `WorkerEnabled`
+- `WorkerIntervalSeconds`
+- `WorkerBatchSize`
+- `QueueBatchSize`
+- `WaveSize`
+- `MaxWaves`
+- `AcceptanceTimeoutMinutes`
+- `QueueMaxAttempts`
+- `DispatchStrategy`
+
+Pre-condicoes operacionais:
+
+- A jornada precisa estar em `Em matching` com `MatchingStatus = Elegiveis encontrados` ou `Pronto para disparo`.
+- O snapshot de matching precisa ter candidatos elegiveis persistidos.
+- O worker `JourneyProviderDispatchWorker` precisa estar ativo no runtime do `ConsertaPraMim.Web.CpmFull`.
+
+#### Comportamento esperado
+
+- A primeira onda e preparada quando a jornada entra em `Em matching` com prestadores elegiveis.
+- Cada onda respeita `WaveSize`, `MaxWaves` e `AcceptanceTimeoutMinutes`.
+- O card avanca para `Disparo para prestadores` quando a onda e preparada e para `Aguardando aceite` quando o item da fila e processado.
+- Se uma onda expirar sem aceite, os alvos pendentes viram `Expirado` e o sistema tenta a proxima onda elegivel.
+- Se nao houver mais prestadores elegiveis ou o limite de ondas for atingido, a jornada vai para `Sem match`.
+- Quando um prestador reserva o caso, o disparo para imediatamente, os demais alvos pendentes viram `Dispensado` e o card vai para `Prestador conectado`.
+
+#### Checklist de QA
+
+1. Configurar `JourneyProviderDispatch:Enabled=true` e `JourneyProviderDispatch:WorkerEnabled=true` no CPM Full.
+2. Garantir uma jornada de cliente em `Em matching` com snapshot de matching contendo ao menos dois prestadores elegiveis.
+3. Aguardar a execucao do worker ou disparar a execucao manualmente em ambiente de teste.
+4. Abrir o lead em `/admin/funil/clientes` e validar a nova secao `Disparo em ondas`.
+5. Confirmar `Status do disparo = Onda enfileirada` logo apos a preparacao da primeira onda.
+6. Confirmar que `Ondas registradas` mostra a onda `1` com quantidade de alvos coerente com `WaveSize`.
+7. Aguardar o processamento da fila e validar `Status do disparo = Aguardando aceite`, `Alvos disparados` e `Aceite ate`.
+8. Simular expiracao da janela sem aceite e validar criacao da proxima onda, com a anterior marcada como `Expirada`.
+9. Simular reserva valida via `TryReserveJourneyDispatchTarget` e validar o card em `Prestador conectado`, com prestador reservado exibido no modal.
+10. Confirmar em banco que `dbo.cpm_web_journey_executions` persiste o snapshot do disparo e que `dbo.cpm_web_journey_dispatch_queue` registra o lifecycle dos alvos.
+
+#### Troubleshooting
+
+- A onda nao e preparada: validar `JourneyProviderDispatch:Enabled`, `WorkerEnabled`, `WaveSize`, `MaxWaves` e se a jornada esta em `Em matching`.
+- O item fica preso na fila: revisar `dbo.cpm_web_journey_dispatch_queue`, `AttemptCount`, `NextAttemptAt`, `LastError` e logs do `JourneyProviderDispatchWorker`.
+- O lead nao muda para `Aguardando aceite`: revisar se a fila foi adquirida, se o alvo ainda estava `Enfileirado` e se o stage `Aguardando aceite` existe no board `clientes`.
+- A proxima onda nao abre apos expiracao: revisar `DispatchWaitingAcceptanceUntilUtc`, `CurrentWaveNumber`, `MaxWaves` e se ainda existem candidatos elegiveis nao disparados.
+- Dois prestadores tentaram aceitar o mesmo caso: validar o resultado de `TryReserveJourneyDispatchTarget`; o primeiro aceite deve reservar o caso e os demais devem retornar `AlreadyReserved = true`.
+
 ## Automacao Telegram -> funis clientes/prestadores -> Chatwoot
 
 ### Objetivo desta etapa

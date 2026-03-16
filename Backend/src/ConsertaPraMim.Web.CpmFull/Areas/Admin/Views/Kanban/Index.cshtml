@@ -257,6 +257,25 @@
                     <div class="col-12"><strong>Resumo do matching:</strong> <div id="detailsJourneyMatchingSummary" class="text-secondary-emphasis"></div></div>
                     <div class="col-12"><strong>Candidatos ranqueados:</strong> <div id="detailsJourneyMatchingCandidates" class="text-secondary-emphasis"></div></div>
                     <div class="col-12"><hr class="my-1" /></div>
+                    <div class="col-12"><h6 class="fw-bold mb-0">Disparo em ondas</h6></div>
+                    <div class="col-12 col-md-6"><strong>Status do disparo:</strong> <span id="detailsJourneyDispatchStatus"></span></div>
+                    <div class="col-12 col-md-6"><strong>Estrategia:</strong> <span id="detailsJourneyDispatchStrategy"></span></div>
+                    <div class="col-12 col-md-6"><strong>Ultima onda preparada:</strong> <span id="detailsJourneyDispatchLastWaveQueuedAt"></span></div>
+                    <div class="col-12 col-md-6"><strong>Aceite ate:</strong> <span id="detailsJourneyDispatchWaitingAcceptanceUntil"></span></div>
+                    <div class="col-12 col-md-4"><strong>Onda atual:</strong> <span id="detailsJourneyDispatchCurrentWave"></span></div>
+                    <div class="col-12 col-md-4"><strong>Ondas maximas:</strong> <span id="detailsJourneyDispatchMaxWave"></span></div>
+                    <div class="col-12 col-md-4"><strong>Prestadores elegiveis:</strong> <span id="detailsJourneyDispatchEligibleProviders"></span></div>
+                    <div class="col-12 col-md-4"><strong>Alvos criados:</strong> <span id="detailsJourneyDispatchTargetsCreated"></span></div>
+                    <div class="col-12 col-md-4"><strong>Alvos disparados:</strong> <span id="detailsJourneyDispatchTargetsSent"></span></div>
+                    <div class="col-12 col-md-4"><strong>Alvos pendentes:</strong> <span id="detailsJourneyDispatchTargetsPending"></span></div>
+                    <div class="col-12 col-md-4"><strong>Alvos aceitos:</strong> <span id="detailsJourneyDispatchTargetsAccepted"></span></div>
+                    <div class="col-12 col-md-4"><strong>Alvos recusados:</strong> <span id="detailsJourneyDispatchTargetsDeclined"></span></div>
+                    <div class="col-12 col-md-4"><strong>Alvos expirados:</strong> <span id="detailsJourneyDispatchTargetsExpired"></span></div>
+                    <div class="col-12"><strong>Resumo do disparo:</strong> <div id="detailsJourneyDispatchSummary" class="text-secondary-emphasis"></div></div>
+                    <div class="col-12"><strong>Prestador reservado:</strong> <div id="detailsJourneyDispatchReservedProvider" class="text-secondary-emphasis"></div></div>
+                    <div class="col-12"><strong>Ondas registradas:</strong> <div id="detailsJourneyDispatchWaves" class="text-secondary-emphasis"></div></div>
+                    <div class="col-12"><strong>Alvos do disparo:</strong> <div id="detailsJourneyDispatchTargets" class="text-secondary-emphasis"></div></div>
+                    <div class="col-12"><hr class="my-1" /></div>
                     <div class="col-12"><h6 class="fw-bold mb-0">Vinculo Telegram</h6></div>
                     <div class="col-12 col-md-6"><strong>Origem automatizada:</strong> <span id="detailsTelegramOrigin"></span></div>
                     <div class="col-12 col-md-6"><strong>Ultima atualizacao do vinculo:</strong> <span id="detailsTelegramUpdatedAt"></span></div>
@@ -1389,6 +1408,7 @@
                 const qualification = journey.qualification || {};
                 const scheduling = journey.scheduling || {};
                 const matching = journey.matching || {};
+                const dispatch = journey.dispatch || {};
                 const telegram = lead.telegram || {};
                 const chatwoot = lead.chatwoot || {};
                 const conversationLink = document.getElementById("openLeadChatwootConversationBtn");
@@ -1442,6 +1462,63 @@
                         </div>
                     `
                     : "<div class='small text-secondary'>Nenhum candidato ranqueado ate o momento.</div>";
+                const dispatchReservedProvider = [
+                    dispatch.reservedProviderName,
+                    dispatch.reservedProviderEmail,
+                    dispatch.reservedProviderPhone,
+                    dispatch.reservedAt && dispatch.reservedAt !== "-" ? `Reservado em ${dispatch.reservedAt}` : ""
+                ].filter(Boolean).join(" | ");
+                const dispatchWavesMarkup = Array.isArray(dispatch.waves) && dispatch.waves.length
+                    ? `
+                        <div class="d-grid gap-2">
+                            ${dispatch.waves.map((item) => `
+                                <article class="border rounded-3 p-2">
+                                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+                                        <div>
+                                            <div class="fw-semibold">Onda ${escapeHtml(String(item.waveNumber || 0))}</div>
+                                            <div class="small text-secondary">
+                                                ${escapeHtml(item.statusLabel || "-")} | Alvos ${escapeHtml(String(item.targetCount || 0))} | Elegiveis no snapshot ${escapeHtml(String(item.eligibleSnapshotCount || 0))}
+                                            </div>
+                                        </div>
+                                        <span class="badge text-bg-light border">${escapeHtml(item.statusLabel || "-")}</span>
+                                    </div>
+                                    <div class="small text-secondary mt-2">
+                                        Criada: ${escapeHtml(item.createdAt || "-")} | Ativada: ${escapeHtml(item.activatedAt || "-")} | Expira: ${escapeHtml(item.expiresAt || "-")} | Encerrada: ${escapeHtml(item.completedAt || "-")}
+                                    </div>
+                                    <div class="small mt-2">${escapeHtml(item.summary || "-")}</div>
+                                </article>
+                            `).join("")}
+                        </div>
+                    `
+                    : "<div class='small text-secondary'>Nenhuma onda registrada ate o momento.</div>";
+                const dispatchTargetsMarkup = Array.isArray(dispatch.targets) && dispatch.targets.length
+                    ? `
+                        <div class="d-grid gap-2">
+                            ${dispatch.targets.map((item) => `
+                                <article class="border rounded-3 p-2">
+                                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+                                        <div>
+                                            <div class="fw-semibold">${escapeHtml(item.providerName || "-")}</div>
+                                            <div class="small text-secondary">
+                                                Onda ${escapeHtml(String(item.waveNumber || 0))} | Rank ${escapeHtml(String(item.rankPosition || 0))} | ${escapeHtml(item.statusLabel || "-")}
+                                            </div>
+                                        </div>
+                                        <span class="badge ${item.status === "aceito" ? "text-bg-success" : item.status === "recusado" || item.status === "expirado" ? "text-bg-secondary" : "text-bg-light border"}">
+                                            ${escapeHtml(item.statusLabel || "-")}
+                                        </span>
+                                    </div>
+                                    <div class="small text-secondary mt-2">
+                                        E-mail: ${escapeHtml(item.providerEmail || "-")} | Telefone: ${escapeHtml(item.providerPhone || "-")}
+                                    </div>
+                                    <div class="small text-secondary">
+                                        Criado: ${escapeHtml(item.createdAt || "-")} | Disparado: ${escapeHtml(item.sentAt || "-")} | Respondeu: ${escapeHtml(item.respondedAt || "-")} | Expira: ${escapeHtml(item.expiresAt || "-")}
+                                    </div>
+                                    <div class="small mt-2">${escapeHtml(item.note || "-")}</div>
+                                </article>
+                            `).join("")}
+                        </div>
+                    `
+                    : "<div class='small text-secondary'>Nenhum alvo de disparo registrado ate o momento.</div>";
                 document.getElementById("detailsName").textContent = lead.name || "-";
                 document.getElementById("detailsStage").textContent = lead.stageName || "-";
                 document.getElementById("detailsChatwootStatus").textContent = chatwoot.syncStatusLabel || "Ainda nao sincronizado";
@@ -1508,6 +1585,23 @@
                 document.getElementById("detailsJourneyMatchingEligibleProviders").textContent = String(matching.eligibleProvidersCount || 0);
                 document.getElementById("detailsJourneyMatchingSummary").textContent = matching.summary || "-";
                 document.getElementById("detailsJourneyMatchingCandidates").innerHTML = matchingCandidatesMarkup;
+                document.getElementById("detailsJourneyDispatchStatus").textContent = dispatch.statusLabel || "-";
+                document.getElementById("detailsJourneyDispatchStrategy").textContent = dispatch.strategyLabel || "-";
+                document.getElementById("detailsJourneyDispatchLastWaveQueuedAt").textContent = dispatch.lastWaveQueuedAt || "-";
+                document.getElementById("detailsJourneyDispatchWaitingAcceptanceUntil").textContent = dispatch.waitingAcceptanceUntil || "-";
+                document.getElementById("detailsJourneyDispatchCurrentWave").textContent = String(dispatch.currentWaveNumber || 0);
+                document.getElementById("detailsJourneyDispatchMaxWave").textContent = String(dispatch.maxWaveNumber || 0);
+                document.getElementById("detailsJourneyDispatchEligibleProviders").textContent = String(dispatch.eligibleProvidersCount || 0);
+                document.getElementById("detailsJourneyDispatchTargetsCreated").textContent = String(dispatch.targetsCreatedCount || 0);
+                document.getElementById("detailsJourneyDispatchTargetsSent").textContent = String(dispatch.sentTargetsCount || 0);
+                document.getElementById("detailsJourneyDispatchTargetsPending").textContent = String(dispatch.pendingTargetsCount || 0);
+                document.getElementById("detailsJourneyDispatchTargetsAccepted").textContent = String(dispatch.acceptedTargetsCount || 0);
+                document.getElementById("detailsJourneyDispatchTargetsDeclined").textContent = String(dispatch.declinedTargetsCount || 0);
+                document.getElementById("detailsJourneyDispatchTargetsExpired").textContent = String(dispatch.expiredTargetsCount || 0);
+                document.getElementById("detailsJourneyDispatchSummary").textContent = dispatch.summary || "-";
+                document.getElementById("detailsJourneyDispatchReservedProvider").textContent = dispatchReservedProvider || "-";
+                document.getElementById("detailsJourneyDispatchWaves").innerHTML = dispatchWavesMarkup;
+                document.getElementById("detailsJourneyDispatchTargets").innerHTML = dispatchTargetsMarkup;
                 if (schedulingEventLink) {
                     if (scheduling.googleCalendarEventLink) {
                         schedulingEventLink.href = scheduling.googleCalendarEventLink;

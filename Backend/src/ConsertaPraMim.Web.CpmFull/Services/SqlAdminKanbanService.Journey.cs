@@ -197,7 +197,27 @@ SELECT TOP (1)
     LastStageAutomationOrigin,
     LastStageAutomationAtUtc,
     ActiveTimerCode,
-    ActiveTimerDueAtUtc
+    ActiveTimerDueAtUtc,
+    DispatchStatus,
+    DispatchSummary,
+    DispatchStrategy,
+    DispatchEligibleProviders,
+    DispatchTargetsCreated,
+    DispatchCurrentWaveNumber,
+    DispatchMaxWaveNumber,
+    DispatchSentTargets,
+    DispatchAcceptedTargets,
+    DispatchDeclinedTargets,
+    DispatchExpiredTargets,
+    DispatchPendingTargets,
+    DispatchLastWaveQueuedAtUtc,
+    DispatchWaitingAcceptanceUntilUtc,
+    DispatchReservedProviderId,
+    DispatchReservedProviderName,
+    DispatchReservedProviderEmail,
+    DispatchReservedProviderPhone,
+    DispatchReservedAtUtc,
+    DispatchSnapshotJson
 FROM dbo.{TablePrefix}journey_executions
 WHERE LeadId = @leadId
 ORDER BY UpdatedAt DESC, Id DESC;
@@ -243,7 +263,8 @@ ORDER BY UpdatedAt DESC, Id DESC;
                 LastTransitionAtUtc = ReadNullableUtcDateTime(reader, 49),
                 ActiveTimerCode = reader.IsDBNull(50) ? string.Empty : reader.GetString(50),
                 ActiveTimerDueAtUtc = ReadNullableUtcDateTime(reader, 51)
-            }
+            },
+            Dispatch = ReadJourneyDispatchRecord(reader, 52)
         };
     }
 
@@ -523,6 +544,10 @@ SELECT TOP (@batchSize)
     j.LastIntakeAt,
     COALESCE(stateEntry.CreatedAt, j.UpdatedAt, j.LastIntakeAt, j.CreatedAt) AS CurrentStateEnteredAtUtc,
     j.SuggestedAtUtc,
+    j.DispatchStatus,
+    j.DispatchCurrentWaveNumber,
+    j.DispatchWaitingAcceptanceUntilUtc,
+    j.DispatchReservedProviderId,
     j.ActiveTimerCode,
     j.ActiveTimerDueAtUtc,
     j.LastStageAutomationReason,
@@ -566,10 +591,14 @@ ORDER BY
                 LastIntakeAtUtc = ReadNullableUtcDateTime(reader, 9),
                 CurrentStateEnteredAtUtc = ReadNullableUtcDateTime(reader, 10),
                 SchedulingSuggestedAtUtc = ReadNullableUtcDateTime(reader, 11),
-                ActiveTimerCode = reader.IsDBNull(12) ? string.Empty : reader.GetString(12),
-                ActiveTimerDueAtUtc = ReadNullableUtcDateTime(reader, 13),
-                LastAutomationReason = reader.IsDBNull(14) ? string.Empty : reader.GetString(14),
-                LastAutomationOrigin = reader.IsDBNull(15) ? string.Empty : reader.GetString(15)
+                DispatchStatus = reader.IsDBNull(12) ? string.Empty : reader.GetString(12),
+                DispatchCurrentWaveNumber = reader.IsDBNull(13) ? 0 : reader.GetInt32(13),
+                DispatchWaitingAcceptanceUntilUtc = ReadNullableUtcDateTime(reader, 14),
+                DispatchReservedProviderId = reader.IsDBNull(15) ? null : reader.GetGuid(15),
+                ActiveTimerCode = reader.IsDBNull(16) ? string.Empty : reader.GetString(16),
+                ActiveTimerDueAtUtc = ReadNullableUtcDateTime(reader, 17),
+                LastAutomationReason = reader.IsDBNull(18) ? string.Empty : reader.GetString(18),
+                LastAutomationOrigin = reader.IsDBNull(19) ? string.Empty : reader.GetString(19)
             });
         }
 
@@ -1165,6 +1194,7 @@ IF COL_LENGTH('dbo.{TablePrefix}journey_executions', 'ActiveTimerDueAtUtc') IS N
     ALTER TABLE dbo.{TablePrefix}journey_executions ADD ActiveTimerDueAtUtc DATETIME2 NULL;
 """;
             command.ExecuteNonQuery();
+            EnsureJourneyDispatchSchema(connection, transaction);
             transaction.Commit();
             _journeyInitialized = true;
         }

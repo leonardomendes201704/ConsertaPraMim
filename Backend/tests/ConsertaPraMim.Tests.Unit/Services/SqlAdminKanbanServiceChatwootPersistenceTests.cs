@@ -216,6 +216,27 @@ ORDER BY c.column_id;
         Assert.Contains("MatchingEligibleProviders", journeyColumnNames);
         Assert.Contains("MatchingCandidatesJson", journeyColumnNames);
         Assert.Contains("MatchingLastRunAtUtc", journeyColumnNames);
+        Assert.Contains("DispatchStatus", journeyColumnNames);
+        Assert.Contains("DispatchSummary", journeyColumnNames);
+        Assert.Contains("DispatchStrategy", journeyColumnNames);
+        Assert.Contains("DispatchEligibleProviders", journeyColumnNames);
+        Assert.Contains("DispatchTargetsCreated", journeyColumnNames);
+        Assert.Contains("DispatchCurrentWaveNumber", journeyColumnNames);
+        Assert.Contains("DispatchMaxWaveNumber", journeyColumnNames);
+        Assert.Contains("DispatchSentTargets", journeyColumnNames);
+        Assert.Contains("DispatchAcceptedTargets", journeyColumnNames);
+        Assert.Contains("DispatchDeclinedTargets", journeyColumnNames);
+        Assert.Contains("DispatchExpiredTargets", journeyColumnNames);
+        Assert.Contains("DispatchPendingTargets", journeyColumnNames);
+        Assert.Contains("DispatchLastWaveQueuedAtUtc", journeyColumnNames);
+        Assert.Contains("DispatchWaitingAcceptanceUntilUtc", journeyColumnNames);
+        Assert.Contains("DispatchReservedProviderId", journeyColumnNames);
+        Assert.Contains("DispatchReservedProviderName", journeyColumnNames);
+        Assert.Contains("DispatchReservedProviderEmail", journeyColumnNames);
+        Assert.Contains("DispatchReservedProviderPhone", journeyColumnNames);
+        Assert.Contains("DispatchReservedAtUtc", journeyColumnNames);
+        Assert.Contains("DispatchSnapshotJson", journeyColumnNames);
+
         using var journeyTimerIndexCommand = connection.CreateCommand();
         journeyTimerIndexCommand.CommandText = """
 SELECT COUNT(1)
@@ -225,6 +246,60 @@ WHERE object_id = OBJECT_ID('dbo.cpm_web_journey_executions')
 """;
 
         Assert.Equal(1, Convert.ToInt32(journeyTimerIndexCommand.ExecuteScalar()));
+
+        using var dispatchQueueColumnsCommand = connection.CreateCommand();
+        dispatchQueueColumnsCommand.CommandText = """
+SELECT c.name
+FROM sys.columns c
+INNER JOIN sys.objects o ON o.object_id = c.object_id
+WHERE o.type = 'U' AND o.name = 'cpm_web_journey_dispatch_queue'
+ORDER BY c.column_id;
+""";
+
+        var dispatchQueueColumnNames = new List<string>();
+        using (var reader = dispatchQueueColumnsCommand.ExecuteReader())
+        {
+            while (reader.Read())
+            {
+                dispatchQueueColumnNames.Add(reader.GetString(0));
+            }
+        }
+
+        Assert.Contains("LeadId", dispatchQueueColumnNames);
+        Assert.Contains("JourneyId", dispatchQueueColumnNames);
+        Assert.Contains("WaveNumber", dispatchQueueColumnNames);
+        Assert.Contains("ProviderId", dispatchQueueColumnNames);
+        Assert.Contains("TargetKey", dispatchQueueColumnNames);
+        Assert.Contains("PayloadJson", dispatchQueueColumnNames);
+        Assert.Contains("Status", dispatchQueueColumnNames);
+        Assert.Contains("AttemptCount", dispatchQueueColumnNames);
+        Assert.Contains("MaxAttempts", dispatchQueueColumnNames);
+        Assert.Contains("NextAttemptAt", dispatchQueueColumnNames);
+        Assert.Contains("LastAttemptAt", dispatchQueueColumnNames);
+        Assert.Contains("LastError", dispatchQueueColumnNames);
+        Assert.Contains("WorkerInstance", dispatchQueueColumnNames);
+        Assert.Contains("ProcessedAt", dispatchQueueColumnNames);
+        Assert.Contains("DeadLetterAt", dispatchQueueColumnNames);
+
+        using var dispatchQueueUniqueIndexCommand = connection.CreateCommand();
+        dispatchQueueUniqueIndexCommand.CommandText = """
+SELECT COUNT(1)
+FROM sys.indexes
+WHERE object_id = OBJECT_ID('dbo.cpm_web_journey_dispatch_queue')
+  AND name = 'UX_cpm_web_journey_dispatch_queue_target';
+""";
+
+        Assert.Equal(1, Convert.ToInt32(dispatchQueueUniqueIndexCommand.ExecuteScalar()));
+
+        using var dispatchQueueDueIndexCommand = connection.CreateCommand();
+        dispatchQueueDueIndexCommand.CommandText = """
+SELECT COUNT(1)
+FROM sys.indexes
+WHERE object_id = OBJECT_ID('dbo.cpm_web_journey_dispatch_queue')
+  AND name = 'IX_cpm_web_journey_dispatch_queue_due';
+""";
+
+        Assert.Equal(1, Convert.ToInt32(dispatchQueueDueIndexCommand.ExecuteScalar()));
 
         using var telegramColumnsCommand = connection.CreateCommand();
         telegramColumnsCommand.CommandText = """
@@ -1925,6 +2000,344 @@ WHERE LeadId = @leadId;
         Assert.Equal(1, reader.GetInt32(5));
         Assert.Contains("Prestador Elegivel", reader.GetString(6), StringComparison.Ordinal);
         Assert.Equal(lastRunAtUtc, reader.GetDateTime(7));
+    }
+
+    [Fact(DisplayName = "JourneyDispatch deve persistir ondas, fila e reserva idempotente do caso")]
+    public void JourneyDispatch_DevePersistirOndasFilaEReservaIdempotente()
+    {
+        using var database = new LocalDbKanbanDatabaseScope();
+        if (!database.IsAvailable)
+        {
+            return;
+        }
+
+        var service = CreateService(database.ConnectionString);
+        var requestedAt = new DateTime(2026, 3, 18, 15, 0, 0, DateTimeKind.Utc);
+        var scheduledStartAtUtc = new DateTime(2026, 3, 19, 13, 0, 0, DateTimeKind.Utc);
+        var scheduledEndAtUtc = new DateTime(2026, 3, 19, 14, 0, 0, DateTimeKind.Utc);
+        var providerId1 = Guid.Parse("99999999-9999-9999-9999-999999999991");
+        var providerId2 = Guid.Parse("99999999-9999-9999-9999-999999999992");
+        var targetKey1 = $"lead:{{lead}}:wave:1:provider:{providerId1:N}";
+        var targetKey2 = $"lead:{{lead}}:wave:1:provider:{providerId2:N}";
+
+        var upsert = service.UpsertJourneyIntake(new AdminKanbanJourneyIntakeRequest
+        {
+            BoardType = AdminKanbanBoardTypes.Clients,
+            SourceChannel = AdminKanbanJourneySourceChannels.Telegram,
+            SourceOrigin = "telegram-bot",
+            Name = "Cliente Disparo",
+            Phone = "13999990006",
+            Email = "disparo@teste.com",
+            ServiceCategory = "Eletricista",
+            ProblemDescription = "Preciso de um eletricista para revisar o quadro de energia.",
+            Street = "Rua Bahia",
+            Neighborhood = "Ocian",
+            State = "SP",
+            PostalCode = "11701-200",
+            City = "Praia Grande",
+            ChatbotConversationId = Guid.Parse("99999999-1111-1111-1111-999999999999"),
+            ChannelConversationId = "5513997114500",
+            TelegramChatId = 5513997114500,
+            RequestedAtUtc = requestedAt,
+            LastContactAtUtc = requestedAt,
+            Qualification = new AdminKanbanJourneyQualificationRecord
+            {
+                Status = AdminKanbanJourneyQualificationStatuses.Qualified,
+                Source = AdminKanbanJourneyQualificationSources.Deterministic,
+                ConfidenceScore = 0.94m,
+                HasRequiredData = true,
+                NeedsConfirmation = false,
+                NormalizedServiceCategoryId = "eletricista",
+                NormalizedServiceCategoryName = "Eletricista",
+                ProblemContext = "Preciso de um eletricista para revisar o quadro de energia.",
+                Street = "Rua Bahia",
+                Neighborhood = "Ocian",
+                City = "Praia Grande",
+                State = "SP",
+                PostalCode = "11701-200",
+                Latitude = -24.025331,
+                Longitude = -46.469028,
+                Summary = "Cliente pronto para matching e disparo.",
+                QualifiedAtUtc = requestedAt,
+                RequiredFields = ["Telefone", "Categoria", "CEP", "Cidade", "Logradouro ou bairro", "Contexto do problema"],
+                MissingRequiredFields = [],
+                OptionalFields = ["E-mail", "UF", "Latitude", "Longitude"]
+            }
+        });
+
+        _ = service.UpdateJourneyScheduling(upsert.LeadId, new AdminKanbanJourneySchedulingUpdateRequest
+        {
+            Status = AdminKanbanJourneySchedulingStatuses.Confirmed,
+            Summary = "Janela confirmada para disparo.",
+            GoogleCalendarEventId = "cpm-dispatch-99999999",
+            SuggestedAtUtc = requestedAt.AddMinutes(10),
+            ConfirmedAtUtc = requestedAt.AddMinutes(20),
+            ScheduledStartAtUtc = scheduledStartAtUtc,
+            ScheduledEndAtUtc = scheduledEndAtUtc,
+            CurrentState = AdminKanbanJourneyStates.AppointmentConfirmed,
+            HistoryEventType = "agenda_confirmada",
+            HistoryDescription = "Agenda confirmada para validar disparo em ondas.",
+            SourceChannel = AdminKanbanJourneySourceChannels.Telegram,
+            SuggestedSlots =
+            [
+                new AdminKanbanJourneySuggestedSlotRecord
+                {
+                    OptionNumber = 1,
+                    StartsAtUtc = scheduledStartAtUtc,
+                    EndsAtUtc = scheduledEndAtUtc,
+                    Label = "Quinta, 19/03, 10:00 as 11:00"
+                }
+            ]
+        });
+
+        _ = service.UpdateJourneyMatching(upsert.LeadId, new AdminKanbanJourneyMatchingUpdateRequest
+        {
+            Status = AdminKanbanJourneyMatchingStatuses.EligibleProvidersFound,
+            Summary = "Matching pronto para disparo.",
+            RequestedCategory = "Eletricista",
+            RequestedSubcategory = "quadro de energia",
+            EvaluatedProvidersCount = 2,
+            EligibleProvidersCount = 2,
+            LastRunAtUtc = requestedAt.AddMinutes(30),
+            CurrentState = AdminKanbanJourneyStates.MatchingInProgress,
+            HistoryEventType = "jornada_matching_snapshot",
+            HistoryDescription = "Snapshot inicial do matching antes do disparo.",
+            SourceChannel = AdminKanbanJourneySourceChannels.Telegram,
+            Candidates =
+            [
+                new AdminKanbanJourneyProviderMatchRecord
+                {
+                    ProviderId = providerId1,
+                    ProviderName = "Prestador Onda 1",
+                    ProviderEmail = "onda1@teste.com",
+                    ProviderPhone = "13999991111",
+                    IsEligible = true,
+                    RankPosition = 1,
+                    Score = 92.3m,
+                    DistanceKm = 4.5d,
+                    CoverageRadiusKm = 12d,
+                    Rating = 4.8d,
+                    ReviewCount = 30,
+                    OperationalStatus = "Online",
+                    ClientPreference = "PF e PJ",
+                    RequestedCategory = "Eletricista",
+                    RequestedSubcategory = "quadro de energia",
+                    CategoryMatched = true,
+                    SubcategoryMatched = true,
+                    RadiusMatched = true,
+                    AvailabilityMatched = true,
+                    CapacityMatched = true,
+                    Summary = "Elegivel para a primeira onda."
+                },
+                new AdminKanbanJourneyProviderMatchRecord
+                {
+                    ProviderId = providerId2,
+                    ProviderName = "Prestador Onda 2",
+                    ProviderEmail = "onda2@teste.com",
+                    ProviderPhone = "13999992222",
+                    IsEligible = true,
+                    RankPosition = 2,
+                    Score = 88.4m,
+                    DistanceKm = 6.2d,
+                    CoverageRadiusKm = 15d,
+                    Rating = 4.6d,
+                    ReviewCount = 24,
+                    OperationalStatus = "Online",
+                    ClientPreference = "PF",
+                    RequestedCategory = "Eletricista",
+                    RequestedSubcategory = "quadro de energia",
+                    CategoryMatched = true,
+                    SubcategoryMatched = true,
+                    RadiusMatched = true,
+                    AvailabilityMatched = true,
+                    CapacityMatched = true,
+                    Summary = "Elegivel para a primeira onda."
+                }
+            ]
+        });
+
+        var waveCreatedAtUtc = requestedAt.AddMinutes(40);
+        var reservationAtUtc = requestedAt.AddMinutes(55);
+
+        var dispatchUpdate = service.UpdateJourneyDispatch(upsert.LeadId, new AdminKanbanJourneyDispatchUpdateRequest
+        {
+            Status = AdminKanbanJourneyDispatchStatuses.WaveQueued,
+            Summary = "Onda 1 preparada para disparo.",
+            Strategy = "top_ranked_waves",
+            EligibleProvidersCount = 2,
+            TargetsCreatedCount = 2,
+            CurrentWaveNumber = 1,
+            MaxWaveNumber = 3,
+            LastWaveQueuedAtUtc = waveCreatedAtUtc,
+            CurrentState = AdminKanbanJourneyStates.DispatchInProgress,
+            HistoryEventType = "jornada_disparo_onda_criada",
+            HistoryDescription = "A primeira onda foi preparada para os prestadores elegiveis.",
+            SourceChannel = AdminKanbanJourneySourceChannels.Telegram,
+            Waves =
+            [
+                new AdminKanbanJourneyDispatchWaveRecord
+                {
+                    WaveNumber = 1,
+                    Status = AdminKanbanJourneyDispatchWaveStatuses.Queued,
+                    EligibleSnapshotCount = 2,
+                    TargetCount = 2,
+                    CreatedAtUtc = waveCreatedAtUtc,
+                    ExpiresAtUtc = waveCreatedAtUtc.AddMinutes(45),
+                    Summary = "Onda 1 preparada."
+                }
+            ],
+            Targets =
+            [
+                new AdminKanbanJourneyDispatchTargetRecord
+                {
+                    TargetKey = targetKey1.Replace("{lead}", upsert.LeadId.ToString()),
+                    ProviderId = providerId1,
+                    ProviderName = "Prestador Onda 1",
+                    ProviderEmail = "onda1@teste.com",
+                    ProviderPhone = "13999991111",
+                    RankPosition = 1,
+                    WaveNumber = 1,
+                    Status = AdminKanbanJourneyDispatchTargetStatuses.Queued,
+                    CreatedAtUtc = waveCreatedAtUtc,
+                    ExpiresAtUtc = waveCreatedAtUtc.AddMinutes(45),
+                    Note = "Aguardando disparo."
+                },
+                new AdminKanbanJourneyDispatchTargetRecord
+                {
+                    TargetKey = targetKey2.Replace("{lead}", upsert.LeadId.ToString()),
+                    ProviderId = providerId2,
+                    ProviderName = "Prestador Onda 2",
+                    ProviderEmail = "onda2@teste.com",
+                    ProviderPhone = "13999992222",
+                    RankPosition = 2,
+                    WaveNumber = 1,
+                    Status = AdminKanbanJourneyDispatchTargetStatuses.Queued,
+                    CreatedAtUtc = waveCreatedAtUtc,
+                    ExpiresAtUtc = waveCreatedAtUtc.AddMinutes(45),
+                    Note = "Aguardando disparo."
+                }
+            ]
+        });
+
+        Assert.NotNull(dispatchUpdate);
+        Assert.Equal(AdminKanbanJourneyDispatchStatuses.WaveQueued, dispatchUpdate!.Dispatch.Status);
+
+        var queueItem1 = service.EnqueueJourneyDispatchQueueItem(new AdminKanbanJourneyDispatchQueueEnqueueRequest
+        {
+            LeadId = upsert.LeadId,
+            JourneyId = dispatchUpdate.JourneyId,
+            WaveNumber = 1,
+            ProviderId = providerId1,
+            TargetKey = targetKey1.Replace("{lead}", upsert.LeadId.ToString()),
+            PayloadJson = """{"wave":1,"provider":"onda1"}""",
+            NextAttemptAt = waveCreatedAtUtc,
+            MaxAttempts = 3,
+            LastError = "Preparado para disparo"
+        });
+        var queueItem1Duplicate = service.EnqueueJourneyDispatchQueueItem(new AdminKanbanJourneyDispatchQueueEnqueueRequest
+        {
+            LeadId = upsert.LeadId,
+            JourneyId = dispatchUpdate.JourneyId,
+            WaveNumber = 1,
+            ProviderId = providerId1,
+            TargetKey = targetKey1.Replace("{lead}", upsert.LeadId.ToString()),
+            PayloadJson = """{"wave":1,"provider":"onda1"}""",
+            NextAttemptAt = waveCreatedAtUtc,
+            MaxAttempts = 3
+        });
+        var queueItem2 = service.EnqueueJourneyDispatchQueueItem(new AdminKanbanJourneyDispatchQueueEnqueueRequest
+        {
+            LeadId = upsert.LeadId,
+            JourneyId = dispatchUpdate.JourneyId,
+            WaveNumber = 1,
+            ProviderId = providerId2,
+            TargetKey = targetKey2.Replace("{lead}", upsert.LeadId.ToString()),
+            PayloadJson = """{"wave":1,"provider":"onda2"}""",
+            NextAttemptAt = waveCreatedAtUtc,
+            MaxAttempts = 3,
+            LastError = "Preparado para disparo"
+        });
+
+        Assert.Equal(queueItem1.Id, queueItem1Duplicate.Id);
+        Assert.True(queueItem1Duplicate.IsDuplicate);
+        Assert.NotEqual(queueItem1.Id, queueItem2.Id);
+
+        var firstReservation = service.TryReserveJourneyDispatchTarget(new AdminKanbanJourneyDispatchReservationRequest
+        {
+            LeadId = upsert.LeadId,
+            ProviderId = providerId1,
+            TargetKey = targetKey1.Replace("{lead}", upsert.LeadId.ToString()),
+            ReservedAtUtc = reservationAtUtc,
+            SourceChannel = AdminKanbanJourneySourceChannels.Telegram,
+            MetadataJson = """{"source":"test"}"""
+        });
+
+        Assert.NotNull(firstReservation);
+        Assert.True(firstReservation!.Succeeded);
+        Assert.False(firstReservation.AlreadyReserved);
+        Assert.Equal(providerId1, firstReservation.ReservedProviderId);
+
+        var secondReservation = service.TryReserveJourneyDispatchTarget(new AdminKanbanJourneyDispatchReservationRequest
+        {
+            LeadId = upsert.LeadId,
+            ProviderId = providerId2,
+            TargetKey = targetKey2.Replace("{lead}", upsert.LeadId.ToString()),
+            ReservedAtUtc = reservationAtUtc.AddMinutes(1),
+            SourceChannel = AdminKanbanJourneySourceChannels.Telegram
+        });
+
+        Assert.NotNull(secondReservation);
+        Assert.False(secondReservation!.Succeeded);
+        Assert.True(secondReservation.AlreadyReserved);
+        Assert.Equal(providerId1, secondReservation.ReservedProviderId);
+
+        var details = service.GetLeadDetails(upsert.LeadId);
+
+        Assert.NotNull(details);
+        Assert.Equal(AdminKanbanJourneyClientStageNames.ProviderConnected, details!.StageName);
+        Assert.Equal(AdminKanbanJourneyStates.ProviderConnected, details.Journey.CurrentState);
+        Assert.Equal(AdminKanbanJourneyDispatchStatuses.Reserved, details.Journey.Dispatch.Status);
+        Assert.Equal(providerId1, details.Journey.Dispatch.ReservedProviderId);
+        Assert.Equal("Prestador Onda 1", details.Journey.Dispatch.ReservedProviderName);
+        Assert.Equal(reservationAtUtc, details.Journey.Dispatch.ReservedAtUtc);
+        Assert.Contains(details.History, item => item.EventType == "jornada_disparo_reservado");
+        Assert.Contains(details.Journey.Dispatch.Targets, item => item.ProviderId == providerId1 && item.Status == AdminKanbanJourneyDispatchTargetStatuses.Accepted);
+        Assert.Contains(details.Journey.Dispatch.Targets, item => item.ProviderId == providerId2 && item.Status == AdminKanbanJourneyDispatchTargetStatuses.Dispensed);
+
+        using var connection = new SqlConnection(database.ConnectionString);
+        connection.Open();
+
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = """
+SELECT DispatchStatus, DispatchReservedProviderId, DispatchReservedProviderName, DispatchReservedAtUtc, DispatchSnapshotJson
+FROM dbo.cpm_web_journey_executions
+WHERE LeadId = @leadId;
+""";
+            command.Parameters.Add(new SqlParameter("@leadId", SqlDbType.Int) { Value = upsert.LeadId });
+
+            using var reader = command.ExecuteReader();
+            Assert.True(reader.Read());
+            Assert.Equal(AdminKanbanJourneyDispatchStatuses.Reserved, reader.GetString(0));
+            Assert.Equal(providerId1, reader.GetGuid(1));
+            Assert.Equal("Prestador Onda 1", reader.GetString(2));
+            Assert.Equal(reservationAtUtc, reader.GetDateTime(3));
+            Assert.Contains("Prestador Onda 1", reader.GetString(4), StringComparison.Ordinal);
+        }
+
+        using (var queueCommand = connection.CreateCommand())
+        {
+            queueCommand.CommandText = """
+SELECT COUNT(1)
+FROM dbo.cpm_web_journey_dispatch_queue
+WHERE LeadId = @leadId
+  AND Status = @status;
+""";
+            queueCommand.Parameters.Add(new SqlParameter("@leadId", SqlDbType.Int) { Value = upsert.LeadId });
+            queueCommand.Parameters.Add(new SqlParameter("@status", SqlDbType.NVarChar, 30) { Value = AdminKanbanJourneyDispatchQueueStatuses.Processed });
+
+            Assert.Equal(2, Convert.ToInt32(queueCommand.ExecuteScalar()));
+        }
     }
 
     [Fact(DisplayName = "ApplyJourneyStageAutomation deve persistir motivo, origem e timer no snapshot da jornada")]

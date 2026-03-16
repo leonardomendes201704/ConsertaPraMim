@@ -545,7 +545,7 @@ Como plataforma, queremos disparar oportunidades em ondas controladas para maxim
 
 ### Status
 
-- Planejada.
+- Concluida localmente.
 
 ### Criterios de aceite
 
@@ -561,6 +561,17 @@ Como plataforma, queremos disparar oportunidades em ondas controladas para maxim
 - `TASK-06.04` Criar fila de disparo com idempotencia por jornada/prestador/onda.
 - `TASK-06.05` Registrar metricas de aceite por onda.
 - `TASK-06.06` Cobrir cenarios de corrida com dois aceites quase simultaneos.
+
+### Entrega implementada
+
+- O `JourneyProviderDispatchService` passou a processar jornadas do board `clientes` em `Em matching` e `Aguardando aceite`, criando e expirando ondas de disparo de forma automatica.
+- O `JourneyProviderDispatchWorker` foi adicionado ao runtime do `ConsertaPraMim.Web.CpmFull` para executar o motor em background com batch, timeout e retentativa configuraveis.
+- A jornada passou a persistir `DispatchStatus`, `DispatchSummary`, `DispatchStrategy`, contagens de alvos, `CurrentWaveNumber`, `MaxWaveNumber`, `DispatchWaitingAcceptanceUntilUtc`, prestador reservado e `DispatchSnapshotJson`.
+- Foi criada a tabela `dbo.cpm_web_journey_dispatch_queue`, com idempotencia por `TargetKey`, batch de aquisicao por vencimento e suporte a `pending`, `processing`, `retrying`, `processed` e `dead_letter`.
+- O detalhe do lead no Kanban passou a exibir a nova secao `Disparo em ondas`, com estrategia, contagens, ondas registradas, alvos disparados e dados do prestador reservado.
+- A reserva do caso ficou protegida por `TryReserveJourneyDispatchTarget`, que usa lock pessimista na jornada e impede corrida entre dois aceites quase simultaneos para o mesmo lead.
+- Quando uma onda expira sem aceite, o motor fecha os alvos pendentes como `Expirado`, prepara a proxima onda elegivel e, se nao houver mais cobertura, move a jornada para `Sem match`.
+- Foram adicionados testes dedicados para o motor de disparo, para a persistencia SQL do snapshot/fila e para a reserva idempotente do caso.
 
 ## US-07 / ST-107 - Notificacao confiavel para prestadores com aceite por link assinado
 

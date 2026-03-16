@@ -131,13 +131,19 @@ public sealed class JourneyStageAutomationService : IJourneyStageAutomationServi
             AdminKanbanJourneyStates.DispatchInProgress
                 => BuildStateMachineRequest(candidate, AdminKanbanJourneyClientStageNames.DispatchInProgress, normalizedState, "Disparo em ondas para prestadores iniciado."),
             AdminKanbanJourneyStates.WaitingProviderAcceptance
-                => BuildStateMachineRequest(
-                    candidate,
-                    AdminKanbanJourneyClientStageNames.WaitingAcceptance,
-                    normalizedState,
-                    "Aguardando aceite de prestador elegivel.",
-                    AdminKanbanJourneyTimerCodes.PendingAcceptance,
-                    stateEnteredAtUtc.AddMinutes(_options.ProviderAcceptanceTimeoutMinutes)),
+                => IsDispatchManagedAcceptance(candidate)
+                    ? BuildStateMachineRequest(
+                        candidate,
+                        AdminKanbanJourneyClientStageNames.WaitingAcceptance,
+                        normalizedState,
+                        "Aguardando aceite de prestador elegivel.")
+                    : BuildStateMachineRequest(
+                        candidate,
+                        AdminKanbanJourneyClientStageNames.WaitingAcceptance,
+                        normalizedState,
+                        "Aguardando aceite de prestador elegivel.",
+                        AdminKanbanJourneyTimerCodes.PendingAcceptance,
+                        stateEnteredAtUtc.AddMinutes(_options.ProviderAcceptanceTimeoutMinutes)),
             AdminKanbanJourneyStates.ProviderConnected
                 => BuildStateMachineRequest(candidate, AdminKanbanJourneyClientStageNames.ProviderConnected, normalizedState, "Prestador conectado ao cliente."),
             AdminKanbanJourneyStates.ServiceInProgress
@@ -223,13 +229,15 @@ public sealed class JourneyStageAutomationService : IJourneyStageAutomationServi
                     "jornada_timer_agenda_pendente_vencido",
                     clearTimer: true),
             AdminKanbanJourneyTimerCodes.PendingAcceptance
-                => BuildTimerRequest(
-                    candidate,
-                    AdminKanbanJourneyClientStageNames.NoMatch,
-                    AdminKanbanJourneyStates.NoMatch,
-                    "Prazo de aceite do prestador expirou sem confirmacao valida.",
-                    "jornada_timer_aceite_pendente_vencido",
-                    clearTimer: true),
+                => IsDispatchManagedAcceptance(candidate)
+                    ? null
+                    : BuildTimerRequest(
+                        candidate,
+                        AdminKanbanJourneyClientStageNames.NoMatch,
+                        AdminKanbanJourneyStates.NoMatch,
+                        "Prazo de aceite do prestador expirou sem confirmacao valida.",
+                        "jornada_timer_aceite_pendente_vencido",
+                        clearTimer: true),
             AdminKanbanJourneyTimerCodes.PendingClientReview
                 => BuildTimerRequest(
                     candidate,
@@ -250,6 +258,18 @@ public sealed class JourneyStageAutomationService : IJourneyStageAutomationServi
                     clearTimer: true),
             _ => null
         };
+    }
+
+    private static bool IsDispatchManagedAcceptance(AdminKanbanJourneyStageAutomationCandidateRecord candidate)
+    {
+        if (!string.Equals(candidate.CurrentState, AdminKanbanJourneyStates.WaitingProviderAcceptance, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return string.Equals(candidate.DispatchStatus, AdminKanbanJourneyDispatchStatuses.WaveQueued, StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(candidate.DispatchStatus, AdminKanbanJourneyDispatchStatuses.WaitingAcceptance, StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(candidate.DispatchStatus, AdminKanbanJourneyDispatchStatuses.Reserved, StringComparison.OrdinalIgnoreCase);
     }
 
     private static AdminKanbanJourneyStageAutomationUpdateRequest? BuildStateMachineRequest(
