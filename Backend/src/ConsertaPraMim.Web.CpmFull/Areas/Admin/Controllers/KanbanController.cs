@@ -269,6 +269,20 @@ public sealed class KanbanController : Controller
                         sentAt = item.SentAtUtc?.ToString("dd/MM/yyyy HH:mm") ?? "-",
                         respondedAt = item.RespondedAtUtc?.ToString("dd/MM/yyyy HH:mm") ?? "-",
                         expiresAt = item.ExpiresAtUtc?.ToString("dd/MM/yyyy HH:mm") ?? "-",
+                        deliveryChannel = string.IsNullOrWhiteSpace(item.DeliveryChannel) ? "-" : item.DeliveryChannel,
+                        deliveryStatus = item.DeliveryStatus,
+                        deliveryStatusLabel = string.IsNullOrWhiteSpace(item.DeliveryStatus)
+                            ? "-"
+                            : AdminKanbanJourneyDispatchDeliveryStatuses.GetLabel(item.DeliveryStatus),
+                        deliveryAttempts = item.DeliveryAttempts,
+                        lastDeliveryAttemptAt = item.LastDeliveryAttemptAtUtc?.ToString("dd/MM/yyyy HH:mm") ?? "-",
+                        openedAt = item.OpenedAtUtc?.ToString("dd/MM/yyyy HH:mm") ?? "-",
+                        openCount = item.OpenCount,
+                        clickedAt = item.ClickedAtUtc?.ToString("dd/MM/yyyy HH:mm") ?? "-",
+                        clickCount = item.ClickCount,
+                        lastInteractionSource = string.IsNullOrWhiteSpace(item.LastInteractionSource) ? "-" : item.LastInteractionSource,
+                        lastInteractionAt = item.LastInteractionAtUtc?.ToString("dd/MM/yyyy HH:mm") ?? "-",
+                        lastError = string.IsNullOrWhiteSpace(item.LastError) ? "-" : item.LastError,
                         note = item.Note
                     })
                 }

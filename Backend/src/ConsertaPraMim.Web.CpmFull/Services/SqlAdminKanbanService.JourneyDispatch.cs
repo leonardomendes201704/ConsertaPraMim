@@ -85,6 +85,17 @@ public sealed partial class SqlAdminKanbanService
                     SentAtUtc = NormalizeJourneyUtc(item.SentAtUtc),
                     RespondedAtUtc = NormalizeJourneyUtc(item.RespondedAtUtc),
                     ExpiresAtUtc = NormalizeJourneyUtc(item.ExpiresAtUtc),
+                    DeliveryChannel = TrimTo(item.DeliveryChannel, 40),
+                    DeliveryStatus = NormalizeJourneyDispatchDeliveryStatus(item.DeliveryStatus),
+                    DeliveryAttempts = Math.Max(0, item.DeliveryAttempts),
+                    LastDeliveryAttemptAtUtc = NormalizeJourneyUtc(item.LastDeliveryAttemptAtUtc),
+                    OpenedAtUtc = NormalizeJourneyUtc(item.OpenedAtUtc),
+                    OpenCount = Math.Max(0, item.OpenCount),
+                    ClickedAtUtc = NormalizeJourneyUtc(item.ClickedAtUtc),
+                    ClickCount = Math.Max(0, item.ClickCount),
+                    LastInteractionSource = TrimTo(item.LastInteractionSource, 40),
+                    LastInteractionAtUtc = NormalizeJourneyUtc(item.LastInteractionAtUtc),
+                    LastError = TrimTo(item.LastError, 500),
                     Note = TrimTo(item.Note, 260)
                 })
                 .ToList()
@@ -517,7 +528,11 @@ ORDER BY COALESCE(j.UpdatedAt, j.LastIntakeAt, j.CreatedAt) DESC, j.Id DESC;
                     ? item with
                     {
                         Status = AdminKanbanJourneyDispatchTargetStatuses.Accepted,
+                        DeliveryStatus = AdminKanbanJourneyDispatchDeliveryStatuses.Accepted,
                         RespondedAtUtc = reservedAtUtc,
+                        LastInteractionSource = string.IsNullOrWhiteSpace(request.SourceChannel) ? match.SourceChannel : request.SourceChannel,
+                        LastInteractionAtUtc = reservedAtUtc,
+                        LastError = string.Empty,
                         Note = "Prestador aceitou a oportunidade."
                     }
                     : string.Equals(item.Status, AdminKanbanJourneyDispatchTargetStatuses.Queued, StringComparison.OrdinalIgnoreCase) ||
@@ -525,7 +540,11 @@ ORDER BY COALESCE(j.UpdatedAt, j.LastIntakeAt, j.CreatedAt) DESC, j.Id DESC;
                         ? item with
                         {
                             Status = AdminKanbanJourneyDispatchTargetStatuses.Dispensed,
+                            DeliveryStatus = string.IsNullOrWhiteSpace(item.DeliveryStatus)
+                                ? AdminKanbanJourneyDispatchDeliveryStatuses.Pending
+                                : item.DeliveryStatus,
                             RespondedAtUtc = reservedAtUtc,
+                            LastInteractionAtUtc = reservedAtUtc,
                             Note = "Dispensado porque outro prestador reservou o caso."
                         }
                         : item)
@@ -790,6 +809,11 @@ IF COL_LENGTH('dbo.{TablePrefix}journey_executions', 'DispatchSnapshotJson') IS 
         string.IsNullOrWhiteSpace(value)
             ? AdminKanbanJourneyDispatchTargetStatuses.Queued
             : AdminKanbanJourneyDispatchTargetStatuses.Normalize(value);
+
+    private static string NormalizeJourneyDispatchDeliveryStatus(string? value) =>
+        string.IsNullOrWhiteSpace(value)
+            ? AdminKanbanJourneyDispatchDeliveryStatuses.Pending
+            : AdminKanbanJourneyDispatchDeliveryStatuses.Normalize(value);
 
     private static string? SerializeJourneyDispatchSnapshot(AdminKanbanJourneyDispatchRecord? dispatch)
     {

@@ -1513,6 +1513,18 @@
                                     <div class="small text-secondary">
                                         Criado: ${escapeHtml(item.createdAt || "-")} | Disparado: ${escapeHtml(item.sentAt || "-")} | Respondeu: ${escapeHtml(item.respondedAt || "-")} | Expira: ${escapeHtml(item.expiresAt || "-")}
                                     </div>
+                                    <div class="small text-secondary">
+                                        Entrega: ${escapeHtml(item.deliveryStatusLabel || "-")} via ${escapeHtml(item.deliveryChannel || "-")} | Tentativas: ${escapeHtml(String(item.deliveryAttempts || 0))} | Ultima tentativa: ${escapeHtml(item.lastDeliveryAttemptAt || "-")}
+                                    </div>
+                                    <div class="small text-secondary">
+                                        Aberturas: ${escapeHtml(String(item.openCount || 0))} (${escapeHtml(item.openedAt || "-")}) | Cliques: ${escapeHtml(String(item.clickCount || 0))} (${escapeHtml(item.clickedAt || "-")})
+                                    </div>
+                                    <div class="small text-secondary">
+                                        Ultima interacao: ${escapeHtml(item.lastInteractionAt || "-")} | Origem: ${escapeHtml(item.lastInteractionSource || "-")}
+                                    </div>
+                                    <div class="small text-secondary">
+                                        Ultimo erro: ${escapeHtml(item.lastError || "-")}
+                                    </div>
                                     <div class="small mt-2">${escapeHtml(item.note || "-")}</div>
                                 </article>
                             `).join("")}

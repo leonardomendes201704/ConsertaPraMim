@@ -581,7 +581,7 @@ Como plataforma, queremos garantir que a oportunidade chegue ao prestador mesmo 
 
 ### Status
 
-- Planejada.
+- Concluida localmente.
 
 ### Criterios de aceite
 
@@ -598,6 +598,17 @@ Como plataforma, queremos garantir que a oportunidade chegue ao prestador mesmo 
 - `TASK-07.04` Registrar telemetria de entrega, abertura e clique.
 - `TASK-07.05` Definir canal complementar opcional (WhatsApp/app/push) sem depender dele para aceite.
 - `TASK-07.06` Cobrir cenarios de link expirado, clique repetido e prestador ja reservado por outro caso.
+
+### Entrega implementada
+
+- O `JourneyProviderDispatchNotificationService` passou a enviar e-mail HTML com CTAs assinados de `Aceitar oportunidade` e `Recusar oportunidade`, com transporte `log` ou `smtp`.
+- O `JourneyProviderDispatchLinkService` foi criado para gerar tokens HMAC assinados, expiraveis e validados por proposito (`response_page` e `open_tracking`).
+- O `JourneyProviderOpportunityController` passou a expor os endpoints publicos `GET/POST /prestadores/oportunidades/responder` e `GET /prestadores/oportunidades/rastreio-abertura`.
+- O `JourneyProviderOpportunityService` passou a registrar clique, abertura, recusa oficial por link e aceite oficial por pagina segura, sem parsing de texto livre.
+- O snapshot do disparo agora persiste `DeliveryChannel`, `DeliveryStatus`, tentativas, ultimo envio, aberturas, cliques, origem da ultima interacao e ultimo erro por alvo.
+- Em falha permanente de entrega, o alvo e dispensado e a jornada pode liberar a proxima onda elegivel sem depender de operacao manual.
+- O modal do lead no Kanban passou a exibir a telemetria de notificacao do alvo dentro da secao `Disparo em ondas`.
+- Foram adicionados testes dedicados para token assinado, resposta do prestador e integracao do dispatch com o notificador.
 
 ## US-08 / ST-108 - Reserva do caso e conexao direta entre prestador e cliente
 

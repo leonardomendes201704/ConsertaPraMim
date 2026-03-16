@@ -11,6 +11,7 @@ public interface IAdminKanbanService
     AdminKanbanJourneyMatchingUpdateResult? UpdateJourneyMatching(int leadId, AdminKanbanJourneyMatchingUpdateRequest request);
     AdminKanbanJourneyDispatchUpdateResult? UpdateJourneyDispatch(int leadId, AdminKanbanJourneyDispatchUpdateRequest request);
     AdminKanbanJourneyDispatchReservationResult? TryReserveJourneyDispatchTarget(AdminKanbanJourneyDispatchReservationRequest request);
+    AdminKanbanJourneyDispatchTargetInteractionResult? ApplyJourneyDispatchTargetInteraction(AdminKanbanJourneyDispatchTargetInteractionRequest request);
     IReadOnlyList<AdminKanbanJourneyStageAutomationCandidateRecord> ListJourneyStageAutomationCandidates(string boardType, DateTime nowUtc, int batchSize);
     AdminKanbanJourneyStageAutomationUpdateResult? ApplyJourneyStageAutomation(AdminKanbanJourneyStageAutomationUpdateRequest request);
     IReadOnlyList<AdminKanbanJourneyProviderProfileRecord> ListJourneyProviderProfiles(DateTime? scheduledStartAtUtc, DateTime? scheduledEndAtUtc);

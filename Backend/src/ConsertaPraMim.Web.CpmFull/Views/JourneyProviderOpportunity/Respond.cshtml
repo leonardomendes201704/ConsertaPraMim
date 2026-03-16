@@ -1,0 +1,221 @@
+@model AppMobileCPM.ViewModels.JourneyProviderOpportunityPageViewModel
+@{
+    ViewData["Title"] = Model.Title;
+    var feedbackClass = Model.ActionCompleted
+        ? (Model.ActionSucceeded ? "cpm-opportunity-feedback success" : "cpm-opportunity-feedback warning")
+        : "cpm-opportunity-feedback";
+}
+
+<style>
+    .cpm-opportunity-shell {
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 32px 20px;
+        background:
+            radial-gradient(circle at top left, rgba(12, 74, 110, 0.12), transparent 38%),
+            linear-gradient(180deg, #f6fbff 0%, #eef4f8 100%);
+        color: #102a43;
+        font-family: "Segoe UI", Arial, sans-serif;
+    }
+
+    .cpm-opportunity-card {
+        width: min(760px, 100%);
+        background: #ffffff;
+        border: 1px solid #d9e2ec;
+        border-radius: 24px;
+        padding: 32px;
+        box-shadow: 0 24px 70px rgba(16, 42, 67, 0.12);
+    }
+
+    .cpm-opportunity-eyebrow {
+        margin: 0 0 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        font-size: 12px;
+        color: #486581;
+    }
+
+    .cpm-opportunity-title {
+        margin: 0 0 12px;
+        font-size: 32px;
+        line-height: 1.15;
+    }
+
+    .cpm-opportunity-description {
+        margin: 0 0 24px;
+        font-size: 16px;
+        line-height: 1.7;
+        color: #334e68;
+    }
+
+    .cpm-opportunity-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+
+    .cpm-opportunity-panel {
+        border-radius: 18px;
+        background: #f8fbfd;
+        border: 1px solid #d9e2ec;
+        padding: 18px;
+    }
+
+    .cpm-opportunity-panel strong {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 14px;
+        color: #102a43;
+    }
+
+    .cpm-opportunity-panel span {
+        display: block;
+        font-size: 15px;
+        line-height: 1.6;
+        color: #334e68;
+    }
+
+    .cpm-opportunity-feedback {
+        margin-bottom: 20px;
+        padding: 14px 16px;
+        border-radius: 14px;
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        color: #1d4ed8;
+    }
+
+    .cpm-opportunity-feedback.success {
+        background: #ecfdf3;
+        border-color: #86efac;
+        color: #166534;
+    }
+
+    .cpm-opportunity-feedback.warning {
+        background: #fff7ed;
+        border-color: #fdba74;
+        color: #9a3412;
+    }
+
+    .cpm-opportunity-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: center;
+        margin-top: 28px;
+    }
+
+    .cpm-opportunity-actions button,
+    .cpm-opportunity-actions a {
+        border: 0;
+        border-radius: 12px;
+        padding: 14px 18px;
+        font-weight: 700;
+        text-decoration: none;
+        cursor: pointer;
+    }
+
+    .cpm-opportunity-actions button {
+        background: #0f766e;
+        color: #ffffff;
+    }
+
+    .cpm-opportunity-actions a {
+        background: #ffffff;
+        color: #102a43;
+        border: 1px solid #d9e2ec;
+    }
+
+    .cpm-opportunity-caption {
+        margin-top: 20px;
+        font-size: 13px;
+        line-height: 1.6;
+        color: #52606d;
+    }
+
+    @@media (max-width: 720px) {
+        .cpm-opportunity-card {
+            padding: 24px;
+            border-radius: 20px;
+        }
+
+        .cpm-opportunity-title {
+            font-size: 28px;
+        }
+
+        .cpm-opportunity-actions {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .cpm-opportunity-actions button,
+        .cpm-opportunity-actions a {
+            width: 100%;
+            text-align: center;
+        }
+    }
+</style>
+
+<main class="cpm-opportunity-shell">
+    <article class="cpm-opportunity-card">
+        <p class="cpm-opportunity-eyebrow">ConsertaPraMim</p>
+        <h1 class="cpm-opportunity-title">@Model.ResponseHeadline</h1>
+        <p class="cpm-opportunity-description">@Model.ResponseDescription</p>
+
+        @if (!string.IsNullOrWhiteSpace(Model.FeedbackMessage))
+        {
+            <div class="@feedbackClass">@Model.FeedbackMessage</div>
+        }
+
+        <section class="cpm-opportunity-grid" aria-label="Resumo da oportunidade">
+            <div class="cpm-opportunity-panel">
+                <strong>Categoria solicitada</strong>
+                <span>@(string.IsNullOrWhiteSpace(Model.RequestedCategory) ? "-" : Model.RequestedCategory)</span>
+            </div>
+            <div class="cpm-opportunity-panel">
+                <strong>Subcategoria</strong>
+                <span>@(string.IsNullOrWhiteSpace(Model.RequestedSubcategory) ? "-" : Model.RequestedSubcategory)</span>
+            </div>
+            <div class="cpm-opportunity-panel">
+                <strong>Janela da agenda</strong>
+                <span>@(string.IsNullOrWhiteSpace(Model.ScheduledWindowLabel) ? "-" : Model.ScheduledWindowLabel)</span>
+            </div>
+            <div class="cpm-opportunity-panel">
+                <strong>Status operacional</strong>
+                <span>@Model.DispatchStatusLabel | @Model.TargetStatusLabel</span>
+            </div>
+            <div class="cpm-opportunity-panel">
+                <strong>Endereco da oportunidade</strong>
+                <span>@(string.IsNullOrWhiteSpace(Model.AddressSummary) ? "-" : Model.AddressSummary)</span>
+            </div>
+            <div class="cpm-opportunity-panel">
+                <strong>Resumo do caso</strong>
+                <span>@(string.IsNullOrWhiteSpace(Model.QualificationSummary) ? "-" : Model.QualificationSummary)</span>
+            </div>
+        </section>
+
+        @if (Model.CanRespond && !Model.ActionCompleted)
+        {
+            <form asp-controller="JourneyProviderOpportunity" asp-action="Confirm" method="post" class="cpm-opportunity-actions">
+                <input type="hidden" name="token" value="@Model.Token" />
+                <input type="hidden" name="acao" value="@Model.Action" />
+                <button type="submit">@Model.ConfirmationLabel</button>
+                @if (!string.IsNullOrWhiteSpace(Model.PortalUrl))
+                {
+                    <a href="@Model.PortalUrl" target="_blank" rel="noopener noreferrer">Abrir portal do prestador</a>
+                }
+            </form>
+        }
+        else if (!string.IsNullOrWhiteSpace(Model.PortalUrl))
+        {
+            <div class="cpm-opportunity-actions">
+                <a href="@Model.PortalUrl" target="_blank" rel="noopener noreferrer">Abrir portal do prestador</a>
+            </div>
+        }
+
+        <p class="cpm-opportunity-caption">
+            O aceite oficial so acontece nesta pagina segura. Respostas por texto em outros canais nao reservam o caso.
+        </p>
+    </article>
+</main>

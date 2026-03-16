@@ -375,6 +375,82 @@ Pre-condicoes operacionais:
 - A proxima onda nao abre apos expiracao: revisar `DispatchWaitingAcceptanceUntilUtc`, `CurrentWaveNumber`, `MaxWaves` e se ainda existem candidatos elegiveis nao disparados.
 - Dois prestadores tentaram aceitar o mesmo caso: validar o resultado de `TryReserveJourneyDispatchTarget`; o primeiro aceite deve reservar o caso e os demais devem retornar `AlreadyReserved = true`.
 
+### Notificacao confiavel para prestadores com links assinados
+
+#### Objetivo desta etapa
+
+- Garantir que a oportunidade chegue ao prestador por canal controlado, mesmo quando ele usa bots em outros canais.
+- Capturar aceite e recusa oficiais sem depender de parsing de texto livre.
+- Tornar auditavel o envio, a abertura, o clique e a resposta oficial do prestador.
+
+#### Escopo entregue nesta fatia
+
+- Foi criado o `JourneyProviderDispatchNotificationService`, responsavel por montar e enviar o e-mail da oportunidade com links assinados.
+- Foi criado o `JourneyProviderDispatchLinkService`, com assinatura HMAC, expiracao automatica e validacao por proposito (`response_page` e `open_tracking`).
+- Foi criado o `JourneyProviderOpportunityController`, com pagina publica segura para resposta do prestador em `/prestadores/oportunidades/responder`.
+- Foi criado o endpoint `GET /prestadores/oportunidades/rastreio-abertura`, que registra abertura por pixel quando o rastreio estiver habilitado.
+- O fluxo oficial de aceite/recusa agora acontece por `POST` dentro da pagina segura; o clique no e-mail apenas abre a confirmacao.
+- O snapshot da jornada passou a persistir `DeliveryChannel`, `DeliveryStatus`, `DeliveryAttempts`, `LastDeliveryAttemptAtUtc`, `OpenedAtUtc`, `OpenCount`, `ClickedAtUtc`, `ClickCount`, `LastInteractionSource`, `LastInteractionAtUtc` e `LastError`.
+- O modal do lead agora mostra a telemetria do disparo por alvo dentro da secao `Disparo em ondas`.
+
+#### Configuracao minima
+
+No `ConsertaPraMim.Web.CpmFull`, configurar a secao `JourneyProviderNotification`:
+
+- `Enabled`
+- `EmailEnabled`
+- `EmailTransport` (`log` ou `smtp`)
+- `PublicBaseUrl`
+- `LinkSigningSecret`
+- `LinkExpirationMinutes`
+- `OpenTrackingEnabled`
+- `SenderEmail`
+- `SenderDisplayName`
+- `SmtpHost`
+- `SmtpPort`
+- `SmtpUseSsl`
+- `SmtpUsername`
+- `SmtpPassword`
+- `ProviderPortalBaseUrl`
+
+Pre-condicoes operacionais:
+
+- `JourneyProviderDispatch` deve continuar habilitado.
+- `JourneyProviderNotification:PublicBaseUrl` precisa apontar para a URL publica do `ConsertaPraMim.Web.CpmFull`.
+- `JourneyProviderNotification:LinkSigningSecret` deve ter pelo menos 32 caracteres e ser mantido apenas em secret/env.
+- Os prestadores elegiveis precisam ter `ProviderEmail` valido para receber a oportunidade.
+
+#### Comportamento esperado
+
+- Cada alvo enviado na onda gera um e-mail com link assinado de aceite e link assinado de recusa.
+- O clique no e-mail abre uma pagina segura de confirmacao; a reserva oficial so acontece no `POST` da pagina.
+- Abertura e clique sao registrados como telemetria do alvo sem mudar, por si so, o status oficial do caso.
+- A recusa oficial muda o alvo para `Recusado` e pode liberar imediatamente a proxima onda elegivel.
+- O aceite oficial usa `TryReserveJourneyDispatchTarget`; se outro prestador tiver reservado antes, o retorno deve indicar indisponibilidade da oportunidade.
+- Falha permanente de entrega dispensa o alvo e registra o erro no snapshot do disparo.
+
+#### Checklist de QA
+
+1. Configurar `JourneyProviderDispatch:Enabled=true` e `JourneyProviderNotification:Enabled=true` no CPM Full.
+2. Para homologacao local, usar `JourneyProviderNotification:EmailTransport=log` e `OpenTrackingEnabled=true`.
+3. Garantir um lead de cliente em `Disparo para prestadores` ou `Aguardando aceite` com pelo menos um alvo elegivel contendo `ProviderEmail`.
+4. Aguardar o processamento da fila de disparo e validar no log do runtime o HTML do e-mail com os links assinados.
+5. Abrir o lead em `/admin/funil/clientes` e validar, na secao `Disparo em ondas`, `Canal`, `Status de entrega`, `Tentativas` e `Ultimo envio`.
+6. Abrir o link assinado de aceite e validar a pagina publica `/prestadores/oportunidades/responder`.
+7. Confirmar o aceite na pagina e validar que a resposta oficial atualiza o caso sem depender de texto livre.
+8. Repetir o fluxo com o link de recusa e validar `TargetStatus = Recusado`, com historico operacional correspondente.
+9. Acessar o pixel `rastreio-abertura` com token valido e validar incremento de `OpenCount`.
+10. Confirmar no modal do lead que `OpenCount`, `ClickCount`, `LastInteractionSource` e `LastError` refletem o comportamento do alvo.
+
+#### Troubleshooting
+
+- O e-mail nao foi montado: validar `JourneyProviderNotification:Enabled`, `EmailEnabled`, `SenderEmail` e `PublicBaseUrl`.
+- O link retorna `Link invalido` ou `Link expirado`: validar `LinkSigningSecret`, `LinkExpirationMinutes`, timezone/UTC e se o token foi gerado com o mesmo ambiente.
+- O clique abre a pagina mas nao confirma o caso: lembrar que a confirmacao oficial acontece no `POST` da pagina, nao no `GET`.
+- O aceite falha com oportunidade indisponivel: validar se outro prestador ja reservou o caso e se `TryReserveJourneyDispatchTarget` retornou `AlreadyReserved`.
+- O modal nao mostra telemetria de entrega: validar se o snapshot da jornada foi atualizado com `DispatchSnapshotJson` apos o envio.
+- O pixel nao incrementa abertura: validar `OpenTrackingEnabled`, reachability do endpoint `/prestadores/oportunidades/rastreio-abertura` e se o cliente de e-mail carrega imagens remotas.
+
 ## Automacao Telegram -> funis clientes/prestadores -> Chatwoot
 
 ### Objetivo desta etapa

@@ -419,6 +419,54 @@ public static class AdminKanbanJourneyDispatchTargetStatuses
     };
 }
 
+public static class AdminKanbanJourneyDispatchDeliveryStatuses
+{
+    public const string Pending = "pendente";
+    public const string Sent = "email_enviado";
+    public const string Opened = "email_aberto";
+    public const string Clicked = "link_clicado";
+    public const string Accepted = "aceite_confirmado";
+    public const string Declined = "recusa_confirmada";
+    public const string Failed = "falha_envio";
+
+    public static string Normalize(string? value) => (value ?? string.Empty).Trim().ToLowerInvariant() switch
+    {
+        Sent => Sent,
+        Opened => Opened,
+        Clicked => Clicked,
+        Accepted => Accepted,
+        Declined => Declined,
+        Failed => Failed,
+        _ => Pending
+    };
+
+    public static string GetLabel(string? value) => Normalize(value) switch
+    {
+        Sent => "E-mail enviado",
+        Opened => "E-mail aberto",
+        Clicked => "Link acessado",
+        Accepted => "Aceite confirmado",
+        Declined => "Recusa confirmada",
+        Failed => "Falha de envio",
+        _ => "Pendente"
+    };
+}
+
+public static class AdminKanbanJourneyDispatchInteractionTypes
+{
+    public const string Opened = "opened";
+    public const string Clicked = "clicked";
+    public const string Declined = "declined";
+
+    public static string Normalize(string? value) => (value ?? string.Empty).Trim().ToLowerInvariant() switch
+    {
+        Opened => Opened,
+        Clicked => Clicked,
+        Declined => Declined,
+        _ => throw new ArgumentException("Interacao de dispatch invalida.", nameof(value))
+    };
+}
+
 public static class AdminKanbanJourneyDispatchQueueStatuses
 {
     public const string Pending = "pending";
@@ -951,6 +999,17 @@ public sealed record class AdminKanbanJourneyDispatchTargetRecord
     public DateTime? SentAtUtc { get; init; }
     public DateTime? RespondedAtUtc { get; init; }
     public DateTime? ExpiresAtUtc { get; init; }
+    public string DeliveryChannel { get; init; } = string.Empty;
+    public string DeliveryStatus { get; init; } = string.Empty;
+    public int DeliveryAttempts { get; init; }
+    public DateTime? LastDeliveryAttemptAtUtc { get; init; }
+    public DateTime? OpenedAtUtc { get; init; }
+    public int OpenCount { get; init; }
+    public DateTime? ClickedAtUtc { get; init; }
+    public int ClickCount { get; init; }
+    public string LastInteractionSource { get; init; } = string.Empty;
+    public DateTime? LastInteractionAtUtc { get; init; }
+    public string LastError { get; init; } = string.Empty;
     public string Note { get; init; } = string.Empty;
 }
 
@@ -1239,6 +1298,31 @@ public sealed record class AdminKanbanJourneyDispatchReservationResult
     public int LeadId { get; init; }
     public int JourneyId { get; init; }
     public string CurrentState { get; init; } = string.Empty;
+    public Guid? ReservedProviderId { get; init; }
+    public string ReservedProviderName { get; init; } = string.Empty;
+}
+
+public sealed class AdminKanbanJourneyDispatchTargetInteractionRequest
+{
+    public int LeadId { get; init; }
+    public Guid ProviderId { get; init; }
+    public string TargetKey { get; init; } = string.Empty;
+    public string InteractionType { get; init; } = string.Empty;
+    public DateTime OccurredAtUtc { get; init; }
+    public string SourceChannel { get; init; } = string.Empty;
+}
+
+public sealed record class AdminKanbanJourneyDispatchTargetInteractionResult
+{
+    public bool Succeeded { get; init; }
+    public bool AlreadyReserved { get; init; }
+    public bool AlreadyResponded { get; init; }
+    public bool TargetUnavailable { get; init; }
+    public int LeadId { get; init; }
+    public int JourneyId { get; init; }
+    public string CurrentState { get; init; } = string.Empty;
+    public string TargetStatus { get; init; } = string.Empty;
+    public string Message { get; init; } = string.Empty;
     public Guid? ReservedProviderId { get; init; }
     public string ReservedProviderName { get; init; } = string.Empty;
 }
