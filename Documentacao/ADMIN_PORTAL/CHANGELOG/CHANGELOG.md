@@ -2139,6 +2139,11 @@
 - Resumo: corrigido o loop restante da triagem Telegram quando o telefone ja estava salvo no lead, garantindo que respostas seguintes como `eletricista` avancem para o proximo dado faltante em vez de voltar a pedir telefone.
 - Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramInboundUpdateProcessor.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Integrations/Telegram/TelegramInboundUpdateProcessorTests.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/MANUAL_QA_OPERACAO.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-114-hotfix-telefone-persistido-qualificacao-telegram.md`
 - Risco/Impacto: medio
+- [2026-03-16] [ST-115] Fluxo Telegram usando estado persistido para categoria, CEP, endereco e contexto
+- Tipo: fix
+- Resumo: a triagem do Telegram passou a filtrar os campos faltantes com base no estado persistido da jornada no CPM Full, evitando regressao de `categoria` apos o usuario informar `CEP` e estabilizando o fluxo incremental entre `telefone -> categoria -> CEP -> proximo campo`.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramInboundUpdateProcessor.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramLeadAutomationClient.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Models/TelegramLeadAutomationModels.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Telegram/TelegramLeadAutomationService.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Telegram/TelegramLeadAutomationContracts.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Integrations/Telegram/TelegramInboundUpdateProcessorTests.cs`
+- Risco/Impacto: medio
 
 ## Template de entrada
 

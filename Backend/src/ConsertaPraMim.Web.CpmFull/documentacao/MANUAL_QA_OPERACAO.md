@@ -1759,6 +1759,20 @@ Equivalentes no deploy VPS:
 4. Responder `eletricista`.
 5. Confirmar que o bot pede o proximo campo faltante, como `cidade`, e nao volta a pedir telefone.
 
+### Hotfix operacional do Telegram - campos faltantes baseados em estado persistido
+
+- A triagem do Telegram agora remove da lista de campos faltantes tudo que ja estiver persistido na jornada, incluindo `categoria`, `CEP`, `logradouro/bairro` e `contexto do problema`.
+- O comportamento esperado apos `telefone -> eletricista -> 11704150` e seguir para `cidade` ou `bairro/logradouro`, nunca voltar para `tipo de servico`.
+
+### Checklist de QA do hotfix ST-115
+
+1. Iniciar conversa no Telegram com `oi`.
+2. Informar o telefone.
+3. Responder `eletricista`.
+4. Confirmar que o bot avanca para `CEP` ou outro campo faltante coerente.
+5. Informar `11704150`.
+6. Confirmar que o bot segue para o proximo campo faltante e nao volta para `tipo de servico`.
+
 ### Proxima evolucao documentada
 
 - A base funcional da automacao publicada continua registrada no documento `EPIC-TELEGRAM-001 - Automacao do Bot Telegram com Funis CPM e Chatwoot`.

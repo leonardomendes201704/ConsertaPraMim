@@ -103,6 +103,9 @@ public sealed class TelegramLeadAutomationClient : ITelegramLeadAutomationClient
                 HasEmail = payload?.HasEmail ?? !string.IsNullOrWhiteSpace(request.UserEmail),
                 HasCity = payload?.HasCity ?? !string.IsNullOrWhiteSpace(request.City),
                 HasServiceCategory = payload?.HasServiceCategory ?? !string.IsNullOrWhiteSpace(request.ServiceCategory),
+                HasPostalCode = payload?.HasPostalCode ?? !string.IsNullOrWhiteSpace(request.PostalCode),
+                HasAddressDetails = payload?.HasAddressDetails ?? !string.IsNullOrWhiteSpace(request.Neighborhood) || !string.IsNullOrWhiteSpace(request.Street),
+                HasProblemContext = payload?.HasProblemContext ?? !string.IsNullOrWhiteSpace(request.ProblemDescription),
                 QualificationStatus = payload?.QualificationStatus ?? string.Empty,
                 ConfirmationPrompt = payload?.ConfirmationPrompt ?? string.Empty,
                 MissingRequiredFields = payload?.MissingRequiredFields ?? [],
@@ -151,6 +154,9 @@ public sealed class TelegramLeadAutomationClient : ITelegramLeadAutomationClient
         public bool HasEmail { get; init; }
         public bool HasCity { get; init; }
         public bool HasServiceCategory { get; init; }
+        public bool HasPostalCode { get; init; }
+        public bool HasAddressDetails { get; init; }
+        public bool HasProblemContext { get; init; }
         public string QualificationStatus { get; init; } = string.Empty;
         public string ConfirmationPrompt { get; init; } = string.Empty;
         public IReadOnlyList<string> MissingRequiredFields { get; init; } = [];
