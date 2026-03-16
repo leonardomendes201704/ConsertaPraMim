@@ -99,6 +99,10 @@ public sealed class TelegramLeadAutomationClient : ITelegramLeadAutomationClient
                 Created = payload?.Created ?? false,
                 BoardType = payload?.BoardType ?? request.BoardType,
                 Message = payload?.Message ?? "Lead sincronizado via automacao Telegram.",
+                HasPhone = payload?.HasPhone ?? !string.IsNullOrWhiteSpace(request.UserPhone),
+                HasEmail = payload?.HasEmail ?? !string.IsNullOrWhiteSpace(request.UserEmail),
+                HasCity = payload?.HasCity ?? !string.IsNullOrWhiteSpace(request.City),
+                HasServiceCategory = payload?.HasServiceCategory ?? !string.IsNullOrWhiteSpace(request.ServiceCategory),
                 ChatwootStatus = payload?.Chatwoot?.Status ?? string.Empty,
                 ChatwootMessage = payload?.Chatwoot?.Message ?? string.Empty,
                 ChatwootContactId = payload?.Chatwoot?.ContactId,
@@ -140,6 +144,10 @@ public sealed class TelegramLeadAutomationClient : ITelegramLeadAutomationClient
         public bool Created { get; init; }
         public string BoardType { get; init; } = string.Empty;
         public string Message { get; init; } = string.Empty;
+        public bool HasPhone { get; init; }
+        public bool HasEmail { get; init; }
+        public bool HasCity { get; init; }
+        public bool HasServiceCategory { get; init; }
         public ChatwootAutomationApiResponse? Chatwoot { get; init; }
     }
 

@@ -33,6 +33,10 @@ public sealed class TelegramLeadAutomationUpsertResult
     public bool Created { get; init; }
     public string BoardType { get; init; } = string.Empty;
     public string Message { get; init; } = string.Empty;
+    public bool HasPhone { get; init; }
+    public bool HasEmail { get; init; }
+    public bool HasCity { get; init; }
+    public bool HasServiceCategory { get; init; }
     public string ChatwootStatus { get; init; } = string.Empty;
     public string ChatwootMessage { get; init; } = string.Empty;
     public long? ChatwootContactId { get; init; }

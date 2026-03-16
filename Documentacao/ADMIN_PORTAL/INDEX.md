@@ -74,6 +74,7 @@
 
 ### Done
 
+- [ST-111 - Hotfix da continuacao de qualificacao do Telegram apos captura de contato](STORIES/DONE/ST-111-hotfix-continuacao-qualificacao-telegram-apos-contato.md)
 - [ST-110 - Excecoes, handoff minimo, observabilidade e rollout da jornada](STORIES/DONE/ST-110-excecoes-handoff-observabilidade-rollout-jornada.md)
 - [ST-109 - Conclusao do servico e avaliacao bilateral](STORIES/DONE/ST-109-conclusao-servico-avaliacao-bilateral.md)
 - [ST-108 - Reserva do caso e conexao direta entre cliente e prestador](STORIES/DONE/ST-108-reserva-caso-conexao-direta-cliente-prestador.md)
