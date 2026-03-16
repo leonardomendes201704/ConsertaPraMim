@@ -475,7 +475,7 @@ Como operacao, queremos que o card do cliente caminhe sozinho pelas etapas do Ka
 
 ### Status
 
-- Planejada.
+- Concluida localmente.
 
 ### Criterios de aceite
 
@@ -490,6 +490,17 @@ Como operacao, queremos que o card do cliente caminhe sozinho pelas etapas do Ka
 - `TASK-04.03` Persistir motivo e origem da mudanca de etapa.
 - `TASK-04.04` Criar timers para `dados pendentes`, `agenda pendente`, `aceite pendente` e `avaliacoes pendentes`.
 - `TASK-04.05` Cobrir rollback/logica de idempotencia para transicoes repetidas.
+
+### Entrega implementada
+
+- O board `clientes` do CPM Full passou a usar o conjunto completo de etapas da jornada autonoma, com migracao idempotente dos nomes legados e ordenacao alinhada ao fluxo operacional.
+- Foi criado o `JourneyStageAutomationService`, responsavel por aplicar a matriz de transicoes do card com base no `CurrentState`, no snapshot da agenda e em timers operacionais persistidos na propria jornada.
+- O worker `JourneyStageAutomationWorker` agora processa periodicamente os leads elegiveis, movendo o card sem interacao humana quando a jornada muda de estado.
+- A jornada passou a persistir `LastStageAutomationReason`, `LastStageAutomationOrigin`, `LastStageAutomationAtUtc`, `ActiveTimerCode` e `ActiveTimerDueAtUtc` em `dbo.cpm_web_journey_executions`.
+- O modal do lead no Kanban passou a exibir `Ultimo motivo da automacao`, `Origem da automacao`, `Ultima transicao automatica`, `Timer ativo` e `Timer vence em`.
+- Timers operacionais foram implementados para `dados pendentes`, `confirmacao da agenda`, `aceite do prestador`, `avaliacao do cliente` e `avaliacao do prestador`.
+- Quando um timer vence, a jornada pode escalar automaticamente para `Excecao operacional`, `Sem match`, `Aguardando avaliacao do prestador` ou `Concluido`, conforme a etapa corrente.
+- Foram adicionados testes dedicados para a matriz de transicoes e para a persistencia SQL do motivo, origem e timer ativo da automacao.
 
 ## US-05 / ST-105 - Matching geografico e elegibilidade de prestadores
 

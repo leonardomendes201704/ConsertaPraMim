@@ -176,6 +176,73 @@ Pre-condicoes operacionais:
 - O evento foi criado em horario inesperado: revisar `JourneyScheduling:Timezone` e a exibicao do fuso de negocio `America/Sao_Paulo`.
 - O cliente pediu `reagendar`, mas o mesmo slot reapareceu: revisar se o `freeBusy` da agenda foi atualizado e se o evento anterior foi alterado ou removido corretamente.
 
+### Kanban autonomo e timers operacionais da jornada
+
+#### Objetivo desta etapa
+
+- Fazer o card do cliente caminhar sozinho pelas etapas do Kanban conforme a jornada evolui.
+- Persistir motivo, origem e timer da ultima automacao diretamente no snapshot da jornada.
+- Escalar automaticamente casos parados para `Excecao operacional`, `Sem match` ou fechamento da jornada quando o prazo vencer.
+
+#### Escopo entregue nesta fatia
+
+- O board `clientes` agora usa o conjunto completo de etapas da jornada autonoma, com migracao idempotente dos nomes legados no seed do Kanban.
+- O `JourneyStageAutomationService` passou a ler candidatos em `dbo.cpm_web_journey_executions`, aplicar a matriz de transicoes e atualizar lead + jornada de forma idempotente.
+- O `JourneyStageAutomationWorker` executa periodicamente essa automacao com base na configuracao `JourneyStageAutomation`.
+- A jornada passou a persistir `LastStageAutomationReason`, `LastStageAutomationOrigin`, `LastStageAutomationAtUtc`, `ActiveTimerCode` e `ActiveTimerDueAtUtc`.
+- O modal do lead agora exibe `Ultimo motivo da automacao`, `Origem da automacao`, `Ultima transicao automatica`, `Timer ativo` e `Timer vence em`.
+- Timers operacionais foram entregues para `dados pendentes`, `confirmacao da agenda`, `aceite do prestador`, `avaliacao do cliente` e `avaliacao do prestador`.
+
+#### Configuracao minima
+
+No `ConsertaPraMim.Web.CpmFull`, configurar a secao `JourneyStageAutomation`:
+
+- `Enabled`
+- `WorkerEnabled`
+- `WorkerIntervalSeconds`
+- `WorkerBatchSize`
+- `PendingDataTimeoutMinutes`
+- `ScheduleConfirmationTimeoutMinutes`
+- `ProviderAcceptanceTimeoutMinutes`
+- `ClientReviewTimeoutHours`
+- `ProviderReviewTimeoutHours`
+
+Pre-condicoes operacionais:
+
+- A trilha `JourneyAutomation` deve continuar habilitada para o board `clientes`.
+- A jornada precisa estar sendo persistida em `dbo.cpm_web_journey_executions`.
+- O worker precisa estar ativo no runtime do `ConsertaPraMim.Web.CpmFull`.
+
+#### Comportamento esperado
+
+- Um lead novo de jornada deve sair de `Novo lead` para `Triagem automatica` sem intervencao humana.
+- Casos com `dados pendentes` ou `confirmacao necessaria` devem parar em `Dados pendentes` e ganhar timer operacional.
+- Quando slots forem sugeridos, o card deve passar por `Janela sugerida` e depois `Aguardando confirmacao da agenda`.
+- Quando a agenda for confirmada, o card deve ir para `Agendamento confirmado`.
+- Quando um timer vencer, a jornada deve registrar o motivo em historico e mover o card para a etapa de excecao ou conclusao correspondente.
+- A mesma transicao nao deve ser reaplicada em loop quando stage, estado, motivo, origem e timer ja estiverem alinhados.
+
+#### Checklist de QA
+
+1. Configurar `JourneyStageAutomation:Enabled=true` e `JourneyStageAutomation:WorkerEnabled=true` no CPM Full.
+2. Subir o `ConsertaPraMim.Web.CpmFull` com `JourneyAutomation` e `JourneyScheduling` ativos.
+3. Criar um lead de jornada novo via landing ou Telegram e validar que o card sai de `Novo lead` para `Triagem automatica`.
+4. Forcar um caso com dados faltantes e validar o card em `Dados pendentes`.
+5. Abrir o modal do lead e validar `Ultimo motivo da automacao`, `Origem da automacao = Maquina de estados` e `Timer ativo = Dados pendentes`.
+6. Completar os dados obrigatorios e validar que o card avanca para `Endereco e categoria validados`.
+7. Gerar slots de agenda e validar que o card passa por `Janela sugerida` e depois `Aguardando confirmacao da agenda`.
+8. Confirmar uma janela e validar o card em `Agendamento confirmado`.
+9. Simular um timer vencido de `confirmacao da agenda` e validar o card em `Excecao operacional`.
+10. Confirmar em banco que `dbo.cpm_web_journey_executions` grava `LastStageAutomationReason`, `LastStageAutomationOrigin`, `LastStageAutomationAtUtc`, `ActiveTimerCode` e `ActiveTimerDueAtUtc`.
+
+#### Troubleshooting
+
+- O card nao se move sozinho: validar `JourneyStageAutomation:Enabled`, `WorkerEnabled` e logs do `JourneyStageAutomationWorker`.
+- O worker roda, mas nao muda o card: revisar `CurrentState`, `StageName` atual e se a matriz da jornada cobre o estado persistido.
+- Timer nao aparece no modal: validar se `ActiveTimerCode` e `ActiveTimerDueAtUtc` foram gravados em `dbo.cpm_web_journey_executions`.
+- Historico repetido em loop: revisar se houve mudanca real de stage/estado/timer ou se algum processo externo esta sobrescrevendo o `CurrentState`.
+- Caso parado em `Aguardando confirmacao da agenda`: revisar se `SuggestedAtUtc` foi persistido e se o worker conseguiu calcular `ScheduleConfirmationTimeoutMinutes`.
+
 ## Automacao Telegram -> funis clientes/prestadores -> Chatwoot
 
 ### Objetivo desta etapa

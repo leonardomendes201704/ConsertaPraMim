@@ -21,6 +21,7 @@ public sealed class SqlAdminKanbanServiceChatwootPersistenceTests
         var service = CreateService(database.ConnectionString);
 
         _ = service.GetStages(AdminKanbanBoardTypes.Clients);
+        _ = service.GetJourneyDetails(-1);
 
         using var connection = new SqlConnection(database.ConnectionString);
         connection.Open();
@@ -183,6 +184,40 @@ WHERE object_id = OBJECT_ID('dbo.cpm_web_chatwoot_backfill_checkpoints')
 """;
 
         Assert.Equal(1, Convert.ToInt32(backfillIndexCommand.ExecuteScalar()));
+
+        using var journeyColumnsCommand = connection.CreateCommand();
+        journeyColumnsCommand.CommandText = """
+SELECT c.name
+FROM sys.columns c
+INNER JOIN sys.objects o ON o.object_id = c.object_id
+WHERE o.type = 'U' AND o.name = 'cpm_web_journey_executions'
+ORDER BY c.column_id;
+""";
+
+        var journeyColumnNames = new List<string>();
+        using (var reader = journeyColumnsCommand.ExecuteReader())
+        {
+            while (reader.Read())
+            {
+                journeyColumnNames.Add(reader.GetString(0));
+            }
+        }
+
+        Assert.Contains("LastStageAutomationReason", journeyColumnNames);
+        Assert.Contains("LastStageAutomationOrigin", journeyColumnNames);
+        Assert.Contains("LastStageAutomationAtUtc", journeyColumnNames);
+        Assert.Contains("ActiveTimerCode", journeyColumnNames);
+        Assert.Contains("ActiveTimerDueAtUtc", journeyColumnNames);
+
+        using var journeyTimerIndexCommand = connection.CreateCommand();
+        journeyTimerIndexCommand.CommandText = """
+SELECT COUNT(1)
+FROM sys.indexes
+WHERE object_id = OBJECT_ID('dbo.cpm_web_journey_executions')
+  AND name = 'IX_cpm_web_journey_executions_active_timer';
+""";
+
+        Assert.Equal(1, Convert.ToInt32(journeyTimerIndexCommand.ExecuteScalar()));
 
         using var telegramColumnsCommand = connection.CreateCommand();
         telegramColumnsCommand.CommandText = """
@@ -1714,6 +1749,137 @@ WHERE LeadId = @leadId;
         Assert.Equal(requestedAt.AddMinutes(10), reader.GetDateTime(6));
         Assert.Equal(requestedAt.AddHours(21), reader.GetDateTime(7));
         Assert.Equal(requestedAt.AddHours(22), reader.GetDateTime(8));
+    }
+
+    [Fact(DisplayName = "ApplyJourneyStageAutomation deve persistir motivo, origem e timer no snapshot da jornada")]
+    public void ApplyJourneyStageAutomation_DevePersistirMotivoOrigemETimer()
+    {
+        using var database = new LocalDbKanbanDatabaseScope();
+        if (!database.IsAvailable)
+        {
+            return;
+        }
+
+        var service = CreateService(database.ConnectionString);
+        var requestedAt = new DateTime(2026, 3, 18, 12, 0, 0, DateTimeKind.Utc);
+        var suggestedAtUtc = requestedAt.AddMinutes(10);
+        var timerDueAtUtc = suggestedAtUtc.AddHours(3);
+
+        var upsert = service.UpsertJourneyIntake(new AdminKanbanJourneyIntakeRequest
+        {
+            BoardType = AdminKanbanBoardTypes.Clients,
+            SourceChannel = AdminKanbanJourneySourceChannels.Telegram,
+            SourceOrigin = "telegram-bot",
+            Name = "Cliente Stage Automation",
+            Phone = "13999990004",
+            Email = "stage.automation@teste.com",
+            ServiceCategory = "Encanador",
+            ProblemDescription = "Preciso marcar visita para vazamento na cozinha.",
+            Street = "Rua Parana",
+            Neighborhood = "Ocian",
+            State = "SP",
+            PostalCode = "11701-330",
+            City = "Praia Grande",
+            ChatbotConversationId = Guid.Parse("77777777-7777-7777-7777-777777777777"),
+            ChannelConversationId = "5513997114455",
+            TelegramChatId = 5513997114455,
+            RequestedAtUtc = requestedAt,
+            LastContactAtUtc = requestedAt,
+            Qualification = new AdminKanbanJourneyQualificationRecord
+            {
+                Status = AdminKanbanJourneyQualificationStatuses.Qualified,
+                Source = AdminKanbanJourneyQualificationSources.Deterministic,
+                ConfidenceScore = 0.91m,
+                HasRequiredData = true,
+                NeedsConfirmation = false,
+                NormalizedServiceCategoryId = "encanador",
+                NormalizedServiceCategoryName = "Encanador",
+                ProblemContext = "Preciso marcar visita para vazamento na cozinha.",
+                Street = "Rua Parana",
+                Neighborhood = "Ocian",
+                City = "Praia Grande",
+                State = "SP",
+                PostalCode = "11701-330",
+                Summary = "Cliente qualificado para agendamento automatico.",
+                QualifiedAtUtc = requestedAt,
+                RequiredFields = ["Telefone", "Categoria", "CEP", "Cidade", "Logradouro ou bairro", "Contexto do problema"],
+                MissingRequiredFields = [],
+                OptionalFields = ["E-mail", "UF", "Latitude", "Longitude"]
+            }
+        });
+
+        _ = service.UpdateJourneyScheduling(upsert.LeadId, new AdminKanbanJourneySchedulingUpdateRequest
+        {
+            Status = AdminKanbanJourneySchedulingStatuses.SlotSuggested,
+            Summary = "Foram sugeridas tres janelas para o cliente.",
+            SuggestedAtUtc = suggestedAtUtc,
+            CurrentState = AdminKanbanJourneyStates.SlotSuggested,
+            HistoryEventType = "agenda_janela_sugerida",
+            HistoryDescription = "Autoagendamento sugeriu janelas ao cliente.",
+            SourceChannel = AdminKanbanJourneySourceChannels.Telegram,
+            SuggestedSlots =
+            [
+                new AdminKanbanJourneySuggestedSlotRecord
+                {
+                    OptionNumber = 1,
+                    StartsAtUtc = requestedAt.AddHours(20),
+                    EndsAtUtc = requestedAt.AddHours(21),
+                    Label = "Quarta, 18/03, 08:00 as 09:00"
+                }
+            ]
+        });
+
+        var candidates = service.ListJourneyStageAutomationCandidates(AdminKanbanBoardTypes.Clients, suggestedAtUtc, 10);
+        var candidate = Assert.Single(candidates.Where(item => item.LeadId == upsert.LeadId));
+        Assert.Equal(AdminKanbanJourneyStates.SlotSuggested, candidate.CurrentState);
+
+        var transition = service.ApplyJourneyStageAutomation(new AdminKanbanJourneyStageAutomationUpdateRequest
+        {
+            LeadId = upsert.LeadId,
+            BoardType = AdminKanbanBoardTypes.Clients,
+            TargetStageName = AdminKanbanJourneyClientStageNames.WaitingScheduleConfirmation,
+            TargetCurrentState = AdminKanbanJourneyStates.WaitingScheduleConfirmation,
+            Reason = "Cliente recebeu as janelas e a jornada agora aguarda confirmacao da agenda.",
+            Origin = AdminKanbanJourneyAutomationOrigins.StateMachine,
+            HistoryEventType = "jornada_kanban_automatizada",
+            HistoryDescription = "Kanban movido automaticamente para Aguardando confirmacao da agenda. Motivo: Cliente recebeu as janelas e a jornada agora aguarda confirmacao da agenda.",
+            MetadataJson = "{\"source\":\"test\"}",
+            ActiveTimerCode = AdminKanbanJourneyTimerCodes.PendingScheduleConfirmation,
+            ActiveTimerDueAtUtc = timerDueAtUtc
+        });
+
+        Assert.NotNull(transition);
+        Assert.True(transition!.StageChanged);
+        Assert.Equal(AdminKanbanJourneyClientStageNames.WaitingScheduleConfirmation, transition.ToStageName);
+        Assert.Equal(AdminKanbanJourneyStates.WaitingScheduleConfirmation, transition.CurrentState);
+
+        var details = service.GetLeadDetails(upsert.LeadId);
+        Assert.NotNull(details);
+        Assert.Equal(AdminKanbanJourneyClientStageNames.WaitingScheduleConfirmation, details!.StageName);
+        Assert.Equal(AdminKanbanJourneyStates.WaitingScheduleConfirmation, details.Journey.CurrentState);
+        Assert.Equal("Cliente recebeu as janelas e a jornada agora aguarda confirmacao da agenda.", details.Journey.StageAutomation.LastReason);
+        Assert.Equal(AdminKanbanJourneyAutomationOrigins.StateMachine, details.Journey.StageAutomation.LastOrigin);
+        Assert.Equal(timerDueAtUtc, details.Journey.StageAutomation.ActiveTimerDueAtUtc);
+        Assert.Equal(AdminKanbanJourneyTimerCodes.PendingScheduleConfirmation, details.Journey.StageAutomation.ActiveTimerCode);
+        Assert.Contains(details.History, item => item.EventType == "jornada_kanban_automatizada");
+
+        using var connection = new SqlConnection(database.ConnectionString);
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+SELECT CurrentState, LastStageAutomationReason, LastStageAutomationOrigin, ActiveTimerCode, ActiveTimerDueAtUtc
+FROM dbo.cpm_web_journey_executions
+WHERE LeadId = @leadId;
+""";
+        command.Parameters.Add(new SqlParameter("@leadId", SqlDbType.Int) { Value = upsert.LeadId });
+
+        using var reader = command.ExecuteReader();
+        Assert.True(reader.Read());
+        Assert.Equal(AdminKanbanJourneyStates.WaitingScheduleConfirmation, reader.GetString(0));
+        Assert.Equal("Cliente recebeu as janelas e a jornada agora aguarda confirmacao da agenda.", reader.GetString(1));
+        Assert.Equal(AdminKanbanJourneyAutomationOrigins.StateMachine, reader.GetString(2));
+        Assert.Equal(AdminKanbanJourneyTimerCodes.PendingScheduleConfirmation, reader.GetString(3));
+        Assert.Equal(timerDueAtUtc, reader.GetDateTime(4));
     }
 
     private static SqlAdminKanbanService CreateService(string connectionString)

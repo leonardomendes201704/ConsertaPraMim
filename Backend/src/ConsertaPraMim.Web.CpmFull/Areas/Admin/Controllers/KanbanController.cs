@@ -109,6 +109,20 @@ public sealed class KanbanController : Controller
                 createdAt = lead.Journey.JourneyId > 0 ? lead.Journey.CreatedAt.ToString("dd/MM/yyyy HH:mm") : "-",
                 updatedAt = lead.Journey.UpdatedAt?.ToString("dd/MM/yyyy HH:mm") ?? "-",
                 lastIntakeAt = lead.Journey.LastIntakeAt?.ToString("dd/MM/yyyy HH:mm") ?? "-",
+                stageAutomation = new
+                {
+                    lastReason = string.IsNullOrWhiteSpace(lead.Journey.StageAutomation.LastReason) ? "-" : lead.Journey.StageAutomation.LastReason,
+                    lastOrigin = lead.Journey.StageAutomation.LastOrigin,
+                    lastOriginLabel = string.IsNullOrWhiteSpace(lead.Journey.StageAutomation.LastOrigin)
+                        ? "-"
+                        : AdminKanbanJourneyAutomationOrigins.GetLabel(lead.Journey.StageAutomation.LastOrigin),
+                    lastTransitionAt = lead.Journey.StageAutomation.LastTransitionAtUtc?.ToString("dd/MM/yyyy HH:mm") ?? "-",
+                    activeTimerCode = lead.Journey.StageAutomation.ActiveTimerCode,
+                    activeTimerLabel = string.IsNullOrWhiteSpace(lead.Journey.StageAutomation.ActiveTimerCode)
+                        ? "-"
+                        : AdminKanbanJourneyTimerCodes.GetLabel(lead.Journey.StageAutomation.ActiveTimerCode),
+                    activeTimerDueAt = lead.Journey.StageAutomation.ActiveTimerDueAtUtc?.ToString("dd/MM/yyyy HH:mm") ?? "-"
+                },
                 qualification = new
                 {
                     status = lead.Journey.Qualification.Status,

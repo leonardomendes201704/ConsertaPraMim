@@ -184,7 +184,12 @@ SELECT TOP (1)
     SchedulingConfirmedAtUtc,
     SchedulingCancelledAtUtc,
     ScheduledStartAtUtc,
-    ScheduledEndAtUtc
+    ScheduledEndAtUtc,
+    LastStageAutomationReason,
+    LastStageAutomationOrigin,
+    LastStageAutomationAtUtc,
+    ActiveTimerCode,
+    ActiveTimerDueAtUtc
 FROM dbo.{TablePrefix}journey_executions
 WHERE LeadId = @leadId
 ORDER BY UpdatedAt DESC, Id DESC;
@@ -221,7 +226,15 @@ ORDER BY UpdatedAt DESC, Id DESC;
             UpdatedAt = ReadNullableUtcDateTime(reader, 19),
             LastIntakeAt = ReadNullableUtcDateTime(reader, 20),
             Qualification = ReadJourneyQualificationRecord(reader, 21),
-            Scheduling = ReadJourneySchedulingRecord(reader, 29)
+            Scheduling = ReadJourneySchedulingRecord(reader, 29),
+            StageAutomation = new AdminKanbanJourneyStageAutomationRecord
+            {
+                LastReason = reader.IsDBNull(38) ? string.Empty : reader.GetString(38),
+                LastOrigin = reader.IsDBNull(39) ? string.Empty : reader.GetString(39),
+                LastTransitionAtUtc = ReadNullableUtcDateTime(reader, 40),
+                ActiveTimerCode = reader.IsDBNull(41) ? string.Empty : reader.GetString(41),
+                ActiveTimerDueAtUtc = ReadNullableUtcDateTime(reader, 42)
+            }
         };
     }
 
@@ -340,6 +353,270 @@ WHERE Id = @journeyId;
         };
     }
 
+    public IReadOnlyList<AdminKanbanJourneyStageAutomationCandidateRecord> ListJourneyStageAutomationCandidates(
+        string boardType,
+        DateTime nowUtc,
+        int batchSize)
+    {
+        EnsureInitialized();
+        EnsureJourneySchemaInitialized();
+
+        var normalizedBoardType = AdminKanbanBoardTypes.Normalize(boardType);
+        var effectiveBatchSize = Math.Clamp(batchSize, 1, 250);
+        var normalizedNowUtc = NormalizeJourneyUtc(nowUtc) ?? DateTime.UtcNow;
+        var candidates = new List<AdminKanbanJourneyStageAutomationCandidateRecord>(effectiveBatchSize);
+
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = $"""
+SELECT TOP (@batchSize)
+    j.LeadId,
+    j.Id,
+    j.BoardType,
+    lead.StageId,
+    stage.Name,
+    j.CurrentState,
+    j.QualificationStatus,
+    j.SchedulingStatus,
+    j.CreatedAt,
+    j.LastIntakeAt,
+    COALESCE(stateEntry.CreatedAt, j.UpdatedAt, j.LastIntakeAt, j.CreatedAt) AS CurrentStateEnteredAtUtc,
+    j.SuggestedAtUtc,
+    j.ActiveTimerCode,
+    j.ActiveTimerDueAtUtc,
+    j.LastStageAutomationReason,
+    j.LastStageAutomationOrigin
+FROM dbo.{TablePrefix}journey_executions j
+INNER JOIN dbo.{TablePrefix}kanban_leads lead ON lead.Id = j.LeadId
+INNER JOIN dbo.{TablePrefix}kanban_stages stage ON stage.Id = lead.StageId
+OUTER APPLY
+(
+    SELECT TOP (1) evt.CreatedAt
+    FROM dbo.{TablePrefix}journey_events evt
+    WHERE evt.JourneyId = j.Id
+      AND evt.ToState = j.CurrentState
+    ORDER BY evt.CreatedAt DESC, evt.Id DESC
+) stateEntry
+WHERE lead.IsActive = 1
+  AND j.BoardType = @boardType
+ORDER BY
+    CASE WHEN j.ActiveTimerDueAtUtc IS NOT NULL AND j.ActiveTimerDueAtUtc <= @nowUtc THEN 0 ELSE 1 END,
+    COALESCE(j.ActiveTimerDueAtUtc, stateEntry.CreatedAt, j.UpdatedAt, j.LastIntakeAt, j.CreatedAt),
+    j.Id;
+""";
+        command.Parameters.Add(new SqlParameter("@batchSize", SqlDbType.Int) { Value = effectiveBatchSize });
+        command.Parameters.Add(new SqlParameter("@boardType", SqlDbType.NVarChar, 30) { Value = normalizedBoardType });
+        command.Parameters.Add(new SqlParameter("@nowUtc", SqlDbType.DateTime2) { Value = normalizedNowUtc });
+
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            candidates.Add(new AdminKanbanJourneyStageAutomationCandidateRecord
+            {
+                LeadId = reader.GetInt32(0),
+                JourneyId = reader.GetInt32(1),
+                BoardType = reader.GetString(2),
+                StageId = reader.GetInt32(3),
+                StageName = reader.IsDBNull(4) ? string.Empty : reader.GetString(4),
+                CurrentState = reader.IsDBNull(5) ? string.Empty : reader.GetString(5),
+                QualificationStatus = reader.IsDBNull(6) ? string.Empty : reader.GetString(6),
+                SchedulingStatus = reader.IsDBNull(7) ? string.Empty : reader.GetString(7),
+                CreatedAtUtc = ReadAsUtcDateTime(reader, 8),
+                LastIntakeAtUtc = ReadNullableUtcDateTime(reader, 9),
+                CurrentStateEnteredAtUtc = ReadNullableUtcDateTime(reader, 10),
+                SchedulingSuggestedAtUtc = ReadNullableUtcDateTime(reader, 11),
+                ActiveTimerCode = reader.IsDBNull(12) ? string.Empty : reader.GetString(12),
+                ActiveTimerDueAtUtc = ReadNullableUtcDateTime(reader, 13),
+                LastAutomationReason = reader.IsDBNull(14) ? string.Empty : reader.GetString(14),
+                LastAutomationOrigin = reader.IsDBNull(15) ? string.Empty : reader.GetString(15)
+            });
+        }
+
+        return candidates;
+    }
+
+    public AdminKanbanJourneyStageAutomationUpdateResult? ApplyJourneyStageAutomation(
+        AdminKanbanJourneyStageAutomationUpdateRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        EnsureInitialized();
+        EnsureJourneySchemaInitialized();
+
+        var normalizedBoardType = AdminKanbanBoardTypes.Normalize(request.BoardType);
+        var normalizedTargetState = AdminKanbanJourneyStates.Normalize(request.TargetCurrentState);
+        var normalizedOrigin = AdminKanbanJourneyAutomationOrigins.Normalize(request.Origin);
+        var normalizedReason = TrimToOrNull(request.Reason, 180) ?? string.Empty;
+        var normalizedTimerCode = NormalizeJourneyTimerCode(request.ActiveTimerCode);
+        var normalizedTimerDueAtUtc = NormalizeJourneyUtc(request.ActiveTimerDueAtUtc);
+
+        using var connection = OpenConnection();
+        using var transaction = connection.BeginTransaction();
+
+        JourneyAutomationExecutionMatch? match;
+        using (var command = connection.CreateCommand())
+        {
+            command.Transaction = transaction;
+            command.CommandText = $"""
+SELECT TOP (1)
+    j.Id,
+    j.LeadId,
+    j.BoardType,
+    j.SourceChannel,
+    j.CurrentState,
+    lead.StageId,
+    stage.Name,
+    j.LastStageAutomationReason,
+    j.LastStageAutomationOrigin,
+    j.ActiveTimerCode,
+    j.ActiveTimerDueAtUtc
+FROM dbo.{TablePrefix}journey_executions j
+INNER JOIN dbo.{TablePrefix}kanban_leads lead ON lead.Id = j.LeadId
+INNER JOIN dbo.{TablePrefix}kanban_stages stage ON stage.Id = lead.StageId
+WHERE j.LeadId = @leadId
+  AND j.BoardType = @boardType
+  AND lead.IsActive = 1
+ORDER BY COALESCE(j.UpdatedAt, j.LastIntakeAt, j.CreatedAt) DESC, j.Id DESC;
+""";
+            command.Parameters.Add(new SqlParameter("@leadId", SqlDbType.Int) { Value = request.LeadId });
+            command.Parameters.Add(new SqlParameter("@boardType", SqlDbType.NVarChar, 30) { Value = normalizedBoardType });
+
+            using var reader = command.ExecuteReader();
+            if (!reader.Read())
+            {
+                return null;
+            }
+
+            match = new JourneyAutomationExecutionMatch
+            {
+                JourneyId = reader.GetInt32(0),
+                LeadId = reader.GetInt32(1),
+                BoardType = reader.GetString(2),
+                SourceChannel = reader.IsDBNull(3) ? string.Empty : reader.GetString(3),
+                CurrentState = reader.IsDBNull(4) ? string.Empty : reader.GetString(4),
+                StageId = reader.GetInt32(5),
+                StageName = reader.IsDBNull(6) ? string.Empty : reader.GetString(6),
+                LastAutomationReason = reader.IsDBNull(7) ? string.Empty : reader.GetString(7),
+                LastAutomationOrigin = reader.IsDBNull(8) ? string.Empty : reader.GetString(8),
+                ActiveTimerCode = reader.IsDBNull(9) ? string.Empty : reader.GetString(9),
+                ActiveTimerDueAtUtc = ReadNullableUtcDateTime(reader, 10)
+            };
+        }
+
+        var targetStageName = string.IsNullOrWhiteSpace(request.TargetStageName)
+            ? match.StageName
+            : TrimTo(request.TargetStageName, 120);
+        var targetStageId = string.Equals(match.StageName, targetStageName, StringComparison.Ordinal)
+            ? match.StageId
+            : GetStageIdByName(connection, transaction, normalizedBoardType, targetStageName);
+        var stageChanged = targetStageId != match.StageId;
+        var stateChanged = !string.Equals(match.CurrentState, normalizedTargetState, StringComparison.OrdinalIgnoreCase);
+        var reasonChanged = !string.Equals(match.LastAutomationReason, normalizedReason, StringComparison.Ordinal);
+        var originChanged = !string.Equals(match.LastAutomationOrigin, normalizedOrigin, StringComparison.OrdinalIgnoreCase);
+        var timerCodeChanged = !string.Equals(match.ActiveTimerCode, normalizedTimerCode, StringComparison.OrdinalIgnoreCase);
+        var timerDueChanged = match.ActiveTimerDueAtUtc != normalizedTimerDueAtUtc;
+
+        if (!stageChanged &&
+            !stateChanged &&
+            !reasonChanged &&
+            !originChanged &&
+            !timerCodeChanged &&
+            !timerDueChanged)
+        {
+            transaction.Rollback();
+            return new AdminKanbanJourneyStageAutomationUpdateResult
+            {
+                LeadId = match.LeadId,
+                JourneyId = match.JourneyId,
+                FromStageId = match.StageId,
+                FromStageName = match.StageName,
+                ToStageId = match.StageId,
+                ToStageName = match.StageName,
+                CurrentState = match.CurrentState,
+                StageChanged = false
+            };
+        }
+
+        if (stageChanged)
+        {
+            using var updateLeadCommand = connection.CreateCommand();
+            updateLeadCommand.Transaction = transaction;
+            updateLeadCommand.CommandText = $"""
+UPDATE dbo.{TablePrefix}kanban_leads
+SET StageId = @stageId,
+    SortOrder = @sortOrder,
+    UpdatedAt = SYSUTCDATETIME()
+WHERE Id = @leadId
+  AND IsActive = 1;
+""";
+            updateLeadCommand.Parameters.Add(new SqlParameter("@stageId", SqlDbType.Int) { Value = targetStageId });
+            updateLeadCommand.Parameters.Add(new SqlParameter("@sortOrder", SqlDbType.Int) { Value = GetNextLeadSortOrder(connection, transaction, normalizedBoardType, targetStageId) });
+            updateLeadCommand.Parameters.Add(new SqlParameter("@leadId", SqlDbType.Int) { Value = match.LeadId });
+            updateLeadCommand.ExecuteNonQuery();
+        }
+
+        using (var updateJourneyCommand = connection.CreateCommand())
+        {
+            updateJourneyCommand.Transaction = transaction;
+            updateJourneyCommand.CommandText = $"""
+UPDATE dbo.{TablePrefix}journey_executions
+SET CurrentState = @currentState,
+    LastStageAutomationReason = @lastStageAutomationReason,
+    LastStageAutomationOrigin = @lastStageAutomationOrigin,
+    LastStageAutomationAtUtc = SYSUTCDATETIME(),
+    ActiveTimerCode = @activeTimerCode,
+    ActiveTimerDueAtUtc = @activeTimerDueAtUtc,
+    UpdatedAt = SYSUTCDATETIME()
+WHERE Id = @journeyId;
+""";
+            updateJourneyCommand.Parameters.Add(new SqlParameter("@journeyId", SqlDbType.Int) { Value = match.JourneyId });
+            updateJourneyCommand.Parameters.Add(new SqlParameter("@currentState", SqlDbType.NVarChar, 40) { Value = normalizedTargetState });
+            updateJourneyCommand.Parameters.Add(new SqlParameter("@lastStageAutomationReason", SqlDbType.NVarChar, 180) { Value = ToDbValue(normalizedReason) });
+            updateJourneyCommand.Parameters.Add(new SqlParameter("@lastStageAutomationOrigin", SqlDbType.NVarChar, 40) { Value = ToDbValue(normalizedOrigin) });
+            updateJourneyCommand.Parameters.Add(new SqlParameter("@activeTimerCode", SqlDbType.NVarChar, 60) { Value = ToDbValue(normalizedTimerCode) });
+            updateJourneyCommand.Parameters.Add(new SqlParameter("@activeTimerDueAtUtc", SqlDbType.DateTime2) { Value = normalizedTimerDueAtUtc.HasValue ? normalizedTimerDueAtUtc.Value : DBNull.Value });
+            updateJourneyCommand.ExecuteNonQuery();
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.HistoryEventType) && !string.IsNullOrWhiteSpace(request.HistoryDescription))
+        {
+            InsertJourneyEventRecord(
+                connection,
+                transaction,
+                match.JourneyId,
+                match.LeadId,
+                request.HistoryEventType,
+                match.CurrentState,
+                normalizedTargetState,
+                string.IsNullOrWhiteSpace(match.SourceChannel) ? AdminKanbanJourneySourceChannels.ServiceRequest : match.SourceChannel,
+                request.HistoryDescription,
+                request.MetadataJson);
+
+            InsertHistory(
+                connection,
+                transaction,
+                match.LeadId,
+                request.HistoryEventType,
+                stageChanged ? match.StageId : null,
+                stageChanged ? targetStageId : null,
+                request.HistoryDescription);
+        }
+
+        transaction.Commit();
+
+        return new AdminKanbanJourneyStageAutomationUpdateResult
+        {
+            LeadId = match.LeadId,
+            JourneyId = match.JourneyId,
+            FromStageId = match.StageId,
+            FromStageName = match.StageName,
+            ToStageId = targetStageId,
+            ToStageName = targetStageName,
+            CurrentState = normalizedTargetState,
+            StageChanged = stageChanged
+        };
+    }
+
     private void EnsureJourneySchemaInitialized()
     {
         if (_journeyInitialized)
@@ -398,6 +675,11 @@ CREATE TABLE dbo.{TablePrefix}journey_executions
     SchedulingCancelledAtUtc DATETIME2 NULL,
     ScheduledStartAtUtc DATETIME2 NULL,
     ScheduledEndAtUtc DATETIME2 NULL,
+    LastStageAutomationReason NVARCHAR(180) NULL,
+    LastStageAutomationOrigin NVARCHAR(40) NULL,
+    LastStageAutomationAtUtc DATETIME2 NULL,
+    ActiveTimerCode NVARCHAR(60) NULL,
+    ActiveTimerDueAtUtc DATETIME2 NULL,
     CreatedAt DATETIME2 NOT NULL DEFAULT(SYSUTCDATETIME()),
     UpdatedAt DATETIME2 NULL,
     LastIntakeAt DATETIME2 NULL
@@ -455,6 +737,11 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID('dbo.{Table
 CREATE INDEX IX_{TablePrefix}journey_executions_email
     ON dbo.{TablePrefix}journey_executions(BoardType, PrimaryEmail, LastIntakeAt DESC, Id DESC)
     WHERE PrimaryEmail IS NOT NULL;
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID('dbo.{TablePrefix}journey_executions') AND name = 'IX_{TablePrefix}journey_executions_active_timer')
+CREATE INDEX IX_{TablePrefix}journey_executions_active_timer
+    ON dbo.{TablePrefix}journey_executions(BoardType, ActiveTimerDueAtUtc, Id)
+    WHERE ActiveTimerDueAtUtc IS NOT NULL;
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID('dbo.{TablePrefix}journey_events') AND name = 'IX_{TablePrefix}journey_events_journey')
 CREATE INDEX IX_{TablePrefix}journey_events_journey
@@ -517,6 +804,21 @@ IF COL_LENGTH('dbo.{TablePrefix}journey_executions', 'ScheduledStartAtUtc') IS N
 
 IF COL_LENGTH('dbo.{TablePrefix}journey_executions', 'ScheduledEndAtUtc') IS NULL
     ALTER TABLE dbo.{TablePrefix}journey_executions ADD ScheduledEndAtUtc DATETIME2 NULL;
+
+IF COL_LENGTH('dbo.{TablePrefix}journey_executions', 'LastStageAutomationReason') IS NULL
+    ALTER TABLE dbo.{TablePrefix}journey_executions ADD LastStageAutomationReason NVARCHAR(180) NULL;
+
+IF COL_LENGTH('dbo.{TablePrefix}journey_executions', 'LastStageAutomationOrigin') IS NULL
+    ALTER TABLE dbo.{TablePrefix}journey_executions ADD LastStageAutomationOrigin NVARCHAR(40) NULL;
+
+IF COL_LENGTH('dbo.{TablePrefix}journey_executions', 'LastStageAutomationAtUtc') IS NULL
+    ALTER TABLE dbo.{TablePrefix}journey_executions ADD LastStageAutomationAtUtc DATETIME2 NULL;
+
+IF COL_LENGTH('dbo.{TablePrefix}journey_executions', 'ActiveTimerCode') IS NULL
+    ALTER TABLE dbo.{TablePrefix}journey_executions ADD ActiveTimerCode NVARCHAR(60) NULL;
+
+IF COL_LENGTH('dbo.{TablePrefix}journey_executions', 'ActiveTimerDueAtUtc') IS NULL
+    ALTER TABLE dbo.{TablePrefix}journey_executions ADD ActiveTimerDueAtUtc DATETIME2 NULL;
 """;
             command.ExecuteNonQuery();
             transaction.Commit();
@@ -1265,6 +1567,16 @@ VALUES
             ? string.Empty
             : AdminKanbanJourneySchedulingStatuses.Normalize(value);
 
+    private static string NormalizeJourneyTimerCode(string? value) => (value ?? string.Empty).Trim().ToLowerInvariant() switch
+    {
+        AdminKanbanJourneyTimerCodes.PendingData => AdminKanbanJourneyTimerCodes.PendingData,
+        AdminKanbanJourneyTimerCodes.PendingScheduleConfirmation => AdminKanbanJourneyTimerCodes.PendingScheduleConfirmation,
+        AdminKanbanJourneyTimerCodes.PendingAcceptance => AdminKanbanJourneyTimerCodes.PendingAcceptance,
+        AdminKanbanJourneyTimerCodes.PendingClientReview => AdminKanbanJourneyTimerCodes.PendingClientReview,
+        AdminKanbanJourneyTimerCodes.PendingProviderReview => AdminKanbanJourneyTimerCodes.PendingProviderReview,
+        _ => string.Empty
+    };
+
     private static bool HasJourneyQualification(AdminKanbanJourneyQualificationRecord qualification) =>
         !string.IsNullOrWhiteSpace(qualification.Status) ||
         !string.IsNullOrWhiteSpace(qualification.Source) ||
@@ -1415,5 +1727,20 @@ VALUES
         public Guid? LandingLeadId { get; init; }
         public Guid? ServiceRequestId { get; init; }
         public DateTime? LastIntakeAt { get; init; }
+    }
+
+    private sealed class JourneyAutomationExecutionMatch
+    {
+        public int JourneyId { get; init; }
+        public int LeadId { get; init; }
+        public string BoardType { get; init; } = string.Empty;
+        public string SourceChannel { get; init; } = string.Empty;
+        public string CurrentState { get; init; } = string.Empty;
+        public int StageId { get; init; }
+        public string StageName { get; init; } = string.Empty;
+        public string LastAutomationReason { get; init; } = string.Empty;
+        public string LastAutomationOrigin { get; init; } = string.Empty;
+        public string ActiveTimerCode { get; init; } = string.Empty;
+        public DateTime? ActiveTimerDueAtUtc { get; init; }
     }
 }

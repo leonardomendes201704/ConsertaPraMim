@@ -208,6 +208,11 @@
                     <div class="col-12 col-md-6"><strong>Inicio da jornada:</strong> <span id="detailsJourneyCreatedAt"></span></div>
                     <div class="col-12 col-md-6"><strong>Ultimo intake:</strong> <span id="detailsJourneyLastIntakeAt"></span></div>
                     <div class="col-12 col-md-6"><strong>Ultima atualizacao:</strong> <span id="detailsJourneyUpdatedAt"></span></div>
+                    <div class="col-12 col-md-6"><strong>Ultimo motivo da automacao:</strong> <span id="detailsJourneyAutomationReason"></span></div>
+                    <div class="col-12 col-md-6"><strong>Origem da automacao:</strong> <span id="detailsJourneyAutomationOrigin"></span></div>
+                    <div class="col-12 col-md-6"><strong>Ultima transicao automatica:</strong> <span id="detailsJourneyAutomationTransitionAt"></span></div>
+                    <div class="col-12 col-md-6"><strong>Timer ativo:</strong> <span id="detailsJourneyAutomationTimer"></span></div>
+                    <div class="col-12 col-md-6"><strong>Timer vence em:</strong> <span id="detailsJourneyAutomationTimerDueAt"></span></div>
                     <div class="col-12"><hr class="my-1" /></div>
                     <div class="col-12"><h6 class="fw-bold mb-0">Qualificacao estruturada</h6></div>
                     <div class="col-12 col-md-6"><strong>Status da qualificacao:</strong> <span id="detailsJourneyQualificationStatus"></span></div>
@@ -1370,6 +1375,7 @@
 
             const fillDetails = (lead) => {
                 const journey = lead.journey || {};
+                const stageAutomation = journey.stageAutomation || {};
                 const qualification = journey.qualification || {};
                 const scheduling = journey.scheduling || {};
                 const telegram = lead.telegram || {};
@@ -1423,6 +1429,11 @@
                 document.getElementById("detailsJourneyCreatedAt").textContent = journey.createdAt || "-";
                 document.getElementById("detailsJourneyLastIntakeAt").textContent = journey.lastIntakeAt || "-";
                 document.getElementById("detailsJourneyUpdatedAt").textContent = journey.updatedAt || "-";
+                document.getElementById("detailsJourneyAutomationReason").textContent = stageAutomation.lastReason || "-";
+                document.getElementById("detailsJourneyAutomationOrigin").textContent = stageAutomation.lastOriginLabel || "-";
+                document.getElementById("detailsJourneyAutomationTransitionAt").textContent = stageAutomation.lastTransitionAt || "-";
+                document.getElementById("detailsJourneyAutomationTimer").textContent = stageAutomation.activeTimerLabel || "-";
+                document.getElementById("detailsJourneyAutomationTimerDueAt").textContent = stageAutomation.activeTimerDueAt || "-";
                 document.getElementById("detailsJourneyQualificationStatus").textContent = qualification.statusLabel || "-";
                 document.getElementById("detailsJourneyQualificationSource").textContent = qualification.sourceLabel || "-";
                 document.getElementById("detailsJourneyQualificationConfidence").textContent = qualification.confidenceScore || "-";

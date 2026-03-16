@@ -45,7 +45,6 @@
 
 ### Backlog
 
-- [ST-104 - Kanban autonomo e timers operacionais da jornada](STORIES/BACKLOG/ST-104-kanban-autonomo-timers-operacionais.md)
 - [ST-105 - Matching geografico e elegibilidade de prestadores](STORIES/BACKLOG/ST-105-matching-geografico-elegibilidade-prestadores.md)
 - [ST-106 - Motor de disparo em ondas para prestadores](STORIES/BACKLOG/ST-106-motor-disparo-ondas-prestadores.md)
 - [ST-107 - Notificacao confiavel para prestadores com links assinados](STORIES/BACKLOG/ST-107-notificacao-confiavel-prestadores-links-assinados.md)
@@ -81,6 +80,7 @@
 
 ### Done
 
+- [ST-104 - Kanban autonomo e timers operacionais da jornada](STORIES/DONE/ST-104-kanban-autonomo-timers-operacionais.md)
 - [ST-103 - Autoagendamento com Google Calendar](STORIES/DONE/ST-103-autoagendamento-google-calendar.md)
 - [ST-102 - Qualificacao estruturada e validacao de dados do cliente](STORIES/DONE/ST-102-qualificacao-estruturada-validacao-dados-cliente.md)
 - [ST-101 - Intake omnichannel e maquina de estados da jornada de servico](STORIES/DONE/ST-101-intake-omnichannel-maquina-estados-jornada-servico.md)

@@ -8,6 +8,8 @@ public interface IAdminKanbanService
     AdminKanbanLeadJourneyRecord? GetJourneyDetails(int leadId);
     AdminKanbanJourneyUpsertResult UpsertJourneyIntake(AdminKanbanJourneyIntakeRequest request);
     AdminKanbanJourneySchedulingUpdateResult? UpdateJourneyScheduling(int leadId, AdminKanbanJourneySchedulingUpdateRequest request);
+    IReadOnlyList<AdminKanbanJourneyStageAutomationCandidateRecord> ListJourneyStageAutomationCandidates(string boardType, DateTime nowUtc, int batchSize);
+    AdminKanbanJourneyStageAutomationUpdateResult? ApplyJourneyStageAutomation(AdminKanbanJourneyStageAutomationUpdateRequest request);
     int CreateLead(AdminKanbanLeadUpsertRequest request);
     bool DeleteLead(int leadId);
     AdminKanbanTelegramLeadUpsertResult UpsertTelegramLead(AdminKanbanTelegramLeadUpsertRequest request);

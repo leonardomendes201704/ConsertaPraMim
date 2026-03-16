@@ -72,8 +72,21 @@ public static class AdminKanbanJourneyStates
     public const string QualificationConfirmationRequired = "confirmacao_necessaria";
     public const string QualificationValidated = "qualificacao_validada";
     public const string SlotSuggested = "janela_sugerida";
+    public const string WaitingScheduleConfirmation = "aguardando_confirmacao_agenda";
     public const string AppointmentConfirmed = "agendamento_confirmado";
     public const string AppointmentCancelled = "agendamento_cancelado";
+    public const string MatchingInProgress = "em_matching";
+    public const string DispatchInProgress = "disparo_prestadores";
+    public const string WaitingProviderAcceptance = "aguardando_aceite";
+    public const string ProviderConnected = "prestador_conectado";
+    public const string ServiceInProgress = "servico_em_andamento";
+    public const string WaitingCompletionConfirmation = "aguardando_confirmacao_conclusao";
+    public const string WaitingClientReview = "aguardando_avaliacao_cliente";
+    public const string WaitingProviderReview = "aguardando_avaliacao_prestador";
+    public const string Completed = "concluido";
+    public const string NoMatch = "sem_match";
+    public const string Cancelled = "cancelado";
+    public const string OperationalException = "excecao_operacional";
     public const string ServiceRequestOpened = "pedido_aberto";
 
     public static string Normalize(string? value) => (value ?? string.Empty).Trim().ToLowerInvariant() switch
@@ -84,8 +97,21 @@ public static class AdminKanbanJourneyStates
         QualificationConfirmationRequired => QualificationConfirmationRequired,
         QualificationValidated => QualificationValidated,
         SlotSuggested => SlotSuggested,
+        WaitingScheduleConfirmation => WaitingScheduleConfirmation,
         AppointmentConfirmed => AppointmentConfirmed,
         AppointmentCancelled => AppointmentCancelled,
+        MatchingInProgress => MatchingInProgress,
+        DispatchInProgress => DispatchInProgress,
+        WaitingProviderAcceptance => WaitingProviderAcceptance,
+        ProviderConnected => ProviderConnected,
+        ServiceInProgress => ServiceInProgress,
+        WaitingCompletionConfirmation => WaitingCompletionConfirmation,
+        WaitingClientReview => WaitingClientReview,
+        WaitingProviderReview => WaitingProviderReview,
+        Completed => Completed,
+        NoMatch => NoMatch,
+        Cancelled => Cancelled,
+        OperationalException => OperationalException,
         ServiceRequestOpened => ServiceRequestOpened,
         _ => IntakeOpened
     };
@@ -98,8 +124,21 @@ public static class AdminKanbanJourneyStates
         QualificationConfirmationRequired => "Confirmacao necessaria",
         QualificationValidated => "Qualificacao validada",
         SlotSuggested => "Janela sugerida",
+        WaitingScheduleConfirmation => "Aguardando confirmacao da agenda",
         AppointmentConfirmed => "Agendamento confirmado",
         AppointmentCancelled => "Agendamento cancelado",
+        MatchingInProgress => "Em matching",
+        DispatchInProgress => "Disparo para prestadores",
+        WaitingProviderAcceptance => "Aguardando aceite",
+        ProviderConnected => "Prestador conectado",
+        ServiceInProgress => "Servico em andamento",
+        WaitingCompletionConfirmation => "Aguardando confirmacao de conclusao",
+        WaitingClientReview => "Aguardando avaliacao do cliente",
+        WaitingProviderReview => "Aguardando avaliacao do prestador",
+        Completed => "Concluido",
+        NoMatch => "Sem match",
+        Cancelled => "Cancelado",
+        OperationalException => "Excecao operacional",
         ServiceRequestOpened => "Pedido aberto",
         _ => "Intake aberto"
     };
@@ -112,10 +151,83 @@ public static class AdminKanbanJourneyStates
         QualificationConfirmationRequired => 4,
         QualificationValidated => 5,
         SlotSuggested => 6,
-        AppointmentConfirmed => 7,
-        AppointmentCancelled => 8,
-        ServiceRequestOpened => 9,
+        WaitingScheduleConfirmation => 7,
+        AppointmentConfirmed => 8,
+        AppointmentCancelled => 9,
+        MatchingInProgress => 10,
+        DispatchInProgress => 11,
+        WaitingProviderAcceptance => 12,
+        ProviderConnected => 13,
+        ServiceInProgress => 14,
+        WaitingCompletionConfirmation => 15,
+        WaitingClientReview => 16,
+        WaitingProviderReview => 17,
+        Completed => 18,
+        NoMatch => 19,
+        Cancelled => 20,
+        OperationalException => 21,
+        ServiceRequestOpened => 22,
         _ => 1
+    };
+}
+
+public static class AdminKanbanJourneyClientStageNames
+{
+    public const string NewLead = "Novo lead";
+    public const string AutomatedTriage = "Triagem automatica";
+    public const string PendingData = "Dados pendentes";
+    public const string ValidatedAddressAndCategory = "Endereco e categoria validados";
+    public const string SlotSuggested = "Janela sugerida";
+    public const string WaitingScheduleConfirmation = "Aguardando confirmacao da agenda";
+    public const string AppointmentConfirmed = "Agendamento confirmado";
+    public const string MatchingInProgress = "Em matching";
+    public const string DispatchInProgress = "Disparo para prestadores";
+    public const string WaitingAcceptance = "Aguardando aceite";
+    public const string ProviderConnected = "Prestador conectado";
+    public const string ServiceInProgress = "Servico em andamento";
+    public const string WaitingCompletionConfirmation = "Aguardando confirmacao de conclusao";
+    public const string WaitingClientReview = "Aguardando avaliacao do cliente";
+    public const string WaitingProviderReview = "Aguardando avaliacao do prestador";
+    public const string Completed = "Concluido";
+    public const string NoMatch = "Sem match";
+    public const string Cancelled = "Cancelado";
+    public const string OperationalException = "Excecao operacional";
+}
+
+public static class AdminKanbanJourneyAutomationOrigins
+{
+    public const string StateMachine = "state_machine";
+    public const string Timer = "timer";
+
+    public static string Normalize(string? value) => (value ?? string.Empty).Trim().ToLowerInvariant() switch
+    {
+        Timer => Timer,
+        _ => StateMachine
+    };
+
+    public static string GetLabel(string? value) => Normalize(value) switch
+    {
+        Timer => "Timer operacional",
+        _ => "Maquina de estados"
+    };
+}
+
+public static class AdminKanbanJourneyTimerCodes
+{
+    public const string PendingData = "dados_pendentes";
+    public const string PendingScheduleConfirmation = "agenda_pendente";
+    public const string PendingAcceptance = "aceite_pendente";
+    public const string PendingClientReview = "avaliacao_cliente_pendente";
+    public const string PendingProviderReview = "avaliacao_prestador_pendente";
+
+    public static string GetLabel(string? value) => (value ?? string.Empty).Trim().ToLowerInvariant() switch
+    {
+        PendingData => "Dados pendentes",
+        PendingScheduleConfirmation => "Confirmacao da agenda pendente",
+        PendingAcceptance => "Aceite do prestador pendente",
+        PendingClientReview => "Avaliacao do cliente pendente",
+        PendingProviderReview => "Avaliacao do prestador pendente",
+        _ => "-"
     };
 }
 
@@ -596,6 +708,7 @@ public sealed class AdminKanbanLeadJourneyRecord
     public DateTime? LastIntakeAt { get; init; }
     public AdminKanbanJourneyQualificationRecord Qualification { get; init; } = new();
     public AdminKanbanJourneySchedulingRecord Scheduling { get; init; } = new();
+    public AdminKanbanJourneyStageAutomationRecord StageAutomation { get; init; } = new();
 }
 
 public sealed class AdminKanbanJourneyQualificationRecord
@@ -637,6 +750,15 @@ public sealed class AdminKanbanJourneySchedulingRecord
     public IReadOnlyList<AdminKanbanJourneySuggestedSlotRecord> SuggestedSlots { get; init; } = [];
 }
 
+public sealed class AdminKanbanJourneyStageAutomationRecord
+{
+    public string LastReason { get; init; } = string.Empty;
+    public string LastOrigin { get; init; } = string.Empty;
+    public DateTime? LastTransitionAtUtc { get; init; }
+    public string ActiveTimerCode { get; init; } = string.Empty;
+    public DateTime? ActiveTimerDueAtUtc { get; init; }
+}
+
 public sealed class AdminKanbanJourneySuggestedSlotRecord
 {
     public int OptionNumber { get; init; }
@@ -670,6 +792,53 @@ public sealed record class AdminKanbanJourneySchedulingUpdateResult
     public int JourneyId { get; init; }
     public string CurrentState { get; init; } = string.Empty;
     public AdminKanbanJourneySchedulingRecord Scheduling { get; init; } = new();
+}
+
+public sealed record class AdminKanbanJourneyStageAutomationCandidateRecord
+{
+    public int LeadId { get; init; }
+    public int JourneyId { get; init; }
+    public string BoardType { get; init; } = string.Empty;
+    public int StageId { get; init; }
+    public string StageName { get; init; } = string.Empty;
+    public string CurrentState { get; init; } = string.Empty;
+    public string QualificationStatus { get; init; } = string.Empty;
+    public string SchedulingStatus { get; init; } = string.Empty;
+    public DateTime CreatedAtUtc { get; init; }
+    public DateTime? LastIntakeAtUtc { get; init; }
+    public DateTime? CurrentStateEnteredAtUtc { get; init; }
+    public DateTime? SchedulingSuggestedAtUtc { get; init; }
+    public string ActiveTimerCode { get; init; } = string.Empty;
+    public DateTime? ActiveTimerDueAtUtc { get; init; }
+    public string LastAutomationReason { get; init; } = string.Empty;
+    public string LastAutomationOrigin { get; init; } = string.Empty;
+}
+
+public sealed class AdminKanbanJourneyStageAutomationUpdateRequest
+{
+    public int LeadId { get; init; }
+    public string BoardType { get; init; } = string.Empty;
+    public string TargetStageName { get; init; } = string.Empty;
+    public string TargetCurrentState { get; init; } = string.Empty;
+    public string Reason { get; init; } = string.Empty;
+    public string Origin { get; init; } = string.Empty;
+    public string HistoryEventType { get; init; } = string.Empty;
+    public string HistoryDescription { get; init; } = string.Empty;
+    public string MetadataJson { get; init; } = string.Empty;
+    public string ActiveTimerCode { get; init; } = string.Empty;
+    public DateTime? ActiveTimerDueAtUtc { get; init; }
+}
+
+public sealed record class AdminKanbanJourneyStageAutomationUpdateResult
+{
+    public int LeadId { get; init; }
+    public int JourneyId { get; init; }
+    public int FromStageId { get; init; }
+    public string FromStageName { get; init; } = string.Empty;
+    public int ToStageId { get; init; }
+    public string ToStageName { get; init; } = string.Empty;
+    public string CurrentState { get; init; } = string.Empty;
+    public bool StageChanged { get; init; }
 }
 
 public sealed class AdminKanbanBoardOrderUpdateRequest
