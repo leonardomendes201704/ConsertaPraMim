@@ -83,6 +83,7 @@
 - [ST-106 - Motor de disparo em ondas para prestadores](STORIES/DONE/ST-106-motor-disparo-ondas-prestadores.md)
 - [ST-105 - Matching geografico e elegibilidade de prestadores](STORIES/DONE/ST-105-matching-geografico-elegibilidade-prestadores.md)
 - [ST-104 - Kanban autonomo e timers operacionais da jornada](STORIES/DONE/ST-104-kanban-autonomo-timers-operacionais.md)
+- [ST-114 - Hotfix para preservar telefone persistido na qualificacao do Telegram](STORIES/DONE/ST-114-hotfix-telefone-persistido-qualificacao-telegram.md)
 - [ST-113 - Hotfix de qualificacao do Telegram com pergunta unica e sem reset](STORIES/DONE/ST-113-hotfix-qualificacao-telegram-pergunta-unica-sem-reset.md)
 - [ST-103 - Autoagendamento com Google Calendar](STORIES/DONE/ST-103-autoagendamento-google-calendar.md)
 - [ST-102 - Qualificacao estruturada e validacao de dados do cliente](STORIES/DONE/ST-102-qualificacao-estruturada-validacao-dados-cliente.md)

@@ -2134,6 +2134,11 @@
 - Resumo: o bot Telegram deixou de repetir blocos de triagem com varios campos ao mesmo tempo, passou a pedir um dado por vez e nao volta mais para o prompt inicial quando o lead ja existe e o usuario envia apenas o e-mail.
 - Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramInboundUpdateProcessor.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Integrations/Telegram/TelegramInboundUpdateProcessorTests.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/MANUAL_QA_OPERACAO.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-113-hotfix-qualificacao-telegram-pergunta-unica-sem-reset.md`
 - Risco/Impacto: medio
+- [2026-03-16] [ST-114] Preservacao do telefone persistido na qualificacao do Telegram
+- Tipo: fix
+- Resumo: corrigido o loop restante da triagem Telegram quando o telefone ja estava salvo no lead, garantindo que respostas seguintes como `eletricista` avancem para o proximo dado faltante em vez de voltar a pedir telefone.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramInboundUpdateProcessor.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Integrations/Telegram/TelegramInboundUpdateProcessorTests.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/MANUAL_QA_OPERACAO.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-114-hotfix-telefone-persistido-qualificacao-telegram.md`
+- Risco/Impacto: medio
 
 ## Template de entrada
 
