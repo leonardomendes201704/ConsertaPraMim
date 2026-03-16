@@ -1745,6 +1745,20 @@ Equivalentes no deploy VPS:
 - Se o bot pedir varios campos ao mesmo tempo, validar se o ambiente publicado ja contem o hotfix `ST-113`.
 - Se uma resposta curta de cidade nao for reconhecida, revisar os logs do `TelegramBridge` para o texto bruto recebido e o snapshot da qualificacao no CPM Full.
 
+### Hotfix operacional do Telegram - telefone persistido
+
+- O bridge agora trata `telefone persistido no lead` como contato valido ao montar a proxima pergunta.
+- Depois de o usuario informar o telefone, respostas seguintes como `eletricista` ou `praia grande` nao podem voltar a pedir telefone.
+- O proximo prompt deve seguir para o primeiro campo realmente faltante da jornada.
+
+### Checklist de QA do hotfix ST-114
+
+1. Iniciar conversa no Telegram com `oi`.
+2. Informar o telefone.
+3. Confirmar que o bot pede apenas `tipo de servico`.
+4. Responder `eletricista`.
+5. Confirmar que o bot pede o proximo campo faltante, como `cidade`, e nao volta a pedir telefone.
+
 ### Proxima evolucao documentada
 
 - A base funcional da automacao publicada continua registrada no documento `EPIC-TELEGRAM-001 - Automacao do Bot Telegram com Funis CPM e Chatwoot`.

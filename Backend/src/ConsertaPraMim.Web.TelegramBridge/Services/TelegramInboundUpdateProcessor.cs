@@ -570,12 +570,10 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
             bootstrap.LeadCreated || bootstrap.MissingRequiredFields.Count > 0 ||
             !string.IsNullOrWhiteSpace(bootstrap.QualificationStatus))
         {
+            var effectiveCapturedContact = BuildEffectiveCapturedContact(capturedContact, hasPhone, hasEmail);
             var text = BuildQualificationPrompt(
                 effectiveQualification,
-                new TelegramCapturedContact(
-                    hasPhone ? capturedContact.Phone : string.Empty,
-                    hasEmail ? capturedContact.Email : string.Empty,
-                    capturedContact.SharedNativeContact),
+                effectiveCapturedContact,
                 bootstrap.MissingRequiredFields,
                 bootstrap.ConfirmationPrompt,
                 bootstrap.QualificationStatus,
@@ -593,6 +591,19 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
 
         return null;
     }
+
+    private static TelegramCapturedContact BuildEffectiveCapturedContact(
+        TelegramCapturedContact capturedContact,
+        bool hasPhone,
+        bool hasEmail) =>
+        new(
+            hasPhone
+                ? (capturedContact.HasPhone ? capturedContact.Phone : "persisted")
+                : string.Empty,
+            hasEmail
+                ? (capturedContact.HasEmail ? capturedContact.Email : "persisted")
+                : string.Empty,
+            capturedContact.SharedNativeContact);
 
     private static TelegramLeadQualification ResolveLeadQualification(TelegramMessage message, string? messageText)
     {
