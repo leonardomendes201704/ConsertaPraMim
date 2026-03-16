@@ -2129,6 +2129,11 @@
 - Resumo: adicionadas diretrizes de trabalho no `AGENTS.md` (Epic/Story/Tasks, commit por task, build/testes minimos, atualizacao de manual/changelog/diagramas, estrategia de branch/PR, UTC->America/Sao_Paulo, seguranca de secrets, versionamento mobile e regressao), alem da regra obrigatoria de promover entradas do changelog para `Released` antes de qualquer commit/push, inclusive em `dev-local`.
 - Arquivos principais: `AGENTS.md`
 - Risco/Impacto: baixo
+- [2026-03-16] [ST-113] Qualificacao Telegram em pergunta unica e sem reset apos e-mail
+- Tipo: fix
+- Resumo: o bot Telegram deixou de repetir blocos de triagem com varios campos ao mesmo tempo, passou a pedir um dado por vez e nao volta mais para o prompt inicial quando o lead ja existe e o usuario envia apenas o e-mail.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramInboundUpdateProcessor.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Integrations/Telegram/TelegramInboundUpdateProcessorTests.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/MANUAL_QA_OPERACAO.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-113-hotfix-qualificacao-telegram-pergunta-unica-sem-reset.md`
+- Risco/Impacto: medio
 
 ## Template de entrada
 

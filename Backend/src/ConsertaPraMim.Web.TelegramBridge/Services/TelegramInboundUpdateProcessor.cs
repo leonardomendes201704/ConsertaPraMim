@@ -566,7 +566,9 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
             return null;
         }
 
-        if (capturedContact.HasPhone)
+        if (capturedContact.HasPhone || capturedContact.HasEmail || hasPhone || hasEmail ||
+            bootstrap.LeadCreated || bootstrap.MissingRequiredFields.Count > 0 ||
+            !string.IsNullOrWhiteSpace(bootstrap.QualificationStatus))
         {
             var text = BuildQualificationPrompt(
                 effectiveQualification,
@@ -577,48 +579,7 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
                 bootstrap.MissingRequiredFields,
                 bootstrap.ConfirmationPrompt,
                 bootstrap.QualificationStatus,
-                leadCreatedNow: false);
-
-            return new TelegramAutomaticResponse(
-                text,
-                new TelegramMessageSendOptions
-                {
-                    RemoveReplyKeyboard = true
-                });
-        }
-
-        if (capturedContact.HasEmail)
-        {
-            return new TelegramAutomaticResponse(
-                BuildQualificationPrompt(
-                    effectiveQualification,
-                    new TelegramCapturedContact(
-                    hasPhone ? capturedContact.Phone : string.Empty,
-                    hasEmail ? capturedContact.Email : string.Empty,
-                    capturedContact.SharedNativeContact),
-                    bootstrap.MissingRequiredFields,
-                    bootstrap.ConfirmationPrompt,
-                    bootstrap.QualificationStatus,
-                    leadCreatedNow: false),
-                new TelegramMessageSendOptions
-                {
-                    RequestContactButton = true,
-                    ContactButtonLabel = "Compartilhar telefone"
-                });
-        }
-
-        if (hasPhone || hasEmail)
-        {
-            var text = BuildQualificationPrompt(
-                effectiveQualification,
-                new TelegramCapturedContact(
-                    hasPhone ? "persisted" : string.Empty,
-                    hasEmail ? "persisted" : string.Empty,
-                    capturedContact.SharedNativeContact),
-                bootstrap.MissingRequiredFields,
-                bootstrap.ConfirmationPrompt,
-                bootstrap.QualificationStatus,
-                leadCreatedNow: false);
+                leadCreatedNow: bootstrap.LeadCreated && !bootstrap.HasPhoneOnLead && !bootstrap.HasEmailOnLead);
 
             return new TelegramAutomaticResponse(
                 text,
@@ -630,26 +591,7 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
                 });
         }
 
-        if (!bootstrap.LeadCreated)
-        {
-            return null;
-        }
-
-        var acknowledgement = BuildQualificationPrompt(
-            effectiveQualification,
-            capturedContact,
-            bootstrap.MissingRequiredFields,
-            bootstrap.ConfirmationPrompt,
-            bootstrap.QualificationStatus,
-            leadCreatedNow: true);
-
-        return new TelegramAutomaticResponse(
-            acknowledgement,
-            new TelegramMessageSendOptions
-            {
-                RequestContactButton = true,
-                ContactButtonLabel = "Compartilhar telefone"
-            });
+        return null;
     }
 
     private static TelegramLeadQualification ResolveLeadQualification(TelegramMessage message, string? messageText)
@@ -955,14 +897,24 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
 
         if (!hasPhone)
         {
-            return boardIsProvider
-                ? "Recebi seu contato e ja registrei seu atendimento no funil de prestadores da ConsertaPraMim. Para agilizar, toque no botao abaixo e compartilhe seu telefone. Se puder, me diga tambem sua regiao de atendimento, categoria tecnica e objetivo principal."
-                : "Recebi sua mensagem e ja registrei seu atendimento na ConsertaPraMim. Para agilizar, toque no botao abaixo e compartilhe seu telefone. Se puder, me diga tambem sua cidade, o tipo de servico e o que voce precisa resolver.";
+            return leadCreatedNow
+                ? boardIsProvider
+                    ? "Recebi seu contato e ja registrei seu atendimento no funil de prestadores da ConsertaPraMim. Para agilizar, toque no botao abaixo e compartilhe seu telefone."
+                    : "Recebi sua mensagem e ja registrei seu atendimento na ConsertaPraMim. Para agilizar, toque no botao abaixo e compartilhe seu telefone."
+                : BuildMissingFieldsPrompt(
+                    boardIsProvider,
+                    normalizedMissingFields.Count > 0 ? normalizedMissingFields : ["Telefone"],
+                    capturedContact.HasPhone,
+                    capturedContact.HasEmail);
         }
 
         if (normalizedMissingFields.Count > 0)
         {
-            return BuildMissingFieldsPrompt(boardIsProvider, normalizedMissingFields, capturedContact.HasPhone);
+            return BuildMissingFieldsPrompt(
+                boardIsProvider,
+                normalizedMissingFields,
+                capturedContact.HasPhone,
+                capturedContact.HasEmail);
         }
 
         if (string.Equals(qualificationStatus, "confirmacao_necessaria", StringComparison.OrdinalIgnoreCase) &&
@@ -973,9 +925,12 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
 
         if (hasEmail)
         {
-            return leadCreatedNow
-                ? "Recebi seu contato, ja qualifiquei o lead e atualizei seu atendimento na ConsertaPraMim. Nosso time segue acompanhando por aqui."
-                : "Recebi seu telefone e seu e-mail, e atualizei seu atendimento na ConsertaPraMim. Nosso time segue acompanhando por aqui.";
+            if (capturedContact.HasEmail && !leadCreatedNow)
+            {
+                return "Recebi seu e-mail e atualizei seu atendimento na ConsertaPraMim. Nosso time segue acompanhando por aqui.";
+            }
+
+            return "Recebi seu telefone e seu e-mail, e atualizei seu atendimento na ConsertaPraMim. Nosso time segue acompanhando por aqui.";
         }
 
         return boardIsProvider
@@ -1008,11 +963,14 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
     private static string BuildMissingFieldsPrompt(
         bool boardIsProvider,
         IReadOnlyList<string> missingRequiredFields,
-        bool capturedPhoneNow)
+        bool capturedPhoneNow,
+        bool capturedEmailNow)
     {
         var intro = capturedPhoneNow
             ? "Recebi seu telefone e atualizei seu atendimento."
-            : "Atualizei seu atendimento.";
+            : capturedEmailNow
+                ? "Recebi seu e-mail e atualizei seu atendimento."
+                : "Atualizei seu atendimento.";
 
         var prompts = missingRequiredFields
             .Select(field => ResolveMissingFieldPrompt(field, boardIsProvider))
@@ -1026,7 +984,7 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
                 : $"{intro} Agora me diga sua cidade, o tipo de servico e o que voce precisa resolver.";
         }
 
-        return $"{intro} Agora me diga {JoinWithConjunction(prompts)}.";
+        return $"{intro} Agora me diga {prompts[0]}.";
     }
 
     private static string ResolveMissingFieldPrompt(string field, bool boardIsProvider)
@@ -1043,17 +1001,6 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
             "Contexto do problema" => "o que voce precisa resolver",
             "Contexto da parceria" => "como voce quer atuar na plataforma",
             _ => field.ToLowerInvariant()
-        };
-    }
-
-    private static string JoinWithConjunction(IReadOnlyList<string> values)
-    {
-        return values.Count switch
-        {
-            0 => string.Empty,
-            1 => values[0],
-            2 => $"{values[0]} e {values[1]}",
-            _ => $"{string.Join(", ", values.Take(values.Count - 1))} e {values[^1]}"
         };
     }
 
