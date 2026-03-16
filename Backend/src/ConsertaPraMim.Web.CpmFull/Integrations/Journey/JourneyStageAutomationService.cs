@@ -7,15 +7,18 @@ namespace AppMobileCPM.Integrations.Journey;
 public sealed class JourneyStageAutomationService : IJourneyStageAutomationService
 {
     private readonly IAdminKanbanService _kanbanService;
+    private readonly IJourneyGovernanceService _journeyGovernanceService;
     private readonly JourneyStageAutomationOptions _options;
     private readonly ILogger<JourneyStageAutomationService> _logger;
 
     public JourneyStageAutomationService(
         IAdminKanbanService kanbanService,
+        IJourneyGovernanceService journeyGovernanceService,
         IOptions<JourneyStageAutomationOptions> options,
         ILogger<JourneyStageAutomationService> logger)
     {
         _kanbanService = kanbanService;
+        _journeyGovernanceService = journeyGovernanceService;
         _options = options.Value;
         _logger = logger;
     }
@@ -24,6 +27,15 @@ public sealed class JourneyStageAutomationService : IJourneyStageAutomationServi
     {
         if (!_options.Enabled)
         {
+            return Task.FromResult(new JourneyStageAutomationRunResult());
+        }
+
+        var governanceDecision = _journeyGovernanceService.EvaluateStep(
+            JourneyGovernanceSteps.StageAutomation,
+            AdminKanbanJourneySourceChannels.Landing);
+        if (!governanceDecision.Allowed)
+        {
+            _logger.LogInformation("JourneyStageAutomationService ignorado pela governanca. Motivo={Reason}.", governanceDecision.Reason);
             return Task.FromResult(new JourneyStageAutomationRunResult());
         }
 
@@ -213,20 +225,18 @@ public sealed class JourneyStageAutomationService : IJourneyStageAutomationServi
         return candidate.ActiveTimerCode switch
         {
             AdminKanbanJourneyTimerCodes.PendingData
-                => BuildTimerRequest(
+                => BuildOperationalExceptionTimerRequest(
                     candidate,
-                    AdminKanbanJourneyClientStageNames.OperationalException,
-                    AdminKanbanJourneyStates.OperationalException,
-                    "Prazo de dados pendentes expirou sem resposta suficiente do cliente.",
-                    "jornada_timer_dados_pendentes_vencido",
+                    _journeyGovernanceService.ResolveOperationalException(
+                        JourneyGovernanceReasonCodes.PendingDataTimeout,
+                        "Prazo de dados pendentes expirou sem resposta suficiente do cliente."),
                     clearTimer: true),
             AdminKanbanJourneyTimerCodes.PendingScheduleConfirmation
-                => BuildTimerRequest(
+                => BuildOperationalExceptionTimerRequest(
                     candidate,
-                    AdminKanbanJourneyClientStageNames.OperationalException,
-                    AdminKanbanJourneyStates.OperationalException,
-                    "Prazo de confirmacao da agenda expirou sem resposta do cliente.",
-                    "jornada_timer_agenda_pendente_vencido",
+                    _journeyGovernanceService.ResolveOperationalException(
+                        JourneyGovernanceReasonCodes.ScheduleConfirmationTimeout,
+                        "Prazo de confirmacao da agenda expirou sem resposta do cliente."),
                     clearTimer: true),
             AdminKanbanJourneyTimerCodes.PendingAcceptance
                 => IsDispatchManagedAcceptance(candidate)
@@ -310,6 +320,20 @@ public sealed class JourneyStageAutomationService : IJourneyStageAutomationServi
             historyEventType,
             clearTimer ? nextTimerCode : nextTimerCode ?? candidate.ActiveTimerCode,
             clearTimer ? nextTimerDueAtUtc : nextTimerDueAtUtc ?? candidate.ActiveTimerDueAtUtc);
+    }
+
+    private static AdminKanbanJourneyStageAutomationUpdateRequest? BuildOperationalExceptionTimerRequest(
+        AdminKanbanJourneyStageAutomationCandidateRecord candidate,
+        JourneyOperationalExceptionPolicy exceptionPolicy,
+        bool clearTimer)
+    {
+        return BuildTimerRequest(
+            candidate,
+            exceptionPolicy.TargetStageName,
+            exceptionPolicy.TargetState,
+            exceptionPolicy.Summary,
+            exceptionPolicy.HistoryEventType,
+            clearTimer: clearTimer);
     }
 
     private static AdminKanbanJourneyStageAutomationUpdateRequest? BuildRequest(

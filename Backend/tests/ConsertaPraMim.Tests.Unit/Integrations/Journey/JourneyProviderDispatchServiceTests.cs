@@ -480,10 +480,41 @@ public sealed class JourneyProviderDispatchServiceTests
         kanbanService.VerifyAll();
     }
 
-    private static JourneyProviderDispatchService CreateSut(IAdminKanbanService kanbanService)
+    private static JourneyProviderDispatchService CreateSut(
+        IAdminKanbanService kanbanService,
+        IJourneyProviderDispatchNotificationService? notificationService = null)
     {
+        if (notificationService is null)
+        {
+            var notificationServiceMock = new Mock<IJourneyProviderDispatchNotificationService>(MockBehavior.Strict);
+            notificationServiceMock
+                .Setup(service => service.SendOpportunityAsync(
+                    It.IsAny<JourneyProviderDispatchNotificationRequest>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new JourneyProviderDispatchNotificationResult
+                {
+                    Success = true,
+                    DeliveryChannel = "email",
+                    DeliveryStatus = AdminKanbanJourneyDispatchDeliveryStatuses.Sent,
+                    Message = "Oportunidade enviada por e-mail com links assinados."
+                });
+            notificationService = notificationServiceMock.Object;
+        }
+
+        var governanceServiceMock = new Mock<IJourneyGovernanceService>(MockBehavior.Strict);
+        governanceServiceMock
+            .Setup(service => service.EvaluateStep(JourneyGovernanceSteps.Dispatch, AdminKanbanJourneySourceChannels.Landing))
+            .Returns(new JourneyGovernanceDecision
+            {
+                Allowed = true,
+                Step = JourneyGovernanceSteps.Dispatch,
+                Reason = "Etapa liberada pela governanca."
+            });
+
         return new JourneyProviderDispatchService(
             kanbanService,
+            governanceServiceMock.Object,
+            notificationService,
             Options.Create(new JourneyProviderDispatchOptions
             {
                 Enabled = true,

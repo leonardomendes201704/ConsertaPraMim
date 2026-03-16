@@ -581,7 +581,7 @@ Como plataforma, queremos garantir que a oportunidade chegue ao prestador mesmo 
 
 ### Status
 
-- Planejada.
+- Concluida localmente.
 
 ### Criterios de aceite
 
@@ -599,6 +599,17 @@ Como plataforma, queremos garantir que a oportunidade chegue ao prestador mesmo 
 - `TASK-07.05` Definir canal complementar opcional (WhatsApp/app/push) sem depender dele para aceite.
 - `TASK-07.06` Cobrir cenarios de link expirado, clique repetido e prestador ja reservado por outro caso.
 
+### Entrega implementada
+
+- O `JourneyProviderDispatchNotificationService` passou a enviar e-mail HTML com CTAs assinados de `Aceitar oportunidade` e `Recusar oportunidade`, com transporte `log` ou `smtp`.
+- O `JourneyProviderDispatchLinkService` foi criado para gerar tokens HMAC assinados, expiraveis e validados por proposito (`response_page` e `open_tracking`).
+- O `JourneyProviderOpportunityController` passou a expor os endpoints publicos `GET/POST /prestadores/oportunidades/responder` e `GET /prestadores/oportunidades/rastreio-abertura`.
+- O `JourneyProviderOpportunityService` passou a registrar clique, abertura, recusa oficial por link e aceite oficial por pagina segura, sem parsing de texto livre.
+- O snapshot do disparo agora persiste `DeliveryChannel`, `DeliveryStatus`, tentativas, ultimo envio, aberturas, cliques, origem da ultima interacao e ultimo erro por alvo.
+- Em falha permanente de entrega, o alvo e dispensado e a jornada pode liberar a proxima onda elegivel sem depender de operacao manual.
+- O modal do lead no Kanban passou a exibir a telemetria de notificacao do alvo dentro da secao `Disparo em ondas`.
+- Foram adicionados testes dedicados para token assinado, resposta do prestador e integracao do dispatch com o notificador.
+
 ## US-08 / ST-108 - Reserva do caso e conexao direta entre prestador e cliente
 
 ### Descricao
@@ -607,7 +618,7 @@ Como operacao, queremos que o primeiro prestador valido que aceitar reserve o ca
 
 ### Status
 
-- Planejada.
+- Concluida localmente.
 
 ### Criterios de aceite
 
@@ -624,6 +635,15 @@ Como operacao, queremos que o primeiro prestador valido que aceitar reserve o ca
 - `TASK-08.04` Encerrar ondas pendentes e marcar alvos restantes como expirados/dispensados.
 - `TASK-08.05` Atualizar Google Calendar e historico operacional com prestador reservado.
 
+### Entrega implementada
+
+- O `JourneyProviderOpportunityService` passou a confirmar o aceite de forma assincrona e, apos a reserva valida, aciona a nova orquestracao de conexao direta.
+- O `JourneyProviderConnectionService` foi criado para liberar o contato do cliente apenas ao prestador vencedor, atualizar o evento do Google Calendar e registrar historico operacional da conexao.
+- O cliente passa a ser avisado preferencialmente por Telegram, usando o `TelegramBridgeDeliveryClient`; quando nao houver `TelegramChatId`, o fallback operacional e e-mail.
+- O prestador vencedor recebe e-mail de confirmacao com nome do cliente, telefone/WhatsApp, e-mail, endereco validado e janela confirmada.
+- A pagina publica da oportunidade passou a exibir os dados liberados do cliente somente quando o `ProviderId` do token corresponde ao `ReservedProviderId` persistido na jornada.
+- O card do Kanban continua avancando automaticamente para `Prestador conectado`, com agenda enriquecida e alvos restantes ja dispensados pela reserva atomica.
+
 ## US-09 / ST-109 - Conclusao do servico e avaliacao bilateral
 
 ### Descricao
@@ -632,7 +652,7 @@ Como plataforma, queremos fechar a jornada apos o atendimento com confirmacao de
 
 ### Status
 
-- Planejada.
+- Concluida.
 
 ### Criterios de aceite
 
@@ -650,6 +670,16 @@ Como plataforma, queremos fechar a jornada apos o atendimento com confirmacao de
 - `TASK-09.05` Atualizar score operacional de prestador e historico do cliente.
 - `TASK-09.06` Cobrir no-show, cancelamento tardio e servico contestado.
 
+### Entrega implementada
+
+- O `JourneyServiceClosureService` passou a iniciar automaticamente o encerramento da jornada logo apos a conexao direta entre cliente e prestador.
+- Foram criados links assinados e expiraveis para o prestador registrar o desfecho do atendimento, para o cliente confirmar ou contestar a conclusao e para as duas partes enviarem a avaliacao final.
+- O snapshot da jornada agora persiste `ClosureStatus`, `ClosureOutcome`, timestamps de servico/conclusao/contestacao e as duas avaliacoes com nota, comentario, motivo de nota baixa e indicador de recompra.
+- O `Kanban` ganhou a nova secao `Encerramento e avaliacoes`, exibindo status, desfecho, contestacao e o andamento da avaliacao bilateral.
+- No-show do cliente, cancelamento tardio e contestacao do servico agora tiram o caso do fluxo automatico e encaminham a jornada para `Excecao operacional`.
+- Quando o cliente confirma a conclusao, a jornada avanca para `Aguardando avaliacao do cliente`; depois da avaliacao do cliente, passa para `Aguardando avaliacao do prestador`; apos a avaliacao final do prestador, o card e concluido automaticamente.
+- Foram adicionados testes dedicados para token assinado do encerramento, fluxo de contestacao, avaliacao do cliente e ajuste da conexao direta para iniciar a trilha de encerramento.
+
 ## US-10 / ST-110 - Excecoes, handoff minimo, observabilidade e rollout
 
 ### Descricao
@@ -658,7 +688,7 @@ Como operacao, queremos controlar excecoes, medir a automacao e garantir rollout
 
 ### Status
 
-- Planejada.
+- Concluida.
 
 ### Criterios de aceite
 
@@ -675,6 +705,17 @@ Como operacao, queremos controlar excecoes, medir a automacao e garantir rollout
 - `TASK-10.04` Adicionar feature flags por canal e por etapa da automacao.
 - `TASK-10.05` Criar runbook de rollout, fallback e troubleshooting.
 - `TASK-10.06` Cobrir homologacao ponta a ponta com agenda, dispatch e reviews.
+
+### Entrega implementada
+
+- Foi criado o `JourneyGovernanceService`, responsavel por centralizar feature flags, rollout percentual, allowlist de canais e a matriz padrao de excecoes operacionais da jornada.
+- O intake da jornada agora respeita `JourneyGovernance`, permitindo ativar ou bloquear a automacao por canal e por bucket deterministico de rollout sem quebrar a captura do lead.
+- As etapas `StageAutomation`, `Matching`, `Dispatch` e `Closure` passaram a consultar a governanca antes de executar a automacao, permitindo rollout progressivo e rollback por etapa.
+- Excecoes como `pending_data_timeout`, `schedule_confirmation_timeout`, `matching_missing_data`, `provider_outcome_exception` e `client_contestation` passaram a convergir para uma resolucao operacional padronizada, com resumo de fallback e gatilho de handoff minimo.
+- O `Portal Admin` ganhou a nova view `/admin/jornada/painel`, com drawer de filtros e leitura operacional de volume, backlog por etapa, gargalos, excecoes, ondas de disparo e snapshot da governanca ativa.
+- O painel administrativo passou a exibir tambem o estado das feature flags da jornada, canais habilitados, percentual de rollout e principais indicadores de excecao/atraso para apoio ao rollout controlado.
+- Foi documentado o runbook de rollout, rollback e troubleshooting da jornada autonoma, incluindo checklists de homologacao ponta a ponta e criterios objetivos para saida do fluxo automatico.
+
 
 ## 16. Mudancas de dados previstas
 
@@ -724,6 +765,12 @@ Como operacao, queremos controlar excecoes, medir a automacao e garantir rollout
 8. `ST-108` - Reserva e conexao direta
 9. `ST-109` - Conclusao e avaliacao bilateral
 10. `ST-110` - Excecoes, observabilidade e rollout
+
+## 18.1 Status final do epic
+
+- `ST-101` a `ST-110`: concluidas.
+- Estado atual: `Completed`.
+- Resultado: a jornada autonoma agora cobre intake, qualificacao, agenda, Kanban autonomo, matching, disparo em ondas, aceite assinado, conexao direta, encerramento, avaliacao bilateral, governanca, observabilidade e rollout progressivo.
 
 ## 19. Diagrama de estados da jornada
 

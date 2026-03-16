@@ -375,6 +375,153 @@ Pre-condicoes operacionais:
 - A proxima onda nao abre apos expiracao: revisar `DispatchWaitingAcceptanceUntilUtc`, `CurrentWaveNumber`, `MaxWaves` e se ainda existem candidatos elegiveis nao disparados.
 - Dois prestadores tentaram aceitar o mesmo caso: validar o resultado de `TryReserveJourneyDispatchTarget`; o primeiro aceite deve reservar o caso e os demais devem retornar `AlreadyReserved = true`.
 
+### Notificacao confiavel para prestadores com links assinados
+
+#### Objetivo desta etapa
+
+- Garantir que a oportunidade chegue ao prestador por canal controlado, mesmo quando ele usa bots em outros canais.
+- Capturar aceite e recusa oficiais sem depender de parsing de texto livre.
+- Tornar auditavel o envio, a abertura, o clique e a resposta oficial do prestador.
+
+#### Escopo entregue nesta fatia
+
+- Foi criado o `JourneyProviderDispatchNotificationService`, responsavel por montar e enviar o e-mail da oportunidade com links assinados.
+- Foi criado o `JourneyProviderDispatchLinkService`, com assinatura HMAC, expiracao automatica e validacao por proposito (`response_page` e `open_tracking`).
+- Foi criado o `JourneyProviderOpportunityController`, com pagina publica segura para resposta do prestador em `/prestadores/oportunidades/responder`.
+- Foi criado o endpoint `GET /prestadores/oportunidades/rastreio-abertura`, que registra abertura por pixel quando o rastreio estiver habilitado.
+- O fluxo oficial de aceite/recusa agora acontece por `POST` dentro da pagina segura; o clique no e-mail apenas abre a confirmacao.
+- O snapshot da jornada passou a persistir `DeliveryChannel`, `DeliveryStatus`, `DeliveryAttempts`, `LastDeliveryAttemptAtUtc`, `OpenedAtUtc`, `OpenCount`, `ClickedAtUtc`, `ClickCount`, `LastInteractionSource`, `LastInteractionAtUtc` e `LastError`.
+- O modal do lead agora mostra a telemetria do disparo por alvo dentro da secao `Disparo em ondas`.
+
+#### Configuracao minima
+
+No `ConsertaPraMim.Web.CpmFull`, configurar a secao `JourneyProviderNotification`:
+
+- `Enabled`
+- `EmailEnabled`
+- `EmailTransport` (`log` ou `smtp`)
+- `PublicBaseUrl`
+- `LinkSigningSecret`
+- `LinkExpirationMinutes`
+- `OpenTrackingEnabled`
+- `SenderEmail`
+- `SenderDisplayName`
+- `SmtpHost`
+- `SmtpPort`
+- `SmtpUseSsl`
+- `SmtpUsername`
+- `SmtpPassword`
+- `ProviderPortalBaseUrl`
+
+Pre-condicoes operacionais:
+
+- `JourneyProviderDispatch` deve continuar habilitado.
+- `JourneyProviderNotification:PublicBaseUrl` precisa apontar para a URL publica do `ConsertaPraMim.Web.CpmFull`.
+- `JourneyProviderNotification:LinkSigningSecret` deve ter pelo menos 32 caracteres e ser mantido apenas em secret/env.
+- Os prestadores elegiveis precisam ter `ProviderEmail` valido para receber a oportunidade.
+
+#### Comportamento esperado
+
+- Cada alvo enviado na onda gera um e-mail com link assinado de aceite e link assinado de recusa.
+- O clique no e-mail abre uma pagina segura de confirmacao; a reserva oficial so acontece no `POST` da pagina.
+- Abertura e clique sao registrados como telemetria do alvo sem mudar, por si so, o status oficial do caso.
+- A recusa oficial muda o alvo para `Recusado` e pode liberar imediatamente a proxima onda elegivel.
+- O aceite oficial usa `TryReserveJourneyDispatchTarget`; se outro prestador tiver reservado antes, o retorno deve indicar indisponibilidade da oportunidade.
+- Falha permanente de entrega dispensa o alvo e registra o erro no snapshot do disparo.
+
+#### Checklist de QA
+
+1. Configurar `JourneyProviderDispatch:Enabled=true` e `JourneyProviderNotification:Enabled=true` no CPM Full.
+2. Para homologacao local, usar `JourneyProviderNotification:EmailTransport=log` e `OpenTrackingEnabled=true`.
+3. Garantir um lead de cliente em `Disparo para prestadores` ou `Aguardando aceite` com pelo menos um alvo elegivel contendo `ProviderEmail`.
+4. Aguardar o processamento da fila de disparo e validar no log do runtime o HTML do e-mail com os links assinados.
+5. Abrir o lead em `/admin/funil/clientes` e validar, na secao `Disparo em ondas`, `Canal`, `Status de entrega`, `Tentativas` e `Ultimo envio`.
+6. Abrir o link assinado de aceite e validar a pagina publica `/prestadores/oportunidades/responder`.
+7. Confirmar o aceite na pagina e validar que a resposta oficial atualiza o caso sem depender de texto livre.
+8. Repetir o fluxo com o link de recusa e validar `TargetStatus = Recusado`, com historico operacional correspondente.
+9. Acessar o pixel `rastreio-abertura` com token valido e validar incremento de `OpenCount`.
+10. Confirmar no modal do lead que `OpenCount`, `ClickCount`, `LastInteractionSource` e `LastError` refletem o comportamento do alvo.
+
+#### Troubleshooting
+
+- O e-mail nao foi montado: validar `JourneyProviderNotification:Enabled`, `EmailEnabled`, `SenderEmail` e `PublicBaseUrl`.
+- O link retorna `Link invalido` ou `Link expirado`: validar `LinkSigningSecret`, `LinkExpirationMinutes`, timezone/UTC e se o token foi gerado com o mesmo ambiente.
+- O clique abre a pagina mas nao confirma o caso: lembrar que a confirmacao oficial acontece no `POST` da pagina, nao no `GET`.
+- O aceite falha com oportunidade indisponivel: validar se outro prestador ja reservou o caso e se `TryReserveJourneyDispatchTarget` retornou `AlreadyReserved`.
+- O modal nao mostra telemetria de entrega: validar se o snapshot da jornada foi atualizado com `DispatchSnapshotJson` apos o envio.
+- O pixel nao incrementa abertura: validar `OpenTrackingEnabled`, reachability do endpoint `/prestadores/oportunidades/rastreio-abertura` e se o cliente de e-mail carrega imagens remotas.
+
+### Reserva do caso e conexao direta entre cliente e prestador
+
+#### Objetivo desta etapa
+
+- Fazer com que o primeiro aceite valido reserve o caso de forma definitiva.
+- Liberar os dados do cliente apenas ao prestador vencedor.
+- Avisar as duas pontas da jornada sem depender de handoff humano manual.
+
+#### Escopo entregue nesta fatia
+
+- A confirmacao publica do prestador em `/prestadores/oportunidades/responder` agora executa o aceite vencedor de forma assincrona.
+- Foi criado o `JourneyProviderConnectionService`, responsavel por orquestrar a conexao direta apos a reserva.
+- O cliente passa a ser avisado preferencialmente por Telegram; sem `TelegramChatId`, o fallback operacional e e-mail.
+- O prestador vencedor recebe e-mail de confirmacao com telefone/e-mail do cliente, endereco validado e janela agendada.
+- O Google Calendar passa a receber enriquecimento do evento com o prestador reservado e os contatos das partes.
+- A pagina publica da oportunidade mostra os dados do cliente somente quando o `ProviderId` do token corresponde ao `ReservedProviderId` persistido.
+
+#### Configuracao minima
+
+No `ConsertaPraMim.Web.CpmFull`, manter configurados:
+
+- `JourneyProviderNotification:Enabled`
+- `JourneyProviderNotification:EmailEnabled`
+- `JourneyProviderNotification:EmailTransport`
+- `JourneyProviderNotification:SenderEmail`
+- `JourneyProviderNotification:SenderDisplayName`
+- `JourneyProviderNotification:SmtpHost`
+- `JourneyProviderNotification:SmtpPort`
+- `JourneyProviderNotification:SmtpUseSsl`
+- `JourneyProviderNotification:SmtpUsername`
+- `JourneyProviderNotification:SmtpPassword`
+- `TelegramAutomation:Enabled`
+- `TelegramAutomation:MirrorMessagesEnabled`
+- `TelegramAutomation:TelegramBridgeBaseUrl`
+- `TelegramAutomation:SharedSecret`
+
+Pre-condicoes operacionais:
+
+- A jornada do cliente precisa estar em `Aguardando aceite`.
+- O disparo em ondas precisa ter pelo menos um alvo ativo com `ProviderEmail` valido.
+- O Google Calendar precisa continuar configurado se houver enriquecimento da agenda oficial.
+
+#### Comportamento esperado
+
+- O primeiro prestador a confirmar o aceite reserva o caso.
+- Os demais links da mesma oportunidade deixam de aceitar novas reservas.
+- O card do lead avanca para `Prestador conectado`.
+- O prestador vencedor passa a ver telefone/e-mail do cliente na pagina segura da oportunidade.
+- O cliente recebe os dados do prestador por Telegram ou e-mail.
+- O evento do Google Calendar passa a carregar o prestador reservado e os contatos das partes.
+
+#### Checklist de QA
+
+1. Garantir um lead da jornada em `Aguardando aceite`, com agenda confirmada e pelo menos um alvo ativo no disparo.
+2. Abrir o link assinado de um prestador elegivel e confirmar `Aceitar oportunidade`.
+3. Validar que a pagina retorna `Aceite confirmado`.
+4. Confirmar na mesma pagina que os dados do cliente aparecem apenas apos o aceite vencedor.
+5. Reabrir o lead no Kanban e validar `CurrentState = prestador_conectado`, `Status do disparo = Caso reservado` e `Prestador reservado` preenchido.
+6. Validar que os demais alvos da mesma onda aparecem como `Dispensado` ou deixam de aceitar novas respostas.
+7. Se o lead tiver Telegram ativo, confirmar o aviso ao cliente no mesmo chat.
+8. Se o lead nao tiver Telegram ativo, validar o fallback por e-mail em `log` ou SMTP.
+9. Abrir o evento correspondente no Google Calendar e confirmar a presenca do prestador reservado e dos contatos atualizados.
+10. Validar no historico do lead o evento `jornada_conexao_direta_liberada`.
+
+#### Troubleshooting
+
+- O aceite confirma mas nao libera o contato: validar se o `ReservedProviderId` da jornada coincide com o `ProviderId` do token assinado.
+- O cliente nao foi avisado: revisar se existe `TelegramChatId` ativo; sem Telegram, validar `JourneyProviderNotification:EmailEnabled` e o e-mail do lead.
+- O prestador nao recebeu o e-mail final: revisar `EmailTransport`, SMTP e se `ProviderEmail` veio preenchido no alvo do disparo.
+- O Google Calendar nao foi enriquecido: validar `GoogleCalendarEventId`, credencial da `service account` e permissao de escrita na agenda.
+
 ## Automacao Telegram -> funis clientes/prestadores -> Chatwoot
 
 ### Objetivo desta etapa
@@ -1137,6 +1284,197 @@ Preencher a secao `Chatwoot` via `appsettings.Local.json` ou variaveis de ambien
 - O backfill parece ignorar leads antigos: consultar `dbo.cpm_web_chatwoot_backfill_checkpoints` e conferir se o escopo ja esta adiantado; use `Comecar apos o Lead ID` para override controlado.
 - Conversa duplicada apareceu: revisar se o contato possuia conversa no mesmo inbox do funil; o reaproveitamento ocorre por `contact_id + inbox_id`.
 - Dry-run trouxe lead como falha: normalmente indica ausencia de telefone e e-mail validos no cadastro do lead.
+
+## Conclusao do servico e avaliacao bilateral da jornada
+
+### Objetivo desta etapa
+
+- Fechar a jornada depois da conexao direta entre cliente e prestador.
+- Registrar o desfecho do atendimento com trilha auditavel e links assinados.
+- Cobrar e persistir a avaliacao do cliente e do prestador sem depender de operacao manual nos casos padrao.
+
+### Escopo entregue nesta fatia
+
+- O `JourneyProviderConnectionService` agora inicia automaticamente a trilha de encerramento logo apos a reserva vencedora.
+- O `JourneyServiceClosureLinkService` gera links assinados e expiraveis para:
+  - desfecho do atendimento pelo prestador;
+  - confirmacao ou contestacao da conclusao pelo cliente;
+  - avaliacao do cliente;
+  - avaliacao do prestador.
+- O `JourneyServiceClosureController` passou a expor as paginas publicas:
+  - `/jornada/encerramento/prestador`
+  - `/jornada/encerramento/cliente`
+  - `/jornada/avaliacoes/responder`
+- A jornada passou a persistir `ClosureStatus`, `ClosureSummary`, `ClosureOutcome`, timestamps da etapa final e as duas avaliacoes.
+- O modal do lead no Kanban ganhou a secao `Encerramento e avaliacoes`.
+
+### Configuracao minima
+
+No `ConsertaPraMim.Web.CpmFull`, configurar a secao `JourneyServiceClosure`:
+
+- `Enabled`
+- `CompletionLinkExpirationHours`
+- `ReviewLinkExpirationHours`
+- `LowScoreThreshold`
+
+Pre-condicoes operacionais:
+
+- `JourneyProviderNotification:Enabled=true`
+- `JourneyProviderNotification:PublicBaseUrl` preenchido com URL publica valida
+- `JourneyProviderNotification:LinkSigningSecret` configurado
+- `JourneyProviderNotification:EmailEnabled=true` quando a cobranca por e-mail estiver ativa
+
+### Comportamento esperado
+
+- Assim que o prestador vencedor e conectado ao cliente, a jornada avanca para `Servico em andamento`.
+- O prestador recebe um link assinado para informar se o servico foi concluido, se houve `cliente nao compareceu` ou `cancelamento tardio`.
+- Quando o prestador marca `servico concluido`, o cliente recebe link para `confirmar` ou `contestar`.
+- Se o cliente contesta, a jornada sai do fluxo automatico e vai para `Excecao operacional`.
+- Se o cliente confirma, a jornada avanca para `Aguardando avaliacao do cliente`.
+- Depois da avaliacao do cliente, a jornada avanca para `Aguardando avaliacao do prestador`.
+- Depois da avaliacao do prestador, a jornada vai para `Concluido`.
+
+### Checklist de QA
+
+1. Configurar `JourneyServiceClosure:Enabled=true` e manter `JourneyProviderNotification` com `PublicBaseUrl` e `LinkSigningSecret`.
+2. Executar uma jornada ate `Prestador conectado`.
+3. Confirmar no modal do lead que a secao `Encerramento e avaliacoes` mostra `Servico em andamento`.
+4. Abrir o e-mail do prestador e acessar a pagina `Registrar conclusao do atendimento`.
+5. Registrar `Servico concluido` e confirmar que o lead avanca para `Aguardando confirmacao de conclusao`.
+6. Abrir a URL enviada ao cliente e confirmar a conclusao.
+7. Validar que o lead vai para `Aguardando avaliacao do cliente`.
+8. Enviar a avaliacao do cliente e validar no Kanban o `Status da avaliacao do cliente = Enviada`.
+9. Abrir a URL de avaliacao do prestador e concluir a ultima avaliacao.
+10. Validar que o card vai para `Concluido`.
+11. Repetir o fluxo de encerramento e testar:
+12. `Cliente nao compareceu`
+13. `Cancelamento tardio`
+14. `Conclusao contestada`
+15. Confirmar nos tres casos que a jornada vai para `Excecao operacional`.
+16. Validar no modal que `Resumo do encerramento`, `Desfecho`, `Motivo da contestacao` e as duas avaliacoes aparecem em PT-BR.
+
+### Troubleshooting
+
+- Link de encerramento invalido ou expirado: validar `PublicBaseUrl`, `LinkSigningSecret` e as janelas `CompletionLinkExpirationHours` / `ReviewLinkExpirationHours`.
+- Prestador nao recebeu solicitacao de conclusao: revisar `ReservedProviderEmail`, `JourneyProviderNotification:EmailEnabled` e o transporte configurado.
+- Cliente nao recebeu confirmacao de conclusao: validar se o lead ainda possui `TelegramChatId`; sem Telegram ativo, o fallback e e-mail.
+- Jornada nao sai de `Aguardando avaliacao do cliente`: validar se a avaliacao foi enviada com token de `cliente` e se `ClientReviewStatus` foi persistido.
+- Jornada nao conclui apos a avaliacao do prestador: validar `ProviderReviewStatus`, `CompletedAtUtc` e o historico `jornada_avaliacao_prestador_enviada`.
+
+## Excecoes, handoff minimo, observabilidade e rollout da jornada
+
+### Objetivo
+
+- Controlar a automacao da jornada por feature flags e canais habilitados.
+- Ter um criterio operacional claro para saida do fluxo automatico e entrada em `Excecao operacional`.
+- Dar visibilidade gerencial e operacional sobre backlog, gargalos, ondas, excecoes e rollout da jornada.
+
+### Comportamento esperado
+
+- O intake da jornada respeita `JourneyGovernance`, com `Enabled`, `AllowedSourceChannels`, `RolloutPercentage` e `IntakeEnabled`.
+- As etapas `StageAutomation`, `Matching`, `Dispatch` e `Closure` podem ser habilitadas ou desabilitadas independentemente sem quebrar a captura base do lead.
+- Timeouts de dados pendentes, timeout de confirmacao de agenda, falta de dados para matching, contestacao do cliente e desfechos excepcionais do prestador devem produzir motivo operacional auditavel.
+- O `Portal Admin` deve expor o novo painel `/admin/jornada/painel`, com drawer `Filtros`, cards de resumo e tabelas de backlog/excecao/gargalos.
+- O painel deve mostrar tambem o bloco `Governanca ativa`, exibindo percentual de rollout, canais permitidos e status das etapas automaticas.
+
+### Matriz minima de excecoes e handoff
+
+- `pending_data_timeout`
+  - efeito: mover para `Excecao operacional`
+  - resumo operacional: cliente nao completou os dados minimos da jornada dentro do prazo
+- `schedule_confirmation_timeout`
+  - efeito: mover para `Excecao operacional`
+  - resumo operacional: cliente nao confirmou a janela sugerida dentro do prazo
+- `matching_missing_data`
+  - efeito: mover para `Excecao operacional`
+  - resumo operacional: jornada sem dados suficientes para matching geografico
+- `provider_outcome_exception`
+  - efeito: mover para `Excecao operacional`
+  - resumo operacional: no-show do cliente, cancelamento tardio ou desfecho excepcional reportado pelo prestador
+- `client_contestation`
+  - efeito: mover para `Excecao operacional`
+  - resumo operacional: cliente contestou a conclusao do servico
+
+### Configuracao operacional
+
+Secao nova em `JourneyGovernance`:
+
+- `Enabled`
+- `RolloutPercentage`
+- `AllowedSourceChannels`
+- `IntakeEnabled`
+- `StageAutomationEnabled`
+- `MatchingEnabled`
+- `DispatchEnabled`
+- `ConnectionEnabled`
+- `ClosureEnabled`
+- `RouteOperationalExceptionsToHandoff`
+
+### Painel administrativo da jornada
+
+URL:
+
+- `/admin/jornada/painel`
+
+Indicadores principais:
+
+- total de jornadas no periodo
+- jornadas com agenda confirmada
+- jornadas com prestador conectado
+- jornadas concluidas
+- jornadas com avaliacoes completas
+- jornadas em excecao operacional
+- jornadas sem match
+- jornadas com atraso de timer
+- tempo medio ate agenda, reserva e conclusao
+
+Breakdowns disponiveis:
+
+- por canal de origem
+- por estado atual da jornada
+- por categoria
+- por cidade
+- por motivo de excecao
+- por onda de disparo
+- por etapa do Kanban com backlog e atraso
+
+### Checklist de QA
+
+1. Abrir `/admin/jornada/painel`.
+2. Confirmar exibicao do botao `Filtros` e do drawer lateral com `Aplicar filtros` e `Limpar filtros`.
+3. Aplicar filtro por periodo e validar atualizacao dos cards de resumo.
+4. Validar exibicao do bloco `Governanca ativa`.
+5. Confirmar que o bloco mostra `RolloutPercentage`, canais permitidos e status das etapas.
+6. Desabilitar uma etapa em `JourneyGovernance` no ambiente local ou homologacao.
+7. Confirmar que a automacao correspondente deixa de executar sem impedir o restante da jornada.
+8. Simular `pending_data_timeout` e validar ida para `Excecao operacional`.
+9. Simular `matching_missing_data` e validar ida para `Excecao operacional`.
+10. Simular `client_contestation` e validar ida para `Excecao operacional`.
+11. Confirmar que o painel passa a refletir o novo volume de excecoes e backlog.
+
+### Rollout recomendado
+
+1. Publicar com `JourneyGovernance:Enabled=true`.
+2. Iniciar com `RolloutPercentage=10`.
+3. Restringir `AllowedSourceChannels` aos canais homologados ou com menor risco operacional.
+4. Validar intake, agenda, matching, disparo, conexao e encerramento no painel `/admin/jornada/painel`.
+5. Elevar para `25`, `50`, `75` e `100` conforme estabilidade.
+6. Manter `RouteOperationalExceptionsToHandoff=true` durante todo o rollout progressivo.
+
+### Rollback recomendado
+
+1. Se a falha for global, definir `JourneyGovernance:Enabled=false`.
+2. Se a falha estiver isolada em uma etapa, desabilitar apenas a flag correspondente.
+3. Revalidar que o intake continua gerando lead mesmo com a etapa automatica bloqueada.
+4. Acompanhar o painel da jornada para confirmar queda de erros e estabilizacao do backlog.
+
+### Troubleshooting
+
+- O painel abre vazio: validar periodo informado, existencia de dados em `journey_executions` e se o board filtrado corresponde a `clientes`.
+- O rollout parece nao respeitar percentual: validar se a chave estavel do intake mudou entre tentativas; a distribuicao e deterministica por identificador.
+- A etapa continua executando apos desabilitar a flag: revisar recarga de configuracao no ambiente publicado e confirmar o valor efetivo no bloco `Governanca ativa`.
+- Excecao nao vai para `Excecao operacional`: validar se `RouteOperationalExceptionsToHandoff=true` e se o motivo esta mapeado no `JourneyGovernanceService`.
+- O painel nao mostra gargalos esperados: revisar `LastStageAutomationReason`, `ActiveTimerDueAtUtc`, `DispatchCurrentWaveNumber` e `ClosureStatus` no snapshot da jornada.
 
 ## Integracao Chatwoot - observabilidade e diagnostico no Kanban
 

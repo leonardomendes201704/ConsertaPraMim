@@ -217,7 +217,12 @@ SELECT TOP (1)
     DispatchReservedProviderEmail,
     DispatchReservedProviderPhone,
     DispatchReservedAtUtc,
-    DispatchSnapshotJson
+    DispatchSnapshotJson,
+    ClosureStatus,
+    ClosureSummary,
+    ClosureOutcome,
+    ClosureCompletedAtUtc,
+    ClosureJson
 FROM dbo.{TablePrefix}journey_executions
 WHERE LeadId = @leadId
 ORDER BY UpdatedAt DESC, Id DESC;
@@ -256,6 +261,7 @@ ORDER BY UpdatedAt DESC, Id DESC;
             Qualification = ReadJourneyQualificationRecord(reader, 21),
             Scheduling = ReadJourneySchedulingRecord(reader, 29),
             Matching = ReadJourneyMatchingRecord(reader, 39),
+            Closure = ReadJourneyClosureRecord(reader, 72),
             StageAutomation = new AdminKanbanJourneyStageAutomationRecord
             {
                 LastReason = reader.IsDBNull(47) ? string.Empty : reader.GetString(47),
@@ -1195,6 +1201,7 @@ IF COL_LENGTH('dbo.{TablePrefix}journey_executions', 'ActiveTimerDueAtUtc') IS N
 """;
             command.ExecuteNonQuery();
             EnsureJourneyDispatchSchema(connection, transaction);
+            EnsureJourneyClosureSchema(connection, transaction);
             transaction.Commit();
             _journeyInitialized = true;
         }

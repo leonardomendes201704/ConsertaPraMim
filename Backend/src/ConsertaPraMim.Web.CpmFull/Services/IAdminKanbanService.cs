@@ -10,7 +10,9 @@ public interface IAdminKanbanService
     AdminKanbanJourneySchedulingUpdateResult? UpdateJourneyScheduling(int leadId, AdminKanbanJourneySchedulingUpdateRequest request);
     AdminKanbanJourneyMatchingUpdateResult? UpdateJourneyMatching(int leadId, AdminKanbanJourneyMatchingUpdateRequest request);
     AdminKanbanJourneyDispatchUpdateResult? UpdateJourneyDispatch(int leadId, AdminKanbanJourneyDispatchUpdateRequest request);
+    AdminKanbanJourneyClosureUpdateResult? UpdateJourneyClosure(int leadId, AdminKanbanJourneyClosureUpdateRequest request);
     AdminKanbanJourneyDispatchReservationResult? TryReserveJourneyDispatchTarget(AdminKanbanJourneyDispatchReservationRequest request);
+    AdminKanbanJourneyDispatchTargetInteractionResult? ApplyJourneyDispatchTargetInteraction(AdminKanbanJourneyDispatchTargetInteractionRequest request);
     IReadOnlyList<AdminKanbanJourneyStageAutomationCandidateRecord> ListJourneyStageAutomationCandidates(string boardType, DateTime nowUtc, int batchSize);
     AdminKanbanJourneyStageAutomationUpdateResult? ApplyJourneyStageAutomation(AdminKanbanJourneyStageAutomationUpdateRequest request);
     IReadOnlyList<AdminKanbanJourneyProviderProfileRecord> ListJourneyProviderProfiles(DateTime? scheduledStartAtUtc, DateTime? scheduledEndAtUtc);
@@ -30,6 +32,7 @@ public interface IAdminKanbanService
     int PurgeTelegramDeliveryPayloads(DateTime createdBeforeUtc, DateTime purgedAtUtc);
     AdminKanbanTelegramDiagnosticsSnapshot GetTelegramDiagnostics(string? boardType, int issueLimit, int queueLimit);
     AdminKanbanTelegramBusinessDashboardSnapshot GetTelegramBusinessDashboard(AdminKanbanTelegramBusinessDashboardFilter filter);
+    AdminKanbanJourneyOperationsDashboardSnapshot GetJourneyOperationsDashboard(AdminKanbanJourneyOperationsDashboardFilter filter);
     bool UpdateLead(int leadId, AdminKanbanLeadUpsertRequest request);
     bool UpdateLeadChatwootSync(int leadId, AdminKanbanLeadChatwootSyncUpdateRequest request);
     int? FindLeadIdByChatwootConversationId(long conversationId);

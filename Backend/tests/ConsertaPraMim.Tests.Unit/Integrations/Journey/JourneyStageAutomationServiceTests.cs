@@ -198,8 +198,29 @@ public sealed class JourneyStageAutomationServiceTests
 
     private static JourneyStageAutomationService CreateSut(IAdminKanbanService kanbanService)
     {
+        var governanceService = new Mock<IJourneyGovernanceService>(MockBehavior.Strict);
+        governanceService
+            .Setup(service => service.EvaluateStep(JourneyGovernanceSteps.StageAutomation, AdminKanbanJourneySourceChannels.Landing))
+            .Returns(new JourneyGovernanceDecision
+            {
+                Allowed = true,
+                Step = JourneyGovernanceSteps.StageAutomation,
+                Reason = "Etapa liberada pela governanca."
+            });
+        governanceService
+            .Setup(service => service.ResolveOperationalException(It.IsAny<string>(), It.IsAny<string>()))
+            .Returns<string, string>((reasonCode, fallbackSummary) => new JourneyOperationalExceptionPolicy
+            {
+                ReasonCode = reasonCode,
+                Summary = fallbackSummary,
+                HistoryEventType = reasonCode == JourneyGovernanceReasonCodes.PendingDataTimeout
+                    ? "jornada_timer_dados_pendentes_vencido"
+                    : "jornada_timer_agenda_pendente_vencido"
+            });
+
         return new JourneyStageAutomationService(
             kanbanService,
+            governanceService.Object,
             Options.Create(new JourneyStageAutomationOptions
             {
                 Enabled = true,

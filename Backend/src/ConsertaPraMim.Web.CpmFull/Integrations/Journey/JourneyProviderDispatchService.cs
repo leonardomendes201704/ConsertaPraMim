@@ -9,16 +9,22 @@ public sealed class JourneyProviderDispatchService : IJourneyProviderDispatchSer
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     private readonly IAdminKanbanService _kanbanService;
+    private readonly IJourneyGovernanceService _journeyGovernanceService;
+    private readonly IJourneyProviderDispatchNotificationService _notificationService;
     private readonly JourneyProviderDispatchOptions _options;
     private readonly ILogger<JourneyProviderDispatchService> _logger;
     private readonly string _workerInstance;
 
     public JourneyProviderDispatchService(
         IAdminKanbanService kanbanService,
+        IJourneyGovernanceService journeyGovernanceService,
+        IJourneyProviderDispatchNotificationService notificationService,
         IOptions<JourneyProviderDispatchOptions> options,
         ILogger<JourneyProviderDispatchService> logger)
     {
         _kanbanService = kanbanService;
+        _journeyGovernanceService = journeyGovernanceService;
+        _notificationService = notificationService;
         _options = options.Value;
         _logger = logger;
         _workerInstance = $"{Environment.MachineName}-journey-dispatch-{Guid.NewGuid():N}";
@@ -28,6 +34,15 @@ public sealed class JourneyProviderDispatchService : IJourneyProviderDispatchSer
     {
         if (!_options.Enabled)
         {
+            return Task.FromResult(new JourneyProviderDispatchRunResult());
+        }
+
+        var governanceDecision = _journeyGovernanceService.EvaluateStep(
+            JourneyGovernanceSteps.Dispatch,
+            AdminKanbanJourneySourceChannels.Landing);
+        if (!governanceDecision.Allowed)
+        {
+            _logger.LogInformation("JourneyProviderDispatchService ignorado pela governanca. Motivo={Reason}.", governanceDecision.Reason);
             return Task.FromResult(new JourneyProviderDispatchRunResult());
         }
 
@@ -96,7 +111,7 @@ public sealed class JourneyProviderDispatchService : IJourneyProviderDispatchSer
 
             try
             {
-                if (ProcessQueueItem(item, nowUtc))
+                if (ProcessQueueItem(item, nowUtc, cancellationToken))
                 {
                     processedCount++;
                 }
@@ -209,7 +224,7 @@ public sealed class JourneyProviderDispatchService : IJourneyProviderDispatchSer
         return (wavesQueuedCount, expiredCount, exhaustedCount);
     }
 
-    private bool ProcessQueueItem(AdminKanbanJourneyDispatchQueueItemRecord item, DateTime nowUtc)
+    private bool ProcessQueueItem(AdminKanbanJourneyDispatchQueueItemRecord item, DateTime nowUtc, CancellationToken cancellationToken)
     {
         var journey = _kanbanService.GetJourneyDetails(item.LeadId);
         if (journey is null)
@@ -284,6 +299,99 @@ public sealed class JourneyProviderDispatchService : IJourneyProviderDispatchSer
             .FirstOrDefault(entry => entry.WaveNumber == item.WaveNumber);
         var waveExpiresAtUtc = activeWave?.ExpiresAtUtc ?? nowUtc.AddMinutes(_options.AcceptanceTimeoutMinutes);
         var waveBecameActive = string.Equals(activeWave?.Status, AdminKanbanJourneyDispatchWaveStatuses.Queued, StringComparison.OrdinalIgnoreCase);
+        var lead = _kanbanService.GetLeadDetails(item.LeadId);
+        var deliveryResult = lead is null
+            ? new JourneyProviderDispatchNotificationResult
+            {
+                Success = false,
+                PermanentFailure = true,
+                DeliveryChannel = "email",
+                DeliveryStatus = AdminKanbanJourneyDispatchDeliveryStatuses.Failed,
+                Message = "Lead da jornada nao localizado para montar a notificacao."
+            }
+            : _notificationService.SendOpportunityAsync(
+                new JourneyProviderDispatchNotificationRequest
+                {
+                    Lead = lead,
+                    Target = target,
+                    NowUtc = nowUtc
+                },
+                cancellationToken).GetAwaiter().GetResult();
+
+        if (!deliveryResult.Success && !deliveryResult.PermanentFailure)
+        {
+            throw new InvalidOperationException(deliveryResult.Message);
+        }
+
+        if (!deliveryResult.Success && deliveryResult.PermanentFailure)
+        {
+            updatedDispatch = journey.Dispatch with
+            {
+                Waves = journey.Dispatch.Waves
+                    .Select(entry => entry.WaveNumber == item.WaveNumber
+                        ? entry with
+                        {
+                            Status = AdminKanbanJourneyDispatchWaveStatuses.Active,
+                            ActivatedAtUtc = entry.ActivatedAtUtc ?? nowUtc,
+                            Summary = $"Onda {entry.WaveNumber} disparada com falha permanente para um dos alvos."
+                        }
+                        : entry)
+                    .ToList(),
+                Targets = journey.Dispatch.Targets
+                    .Select(entry => string.Equals(entry.TargetKey, item.TargetKey, StringComparison.Ordinal)
+                        ? entry with
+                        {
+                            Status = AdminKanbanJourneyDispatchTargetStatuses.Dispensed,
+                            DeliveryChannel = deliveryResult.DeliveryChannel,
+                            DeliveryStatus = deliveryResult.DeliveryStatus,
+                            DeliveryAttempts = Math.Max(entry.DeliveryAttempts, item.AttemptCount),
+                            LastDeliveryAttemptAtUtc = nowUtc,
+                            RespondedAtUtc = nowUtc,
+                            LastInteractionAtUtc = nowUtc,
+                            LastInteractionSource = "dispatch_worker",
+                            LastError = deliveryResult.Message,
+                            Note = "Falha permanente ao notificar este prestador por e-mail."
+                        }
+                        : entry)
+                    .ToList()
+            };
+
+            var pendingTargetsCount = updatedDispatch.Targets.Count(entry =>
+                string.Equals(entry.Status, AdminKanbanJourneyDispatchTargetStatuses.Queued, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(entry.Status, AdminKanbanJourneyDispatchTargetStatuses.Sent, StringComparison.OrdinalIgnoreCase));
+            updatedDispatch = BuildDispatchRecord(
+                updatedDispatch,
+                AdminKanbanJourneyDispatchStatuses.WaitingAcceptance,
+                pendingTargetsCount > 0
+                    ? $"Onda {item.WaveNumber} segue em andamento; um dos alvos falhou na entrega permanente."
+                    : $"Onda {item.WaveNumber} ficou sem alvos validos para aceite apos falhas permanentes de entrega.",
+                waitingAcceptanceUntilUtc: pendingTargetsCount > 0 ? waveExpiresAtUtc : nowUtc);
+
+            PersistDispatchAndFinalizeQueue(
+                journey,
+                item,
+                updatedDispatch,
+                nowUtc,
+                waveBecameActive
+                    ? new AdminKanbanJourneyStageAutomationUpdateRequest
+                    {
+                        LeadId = journey.LeadId,
+                        BoardType = journey.BoardType,
+                        TargetStageName = AdminKanbanJourneyClientStageNames.WaitingAcceptance,
+                        TargetCurrentState = AdminKanbanJourneyStates.WaitingProviderAcceptance,
+                        Reason = $"Onda {item.WaveNumber} iniciou, mas houve falha permanente na notificacao de um alvo.",
+                        Origin = AdminKanbanJourneyAutomationOrigins.DispatchEngine,
+                        HistoryEventType = "jornada_disparo_falha_permanente",
+                        HistoryDescription = "A onda entrou em aguardando aceite, mas um prestador foi dispensado por falha permanente de notificacao.",
+                        MetadataJson = BuildDispatchMetadataJson(journey, updatedDispatch),
+                        ActiveTimerCode = AdminKanbanJourneyTimerCodes.PendingAcceptance,
+                        ActiveTimerDueAtUtc = pendingTargetsCount > 0 ? waveExpiresAtUtc : nowUtc
+                    }
+                    : null,
+                waveBecameActive);
+
+            return true;
+        }
 
         updatedDispatch = journey.Dispatch with
         {
@@ -304,7 +412,12 @@ public sealed class JourneyProviderDispatchService : IJourneyProviderDispatchSer
                         Status = AdminKanbanJourneyDispatchTargetStatuses.Sent,
                         SentAtUtc = nowUtc,
                         ExpiresAtUtc = waveExpiresAtUtc,
-                        Note = "Oportunidade enviada para a onda atual."
+                        DeliveryChannel = deliveryResult.DeliveryChannel,
+                        DeliveryStatus = deliveryResult.DeliveryStatus,
+                        DeliveryAttempts = Math.Max(entry.DeliveryAttempts, item.AttemptCount),
+                        LastDeliveryAttemptAtUtc = nowUtc,
+                        LastError = string.Empty,
+                        Note = deliveryResult.Message
                     }
                     : entry)
                 .ToList()
