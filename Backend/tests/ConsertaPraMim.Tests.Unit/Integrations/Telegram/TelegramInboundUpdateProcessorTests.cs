@@ -252,8 +252,8 @@ public sealed class TelegramInboundUpdateProcessorTests
                 Created = false,
                 BoardType = "clientes",
                 HasPhone = true,
-                HasCity = true,
-                HasServiceCategory = true,
+                QualificationStatus = "dados_pendentes",
+                MissingRequiredFields = ["Categoria", "Cidade", "Contexto do problema"],
                 Message = "Lead atualizado via automacao do bot Telegram."
             });
         automationClient
@@ -290,7 +290,8 @@ public sealed class TelegramInboundUpdateProcessorTests
                 It.Is<string>(text =>
                     text.Contains("Recebi seu telefone", StringComparison.Ordinal) &&
                     text.Contains("sua cidade", StringComparison.Ordinal) &&
-                    text.Contains("tipo de servico", StringComparison.Ordinal)),
+                    text.Contains("tipo de servico", StringComparison.Ordinal) &&
+                    text.Contains("o que voce precisa resolver", StringComparison.Ordinal)),
                 It.Is<IReadOnlyList<StoredLocalFile>>(files => files.Count == 0),
                 It.IsAny<CancellationToken>(),
                 It.Is<TelegramMessageSendOptions?>(options => options is not null && options.RemoveReplyKeyboard)))
@@ -375,7 +376,7 @@ public sealed class TelegramInboundUpdateProcessorTests
             .Setup(client => client.UpsertLeadAsync(
                 It.Is<TelegramLeadAutomationUpsertRequest>(request =>
                     request.BoardType == "clientes" &&
-                    request.City == string.Empty &&
+                    request.City == "Praia Grande" &&
                     request.ServiceCategory == string.Empty),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(new TelegramLeadAutomationUpsertResult
@@ -387,7 +388,8 @@ public sealed class TelegramInboundUpdateProcessorTests
                 BoardType = "clientes",
                 HasPhone = true,
                 HasCity = true,
-                HasServiceCategory = true,
+                QualificationStatus = "dados_pendentes",
+                MissingRequiredFields = ["Categoria", "CEP", "Logradouro ou bairro", "Contexto do problema"],
                 Message = "Lead atualizado via automacao do bot Telegram."
             });
         automationClient
@@ -413,8 +415,10 @@ public sealed class TelegramInboundUpdateProcessorTests
             .Setup(client => client.SendMessageAsync(
                 5513996891738,
                 It.Is<string>(text =>
-                    text.Contains("ja qualifiquei seu atendimento inicial", StringComparison.Ordinal) &&
-                    text.Contains("pode enviar seu e-mail", StringComparison.Ordinal)),
+                    text.Contains("tipo de servico", StringComparison.Ordinal) &&
+                    text.Contains("seu CEP", StringComparison.Ordinal) &&
+                    text.Contains("bairro ou logradouro", StringComparison.Ordinal) &&
+                    text.Contains("o que voce precisa resolver", StringComparison.Ordinal)),
                 It.Is<IReadOnlyList<StoredLocalFile>>(files => files.Count == 0),
                 It.IsAny<CancellationToken>(),
                 It.Is<TelegramMessageSendOptions?>(options => options is not null && options.RemoveReplyKeyboard)))

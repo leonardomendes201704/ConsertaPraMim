@@ -58,6 +58,9 @@ public sealed class TelegramAutomationController : ControllerBase
             hasEmail = result.Payload.HasEmail,
             hasCity = result.Payload.HasCity,
             hasServiceCategory = result.Payload.HasServiceCategory,
+            qualificationStatus = result.Payload.QualificationStatus,
+            confirmationPrompt = result.Payload.ConfirmationPrompt,
+            missingRequiredFields = result.Payload.MissingRequiredFields,
             chatwoot = new
             {
                 status = result.Payload.ChatwootStatus,

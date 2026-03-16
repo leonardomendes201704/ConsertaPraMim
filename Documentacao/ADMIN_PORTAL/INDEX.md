@@ -74,6 +74,7 @@
 
 ### Done
 
+- [ST-112 - Hotfix do loop de qualificacao do Telegram com pergunta por campo faltante](STORIES/DONE/ST-112-hotfix-loop-qualificacao-telegram-campos-faltantes.md)
 - [ST-111 - Hotfix da continuacao de qualificacao do Telegram apos captura de contato](STORIES/DONE/ST-111-hotfix-continuacao-qualificacao-telegram-apos-contato.md)
 - [ST-110 - Excecoes, handoff minimo, observabilidade e rollout da jornada](STORIES/DONE/ST-110-excecoes-handoff-observabilidade-rollout-jornada.md)
 - [ST-109 - Conclusao do servico e avaliacao bilateral](STORIES/DONE/ST-109-conclusao-servico-avaliacao-bilateral.md)

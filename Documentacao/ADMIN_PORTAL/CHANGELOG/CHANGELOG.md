@@ -12,6 +12,12 @@
 
 ## Released
 
+- [2026-03-16] [CPMFULL-058][ST-112] Hotfix do loop de qualificacao do Telegram com pergunta por campo faltante
+- Tipo: fix
+- Resumo: o `ConsertaPraMim.Web.TelegramBridge` passou a aceitar respostas curtas de localizacao, como `Praia Grande`, e deixou de repetir indefinidamente o mesmo bloco de triagem. O contrato interno do Telegram agora devolve `QualificationStatus`, `ConfirmationPrompt` e `MissingRequiredFields`, permitindo ao bot perguntar apenas os campos pendentes e ficar pronto para aproveitar a qualificacao hibrida com OpenAI quando a chave estiver configurada em runtime.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramInboundUpdateProcessor.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Models/TelegramLeadAutomationModels.cs`, `Backend/src/ConsertaPraMim.Web.TelegramBridge/Services/TelegramLeadAutomationClient.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Telegram/TelegramLeadAutomationContracts.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Integrations/Telegram/TelegramLeadAutomationService.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/Controllers/Api/Integrations/TelegramAutomationController.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Integrations/Telegram/TelegramInboundUpdateProcessorTests.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Integrations/Telegram/TelegramLeadAutomationServiceTests.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/MANUAL_QA_OPERACAO.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-112-hotfix-loop-qualificacao-telegram-campos-faltantes.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: medio
+
 - [2026-03-16] [CPMFULL-057][ST-111] Hotfix da continuidade de qualificacao do bot Telegram apos contato persistido
 - Tipo: fix
 - Resumo: o `ConsertaPraMim.Web.TelegramBridge` deixou de decidir a proxima resposta apenas pelos dados da mensagem atual e passou a considerar o estado ja persistido do lead no CPM Full. O contrato interno de automacao agora devolve `HasPhone`, `HasEmail`, `HasCity` e `HasServiceCategory`, evitando que o bot silencie ou repita perguntas indevidas depois que telefone, cidade ou categoria ja foram capturados em mensagens anteriores.

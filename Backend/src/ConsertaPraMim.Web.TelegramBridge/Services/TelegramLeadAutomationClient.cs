@@ -103,6 +103,9 @@ public sealed class TelegramLeadAutomationClient : ITelegramLeadAutomationClient
                 HasEmail = payload?.HasEmail ?? !string.IsNullOrWhiteSpace(request.UserEmail),
                 HasCity = payload?.HasCity ?? !string.IsNullOrWhiteSpace(request.City),
                 HasServiceCategory = payload?.HasServiceCategory ?? !string.IsNullOrWhiteSpace(request.ServiceCategory),
+                QualificationStatus = payload?.QualificationStatus ?? string.Empty,
+                ConfirmationPrompt = payload?.ConfirmationPrompt ?? string.Empty,
+                MissingRequiredFields = payload?.MissingRequiredFields ?? [],
                 ChatwootStatus = payload?.Chatwoot?.Status ?? string.Empty,
                 ChatwootMessage = payload?.Chatwoot?.Message ?? string.Empty,
                 ChatwootContactId = payload?.Chatwoot?.ContactId,
@@ -148,6 +151,9 @@ public sealed class TelegramLeadAutomationClient : ITelegramLeadAutomationClient
         public bool HasEmail { get; init; }
         public bool HasCity { get; init; }
         public bool HasServiceCategory { get; init; }
+        public string QualificationStatus { get; init; } = string.Empty;
+        public string ConfirmationPrompt { get; init; } = string.Empty;
+        public IReadOnlyList<string> MissingRequiredFields { get; init; } = [];
         public ChatwootAutomationApiResponse? Chatwoot { get; init; }
     }
 

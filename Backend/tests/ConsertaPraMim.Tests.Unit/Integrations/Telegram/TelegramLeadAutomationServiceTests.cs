@@ -163,6 +163,8 @@ public sealed class TelegramLeadAutomationServiceTests
         Assert.True(result.Payload.HasEmail);
         Assert.True(result.Payload.HasCity);
         Assert.True(result.Payload.HasServiceCategory);
+        Assert.Equal(AdminKanbanJourneyQualificationStatuses.Qualified, result.Payload.QualificationStatus);
+        Assert.Empty(result.Payload.MissingRequiredFields);
         Assert.Equal("synced", result.Payload.ChatwootStatus);
         Assert.Equal(101, result.Payload.ChatwootContactId);
         Assert.Equal(202, result.Payload.ChatwootConversationId);
@@ -329,6 +331,8 @@ public sealed class TelegramLeadAutomationServiceTests
         Assert.False(result.Payload.HasEmail);
         Assert.False(result.Payload.HasCity);
         Assert.False(result.Payload.HasServiceCategory);
+        Assert.Equal(AdminKanbanJourneyQualificationStatuses.Pending, result.Payload.QualificationStatus);
+        Assert.Empty(result.Payload.ConfirmationPrompt);
         kanbanService.VerifyAll();
         chatwootLeadSyncService.VerifyAll();
         journeyQualificationService.VerifyAll();
