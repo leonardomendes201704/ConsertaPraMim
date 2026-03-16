@@ -247,6 +247,16 @@
                         </a>
                     </div>
                     <div class="col-12"><hr class="my-1" /></div>
+                    <div class="col-12"><h6 class="fw-bold mb-0">Matching geografico</h6></div>
+                    <div class="col-12 col-md-6"><strong>Status do matching:</strong> <span id="detailsJourneyMatchingStatus"></span></div>
+                    <div class="col-12 col-md-6"><strong>Ultima execucao:</strong> <span id="detailsJourneyMatchingLastRunAt"></span></div>
+                    <div class="col-12 col-md-6"><strong>Categoria solicitada:</strong> <span id="detailsJourneyMatchingRequestedCategory"></span></div>
+                    <div class="col-12 col-md-6"><strong>Subcategoria solicitada:</strong> <span id="detailsJourneyMatchingRequestedSubcategory"></span></div>
+                    <div class="col-12 col-md-6"><strong>Prestadores avaliados:</strong> <span id="detailsJourneyMatchingEvaluatedProviders"></span></div>
+                    <div class="col-12 col-md-6"><strong>Prestadores elegiveis:</strong> <span id="detailsJourneyMatchingEligibleProviders"></span></div>
+                    <div class="col-12"><strong>Resumo do matching:</strong> <div id="detailsJourneyMatchingSummary" class="text-secondary-emphasis"></div></div>
+                    <div class="col-12"><strong>Candidatos ranqueados:</strong> <div id="detailsJourneyMatchingCandidates" class="text-secondary-emphasis"></div></div>
+                    <div class="col-12"><hr class="my-1" /></div>
                     <div class="col-12"><h6 class="fw-bold mb-0">Vinculo Telegram</h6></div>
                     <div class="col-12 col-md-6"><strong>Origem automatizada:</strong> <span id="detailsTelegramOrigin"></span></div>
                     <div class="col-12 col-md-6"><strong>Ultima atualizacao do vinculo:</strong> <span id="detailsTelegramUpdatedAt"></span></div>
@@ -1378,6 +1388,7 @@
                 const stageAutomation = journey.stageAutomation || {};
                 const qualification = journey.qualification || {};
                 const scheduling = journey.scheduling || {};
+                const matching = journey.matching || {};
                 const telegram = lead.telegram || {};
                 const chatwoot = lead.chatwoot || {};
                 const conversationLink = document.getElementById("openLeadChatwootConversationBtn");
@@ -1400,6 +1411,37 @@
                         .filter(Boolean)
                         .join(" | ")
                     : "";
+                const matchingCandidatesMarkup = Array.isArray(matching.candidates) && matching.candidates.length
+                    ? `
+                        <div class="d-grid gap-2">
+                            ${matching.candidates.map((item) => `
+                                <article class="border rounded-3 p-2">
+                                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+                                        <div>
+                                            <div class="fw-semibold">${escapeHtml(item.providerName || "-")}</div>
+                                            <div class="small text-secondary">
+                                                ${item.isEligible ? "Elegivel" : "Bloqueado"} | Rank ${escapeHtml(String(item.rankPosition || 0))}
+                                            </div>
+                                        </div>
+                                        <span class="badge ${item.isEligible ? "text-bg-success" : "text-bg-secondary"}">
+                                            ${escapeHtml(item.isEligible ? "Elegivel" : (item.blockReasonLabel || "Bloqueado"))}
+                                        </span>
+                                    </div>
+                                    <div class="small text-secondary mt-2">
+                                        Distancia: ${escapeHtml(item.distanceKm || "0,00")} km | Raio: ${escapeHtml(item.coverageRadiusKm || "0,00")} km | Score: ${escapeHtml(item.score || "0,00")}
+                                    </div>
+                                    <div class="small text-secondary">
+                                        Status operacional: ${escapeHtml(item.operationalStatus || "-")} | Preferencia: ${escapeHtml(item.clientPreference || "-")}
+                                    </div>
+                                    <div class="small text-secondary">
+                                        Categoria ok: ${item.categoryMatched ? "Sim" : "Nao"} | Subcategoria ok: ${item.subcategoryMatched ? "Sim" : "Nao"} | Disponibilidade ok: ${item.availabilityMatched ? "Sim" : "Nao"} | Capacidade ok: ${item.capacityMatched ? "Sim" : "Nao"}
+                                    </div>
+                                    <div class="small mt-2">${escapeHtml(item.summary || "-")}</div>
+                                </article>
+                            `).join("")}
+                        </div>
+                    `
+                    : "<div class='small text-secondary'>Nenhum candidato ranqueado ate o momento.</div>";
                 document.getElementById("detailsName").textContent = lead.name || "-";
                 document.getElementById("detailsStage").textContent = lead.stageName || "-";
                 document.getElementById("detailsChatwootStatus").textContent = chatwoot.syncStatusLabel || "Ainda nao sincronizado";
@@ -1458,6 +1500,14 @@
                 document.getElementById("detailsJourneySchedulingEventId").textContent = scheduling.googleCalendarEventId || "-";
                 document.getElementById("detailsJourneySchedulingSummary").textContent = scheduling.summary || "-";
                 document.getElementById("detailsJourneySchedulingSuggestedSlots").textContent = schedulingSuggestedSlots || "-";
+                document.getElementById("detailsJourneyMatchingStatus").textContent = matching.statusLabel || "-";
+                document.getElementById("detailsJourneyMatchingLastRunAt").textContent = matching.lastRunAt || "-";
+                document.getElementById("detailsJourneyMatchingRequestedCategory").textContent = matching.requestedCategory || "-";
+                document.getElementById("detailsJourneyMatchingRequestedSubcategory").textContent = matching.requestedSubcategory || "-";
+                document.getElementById("detailsJourneyMatchingEvaluatedProviders").textContent = String(matching.evaluatedProvidersCount || 0);
+                document.getElementById("detailsJourneyMatchingEligibleProviders").textContent = String(matching.eligibleProvidersCount || 0);
+                document.getElementById("detailsJourneyMatchingSummary").textContent = matching.summary || "-";
+                document.getElementById("detailsJourneyMatchingCandidates").innerHTML = matchingCandidatesMarkup;
                 if (schedulingEventLink) {
                     if (scheduling.googleCalendarEventLink) {
                         schedulingEventLink.href = scheduling.googleCalendarEventLink;

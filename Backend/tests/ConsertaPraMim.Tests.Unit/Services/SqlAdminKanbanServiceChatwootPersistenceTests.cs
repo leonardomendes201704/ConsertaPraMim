@@ -208,7 +208,14 @@ ORDER BY c.column_id;
         Assert.Contains("LastStageAutomationAtUtc", journeyColumnNames);
         Assert.Contains("ActiveTimerCode", journeyColumnNames);
         Assert.Contains("ActiveTimerDueAtUtc", journeyColumnNames);
-
+        Assert.Contains("MatchingStatus", journeyColumnNames);
+        Assert.Contains("MatchingSummary", journeyColumnNames);
+        Assert.Contains("MatchingRequestedCategory", journeyColumnNames);
+        Assert.Contains("MatchingRequestedSubcategory", journeyColumnNames);
+        Assert.Contains("MatchingEvaluatedProviders", journeyColumnNames);
+        Assert.Contains("MatchingEligibleProviders", journeyColumnNames);
+        Assert.Contains("MatchingCandidatesJson", journeyColumnNames);
+        Assert.Contains("MatchingLastRunAtUtc", journeyColumnNames);
         using var journeyTimerIndexCommand = connection.CreateCommand();
         journeyTimerIndexCommand.CommandText = """
 SELECT COUNT(1)
@@ -1749,6 +1756,175 @@ WHERE LeadId = @leadId;
         Assert.Equal(requestedAt.AddMinutes(10), reader.GetDateTime(6));
         Assert.Equal(requestedAt.AddHours(21), reader.GetDateTime(7));
         Assert.Equal(requestedAt.AddHours(22), reader.GetDateTime(8));
+    }
+
+    [Fact(DisplayName = "UpdateJourneyMatching deve persistir snapshot de matching geografico no detalhe da jornada")]
+    public void UpdateJourneyMatching_DevePersistirSnapshotDeMatchingGeografico()
+    {
+        using var database = new LocalDbKanbanDatabaseScope();
+        if (!database.IsAvailable)
+        {
+            return;
+        }
+
+        var service = CreateService(database.ConnectionString);
+        var requestedAt = new DateTime(2026, 3, 18, 11, 0, 0, DateTimeKind.Utc);
+        var scheduledStartAtUtc = new DateTime(2026, 3, 19, 13, 0, 0, DateTimeKind.Utc);
+        var scheduledEndAtUtc = new DateTime(2026, 3, 19, 14, 0, 0, DateTimeKind.Utc);
+        var lastRunAtUtc = requestedAt.AddMinutes(45);
+        var providerId = Guid.Parse("88888888-8888-8888-8888-888888888888");
+
+        var upsert = service.UpsertJourneyIntake(new AdminKanbanJourneyIntakeRequest
+        {
+            BoardType = AdminKanbanBoardTypes.Clients,
+            SourceChannel = AdminKanbanJourneySourceChannels.Telegram,
+            SourceOrigin = "telegram-bot",
+            Name = "Cliente Matching",
+            Phone = "13999990005",
+            Email = "matching@teste.com",
+            ServiceCategory = "Eletricista",
+            ProblemDescription = "Preciso de atendimento para revisar o chuveiro.",
+            Street = "Rua Bahia",
+            Neighborhood = "Ocian",
+            State = "SP",
+            PostalCode = "11701-200",
+            City = "Praia Grande",
+            ChatbotConversationId = Guid.Parse("88888888-1111-1111-1111-888888888888"),
+            ChannelConversationId = "5513997114499",
+            TelegramChatId = 5513997114499,
+            RequestedAtUtc = requestedAt,
+            LastContactAtUtc = requestedAt,
+            Qualification = new AdminKanbanJourneyQualificationRecord
+            {
+                Status = AdminKanbanJourneyQualificationStatuses.Qualified,
+                Source = AdminKanbanJourneyQualificationSources.Deterministic,
+                ConfidenceScore = 0.93m,
+                HasRequiredData = true,
+                NeedsConfirmation = false,
+                NormalizedServiceCategoryId = "eletricista",
+                NormalizedServiceCategoryName = "Eletricista",
+                ProblemContext = "Preciso de atendimento para revisar o chuveiro.",
+                Street = "Rua Bahia",
+                Neighborhood = "Ocian",
+                City = "Praia Grande",
+                State = "SP",
+                PostalCode = "11701-200",
+                Latitude = -24.025331,
+                Longitude = -46.469028,
+                Summary = "Cliente qualificado para matching geografico.",
+                QualifiedAtUtc = requestedAt,
+                RequiredFields = ["Telefone", "Categoria", "CEP", "Cidade", "Logradouro ou bairro", "Contexto do problema"],
+                MissingRequiredFields = [],
+                OptionalFields = ["E-mail", "UF", "Latitude", "Longitude"]
+            }
+        });
+
+        _ = service.UpdateJourneyScheduling(upsert.LeadId, new AdminKanbanJourneySchedulingUpdateRequest
+        {
+            Status = AdminKanbanJourneySchedulingStatuses.Confirmed,
+            Summary = "Janela confirmada para seguir ao matching.",
+            GoogleCalendarEventId = "cpm-match-88888888",
+            SuggestedAtUtc = requestedAt.AddMinutes(10),
+            ConfirmedAtUtc = requestedAt.AddMinutes(20),
+            ScheduledStartAtUtc = scheduledStartAtUtc,
+            ScheduledEndAtUtc = scheduledEndAtUtc,
+            CurrentState = AdminKanbanJourneyStates.AppointmentConfirmed,
+            HistoryEventType = "agenda_confirmada",
+            HistoryDescription = "Agenda confirmada para testar matching.",
+            SourceChannel = AdminKanbanJourneySourceChannels.Telegram,
+            SuggestedSlots =
+            [
+                new AdminKanbanJourneySuggestedSlotRecord
+                {
+                    OptionNumber = 1,
+                    StartsAtUtc = scheduledStartAtUtc,
+                    EndsAtUtc = scheduledEndAtUtc,
+                    Label = "Quinta, 19/03, 10:00 as 11:00"
+                }
+            ]
+        });
+
+        var update = service.UpdateJourneyMatching(upsert.LeadId, new AdminKanbanJourneyMatchingUpdateRequest
+        {
+            Status = AdminKanbanJourneyMatchingStatuses.EligibleProvidersFound,
+            Summary = "Matching geografico encontrou 1 prestador elegivel para a jornada.",
+            RequestedCategory = "Eletricista",
+            RequestedSubcategory = "chuveiro",
+            EvaluatedProvidersCount = 2,
+            EligibleProvidersCount = 1,
+            LastRunAtUtc = lastRunAtUtc,
+            CurrentState = AdminKanbanJourneyStates.MatchingInProgress,
+            HistoryEventType = "jornada_matching_snapshot",
+            HistoryDescription = "Snapshot de matching persistido para auditoria.",
+            SourceChannel = AdminKanbanJourneySourceChannels.Telegram,
+            Candidates =
+            [
+                new AdminKanbanJourneyProviderMatchRecord
+                {
+                    ProviderId = providerId,
+                    ProviderName = "Prestador Elegivel",
+                    ProviderEmail = "prestador@teste.com",
+                    ProviderPhone = "13999990099",
+                    IsEligible = true,
+                    RankPosition = 1,
+                    Score = 84.5m,
+                    DistanceKm = 5.25d,
+                    CoverageRadiusKm = 12d,
+                    Rating = 4.8d,
+                    ReviewCount = 32,
+                    OperationalStatus = "Online",
+                    ClientPreference = "PF e PJ",
+                    RequestedCategory = "Eletricista",
+                    RequestedSubcategory = "chuveiro",
+                    CategoryMatched = true,
+                    SubcategoryMatched = true,
+                    RadiusMatched = true,
+                    AvailabilityMatched = true,
+                    CapacityMatched = true,
+                    Summary = "Prestador apto para disparo."
+                }
+            ]
+        });
+
+        Assert.NotNull(update);
+        Assert.Equal(AdminKanbanJourneyStates.MatchingInProgress, update!.CurrentState);
+        Assert.Equal(AdminKanbanJourneyMatchingStatuses.EligibleProvidersFound, update.Matching.Status);
+        Assert.Single(update.Matching.Candidates);
+
+        var details = service.GetLeadDetails(upsert.LeadId);
+
+        Assert.NotNull(details);
+        Assert.Equal(AdminKanbanJourneyMatchingStatuses.EligibleProvidersFound, details!.Journey.Matching.Status);
+        Assert.Equal("Matching geografico encontrou 1 prestador elegivel para a jornada.", details.Journey.Matching.Summary);
+        Assert.Equal("Eletricista", details.Journey.Matching.RequestedCategory);
+        Assert.Equal("chuveiro", details.Journey.Matching.RequestedSubcategory);
+        Assert.Equal(2, details.Journey.Matching.EvaluatedProvidersCount);
+        Assert.Equal(1, details.Journey.Matching.EligibleProvidersCount);
+        Assert.Equal(lastRunAtUtc, details.Journey.Matching.LastRunAtUtc);
+        Assert.Single(details.Journey.Matching.Candidates);
+        Assert.Equal(providerId, details.Journey.Matching.Candidates[0].ProviderId);
+        Assert.Contains(details.History, item => item.EventType == "jornada_matching_snapshot");
+
+        using var connection = new SqlConnection(database.ConnectionString);
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+SELECT MatchingStatus, MatchingSummary, MatchingRequestedCategory, MatchingRequestedSubcategory, MatchingEvaluatedProviders, MatchingEligibleProviders, MatchingCandidatesJson, MatchingLastRunAtUtc
+FROM dbo.cpm_web_journey_executions
+WHERE LeadId = @leadId;
+""";
+        command.Parameters.Add(new SqlParameter("@leadId", SqlDbType.Int) { Value = upsert.LeadId });
+
+        using var reader = command.ExecuteReader();
+        Assert.True(reader.Read());
+        Assert.Equal(AdminKanbanJourneyMatchingStatuses.EligibleProvidersFound, reader.GetString(0));
+        Assert.Equal("Matching geografico encontrou 1 prestador elegivel para a jornada.", reader.GetString(1));
+        Assert.Equal("Eletricista", reader.GetString(2));
+        Assert.Equal("chuveiro", reader.GetString(3));
+        Assert.Equal(2, reader.GetInt32(4));
+        Assert.Equal(1, reader.GetInt32(5));
+        Assert.Contains("Prestador Elegivel", reader.GetString(6), StringComparison.Ordinal);
+        Assert.Equal(lastRunAtUtc, reader.GetDateTime(7));
     }
 
     [Fact(DisplayName = "ApplyJourneyStageAutomation deve persistir motivo, origem e timer no snapshot da jornada")]

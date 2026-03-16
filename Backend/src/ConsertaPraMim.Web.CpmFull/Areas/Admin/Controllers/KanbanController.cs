@@ -176,6 +176,45 @@ public sealed class KanbanController : Controller
                         endsAt = item.EndsAtUtc.ToString("dd/MM/yyyy HH:mm"),
                         label = item.Label
                     })
+                },
+                matching = new
+                {
+                    status = lead.Journey.Matching.Status,
+                    statusLabel = string.IsNullOrWhiteSpace(lead.Journey.Matching.Status)
+                        ? "-"
+                        : AdminKanbanJourneyMatchingStatuses.GetLabel(lead.Journey.Matching.Status),
+                    summary = lead.Journey.Matching.Summary,
+                    requestedCategory = lead.Journey.Matching.RequestedCategory,
+                    requestedSubcategory = lead.Journey.Matching.RequestedSubcategory,
+                    evaluatedProvidersCount = lead.Journey.Matching.EvaluatedProvidersCount,
+                    eligibleProvidersCount = lead.Journey.Matching.EligibleProvidersCount,
+                    lastRunAt = lead.Journey.Matching.LastRunAtUtc?.ToString("dd/MM/yyyy HH:mm") ?? "-",
+                    candidates = lead.Journey.Matching.Candidates.Select(item => new
+                    {
+                        providerId = item.ProviderId.ToString(),
+                        providerName = item.ProviderName,
+                        providerEmail = item.ProviderEmail,
+                        providerPhone = item.ProviderPhone,
+                        isEligible = item.IsEligible,
+                        rankPosition = item.RankPosition,
+                        score = item.Score.ToString("N2", CultureInfo.GetCultureInfo("pt-BR")),
+                        distanceKm = item.DistanceKm.ToString("N2", CultureInfo.GetCultureInfo("pt-BR")),
+                        coverageRadiusKm = item.CoverageRadiusKm.ToString("N2", CultureInfo.GetCultureInfo("pt-BR")),
+                        rating = item.Rating.ToString("N2", CultureInfo.GetCultureInfo("pt-BR")),
+                        reviewCount = item.ReviewCount,
+                        operationalStatus = item.OperationalStatus,
+                        clientPreference = item.ClientPreference,
+                        requestedCategory = item.RequestedCategory,
+                        requestedSubcategory = item.RequestedSubcategory,
+                        categoryMatched = item.CategoryMatched,
+                        subcategoryMatched = item.SubcategoryMatched,
+                        radiusMatched = item.RadiusMatched,
+                        availabilityMatched = item.AvailabilityMatched,
+                        capacityMatched = item.CapacityMatched,
+                        blockReasonCode = item.BlockReasonCode,
+                        blockReasonLabel = item.BlockReasonLabel,
+                        summary = item.Summary
+                    })
                 }
             },
             telegram = new
@@ -1088,6 +1127,9 @@ public sealed class KanbanController : Controller
             "agenda_confirmacao_falhou" => "Falha ao confirmar agendamento",
             "agenda_cancelada" => "Agendamento cancelado",
             "agenda_sem_disponibilidade" => "Sem janelas disponiveis na agenda",
+            "jornada_matching_snapshot" => "Snapshot de matching atualizado",
+            "jornada_matching_concluido" => "Matching geografico concluido",
+            "jornada_matching_sem_cobertura" => "Sem cobertura para matching",
             "telegram_lead_criado" => "Lead criado via bot Telegram",
             "telegram_lead_atualizado" => "Lead atualizado via bot Telegram",
             "telegram_entrega_enfileirada" => "Entrega Telegram enfileirada",

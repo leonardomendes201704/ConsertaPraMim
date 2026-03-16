@@ -39,6 +39,7 @@ builder.Services.AddScoped<IChatwootWebhookService, ChatwootWebhookService>();
 builder.Services.AddScoped<IJourneyAutomationService, JourneyAutomationService>();
 builder.Services.AddScoped<IJourneyQualificationService, JourneyQualificationService>();
 builder.Services.AddScoped<IJourneySchedulingService, JourneySchedulingService>();
+builder.Services.AddScoped<IJourneyProviderMatchingService, JourneyProviderMatchingService>();
 builder.Services.AddScoped<IJourneyStageAutomationService, JourneyStageAutomationService>();
 builder.Services.AddScoped<ITelegramLeadAutomationService, TelegramLeadAutomationService>();
 builder.Services.AddScoped<ITelegramDeliveryQueueService, TelegramDeliveryQueueService>();
@@ -48,6 +49,7 @@ builder.Services.AddSingleton<IJourneyGeocodingService, JourneyGeocodingService>
 builder.Services.AddSingleton<IJourneyQualificationAiGateway, JourneyQualificationAiGateway>();
 builder.Services.AddHostedService<ChatwootSyncRetryWorker>();
 builder.Services.AddHostedService<ChatwootWebhookRetentionWorker>();
+builder.Services.AddHostedService<JourneyProviderMatchingWorker>();
 builder.Services.AddHostedService<JourneyStageAutomationWorker>();
 builder.Services.AddHostedService<TelegramDeliveryWorker>();
 builder.Services.AddHostedService<TelegramDeliveryRetentionWorker>();
@@ -55,6 +57,7 @@ builder.Services.AddSingleton<IValidateOptions<ChatwootOptions>, ChatwootOptions
 builder.Services.AddSingleton<IValidateOptions<JourneyAutomationOptions>, JourneyAutomationOptionsValidator>();
 builder.Services.AddSingleton<IValidateOptions<JourneyQualificationOptions>, JourneyQualificationOptionsValidator>();
 builder.Services.AddSingleton<IValidateOptions<JourneySchedulingOptions>, JourneySchedulingOptionsValidator>();
+builder.Services.AddSingleton<IValidateOptions<JourneyProviderMatchingOptions>, JourneyProviderMatchingOptionsValidator>();
 builder.Services.AddSingleton<IValidateOptions<JourneyStageAutomationOptions>, JourneyStageAutomationOptionsValidator>();
 builder.Services.AddSingleton<IValidateOptions<TelegramAutomationOptions>, TelegramAutomationOptionsValidator>();
 builder.Services.AddOptions<ChatwootOptions>()
@@ -68,6 +71,9 @@ builder.Services.AddOptions<JourneyQualificationOptions>()
     .ValidateOnStart();
 builder.Services.AddOptions<JourneySchedulingOptions>()
     .Bind(builder.Configuration.GetSection(JourneySchedulingOptions.SectionName))
+    .ValidateOnStart();
+builder.Services.AddOptions<JourneyProviderMatchingOptions>()
+    .Bind(builder.Configuration.GetSection(JourneyProviderMatchingOptions.SectionName))
     .ValidateOnStart();
 builder.Services.AddOptions<JourneyStageAutomationOptions>()
     .Bind(builder.Configuration.GetSection(JourneyStageAutomationOptions.SectionName))

@@ -243,6 +243,70 @@ Pre-condicoes operacionais:
 - Historico repetido em loop: revisar se houve mudanca real de stage/estado/timer ou se algum processo externo esta sobrescrevendo o `CurrentState`.
 - Caso parado em `Aguardando confirmacao da agenda`: revisar se `SuggestedAtUtc` foi persistido e se o worker conseguiu calcular `ScheduleConfirmationTimeoutMinutes`.
 
+### Matching geografico e elegibilidade de prestadores
+
+#### Objetivo desta etapa
+
+- Encontrar apenas prestadores realmente aderentes ao caso ja qualificado e agendado.
+- Registrar de forma auditavel quem foi avaliado, quem ficou elegivel e por qual motivo cada bloqueio aconteceu.
+- Preparar a jornada para a proxima etapa de disparo em ondas sem depender de triagem manual.
+
+#### Escopo entregue nesta fatia
+
+- Foi criado o `JourneyProviderMatchingService`, que processa jornadas do board `clientes` em `Agendamento confirmado`.
+- Foi criado o `JourneyProviderMatchingWorker`, que executa o matching periodicamente conforme a configuracao `JourneyProviderMatching`.
+- O matching considera categoria, subcategoria, raio, disponibilidade, status operacional, pendencias de compliance, restricoes de confianca e conflitos de agenda do prestador.
+- A jornada passou a persistir `MatchingStatus`, `MatchingSummary`, `MatchingRequestedCategory`, `MatchingRequestedSubcategory`, `MatchingEvaluatedProviders`, `MatchingEligibleProviders`, `MatchingCandidatesJson` e `MatchingLastRunAtUtc`.
+- O modal do lead agora mostra a secao `Matching geografico`, com contagens e lista de candidatos ranqueados.
+
+#### Configuracao minima
+
+No `ConsertaPraMim.Web.CpmFull`, configurar a secao `JourneyProviderMatching`:
+
+- `Enabled`
+- `WorkerEnabled`
+- `WorkerIntervalSeconds`
+- `WorkerBatchSize`
+- `MaxCandidatesToPersist`
+- `Timezone`
+
+Pre-condicoes operacionais:
+
+- A jornada precisa estar em `Agendamento confirmado`.
+- O lead precisa ter categoria normalizada, coordenadas e janela confirmada.
+- Os prestadores precisam ter `ProviderProfiles` com categoria, raio e coordenadas base preenchidos.
+
+#### Comportamento esperado
+
+- O matching so roda para jornadas do board `clientes`.
+- A categoria normalizada da jornada e comparada com as categorias do prestador.
+- A subcategoria e inferida a partir do contexto do problema e usada para refinar o ranking.
+- Prestadores fora do raio, sem disponibilidade, com onboarding pendente, compliance pendente, restricao operacional ou conflito de agenda nao entram como elegiveis.
+- Quando houver elegiveis, a jornada registra `Elegiveis encontrados` e o card vai para `Em matching`.
+- Quando nao houver cobertura suficiente, a jornada registra `Sem cobertura` e o card vai para `Sem match`.
+
+#### Checklist de QA
+
+1. Configurar `JourneyProviderMatching:Enabled=true` e `JourneyProviderMatching:WorkerEnabled=true` no CPM Full.
+2. Garantir pelo menos dois prestadores de teste com `ProviderProfiles` validos, um dentro do raio e outro fora do raio.
+3. Criar ou reaproveitar uma jornada de cliente com `Qualificacao validada` e `Agendamento confirmado`.
+4. Aguardar a execucao do worker ou disparar a execucao manualmente no ambiente de teste.
+5. Abrir o lead em `/admin/funil/clientes` e validar a secao `Matching geografico`.
+6. Confirmar `Status do matching`, `Categoria solicitada`, `Subcategoria solicitada`, `Prestadores avaliados` e `Prestadores elegiveis`.
+7. Validar que o candidato elegivel aparece com `Elegivel`, `Rank 1`, distancia, score e resumo operacional.
+8. Validar que candidatos bloqueados exibem o motivo correto, como `Fora do raio de atendimento`.
+9. Confirmar que o card avancou para `Em matching` quando houver elegiveis ou para `Sem match` quando nao houver cobertura.
+10. Confirmar em banco que `dbo.cpm_web_journey_executions` persiste o snapshot do matching e o JSON dos candidatos avaliados.
+
+#### Troubleshooting
+
+- O matching nao roda: validar `JourneyProviderMatching:Enabled`, `WorkerEnabled` e logs do `JourneyProviderMatchingWorker`.
+- O lead nao sai de `Agendamento confirmado`: revisar se a jornada possui `Qualification.NormalizedServiceCategoryName`, `Latitude`, `Longitude`, `ScheduledStartAtUtc` e `ScheduledEndAtUtc`.
+- Todos os prestadores aparecem bloqueados por categoria: revisar o mapeamento de `ProviderProfiles.Categories` e a categoria normalizada da jornada.
+- Prestador esperado ficou `Fora do raio de atendimento`: revisar coordenadas base do prestador, coordenadas da jornada e `RadiusKm`.
+- Prestador esperado ficou indisponivel: revisar `ProviderAvailabilityRules`, horario local de negocio e conflitos em `ServiceAppointments`.
+- Modal sem lista de candidatos: validar se `MatchingCandidatesJson` foi persistido em `dbo.cpm_web_journey_executions`.
+
 ## Automacao Telegram -> funis clientes/prestadores -> Chatwoot
 
 ### Objetivo desta etapa

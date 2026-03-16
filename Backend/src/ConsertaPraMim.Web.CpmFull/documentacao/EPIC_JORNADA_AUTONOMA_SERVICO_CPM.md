@@ -510,7 +510,7 @@ Como plataforma, queremos encontrar apenas prestadores realmente elegiveis para 
 
 ### Status
 
-- Planejada.
+- Concluida.
 
 ### Criterios de aceite
 
@@ -527,6 +527,15 @@ Como plataforma, queremos encontrar apenas prestadores realmente elegiveis para 
 - `TASK-05.04` Criar ranking dos elegiveis.
 - `TASK-05.05` Registrar trilha de quem foi elegivel e por que.
 - `TASK-05.06` Cobrir cenarios de borda para regiao sem cobertura.
+
+### Entrega implementada
+
+- O `JourneyProviderMatchingService` passou a processar jornadas do board `clientes` em `Agendamento confirmado`, ranqueando prestadores por categoria, subcategoria, raio, disponibilidade, status operacional e capacidade.
+- O `JourneyProviderMatchingWorker` foi adicionado ao runtime do `ConsertaPraMim.Web.CpmFull` para executar o matching de forma periodica e idempotente.
+- O snapshot da jornada agora persiste `MatchingStatus`, `MatchingSummary`, `MatchingRequestedCategory`, `MatchingRequestedSubcategory`, `MatchingEvaluatedProviders`, `MatchingEligibleProviders`, `MatchingCandidatesJson` e `MatchingLastRunAtUtc`.
+- O modal do lead ganhou a secao `Matching geografico`, com status, resumo, contagens e lista de candidatos ranqueados com motivo de bloqueio.
+- Jornadas com elegiveis encontrados avancam para `Em matching`; jornadas sem cobertura suficiente avancam para `Sem match`.
+- Foram adicionados testes dedicados para o motor de matching e para a persistencia SQL do snapshot geograficamente avaliado.
 
 ## US-06 / ST-106 - Motor de disparo em ondas para prestadores
 

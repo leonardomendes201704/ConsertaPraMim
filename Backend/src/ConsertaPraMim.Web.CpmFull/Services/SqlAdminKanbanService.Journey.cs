@@ -185,6 +185,14 @@ SELECT TOP (1)
     SchedulingCancelledAtUtc,
     ScheduledStartAtUtc,
     ScheduledEndAtUtc,
+    MatchingStatus,
+    MatchingSummary,
+    MatchingRequestedCategory,
+    MatchingRequestedSubcategory,
+    MatchingEvaluatedProviders,
+    MatchingEligibleProviders,
+    MatchingCandidatesJson,
+    MatchingLastRunAtUtc,
     LastStageAutomationReason,
     LastStageAutomationOrigin,
     LastStageAutomationAtUtc,
@@ -227,13 +235,14 @@ ORDER BY UpdatedAt DESC, Id DESC;
             LastIntakeAt = ReadNullableUtcDateTime(reader, 20),
             Qualification = ReadJourneyQualificationRecord(reader, 21),
             Scheduling = ReadJourneySchedulingRecord(reader, 29),
+            Matching = ReadJourneyMatchingRecord(reader, 39),
             StageAutomation = new AdminKanbanJourneyStageAutomationRecord
             {
-                LastReason = reader.IsDBNull(38) ? string.Empty : reader.GetString(38),
-                LastOrigin = reader.IsDBNull(39) ? string.Empty : reader.GetString(39),
-                LastTransitionAtUtc = ReadNullableUtcDateTime(reader, 40),
-                ActiveTimerCode = reader.IsDBNull(41) ? string.Empty : reader.GetString(41),
-                ActiveTimerDueAtUtc = ReadNullableUtcDateTime(reader, 42)
+                LastReason = reader.IsDBNull(47) ? string.Empty : reader.GetString(47),
+                LastOrigin = reader.IsDBNull(48) ? string.Empty : reader.GetString(48),
+                LastTransitionAtUtc = ReadNullableUtcDateTime(reader, 49),
+                ActiveTimerCode = reader.IsDBNull(50) ? string.Empty : reader.GetString(50),
+                ActiveTimerDueAtUtc = ReadNullableUtcDateTime(reader, 51)
             }
         };
     }
@@ -353,6 +362,138 @@ WHERE Id = @journeyId;
         };
     }
 
+    public AdminKanbanJourneyMatchingUpdateResult? UpdateJourneyMatching(
+        int leadId,
+        AdminKanbanJourneyMatchingUpdateRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        EnsureInitialized();
+        EnsureJourneySchemaInitialized();
+
+        using var connection = OpenConnection();
+        using var transaction = connection.BeginTransaction();
+
+        var match = TryGetJourneyMatchByLeadId(connection, transaction, leadId);
+        if (match is null)
+        {
+            return null;
+        }
+
+        var normalizedCurrentState = string.IsNullOrWhiteSpace(request.CurrentState)
+            ? AdminKanbanJourneyStates.Normalize(match.CurrentState)
+            : AdminKanbanJourneyStates.Normalize(request.CurrentState);
+        var normalizedMatchingStatus = NormalizeJourneyMatchingStatus(request.Status);
+        var normalizedSourceChannel = string.IsNullOrWhiteSpace(request.SourceChannel)
+            ? string.IsNullOrWhiteSpace(match.SourceChannel)
+                ? AdminKanbanJourneySourceChannels.Telegram
+                : AdminKanbanJourneySourceChannels.Normalize(match.SourceChannel)
+            : AdminKanbanJourneySourceChannels.Normalize(request.SourceChannel);
+
+        var matchingRecord = new AdminKanbanJourneyMatchingRecord
+        {
+            Status = normalizedMatchingStatus,
+            Summary = TrimToOrNull(request.Summary, 500) ?? string.Empty,
+            RequestedCategory = TrimToOrNull(request.RequestedCategory, 160) ?? string.Empty,
+            RequestedSubcategory = TrimToOrNull(request.RequestedSubcategory, 160) ?? string.Empty,
+            EvaluatedProvidersCount = Math.Max(0, request.EvaluatedProvidersCount),
+            EligibleProvidersCount = Math.Max(0, request.EligibleProvidersCount),
+            LastRunAtUtc = NormalizeJourneyUtc(request.LastRunAtUtc),
+            Candidates = request.Candidates
+                .OrderByDescending(item => item.IsEligible)
+                .ThenBy(item => item.RankPosition <= 0 ? int.MaxValue : item.RankPosition)
+                .ThenByDescending(item => item.Score)
+                .ThenBy(item => item.DistanceKm)
+                .Select(item => new AdminKanbanJourneyProviderMatchRecord
+                {
+                    ProviderId = item.ProviderId,
+                    ProviderName = TrimTo(item.ProviderName, 160),
+                    ProviderEmail = TrimTo(item.ProviderEmail, 180),
+                    ProviderPhone = TrimTo(item.ProviderPhone, 30),
+                    IsEligible = item.IsEligible,
+                    RankPosition = Math.Max(0, item.RankPosition),
+                    Score = Math.Round(item.Score, 2, MidpointRounding.AwayFromZero),
+                    DistanceKm = Math.Round(item.DistanceKm, 2, MidpointRounding.AwayFromZero),
+                    CoverageRadiusKm = Math.Round(item.CoverageRadiusKm, 2, MidpointRounding.AwayFromZero),
+                    Rating = Math.Round(item.Rating, 2, MidpointRounding.AwayFromZero),
+                    ReviewCount = Math.Max(0, item.ReviewCount),
+                    OperationalStatus = TrimTo(item.OperationalStatus, 80),
+                    ClientPreference = TrimTo(item.ClientPreference, 80),
+                    RequestedCategory = TrimTo(item.RequestedCategory, 160),
+                    RequestedSubcategory = TrimTo(item.RequestedSubcategory, 160),
+                    CategoryMatched = item.CategoryMatched,
+                    SubcategoryMatched = item.SubcategoryMatched,
+                    RadiusMatched = item.RadiusMatched,
+                    AvailabilityMatched = item.AvailabilityMatched,
+                    CapacityMatched = item.CapacityMatched,
+                    BlockReasonCode = TrimTo(item.BlockReasonCode, 80),
+                    BlockReasonLabel = TrimTo(item.BlockReasonLabel, 160),
+                    Summary = TrimTo(item.Summary, 260)
+                })
+                .ToList()
+        };
+
+        using (var command = connection.CreateCommand())
+        {
+            command.Transaction = transaction;
+            command.CommandText = $"""
+UPDATE dbo.{TablePrefix}journey_executions
+SET CurrentState = @currentState,
+    MatchingStatus = @matchingStatus,
+    MatchingSummary = @matchingSummary,
+    MatchingRequestedCategory = @matchingRequestedCategory,
+    MatchingRequestedSubcategory = @matchingRequestedSubcategory,
+    MatchingEvaluatedProviders = @matchingEvaluatedProviders,
+    MatchingEligibleProviders = @matchingEligibleProviders,
+    MatchingCandidatesJson = @matchingCandidatesJson,
+    MatchingLastRunAtUtc = @matchingLastRunAtUtc,
+    UpdatedAt = SYSUTCDATETIME()
+WHERE Id = @journeyId;
+""";
+            command.Parameters.AddRange(
+            [
+                new SqlParameter("@journeyId", SqlDbType.Int) { Value = match.JourneyId },
+                new SqlParameter("@currentState", SqlDbType.NVarChar, 40) { Value = normalizedCurrentState },
+                new SqlParameter("@matchingStatus", SqlDbType.NVarChar, 40) { Value = ToDbValue(normalizedMatchingStatus) },
+                new SqlParameter("@matchingSummary", SqlDbType.NVarChar, 500) { Value = ToDbValue(TrimToOrNull(matchingRecord.Summary, 500)) },
+                new SqlParameter("@matchingRequestedCategory", SqlDbType.NVarChar, 160) { Value = ToDbValue(TrimToOrNull(matchingRecord.RequestedCategory, 160)) },
+                new SqlParameter("@matchingRequestedSubcategory", SqlDbType.NVarChar, 160) { Value = ToDbValue(TrimToOrNull(matchingRecord.RequestedSubcategory, 160)) },
+                new SqlParameter("@matchingEvaluatedProviders", SqlDbType.Int) { Value = matchingRecord.EvaluatedProvidersCount },
+                new SqlParameter("@matchingEligibleProviders", SqlDbType.Int) { Value = matchingRecord.EligibleProvidersCount },
+                new SqlParameter("@matchingCandidatesJson", SqlDbType.NVarChar, -1) { Value = ToDbValue(SerializeJourneyMatchingCandidates(matchingRecord.Candidates)) },
+                new SqlParameter("@matchingLastRunAtUtc", SqlDbType.DateTime2) { Value = matchingRecord.LastRunAtUtc.HasValue ? matchingRecord.LastRunAtUtc.Value : DBNull.Value }
+            ]);
+            command.ExecuteNonQuery();
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.HistoryEventType) && !string.IsNullOrWhiteSpace(request.HistoryDescription))
+        {
+            InsertJourneyEventRecord(
+                connection,
+                transaction,
+                match.JourneyId,
+                leadId,
+                request.HistoryEventType,
+                match.CurrentState,
+                normalizedCurrentState,
+                normalizedSourceChannel,
+                request.HistoryDescription,
+                request.MetadataJson);
+
+            InsertHistory(connection, transaction, leadId, request.HistoryEventType, null, null, request.HistoryDescription);
+        }
+
+        transaction.Commit();
+
+        return new AdminKanbanJourneyMatchingUpdateResult
+        {
+            LeadId = leadId,
+            JourneyId = match.JourneyId,
+            CurrentState = normalizedCurrentState,
+            Matching = matchingRecord
+        };
+    }
+
     public IReadOnlyList<AdminKanbanJourneyStageAutomationCandidateRecord> ListJourneyStageAutomationCandidates(
         string boardType,
         DateTime nowUtc,
@@ -433,6 +574,177 @@ ORDER BY
         }
 
         return candidates;
+    }
+
+    public IReadOnlyList<AdminKanbanJourneyProviderProfileRecord> ListJourneyProviderProfiles(
+        DateTime? scheduledStartAtUtc,
+        DateTime? scheduledEndAtUtc)
+    {
+        EnsureInitialized();
+        EnsureJourneySchemaInitialized();
+
+        var normalizedScheduledStartAtUtc = NormalizeJourneyUtc(scheduledStartAtUtc);
+        var normalizedScheduledEndAtUtc = NormalizeJourneyUtc(scheduledEndAtUtc);
+        var providerRows = new List<JourneyProviderProfileSqlRow>();
+        var availabilityByProvider = new Dictionary<Guid, List<AdminKanbanJourneyProviderAvailabilityRuleRecord>>();
+
+        using var connection = OpenConnection();
+
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = """
+SELECT
+    u.Id,
+    u.Name,
+    u.Email,
+    u.Phone,
+    u.IsActive,
+    p.IsOnboardingCompleted,
+    p.OnboardingStatus,
+    p.RadiusKm,
+    p.BaseZipCode,
+    p.BaseLatitude,
+    p.BaseLongitude,
+    p.HasOperationalCompliancePending,
+    p.OperationalStatus,
+    p.ClientPreference,
+    p.IsVerified,
+    p.TrustStatus,
+    p.RiskLevel,
+    p.Rating,
+    p.ReviewCount,
+    p.Categories,
+    specialty.SpecialtyHints,
+    CASE
+        WHEN @scheduledStartAtUtc IS NULL OR @scheduledEndAtUtc IS NULL THEN 0
+        ELSE ISNULL(conflicts.ConflictingAppointmentsCount, 0)
+    END AS ConflictingAppointmentsCount
+FROM dbo.Users u
+INNER JOIN dbo.ProviderProfiles p ON p.UserId = u.Id
+OUTER APPLY
+(
+    SELECT STRING_AGG(valuesTable.Value, ' | ') AS SpecialtyHints
+    FROM
+    (
+        SELECT NULLIF(LTRIM(RTRIM(g.Category)), '') AS Value
+        FROM dbo.ProviderGalleryItems g
+        WHERE g.ProviderId = u.Id
+
+        UNION ALL
+
+        SELECT NULLIF(LTRIM(RTRIM(g.Caption)), '') AS Value
+        FROM dbo.ProviderGalleryItems g
+        WHERE g.ProviderId = u.Id
+    ) valuesTable
+    WHERE valuesTable.Value IS NOT NULL
+) specialty
+OUTER APPLY
+(
+    SELECT COUNT(1) AS ConflictingAppointmentsCount
+    FROM dbo.ServiceAppointments a
+    WHERE a.ProviderId = u.Id
+      AND @scheduledStartAtUtc IS NOT NULL
+      AND @scheduledEndAtUtc IS NOT NULL
+      AND a.WindowStartUtc < @scheduledEndAtUtc
+      AND a.WindowEndUtc > @scheduledStartAtUtc
+      AND a.Status IN (1, 2, 5, 6, 7, 11, 12)
+) conflicts
+WHERE u.Role = @providerRole;
+""";
+            command.Parameters.Add(new SqlParameter("@providerRole", SqlDbType.Int) { Value = 2 });
+            command.Parameters.Add(new SqlParameter("@scheduledStartAtUtc", SqlDbType.DateTime2) { Value = normalizedScheduledStartAtUtc.HasValue ? normalizedScheduledStartAtUtc.Value : DBNull.Value });
+            command.Parameters.Add(new SqlParameter("@scheduledEndAtUtc", SqlDbType.DateTime2) { Value = normalizedScheduledEndAtUtc.HasValue ? normalizedScheduledEndAtUtc.Value : DBNull.Value });
+
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                providerRows.Add(new JourneyProviderProfileSqlRow
+                {
+                    ProviderId = reader.GetGuid(0),
+                    ProviderName = reader.IsDBNull(1) ? string.Empty : reader.GetString(1),
+                    ProviderEmail = reader.IsDBNull(2) ? string.Empty : reader.GetString(2),
+                    ProviderPhone = reader.IsDBNull(3) ? string.Empty : reader.GetString(3),
+                    IsActive = !reader.IsDBNull(4) && reader.GetBoolean(4),
+                    IsOnboardingCompleted = !reader.IsDBNull(5) && reader.GetBoolean(5),
+                    OnboardingStatusCode = reader.IsDBNull(6) ? 0 : reader.GetInt32(6),
+                    RadiusKm = reader.IsDBNull(7) ? 0d : reader.GetDouble(7),
+                    BaseZipCode = reader.IsDBNull(8) ? string.Empty : reader.GetString(8),
+                    BaseLatitude = ReadNullableDouble(reader, 9),
+                    BaseLongitude = ReadNullableDouble(reader, 10),
+                    HasOperationalCompliancePending = !reader.IsDBNull(11) && reader.GetBoolean(11),
+                    OperationalStatusCode = reader.IsDBNull(12) ? 0 : reader.GetInt32(12),
+                    ClientPreferenceCode = reader.IsDBNull(13) ? 0 : reader.GetInt32(13),
+                    IsVerified = !reader.IsDBNull(14) && reader.GetBoolean(14),
+                    TrustStatusCode = reader.IsDBNull(15) ? 0 : reader.GetInt32(15),
+                    RiskLevelCode = reader.IsDBNull(16) ? 0 : reader.GetInt32(16),
+                    Rating = reader.IsDBNull(17) ? 0d : reader.GetDouble(17),
+                    ReviewCount = reader.IsDBNull(18) ? 0 : reader.GetInt32(18),
+                    CategoryCodes = ParseJourneyProviderCategoryCodes(reader.IsDBNull(19) ? string.Empty : reader.GetString(19)),
+                    SpecialtyHints = reader.IsDBNull(20) ? string.Empty : reader.GetString(20),
+                    ConflictingAppointmentsCount = reader.IsDBNull(21) ? 0 : reader.GetInt32(21)
+                });
+            }
+        }
+
+        using (var command = connection.CreateCommand())
+        {
+            command.CommandText = """
+SELECT ProviderId, DayOfWeek, StartTime, EndTime, SlotDurationMinutes
+FROM dbo.ProviderAvailabilityRules
+WHERE IsActive = 1;
+""";
+
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                var providerId = reader.GetGuid(0);
+                if (!availabilityByProvider.TryGetValue(providerId, out var rules))
+                {
+                    rules = [];
+                    availabilityByProvider[providerId] = rules;
+                }
+
+                rules.Add(new AdminKanbanJourneyProviderAvailabilityRuleRecord
+                {
+                    ProviderId = providerId,
+                    DayOfWeekCode = reader.IsDBNull(1) ? 0 : reader.GetInt32(1),
+                    StartTime = reader.IsDBNull(2) ? TimeSpan.Zero : reader.GetTimeSpan(2),
+                    EndTime = reader.IsDBNull(3) ? TimeSpan.Zero : reader.GetTimeSpan(3),
+                    SlotDurationMinutes = reader.IsDBNull(4) ? 0 : reader.GetInt32(4)
+                });
+            }
+        }
+
+        return providerRows
+            .Select(row => new AdminKanbanJourneyProviderProfileRecord
+            {
+                ProviderId = row.ProviderId,
+                ProviderName = row.ProviderName,
+                ProviderEmail = row.ProviderEmail,
+                ProviderPhone = row.ProviderPhone,
+                IsActive = row.IsActive,
+                IsOnboardingCompleted = row.IsOnboardingCompleted,
+                OnboardingStatusCode = row.OnboardingStatusCode,
+                RadiusKm = row.RadiusKm,
+                BaseZipCode = row.BaseZipCode,
+                BaseLatitude = row.BaseLatitude,
+                BaseLongitude = row.BaseLongitude,
+                HasOperationalCompliancePending = row.HasOperationalCompliancePending,
+                OperationalStatusCode = row.OperationalStatusCode,
+                ClientPreferenceCode = row.ClientPreferenceCode,
+                IsVerified = row.IsVerified,
+                TrustStatusCode = row.TrustStatusCode,
+                RiskLevelCode = row.RiskLevelCode,
+                Rating = row.Rating,
+                ReviewCount = row.ReviewCount,
+                CategoryCodes = row.CategoryCodes,
+                SpecialtyHints = row.SpecialtyHints,
+                ConflictingAppointmentsCount = row.ConflictingAppointmentsCount,
+                AvailabilityRules = availabilityByProvider.TryGetValue(row.ProviderId, out var rules)
+                    ? rules.OrderBy(item => item.DayOfWeekCode).ThenBy(item => item.StartTime).ToList()
+                    : []
+            })
+            .ToList();
     }
 
     public AdminKanbanJourneyStageAutomationUpdateResult? ApplyJourneyStageAutomation(
@@ -675,6 +987,14 @@ CREATE TABLE dbo.{TablePrefix}journey_executions
     SchedulingCancelledAtUtc DATETIME2 NULL,
     ScheduledStartAtUtc DATETIME2 NULL,
     ScheduledEndAtUtc DATETIME2 NULL,
+    MatchingStatus NVARCHAR(40) NULL,
+    MatchingSummary NVARCHAR(500) NULL,
+    MatchingRequestedCategory NVARCHAR(160) NULL,
+    MatchingRequestedSubcategory NVARCHAR(160) NULL,
+    MatchingEvaluatedProviders INT NULL,
+    MatchingEligibleProviders INT NULL,
+    MatchingCandidatesJson NVARCHAR(MAX) NULL,
+    MatchingLastRunAtUtc DATETIME2 NULL,
     LastStageAutomationReason NVARCHAR(180) NULL,
     LastStageAutomationOrigin NVARCHAR(40) NULL,
     LastStageAutomationAtUtc DATETIME2 NULL,
@@ -804,6 +1124,30 @@ IF COL_LENGTH('dbo.{TablePrefix}journey_executions', 'ScheduledStartAtUtc') IS N
 
 IF COL_LENGTH('dbo.{TablePrefix}journey_executions', 'ScheduledEndAtUtc') IS NULL
     ALTER TABLE dbo.{TablePrefix}journey_executions ADD ScheduledEndAtUtc DATETIME2 NULL;
+
+IF COL_LENGTH('dbo.{TablePrefix}journey_executions', 'MatchingStatus') IS NULL
+    ALTER TABLE dbo.{TablePrefix}journey_executions ADD MatchingStatus NVARCHAR(40) NULL;
+
+IF COL_LENGTH('dbo.{TablePrefix}journey_executions', 'MatchingSummary') IS NULL
+    ALTER TABLE dbo.{TablePrefix}journey_executions ADD MatchingSummary NVARCHAR(500) NULL;
+
+IF COL_LENGTH('dbo.{TablePrefix}journey_executions', 'MatchingRequestedCategory') IS NULL
+    ALTER TABLE dbo.{TablePrefix}journey_executions ADD MatchingRequestedCategory NVARCHAR(160) NULL;
+
+IF COL_LENGTH('dbo.{TablePrefix}journey_executions', 'MatchingRequestedSubcategory') IS NULL
+    ALTER TABLE dbo.{TablePrefix}journey_executions ADD MatchingRequestedSubcategory NVARCHAR(160) NULL;
+
+IF COL_LENGTH('dbo.{TablePrefix}journey_executions', 'MatchingEvaluatedProviders') IS NULL
+    ALTER TABLE dbo.{TablePrefix}journey_executions ADD MatchingEvaluatedProviders INT NULL;
+
+IF COL_LENGTH('dbo.{TablePrefix}journey_executions', 'MatchingEligibleProviders') IS NULL
+    ALTER TABLE dbo.{TablePrefix}journey_executions ADD MatchingEligibleProviders INT NULL;
+
+IF COL_LENGTH('dbo.{TablePrefix}journey_executions', 'MatchingCandidatesJson') IS NULL
+    ALTER TABLE dbo.{TablePrefix}journey_executions ADD MatchingCandidatesJson NVARCHAR(MAX) NULL;
+
+IF COL_LENGTH('dbo.{TablePrefix}journey_executions', 'MatchingLastRunAtUtc') IS NULL
+    ALTER TABLE dbo.{TablePrefix}journey_executions ADD MatchingLastRunAtUtc DATETIME2 NULL;
 
 IF COL_LENGTH('dbo.{TablePrefix}journey_executions', 'LastStageAutomationReason') IS NULL
     ALTER TABLE dbo.{TablePrefix}journey_executions ADD LastStageAutomationReason NVARCHAR(180) NULL;
@@ -1567,6 +1911,11 @@ VALUES
             ? string.Empty
             : AdminKanbanJourneySchedulingStatuses.Normalize(value);
 
+    private static string NormalizeJourneyMatchingStatus(string? value) =>
+        string.IsNullOrWhiteSpace(value)
+            ? string.Empty
+            : AdminKanbanJourneyMatchingStatuses.Normalize(value);
+
     private static string NormalizeJourneyTimerCode(string? value) => (value ?? string.Empty).Trim().ToLowerInvariant() switch
     {
         AdminKanbanJourneyTimerCodes.PendingData => AdminKanbanJourneyTimerCodes.PendingData,
@@ -1608,6 +1957,22 @@ VALUES
                     EndsAtUtc = NormalizeJourneyUtc(item.EndsAtUtc) ?? item.EndsAtUtc,
                     Label = TrimTo(item.Label, 160)
                 })
+                .ToList());
+    }
+
+    private static string? SerializeJourneyMatchingCandidates(IReadOnlyList<AdminKanbanJourneyProviderMatchRecord>? candidates)
+    {
+        if (candidates is null || candidates.Count == 0)
+        {
+            return null;
+        }
+
+        return JsonSerializer.Serialize(
+            candidates
+                .OrderByDescending(item => item.IsEligible)
+                .ThenBy(item => item.RankPosition <= 0 ? int.MaxValue : item.RankPosition)
+                .ThenByDescending(item => item.Score)
+                .ThenBy(item => item.DistanceKm)
                 .ToList());
     }
 
@@ -1677,6 +2042,30 @@ VALUES
         };
     }
 
+    private static AdminKanbanJourneyMatchingRecord ReadJourneyMatchingRecord(SqlDataReader reader, int startIndex)
+    {
+        var status = reader.IsDBNull(startIndex) ? string.Empty : reader.GetString(startIndex);
+        var summary = reader.IsDBNull(startIndex + 1) ? string.Empty : reader.GetString(startIndex + 1);
+        var requestedCategory = reader.IsDBNull(startIndex + 2) ? string.Empty : reader.GetString(startIndex + 2);
+        var requestedSubcategory = reader.IsDBNull(startIndex + 3) ? string.Empty : reader.GetString(startIndex + 3);
+        var evaluatedProvidersCount = reader.IsDBNull(startIndex + 4) ? 0 : reader.GetInt32(startIndex + 4);
+        var eligibleProvidersCount = reader.IsDBNull(startIndex + 5) ? 0 : reader.GetInt32(startIndex + 5);
+        var candidatesJson = reader.IsDBNull(startIndex + 6) ? string.Empty : reader.GetString(startIndex + 6);
+        var lastRunAtUtc = ReadNullableUtcDateTime(reader, startIndex + 7);
+
+        return new AdminKanbanJourneyMatchingRecord
+        {
+            Status = NormalizeJourneyMatchingStatus(status),
+            Summary = summary,
+            RequestedCategory = requestedCategory,
+            RequestedSubcategory = requestedSubcategory,
+            EvaluatedProvidersCount = evaluatedProvidersCount,
+            EligibleProvidersCount = eligibleProvidersCount,
+            LastRunAtUtc = lastRunAtUtc,
+            Candidates = DeserializeJourneyMatchingCandidates(candidatesJson)
+        };
+    }
+
     private static IReadOnlyList<AdminKanbanJourneySuggestedSlotRecord> DeserializeJourneySchedulingSlots(string? suggestedSlotsJson)
     {
         if (string.IsNullOrWhiteSpace(suggestedSlotsJson))
@@ -1703,6 +2092,48 @@ VALUES
         {
             return [];
         }
+    }
+
+    private static IReadOnlyList<AdminKanbanJourneyProviderMatchRecord> DeserializeJourneyMatchingCandidates(string? candidatesJson)
+    {
+        if (string.IsNullOrWhiteSpace(candidatesJson))
+        {
+            return [];
+        }
+
+        try
+        {
+            var parsed = JsonSerializer.Deserialize<List<AdminKanbanJourneyProviderMatchRecord>>(candidatesJson);
+            return parsed?
+                .OrderByDescending(item => item.IsEligible)
+                .ThenBy(item => item.RankPosition <= 0 ? int.MaxValue : item.RankPosition)
+                .ThenByDescending(item => item.Score)
+                .ThenBy(item => item.DistanceKm)
+                .ToList() ?? [];
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
+    }
+
+    private static double? ReadNullableDouble(SqlDataReader reader, int index) =>
+        reader.IsDBNull(index) ? null : reader.GetDouble(index);
+
+    private static IReadOnlyList<int> ParseJourneyProviderCategoryCodes(string? rawValue)
+    {
+        if (string.IsNullOrWhiteSpace(rawValue))
+        {
+            return [];
+        }
+
+        return rawValue
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(item => int.TryParse(item, out var code) ? code : 0)
+            .Where(code => code > 0)
+            .Distinct()
+            .OrderBy(code => code)
+            .ToList();
     }
 
     private static string? TrimToOrNull(string? value, int maxLength)
@@ -1742,5 +2173,31 @@ VALUES
         public string LastAutomationOrigin { get; init; } = string.Empty;
         public string ActiveTimerCode { get; init; } = string.Empty;
         public DateTime? ActiveTimerDueAtUtc { get; init; }
+    }
+
+    private sealed class JourneyProviderProfileSqlRow
+    {
+        public Guid ProviderId { get; init; }
+        public string ProviderName { get; init; } = string.Empty;
+        public string ProviderEmail { get; init; } = string.Empty;
+        public string ProviderPhone { get; init; } = string.Empty;
+        public bool IsActive { get; init; }
+        public bool IsOnboardingCompleted { get; init; }
+        public int OnboardingStatusCode { get; init; }
+        public double RadiusKm { get; init; }
+        public string BaseZipCode { get; init; } = string.Empty;
+        public double? BaseLatitude { get; init; }
+        public double? BaseLongitude { get; init; }
+        public bool HasOperationalCompliancePending { get; init; }
+        public int OperationalStatusCode { get; init; }
+        public int ClientPreferenceCode { get; init; }
+        public bool IsVerified { get; init; }
+        public int TrustStatusCode { get; init; }
+        public int RiskLevelCode { get; init; }
+        public double Rating { get; init; }
+        public int ReviewCount { get; init; }
+        public IReadOnlyList<int> CategoryCodes { get; init; } = [];
+        public string SpecialtyHints { get; init; } = string.Empty;
+        public int ConflictingAppointmentsCount { get; init; }
     }
 }

@@ -198,16 +198,19 @@ public static class AdminKanbanJourneyAutomationOrigins
 {
     public const string StateMachine = "state_machine";
     public const string Timer = "timer";
+    public const string MatchingEngine = "matching_engine";
 
     public static string Normalize(string? value) => (value ?? string.Empty).Trim().ToLowerInvariant() switch
     {
         Timer => Timer,
+        MatchingEngine => MatchingEngine,
         _ => StateMachine
     };
 
     public static string GetLabel(string? value) => Normalize(value) switch
     {
         Timer => "Timer operacional",
+        MatchingEngine => "Motor de matching",
         _ => "Maquina de estados"
     };
 }
@@ -298,6 +301,30 @@ public static class AdminKanbanJourneySchedulingStatuses
         Confirmed => "Confirmado",
         Cancelled => "Cancelado",
         NoAvailability => "Sem disponibilidade",
+        _ => "Nao iniciado"
+    };
+}
+
+public static class AdminKanbanJourneyMatchingStatuses
+{
+    public const string NotStarted = "nao_iniciado";
+    public const string EligibleProvidersFound = "elegiveis_encontrados";
+    public const string NoCoverage = "sem_cobertura";
+    public const string ReadyForDispatch = "pronto_para_disparo";
+
+    public static string Normalize(string? value) => (value ?? string.Empty).Trim().ToLowerInvariant() switch
+    {
+        EligibleProvidersFound => EligibleProvidersFound,
+        NoCoverage => NoCoverage,
+        ReadyForDispatch => ReadyForDispatch,
+        _ => NotStarted
+    };
+
+    public static string GetLabel(string? value) => Normalize(value) switch
+    {
+        EligibleProvidersFound => "Elegiveis encontrados",
+        NoCoverage => "Sem cobertura",
+        ReadyForDispatch => "Pronto para disparo",
         _ => "Nao iniciado"
     };
 }
@@ -708,6 +735,7 @@ public sealed class AdminKanbanLeadJourneyRecord
     public DateTime? LastIntakeAt { get; init; }
     public AdminKanbanJourneyQualificationRecord Qualification { get; init; } = new();
     public AdminKanbanJourneySchedulingRecord Scheduling { get; init; } = new();
+    public AdminKanbanJourneyMatchingRecord Matching { get; init; } = new();
     public AdminKanbanJourneyStageAutomationRecord StageAutomation { get; init; } = new();
 }
 
@@ -748,6 +776,45 @@ public sealed class AdminKanbanJourneySchedulingRecord
     public DateTime? ScheduledStartAtUtc { get; init; }
     public DateTime? ScheduledEndAtUtc { get; init; }
     public IReadOnlyList<AdminKanbanJourneySuggestedSlotRecord> SuggestedSlots { get; init; } = [];
+}
+
+public sealed class AdminKanbanJourneyMatchingRecord
+{
+    public string Status { get; init; } = string.Empty;
+    public string Summary { get; init; } = string.Empty;
+    public string RequestedCategory { get; init; } = string.Empty;
+    public string RequestedSubcategory { get; init; } = string.Empty;
+    public int EvaluatedProvidersCount { get; init; }
+    public int EligibleProvidersCount { get; init; }
+    public DateTime? LastRunAtUtc { get; init; }
+    public IReadOnlyList<AdminKanbanJourneyProviderMatchRecord> Candidates { get; init; } = [];
+}
+
+public sealed class AdminKanbanJourneyProviderMatchRecord
+{
+    public Guid ProviderId { get; init; }
+    public string ProviderName { get; init; } = string.Empty;
+    public string ProviderEmail { get; init; } = string.Empty;
+    public string ProviderPhone { get; init; } = string.Empty;
+    public bool IsEligible { get; init; }
+    public int RankPosition { get; init; }
+    public decimal Score { get; init; }
+    public double DistanceKm { get; init; }
+    public double CoverageRadiusKm { get; init; }
+    public double Rating { get; init; }
+    public int ReviewCount { get; init; }
+    public string OperationalStatus { get; init; } = string.Empty;
+    public string ClientPreference { get; init; } = string.Empty;
+    public string RequestedCategory { get; init; } = string.Empty;
+    public string RequestedSubcategory { get; init; } = string.Empty;
+    public bool CategoryMatched { get; init; }
+    public bool SubcategoryMatched { get; init; }
+    public bool RadiusMatched { get; init; }
+    public bool AvailabilityMatched { get; init; }
+    public bool CapacityMatched { get; init; }
+    public string BlockReasonCode { get; init; } = string.Empty;
+    public string BlockReasonLabel { get; init; } = string.Empty;
+    public string Summary { get; init; } = string.Empty;
 }
 
 public sealed class AdminKanbanJourneyStageAutomationRecord
@@ -792,6 +859,67 @@ public sealed record class AdminKanbanJourneySchedulingUpdateResult
     public int JourneyId { get; init; }
     public string CurrentState { get; init; } = string.Empty;
     public AdminKanbanJourneySchedulingRecord Scheduling { get; init; } = new();
+}
+
+public sealed class AdminKanbanJourneyMatchingUpdateRequest
+{
+    public string Status { get; init; } = string.Empty;
+    public string Summary { get; init; } = string.Empty;
+    public string RequestedCategory { get; init; } = string.Empty;
+    public string RequestedSubcategory { get; init; } = string.Empty;
+    public int EvaluatedProvidersCount { get; init; }
+    public int EligibleProvidersCount { get; init; }
+    public DateTime? LastRunAtUtc { get; init; }
+    public string CurrentState { get; init; } = string.Empty;
+    public string HistoryEventType { get; init; } = string.Empty;
+    public string HistoryDescription { get; init; } = string.Empty;
+    public string SourceChannel { get; init; } = string.Empty;
+    public string MetadataJson { get; init; } = string.Empty;
+    public IReadOnlyList<AdminKanbanJourneyProviderMatchRecord> Candidates { get; init; } = [];
+}
+
+public sealed record class AdminKanbanJourneyMatchingUpdateResult
+{
+    public int LeadId { get; init; }
+    public int JourneyId { get; init; }
+    public string CurrentState { get; init; } = string.Empty;
+    public AdminKanbanJourneyMatchingRecord Matching { get; init; } = new();
+}
+
+public sealed class AdminKanbanJourneyProviderProfileRecord
+{
+    public Guid ProviderId { get; init; }
+    public string ProviderName { get; init; } = string.Empty;
+    public string ProviderEmail { get; init; } = string.Empty;
+    public string ProviderPhone { get; init; } = string.Empty;
+    public bool IsActive { get; init; }
+    public bool IsOnboardingCompleted { get; init; }
+    public int OnboardingStatusCode { get; init; }
+    public double RadiusKm { get; init; }
+    public string BaseZipCode { get; init; } = string.Empty;
+    public double? BaseLatitude { get; init; }
+    public double? BaseLongitude { get; init; }
+    public bool HasOperationalCompliancePending { get; init; }
+    public int OperationalStatusCode { get; init; }
+    public int ClientPreferenceCode { get; init; }
+    public bool IsVerified { get; init; }
+    public int TrustStatusCode { get; init; }
+    public int RiskLevelCode { get; init; }
+    public double Rating { get; init; }
+    public int ReviewCount { get; init; }
+    public IReadOnlyList<int> CategoryCodes { get; init; } = [];
+    public string SpecialtyHints { get; init; } = string.Empty;
+    public int ConflictingAppointmentsCount { get; init; }
+    public IReadOnlyList<AdminKanbanJourneyProviderAvailabilityRuleRecord> AvailabilityRules { get; init; } = [];
+}
+
+public sealed class AdminKanbanJourneyProviderAvailabilityRuleRecord
+{
+    public Guid ProviderId { get; init; }
+    public int DayOfWeekCode { get; init; }
+    public TimeSpan StartTime { get; init; }
+    public TimeSpan EndTime { get; init; }
+    public int SlotDurationMinutes { get; init; }
 }
 
 public sealed record class AdminKanbanJourneyStageAutomationCandidateRecord
