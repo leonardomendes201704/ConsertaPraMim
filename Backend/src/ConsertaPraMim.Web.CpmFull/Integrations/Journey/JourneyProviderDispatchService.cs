@@ -9,6 +9,7 @@ public sealed class JourneyProviderDispatchService : IJourneyProviderDispatchSer
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     private readonly IAdminKanbanService _kanbanService;
+    private readonly IJourneyGovernanceService _journeyGovernanceService;
     private readonly IJourneyProviderDispatchNotificationService _notificationService;
     private readonly JourneyProviderDispatchOptions _options;
     private readonly ILogger<JourneyProviderDispatchService> _logger;
@@ -16,11 +17,13 @@ public sealed class JourneyProviderDispatchService : IJourneyProviderDispatchSer
 
     public JourneyProviderDispatchService(
         IAdminKanbanService kanbanService,
+        IJourneyGovernanceService journeyGovernanceService,
         IJourneyProviderDispatchNotificationService notificationService,
         IOptions<JourneyProviderDispatchOptions> options,
         ILogger<JourneyProviderDispatchService> logger)
     {
         _kanbanService = kanbanService;
+        _journeyGovernanceService = journeyGovernanceService;
         _notificationService = notificationService;
         _options = options.Value;
         _logger = logger;
@@ -31,6 +34,15 @@ public sealed class JourneyProviderDispatchService : IJourneyProviderDispatchSer
     {
         if (!_options.Enabled)
         {
+            return Task.FromResult(new JourneyProviderDispatchRunResult());
+        }
+
+        var governanceDecision = _journeyGovernanceService.EvaluateStep(
+            JourneyGovernanceSteps.Dispatch,
+            AdminKanbanJourneySourceChannels.Landing);
+        if (!governanceDecision.Allowed)
+        {
+            _logger.LogInformation("JourneyProviderDispatchService ignorado pela governanca. Motivo={Reason}.", governanceDecision.Reason);
             return Task.FromResult(new JourneyProviderDispatchRunResult());
         }
 

@@ -272,8 +272,27 @@ public sealed class JourneyProviderMatchingServiceTests
 
     private static JourneyProviderMatchingService CreateSut(IAdminKanbanService kanbanService)
     {
+        var governanceService = new Mock<IJourneyGovernanceService>(MockBehavior.Strict);
+        governanceService
+            .Setup(service => service.EvaluateStep(JourneyGovernanceSteps.Matching, AdminKanbanJourneySourceChannels.Landing))
+            .Returns(new JourneyGovernanceDecision
+            {
+                Allowed = true,
+                Step = JourneyGovernanceSteps.Matching,
+                Reason = "Etapa liberada pela governanca."
+            });
+        governanceService
+            .Setup(service => service.ResolveOperationalException(It.IsAny<string>(), It.IsAny<string>()))
+            .Returns<string, string>((reasonCode, fallbackSummary) => new JourneyOperationalExceptionPolicy
+            {
+                ReasonCode = reasonCode,
+                Summary = fallbackSummary,
+                HistoryEventType = "jornada_handoff_matching_dados_insuficientes"
+            });
+
         return new JourneyProviderMatchingService(
             kanbanService,
+            governanceService.Object,
             Options.Create(new JourneyProviderMatchingOptions
             {
                 Enabled = true,

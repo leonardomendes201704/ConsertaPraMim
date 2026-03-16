@@ -501,8 +501,19 @@ public sealed class JourneyProviderDispatchServiceTests
             notificationService = notificationServiceMock.Object;
         }
 
+        var governanceServiceMock = new Mock<IJourneyGovernanceService>(MockBehavior.Strict);
+        governanceServiceMock
+            .Setup(service => service.EvaluateStep(JourneyGovernanceSteps.Dispatch, AdminKanbanJourneySourceChannels.Landing))
+            .Returns(new JourneyGovernanceDecision
+            {
+                Allowed = true,
+                Step = JourneyGovernanceSteps.Dispatch,
+                Reason = "Etapa liberada pela governanca."
+            });
+
         return new JourneyProviderDispatchService(
             kanbanService,
+            governanceServiceMock.Object,
             notificationService,
             Options.Create(new JourneyProviderDispatchOptions
             {

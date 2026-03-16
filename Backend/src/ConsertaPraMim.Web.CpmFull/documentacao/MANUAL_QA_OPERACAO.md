@@ -1361,6 +1361,121 @@ Pre-condicoes operacionais:
 - Jornada nao sai de `Aguardando avaliacao do cliente`: validar se a avaliacao foi enviada com token de `cliente` e se `ClientReviewStatus` foi persistido.
 - Jornada nao conclui apos a avaliacao do prestador: validar `ProviderReviewStatus`, `CompletedAtUtc` e o historico `jornada_avaliacao_prestador_enviada`.
 
+## Excecoes, handoff minimo, observabilidade e rollout da jornada
+
+### Objetivo
+
+- Controlar a automacao da jornada por feature flags e canais habilitados.
+- Ter um criterio operacional claro para saida do fluxo automatico e entrada em `Excecao operacional`.
+- Dar visibilidade gerencial e operacional sobre backlog, gargalos, ondas, excecoes e rollout da jornada.
+
+### Comportamento esperado
+
+- O intake da jornada respeita `JourneyGovernance`, com `Enabled`, `AllowedSourceChannels`, `RolloutPercentage` e `IntakeEnabled`.
+- As etapas `StageAutomation`, `Matching`, `Dispatch` e `Closure` podem ser habilitadas ou desabilitadas independentemente sem quebrar a captura base do lead.
+- Timeouts de dados pendentes, timeout de confirmacao de agenda, falta de dados para matching, contestacao do cliente e desfechos excepcionais do prestador devem produzir motivo operacional auditavel.
+- O `Portal Admin` deve expor o novo painel `/admin/jornada/painel`, com drawer `Filtros`, cards de resumo e tabelas de backlog/excecao/gargalos.
+- O painel deve mostrar tambem o bloco `Governanca ativa`, exibindo percentual de rollout, canais permitidos e status das etapas automaticas.
+
+### Matriz minima de excecoes e handoff
+
+- `pending_data_timeout`
+  - efeito: mover para `Excecao operacional`
+  - resumo operacional: cliente nao completou os dados minimos da jornada dentro do prazo
+- `schedule_confirmation_timeout`
+  - efeito: mover para `Excecao operacional`
+  - resumo operacional: cliente nao confirmou a janela sugerida dentro do prazo
+- `matching_missing_data`
+  - efeito: mover para `Excecao operacional`
+  - resumo operacional: jornada sem dados suficientes para matching geografico
+- `provider_outcome_exception`
+  - efeito: mover para `Excecao operacional`
+  - resumo operacional: no-show do cliente, cancelamento tardio ou desfecho excepcional reportado pelo prestador
+- `client_contestation`
+  - efeito: mover para `Excecao operacional`
+  - resumo operacional: cliente contestou a conclusao do servico
+
+### Configuracao operacional
+
+Secao nova em `JourneyGovernance`:
+
+- `Enabled`
+- `RolloutPercentage`
+- `AllowedSourceChannels`
+- `IntakeEnabled`
+- `StageAutomationEnabled`
+- `MatchingEnabled`
+- `DispatchEnabled`
+- `ConnectionEnabled`
+- `ClosureEnabled`
+- `RouteOperationalExceptionsToHandoff`
+
+### Painel administrativo da jornada
+
+URL:
+
+- `/admin/jornada/painel`
+
+Indicadores principais:
+
+- total de jornadas no periodo
+- jornadas com agenda confirmada
+- jornadas com prestador conectado
+- jornadas concluidas
+- jornadas com avaliacoes completas
+- jornadas em excecao operacional
+- jornadas sem match
+- jornadas com atraso de timer
+- tempo medio ate agenda, reserva e conclusao
+
+Breakdowns disponiveis:
+
+- por canal de origem
+- por estado atual da jornada
+- por categoria
+- por cidade
+- por motivo de excecao
+- por onda de disparo
+- por etapa do Kanban com backlog e atraso
+
+### Checklist de QA
+
+1. Abrir `/admin/jornada/painel`.
+2. Confirmar exibicao do botao `Filtros` e do drawer lateral com `Aplicar filtros` e `Limpar filtros`.
+3. Aplicar filtro por periodo e validar atualizacao dos cards de resumo.
+4. Validar exibicao do bloco `Governanca ativa`.
+5. Confirmar que o bloco mostra `RolloutPercentage`, canais permitidos e status das etapas.
+6. Desabilitar uma etapa em `JourneyGovernance` no ambiente local ou homologacao.
+7. Confirmar que a automacao correspondente deixa de executar sem impedir o restante da jornada.
+8. Simular `pending_data_timeout` e validar ida para `Excecao operacional`.
+9. Simular `matching_missing_data` e validar ida para `Excecao operacional`.
+10. Simular `client_contestation` e validar ida para `Excecao operacional`.
+11. Confirmar que o painel passa a refletir o novo volume de excecoes e backlog.
+
+### Rollout recomendado
+
+1. Publicar com `JourneyGovernance:Enabled=true`.
+2. Iniciar com `RolloutPercentage=10`.
+3. Restringir `AllowedSourceChannels` aos canais homologados ou com menor risco operacional.
+4. Validar intake, agenda, matching, disparo, conexao e encerramento no painel `/admin/jornada/painel`.
+5. Elevar para `25`, `50`, `75` e `100` conforme estabilidade.
+6. Manter `RouteOperationalExceptionsToHandoff=true` durante todo o rollout progressivo.
+
+### Rollback recomendado
+
+1. Se a falha for global, definir `JourneyGovernance:Enabled=false`.
+2. Se a falha estiver isolada em uma etapa, desabilitar apenas a flag correspondente.
+3. Revalidar que o intake continua gerando lead mesmo com a etapa automatica bloqueada.
+4. Acompanhar o painel da jornada para confirmar queda de erros e estabilizacao do backlog.
+
+### Troubleshooting
+
+- O painel abre vazio: validar periodo informado, existencia de dados em `journey_executions` e se o board filtrado corresponde a `clientes`.
+- O rollout parece nao respeitar percentual: validar se a chave estavel do intake mudou entre tentativas; a distribuicao e deterministica por identificador.
+- A etapa continua executando apos desabilitar a flag: revisar recarga de configuracao no ambiente publicado e confirmar o valor efetivo no bloco `Governanca ativa`.
+- Excecao nao vai para `Excecao operacional`: validar se `RouteOperationalExceptionsToHandoff=true` e se o motivo esta mapeado no `JourneyGovernanceService`.
+- O painel nao mostra gargalos esperados: revisar `LastStageAutomationReason`, `ActiveTimerDueAtUtc`, `DispatchCurrentWaveNumber` e `ClosureStatus` no snapshot da jornada.
+
 ## Integracao Chatwoot - observabilidade e diagnostico no Kanban
 
 ### Objetivo

@@ -32,6 +32,7 @@ public interface IAdminKanbanService
     int PurgeTelegramDeliveryPayloads(DateTime createdBeforeUtc, DateTime purgedAtUtc);
     AdminKanbanTelegramDiagnosticsSnapshot GetTelegramDiagnostics(string? boardType, int issueLimit, int queueLimit);
     AdminKanbanTelegramBusinessDashboardSnapshot GetTelegramBusinessDashboard(AdminKanbanTelegramBusinessDashboardFilter filter);
+    AdminKanbanJourneyOperationsDashboardSnapshot GetJourneyOperationsDashboard(AdminKanbanJourneyOperationsDashboardFilter filter);
     bool UpdateLead(int leadId, AdminKanbanLeadUpsertRequest request);
     bool UpdateLeadChatwootSync(int leadId, AdminKanbanLeadChatwootSyncUpdateRequest request);
     int? FindLeadIdByChatwootConversationId(long conversationId);

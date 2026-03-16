@@ -45,9 +45,6 @@
 
 ### Backlog
 
-- [ST-108 - Reserva do caso e conexao direta entre cliente e prestador](STORIES/DONE/ST-108-reserva-caso-conexao-direta-cliente-prestador.md)
-- [ST-109 - Conclusao do servico e avaliacao bilateral](STORIES/DONE/ST-109-conclusao-servico-avaliacao-bilateral.md)
-- [ST-110 - Excecoes, handoff minimo, observabilidade e rollout da jornada](STORIES/BACKLOG/ST-110-excecoes-handoff-observabilidade-rollout-jornada.md)
 - [ST-022 - API de atendimento para portal admin](STORIES/BACKLOG/ST-022-api-atendimento-portal-admin.md)
 - [ST-023 - UI de suporte no portal prestador](STORIES/BACKLOG/ST-023-ui-suporte-portal-prestador.md)
 - [ST-024 - UI de atendimento no portal admin](STORIES/BACKLOG/ST-024-ui-atendimento-portal-admin.md)
@@ -77,6 +74,9 @@
 
 ### Done
 
+- [ST-110 - Excecoes, handoff minimo, observabilidade e rollout da jornada](STORIES/DONE/ST-110-excecoes-handoff-observabilidade-rollout-jornada.md)
+- [ST-109 - Conclusao do servico e avaliacao bilateral](STORIES/DONE/ST-109-conclusao-servico-avaliacao-bilateral.md)
+- [ST-108 - Reserva do caso e conexao direta entre cliente e prestador](STORIES/DONE/ST-108-reserva-caso-conexao-direta-cliente-prestador.md)
 - [ST-107 - Notificacao confiavel para prestadores com links assinados](STORIES/DONE/ST-107-notificacao-confiavel-prestadores-links-assinados.md)
 - [ST-106 - Motor de disparo em ondas para prestadores](STORIES/DONE/ST-106-motor-disparo-ondas-prestadores.md)
 - [ST-105 - Matching geografico e elegibilidade de prestadores](STORIES/DONE/ST-105-matching-geografico-elegibilidade-prestadores.md)

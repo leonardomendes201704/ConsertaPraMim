@@ -11,6 +11,7 @@ namespace AppMobileCPM.Integrations.Journey;
 public sealed class JourneyServiceClosureService : IJourneyServiceClosureService
 {
     private readonly IAdminKanbanService _kanbanService;
+    private readonly IJourneyGovernanceService _journeyGovernanceService;
     private readonly IJourneyServiceClosureLinkService _linkService;
     private readonly ITelegramBridgeDeliveryClient _telegramBridgeDeliveryClient;
     private readonly JourneyProviderNotificationOptions _notificationOptions;
@@ -19,6 +20,7 @@ public sealed class JourneyServiceClosureService : IJourneyServiceClosureService
 
     public JourneyServiceClosureService(
         IAdminKanbanService kanbanService,
+        IJourneyGovernanceService journeyGovernanceService,
         IJourneyServiceClosureLinkService linkService,
         ITelegramBridgeDeliveryClient telegramBridgeDeliveryClient,
         IOptions<JourneyProviderNotificationOptions> notificationOptions,
@@ -26,6 +28,7 @@ public sealed class JourneyServiceClosureService : IJourneyServiceClosureService
         ILogger<JourneyServiceClosureService> logger)
     {
         _kanbanService = kanbanService;
+        _journeyGovernanceService = journeyGovernanceService;
         _linkService = linkService;
         _telegramBridgeDeliveryClient = telegramBridgeDeliveryClient;
         _notificationOptions = notificationOptions.Value;
@@ -38,6 +41,14 @@ public sealed class JourneyServiceClosureService : IJourneyServiceClosureService
         if (!_options.Enabled)
         {
             return new JourneyServiceClosureStartResult { Success = true, Message = "Encerramento automatico desabilitado no ambiente atual." };
+        }
+
+        var governanceDecision = _journeyGovernanceService.EvaluateStep(
+            JourneyGovernanceSteps.Closure,
+            AdminKanbanJourneySourceChannels.Landing);
+        if (!governanceDecision.Allowed)
+        {
+            return new JourneyServiceClosureStartResult { Message = governanceDecision.Reason };
         }
 
         var lead = _kanbanService.GetLeadDetails(leadId);
@@ -227,18 +238,21 @@ public sealed class JourneyServiceClosureService : IJourneyServiceClosureService
         var normalizedOutcome = JourneyServiceClosureProviderOutcomes.Normalize(outcome);
         if (!string.Equals(normalizedOutcome, JourneyServiceClosureProviderOutcomes.Completed, StringComparison.Ordinal))
         {
+            var exceptionPolicy = _journeyGovernanceService.ResolveOperationalException(
+                JourneyGovernanceReasonCodes.ProviderOutcomeException,
+                "Prestador registrou um desfecho que exige revisao operacional.");
             var status = string.Equals(normalizedOutcome, JourneyServiceClosureProviderOutcomes.ClientNoShow, StringComparison.Ordinal)
                 ? AdminKanbanJourneyClosureStatuses.ClientNoShow
                 : AdminKanbanJourneyClosureStatuses.LateCancellation;
             var label = JourneyServiceClosureProviderOutcomes.GetLabel(normalizedOutcome);
-            var description = $"O prestador registrou o desfecho '{label}' para o atendimento.";
+            var description = $"O prestador registrou o desfecho '{label}' para o atendimento. {exceptionPolicy.HandoffReason}.";
 
             _ = _kanbanService.UpdateJourneyClosure(lead.Id, BuildClosureUpdateFromLead(
                 lead,
                 status,
                 description,
-                AdminKanbanJourneyStates.OperationalException,
-                "jornada_conclusao_excecao",
+                exceptionPolicy.TargetState,
+                exceptionPolicy.HistoryEventType,
                 description,
                 nowUtc,
                 outcome: normalizedOutcome,
@@ -249,11 +263,11 @@ public sealed class JourneyServiceClosureService : IJourneyServiceClosureService
             {
                 LeadId = lead.Id,
                 BoardType = lead.BoardType,
-                TargetStageName = AdminKanbanJourneyClientStageNames.OperationalException,
-                TargetCurrentState = AdminKanbanJourneyStates.OperationalException,
+                TargetStageName = exceptionPolicy.TargetStageName,
+                TargetCurrentState = exceptionPolicy.TargetState,
                 Reason = description,
                 Origin = AdminKanbanJourneyAutomationOrigins.StateMachine,
-                HistoryEventType = "jornada_conclusao_excecao",
+                HistoryEventType = exceptionPolicy.HistoryEventType,
                 HistoryDescription = description,
                 MetadataJson = JsonSerializer.Serialize(new { outcome = normalizedOutcome, notes = notes.Trim() }),
                 ActiveTimerCode = string.Empty,
@@ -337,13 +351,16 @@ public sealed class JourneyServiceClosureService : IJourneyServiceClosureService
         var normalizedAction = JourneyServiceClosureReviewActions.Normalize(action);
         if (normalizedAction == JourneyServiceClosureReviewActions.Contest)
         {
+            var exceptionPolicy = _journeyGovernanceService.ResolveOperationalException(
+                JourneyGovernanceReasonCodes.ClientContestation,
+                "Cliente contestou a conclusao do atendimento.");
             _ = _kanbanService.UpdateJourneyClosure(lead.Id, BuildClosureUpdateFromLead(
                 lead,
                 AdminKanbanJourneyClosureStatuses.Contested,
-                "O cliente contestou a conclusao do atendimento.",
-                AdminKanbanJourneyStates.OperationalException,
-                "jornada_conclusao_contestada",
-                "O cliente contestou a conclusao do atendimento.",
+                exceptionPolicy.Summary,
+                exceptionPolicy.TargetState,
+                exceptionPolicy.HistoryEventType,
+                exceptionPolicy.Summary,
                 nowUtc,
                 outcome: AdminKanbanJourneyCompletionOutcomes.Contested,
                 contestedAtUtc: nowUtc,
@@ -354,12 +371,12 @@ public sealed class JourneyServiceClosureService : IJourneyServiceClosureService
             {
                 LeadId = lead.Id,
                 BoardType = lead.BoardType,
-                TargetStageName = AdminKanbanJourneyClientStageNames.OperationalException,
-                TargetCurrentState = AdminKanbanJourneyStates.OperationalException,
-                Reason = "Cliente contestou a conclusao do atendimento.",
+                TargetStageName = exceptionPolicy.TargetStageName,
+                TargetCurrentState = exceptionPolicy.TargetState,
+                Reason = exceptionPolicy.Summary,
                 Origin = AdminKanbanJourneyAutomationOrigins.StateMachine,
-                HistoryEventType = "jornada_conclusao_contestada",
-                HistoryDescription = "A jornada foi encaminhada para excecao operacional apos contestacao do cliente.",
+                HistoryEventType = exceptionPolicy.HistoryEventType,
+                HistoryDescription = exceptionPolicy.Summary,
                 MetadataJson = JsonSerializer.Serialize(new { reason = reason.Trim() }),
                 ActiveTimerCode = string.Empty,
                 ActiveTimerDueAtUtc = null

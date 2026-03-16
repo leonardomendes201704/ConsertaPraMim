@@ -40,16 +40,19 @@ public sealed class JourneyProviderMatchingService : IJourneyProviderMatchingSer
     ];
 
     private readonly IAdminKanbanService _kanbanService;
+    private readonly IJourneyGovernanceService _journeyGovernanceService;
     private readonly JourneyProviderMatchingOptions _options;
     private readonly ILogger<JourneyProviderMatchingService> _logger;
     private readonly TimeZoneInfo _businessTimeZone;
 
     public JourneyProviderMatchingService(
         IAdminKanbanService kanbanService,
+        IJourneyGovernanceService journeyGovernanceService,
         IOptions<JourneyProviderMatchingOptions> options,
         ILogger<JourneyProviderMatchingService> logger)
     {
         _kanbanService = kanbanService;
+        _journeyGovernanceService = journeyGovernanceService;
         _options = options.Value;
         _logger = logger;
         _businessTimeZone = ResolveTimeZone(_options.Timezone);
@@ -61,6 +64,15 @@ public sealed class JourneyProviderMatchingService : IJourneyProviderMatchingSer
 
         if (!_options.Enabled)
         {
+            return new JourneyProviderMatchingRunResult();
+        }
+
+        var governanceDecision = _journeyGovernanceService.EvaluateStep(
+            JourneyGovernanceSteps.Matching,
+            AdminKanbanJourneySourceChannels.Landing);
+        if (!governanceDecision.Allowed)
+        {
+            _logger.LogInformation("JourneyProviderMatchingService ignorado pela governanca. Motivo={Reason}.", governanceDecision.Reason);
             return new JourneyProviderMatchingRunResult();
         }
 
@@ -97,6 +109,10 @@ public sealed class JourneyProviderMatchingService : IJourneyProviderMatchingSer
                 !scheduleStartAtUtc.HasValue ||
                 !scheduleEndAtUtc.HasValue)
             {
+                var exceptionPolicy = _journeyGovernanceService.ResolveOperationalException(
+                    JourneyGovernanceReasonCodes.MatchingMissingData,
+                    "Matching nao executado porque a jornada nao possui categoria, coordenadas ou janela confirmada suficientes.");
+
                 PersistMatchingSnapshot(
                     journey,
                     normalizedNowUtc,
@@ -112,12 +128,12 @@ public sealed class JourneyProviderMatchingService : IJourneyProviderMatchingSer
                 {
                     LeadId = journey.LeadId,
                     BoardType = journey.BoardType,
-                    TargetStageName = AdminKanbanJourneyClientStageNames.OperationalException,
-                    TargetCurrentState = AdminKanbanJourneyStates.OperationalException,
-                    Reason = "Matching nao conseguiu rodar por falta de dados minimos da jornada.",
+                    TargetStageName = exceptionPolicy.TargetStageName,
+                    TargetCurrentState = exceptionPolicy.TargetState,
+                    Reason = exceptionPolicy.Summary,
                     Origin = AdminKanbanJourneyAutomationOrigins.MatchingEngine,
-                    HistoryEventType = "jornada_matching_dados_insuficientes",
-                    HistoryDescription = "A jornada foi movida para excecao operacional porque o matching nao encontrou categoria, coordenadas ou janela confirmada suficientes.",
+                    HistoryEventType = exceptionPolicy.HistoryEventType,
+                    HistoryDescription = exceptionPolicy.Summary,
                     MetadataJson = BuildMatchingMetadataJson(journey, requestedCategory, requestedSubcategory, [])
                 });
 

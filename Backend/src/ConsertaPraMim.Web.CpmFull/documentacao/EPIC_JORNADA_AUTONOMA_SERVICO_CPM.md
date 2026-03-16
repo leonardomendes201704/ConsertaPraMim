@@ -688,7 +688,7 @@ Como operacao, queremos controlar excecoes, medir a automacao e garantir rollout
 
 ### Status
 
-- Planejada.
+- Concluida.
 
 ### Criterios de aceite
 
@@ -705,6 +705,17 @@ Como operacao, queremos controlar excecoes, medir a automacao e garantir rollout
 - `TASK-10.04` Adicionar feature flags por canal e por etapa da automacao.
 - `TASK-10.05` Criar runbook de rollout, fallback e troubleshooting.
 - `TASK-10.06` Cobrir homologacao ponta a ponta com agenda, dispatch e reviews.
+
+### Entrega implementada
+
+- Foi criado o `JourneyGovernanceService`, responsavel por centralizar feature flags, rollout percentual, allowlist de canais e a matriz padrao de excecoes operacionais da jornada.
+- O intake da jornada agora respeita `JourneyGovernance`, permitindo ativar ou bloquear a automacao por canal e por bucket deterministico de rollout sem quebrar a captura do lead.
+- As etapas `StageAutomation`, `Matching`, `Dispatch` e `Closure` passaram a consultar a governanca antes de executar a automacao, permitindo rollout progressivo e rollback por etapa.
+- Excecoes como `pending_data_timeout`, `schedule_confirmation_timeout`, `matching_missing_data`, `provider_outcome_exception` e `client_contestation` passaram a convergir para uma resolucao operacional padronizada, com resumo de fallback e gatilho de handoff minimo.
+- O `Portal Admin` ganhou a nova view `/admin/jornada/painel`, com drawer de filtros e leitura operacional de volume, backlog por etapa, gargalos, excecoes, ondas de disparo e snapshot da governanca ativa.
+- O painel administrativo passou a exibir tambem o estado das feature flags da jornada, canais habilitados, percentual de rollout e principais indicadores de excecao/atraso para apoio ao rollout controlado.
+- Foi documentado o runbook de rollout, rollback e troubleshooting da jornada autonoma, incluindo checklists de homologacao ponta a ponta e criterios objetivos para saida do fluxo automatico.
+
 
 ## 16. Mudancas de dados previstas
 
@@ -754,6 +765,12 @@ Como operacao, queremos controlar excecoes, medir a automacao e garantir rollout
 8. `ST-108` - Reserva e conexao direta
 9. `ST-109` - Conclusao e avaliacao bilateral
 10. `ST-110` - Excecoes, observabilidade e rollout
+
+## 18.1 Status final do epic
+
+- `ST-101` a `ST-110`: concluidas.
+- Estado atual: `Completed`.
+- Resultado: a jornada autonoma agora cobre intake, qualificacao, agenda, Kanban autonomo, matching, disparo em ondas, aceite assinado, conexao direta, encerramento, avaliacao bilateral, governanca, observabilidade e rollout progressivo.
 
 ## 19. Diagrama de estados da jornada
 

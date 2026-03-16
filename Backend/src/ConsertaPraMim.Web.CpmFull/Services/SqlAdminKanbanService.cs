@@ -2117,6 +2117,354 @@ ORDER BY COUNT(1) DESC, Reason;
         };
     }
 
+    public AdminKanbanJourneyOperationsDashboardSnapshot GetJourneyOperationsDashboard(AdminKanbanJourneyOperationsDashboardFilter filter)
+    {
+        ArgumentNullException.ThrowIfNull(filter);
+
+        EnsureInitialized();
+        EnsureJourneySchemaInitialized();
+
+        if (filter.CreatedToUtcExclusive <= filter.CreatedFromUtc)
+        {
+            throw new InvalidOperationException("Periodo invalido para o painel da jornada.");
+        }
+
+        var normalizedBoardType = string.IsNullOrWhiteSpace(filter.BoardType)
+            ? null
+            : AdminKanbanBoardTypes.Normalize(filter.BoardType);
+        var normalizedSourceChannel = string.IsNullOrWhiteSpace(filter.SourceChannel)
+            ? null
+            : AdminKanbanJourneySourceChannels.Normalize(filter.SourceChannel);
+        var normalizedBreakdownLimit = Math.Clamp(filter.BreakdownLimit, 3, 20);
+
+        using var connection = OpenConnection();
+        using var command = connection.CreateCommand();
+        command.CommandText = $"""
+DECLARE @scoped TABLE
+(
+    JourneyId INT NOT NULL,
+    LeadId INT NOT NULL,
+    BoardType NVARCHAR(30) NOT NULL,
+    StageName NVARCHAR(120) NOT NULL,
+    SourceChannel NVARCHAR(40) NOT NULL,
+    CurrentState NVARCHAR(40) NOT NULL,
+    ServiceCategory NVARCHAR(160) NULL,
+    City NVARCHAR(120) NULL,
+    CreatedAt DATETIME2 NOT NULL,
+    SchedulingStatus NVARCHAR(40) NULL,
+    SchedulingConfirmedAtUtc DATETIME2 NULL,
+    DispatchStatus NVARCHAR(40) NULL,
+    DispatchCurrentWaveNumber INT NULL,
+    DispatchReservedProviderId UNIQUEIDENTIFIER NULL,
+    DispatchReservedAtUtc DATETIME2 NULL,
+    ClosureStatus NVARCHAR(40) NULL,
+    ClosureCompletedAtUtc DATETIME2 NULL,
+    LastStageAutomationReason NVARCHAR(180) NULL,
+    ActiveTimerDueAtUtc DATETIME2 NULL
+);
+
+INSERT INTO @scoped
+(
+    JourneyId,
+    LeadId,
+    BoardType,
+    StageName,
+    SourceChannel,
+    CurrentState,
+    ServiceCategory,
+    City,
+    CreatedAt,
+    SchedulingStatus,
+    SchedulingConfirmedAtUtc,
+    DispatchStatus,
+    DispatchCurrentWaveNumber,
+    DispatchReservedProviderId,
+    DispatchReservedAtUtc,
+    ClosureStatus,
+    ClosureCompletedAtUtc,
+    LastStageAutomationReason,
+    ActiveTimerDueAtUtc
+)
+SELECT
+    j.Id,
+    j.LeadId,
+    j.BoardType,
+    s.Name,
+    j.SourceChannel,
+    j.CurrentState,
+    NULLIF(LTRIM(RTRIM(COALESCE(j.MatchingRequestedCategory, l.ServiceCategory))), ''),
+    NULLIF(LTRIM(RTRIM(COALESCE(JSON_VALUE(j.QualificationJson, '$.city'), l.City))), ''),
+    j.CreatedAt,
+    j.SchedulingStatus,
+    j.SchedulingConfirmedAtUtc,
+    j.DispatchStatus,
+    j.DispatchCurrentWaveNumber,
+    j.DispatchReservedProviderId,
+    j.DispatchReservedAtUtc,
+    j.ClosureStatus,
+    j.ClosureCompletedAtUtc,
+    j.LastStageAutomationReason,
+    j.ActiveTimerDueAtUtc
+FROM dbo.{TablePrefix}journey_executions j
+INNER JOIN dbo.{TablePrefix}kanban_leads l ON l.Id = j.LeadId AND l.IsActive = 1
+INNER JOIN dbo.{TablePrefix}kanban_stages s ON s.Id = l.StageId
+WHERE j.CreatedAt >= @createdFromUtc
+  AND j.CreatedAt < @createdToUtcExclusive
+  AND (@boardType IS NULL OR j.BoardType = @boardType)
+  AND (@sourceChannel IS NULL OR j.SourceChannel = @sourceChannel);
+
+SELECT
+    COUNT(1) AS TotalJourneys,
+    SUM(CASE WHEN CurrentState IN ('agendamento_confirmado', 'em_matching', 'disparo_prestadores', 'aguardando_aceite', 'prestador_conectado', 'servico_em_andamento', 'aguardando_confirmacao_conclusao', 'aguardando_avaliacao_cliente', 'aguardando_avaliacao_prestador', 'concluido') THEN 1 ELSE 0 END) AS ScheduledJourneys,
+    SUM(CASE WHEN CurrentState = 'prestador_conectado' THEN 1 ELSE 0 END) AS ProviderConnectedJourneys,
+    SUM(CASE WHEN CurrentState = 'concluido' THEN 1 ELSE 0 END) AS CompletedJourneys,
+    SUM(CASE WHEN ClosureStatus = 'concluido' THEN 1 ELSE 0 END) AS ReviewCompletedJourneys,
+    SUM(CASE WHEN CurrentState = 'excecao_operacional' THEN 1 ELSE 0 END) AS OperationalExceptionJourneys,
+    SUM(CASE WHEN CurrentState = 'sem_match' THEN 1 ELSE 0 END) AS NoMatchJourneys,
+    SUM(CASE WHEN SchedulingStatus IN ('sem_disponibilidade', 'cancelado') THEN 1 ELSE 0 END) AS ScheduleFailureJourneys,
+    SUM(CASE WHEN DispatchStatus IN ('esgotado', 'cancelado') THEN 1 ELSE 0 END) AS DispatchFailureJourneys,
+    SUM(CASE WHEN ClosureStatus = 'contestado' THEN 1 ELSE 0 END) AS ContestationJourneys,
+    SUM(CASE WHEN ActiveTimerDueAtUtc IS NOT NULL AND ActiveTimerDueAtUtc <= SYSUTCDATETIME() THEN 1 ELSE 0 END) AS ActiveTimerOverdueJourneys,
+    CAST(AVG(CASE WHEN SchedulingConfirmedAtUtc IS NOT NULL THEN CAST(DATEDIFF(MINUTE, CreatedAt, SchedulingConfirmedAtUtc) AS DECIMAL(18,2)) / 60.0 END) AS DECIMAL(18,2)) AS AverageHoursToSchedule,
+    CAST(AVG(CASE WHEN DispatchReservedAtUtc IS NOT NULL THEN CAST(DATEDIFF(MINUTE, CreatedAt, DispatchReservedAtUtc) AS DECIMAL(18,2)) / 60.0 END) AS DECIMAL(18,2)) AS AverageHoursToReserve,
+    CAST(AVG(CASE WHEN ClosureCompletedAtUtc IS NOT NULL THEN CAST(DATEDIFF(MINUTE, CreatedAt, ClosureCompletedAtUtc) AS DECIMAL(18,2)) / 60.0 END) AS DECIMAL(18,2)) AS AverageHoursToComplete
+FROM @scoped;
+
+SELECT
+    SourceChannel,
+    COUNT(1) AS TotalJourneys,
+    SUM(CASE WHEN CurrentState = 'concluido' THEN 1 ELSE 0 END) AS CompletedJourneys,
+    SUM(CASE WHEN CurrentState = 'excecao_operacional' THEN 1 ELSE 0 END) AS OperationalExceptionJourneys,
+    SUM(CASE WHEN CurrentState = 'sem_match' THEN 1 ELSE 0 END) AS NoMatchJourneys
+FROM @scoped
+GROUP BY SourceChannel
+ORDER BY COUNT(1) DESC, SourceChannel;
+
+SELECT
+    CurrentState,
+    COUNT(1) AS TotalJourneys,
+    SUM(CASE WHEN CurrentState = 'concluido' THEN 1 ELSE 0 END) AS CompletedJourneys,
+    SUM(CASE WHEN CurrentState = 'excecao_operacional' THEN 1 ELSE 0 END) AS OperationalExceptionJourneys,
+    SUM(CASE WHEN CurrentState = 'sem_match' THEN 1 ELSE 0 END) AS NoMatchJourneys,
+    CAST(AVG(CAST(DATEDIFF(MINUTE, CreatedAt, SYSUTCDATETIME()) AS DECIMAL(18,2)) / 60.0) AS DECIMAL(18,2)) AS AverageJourneyAgeHours
+FROM @scoped
+GROUP BY CurrentState
+ORDER BY COUNT(1) DESC, CurrentState;
+
+SELECT TOP (@breakdownLimit)
+    COALESCE(ServiceCategory, 'Nao informada') AS Category,
+    COUNT(1) AS TotalJourneys,
+    SUM(CASE WHEN CurrentState = 'concluido' THEN 1 ELSE 0 END) AS CompletedJourneys,
+    SUM(CASE WHEN CurrentState = 'sem_match' THEN 1 ELSE 0 END) AS NoMatchJourneys,
+    SUM(CASE WHEN CurrentState = 'excecao_operacional' THEN 1 ELSE 0 END) AS OperationalExceptionJourneys
+FROM @scoped
+GROUP BY COALESCE(ServiceCategory, 'Nao informada')
+ORDER BY COUNT(1) DESC, Category;
+
+SELECT TOP (@breakdownLimit)
+    COALESCE(City, 'Nao informada') AS City,
+    COUNT(1) AS TotalJourneys,
+    SUM(CASE WHEN CurrentState = 'concluido' THEN 1 ELSE 0 END) AS CompletedJourneys,
+    SUM(CASE WHEN CurrentState = 'sem_match' THEN 1 ELSE 0 END) AS NoMatchJourneys,
+    SUM(CASE WHEN CurrentState = 'excecao_operacional' THEN 1 ELSE 0 END) AS OperationalExceptionJourneys
+FROM @scoped
+GROUP BY COALESCE(City, 'Nao informada')
+ORDER BY COUNT(1) DESC, City;
+
+SELECT TOP (@breakdownLimit)
+    COALESCE(NULLIF(LTRIM(RTRIM(LastStageAutomationReason)), ''), 'Sem motivo registrado') AS Reason,
+    COUNT(1) AS TotalJourneys
+FROM @scoped
+WHERE CurrentState = 'excecao_operacional'
+GROUP BY COALESCE(NULLIF(LTRIM(RTRIM(LastStageAutomationReason)), ''), 'Sem motivo registrado')
+ORDER BY COUNT(1) DESC, Reason;
+
+SELECT
+    COALESCE(DispatchCurrentWaveNumber, 0) AS WaveNumber,
+    COUNT(1) AS TotalJourneys,
+    SUM(CASE WHEN DispatchReservedProviderId IS NOT NULL THEN 1 ELSE 0 END) AS ReservedJourneys,
+    SUM(CASE WHEN CurrentState = 'concluido' THEN 1 ELSE 0 END) AS CompletedJourneys,
+    SUM(CASE WHEN CurrentState = 'excecao_operacional' THEN 1 ELSE 0 END) AS OperationalExceptionJourneys
+FROM @scoped
+WHERE COALESCE(DispatchCurrentWaveNumber, 0) > 0
+GROUP BY COALESCE(DispatchCurrentWaveNumber, 0)
+ORDER BY WaveNumber;
+
+SELECT TOP (@breakdownLimit)
+    BoardType,
+    StageName,
+    COUNT(1) AS TotalLeads,
+    SUM(CASE WHEN ActiveTimerDueAtUtc IS NOT NULL AND ActiveTimerDueAtUtc <= SYSUTCDATETIME() THEN 1 ELSE 0 END) AS OverdueTimerJourneys,
+    SUM(CASE WHEN CurrentState = 'excecao_operacional' THEN 1 ELSE 0 END) AS OperationalExceptionJourneys,
+    SUM(CASE WHEN CurrentState = 'sem_match' THEN 1 ELSE 0 END) AS NoMatchJourneys,
+    CAST(AVG(CAST(DATEDIFF(MINUTE, CreatedAt, SYSUTCDATETIME()) AS DECIMAL(18,2)) / 60.0) AS DECIMAL(18,2)) AS AverageLeadAgeHours
+FROM @scoped
+GROUP BY BoardType, StageName
+ORDER BY COUNT(1) DESC, StageName;
+""";
+        command.Parameters.AddRange(
+        [
+            new SqlParameter("@createdFromUtc", SqlDbType.DateTime2) { Value = filter.CreatedFromUtc },
+            new SqlParameter("@createdToUtcExclusive", SqlDbType.DateTime2) { Value = filter.CreatedToUtcExclusive },
+            new SqlParameter("@boardType", SqlDbType.NVarChar, 30) { Value = ToDbValue(normalizedBoardType) },
+            new SqlParameter("@sourceChannel", SqlDbType.NVarChar, 40) { Value = ToDbValue(normalizedSourceChannel) },
+            new SqlParameter("@breakdownLimit", SqlDbType.Int) { Value = normalizedBreakdownLimit }
+        ]);
+
+        var snapshot = new AdminKanbanJourneyOperationsDashboardSnapshot
+        {
+            ScopeBoardType = normalizedBoardType ?? string.Empty,
+            ScopeSourceChannel = normalizedSourceChannel ?? string.Empty,
+            CreatedFromUtc = filter.CreatedFromUtc,
+            CreatedToUtcExclusive = filter.CreatedToUtcExclusive
+        };
+
+        using var reader = command.ExecuteReader();
+        if (reader.Read())
+        {
+            snapshot = snapshot with
+            {
+                TotalJourneys = reader.IsDBNull(0) ? 0 : reader.GetInt32(0),
+                ScheduledJourneys = reader.IsDBNull(1) ? 0 : reader.GetInt32(1),
+                ProviderConnectedJourneys = reader.IsDBNull(2) ? 0 : reader.GetInt32(2),
+                CompletedJourneys = reader.IsDBNull(3) ? 0 : reader.GetInt32(3),
+                ReviewCompletedJourneys = reader.IsDBNull(4) ? 0 : reader.GetInt32(4),
+                OperationalExceptionJourneys = reader.IsDBNull(5) ? 0 : reader.GetInt32(5),
+                NoMatchJourneys = reader.IsDBNull(6) ? 0 : reader.GetInt32(6),
+                ScheduleFailureJourneys = reader.IsDBNull(7) ? 0 : reader.GetInt32(7),
+                DispatchFailureJourneys = reader.IsDBNull(8) ? 0 : reader.GetInt32(8),
+                ContestationJourneys = reader.IsDBNull(9) ? 0 : reader.GetInt32(9),
+                ActiveTimerOverdueJourneys = reader.IsDBNull(10) ? 0 : reader.GetInt32(10),
+                AverageHoursToSchedule = reader.IsDBNull(11) ? null : reader.GetDecimal(11),
+                AverageHoursToReserve = reader.IsDBNull(12) ? null : reader.GetDecimal(12),
+                AverageHoursToComplete = reader.IsDBNull(13) ? null : reader.GetDecimal(13)
+            };
+        }
+
+        var sourceBreakdown = new List<AdminKanbanJourneyOperationsSourceBreakdownRecord>();
+        if (reader.NextResult())
+        {
+            while (reader.Read())
+            {
+                sourceBreakdown.Add(new AdminKanbanJourneyOperationsSourceBreakdownRecord
+                {
+                    SourceChannel = reader.IsDBNull(0) ? string.Empty : reader.GetString(0),
+                    TotalJourneys = reader.IsDBNull(1) ? 0 : reader.GetInt32(1),
+                    CompletedJourneys = reader.IsDBNull(2) ? 0 : reader.GetInt32(2),
+                    OperationalExceptionJourneys = reader.IsDBNull(3) ? 0 : reader.GetInt32(3),
+                    NoMatchJourneys = reader.IsDBNull(4) ? 0 : reader.GetInt32(4)
+                });
+            }
+        }
+
+        var stateBreakdown = new List<AdminKanbanJourneyOperationsStateBreakdownRecord>();
+        if (reader.NextResult())
+        {
+            while (reader.Read())
+            {
+                stateBreakdown.Add(new AdminKanbanJourneyOperationsStateBreakdownRecord
+                {
+                    CurrentState = reader.IsDBNull(0) ? string.Empty : reader.GetString(0),
+                    TotalJourneys = reader.IsDBNull(1) ? 0 : reader.GetInt32(1),
+                    CompletedJourneys = reader.IsDBNull(2) ? 0 : reader.GetInt32(2),
+                    OperationalExceptionJourneys = reader.IsDBNull(3) ? 0 : reader.GetInt32(3),
+                    NoMatchJourneys = reader.IsDBNull(4) ? 0 : reader.GetInt32(4),
+                    AverageJourneyAgeHours = reader.IsDBNull(5) ? null : reader.GetDecimal(5)
+                });
+            }
+        }
+
+        var categories = new List<AdminKanbanJourneyOperationsCategoryBreakdownRecord>();
+        if (reader.NextResult())
+        {
+            while (reader.Read())
+            {
+                categories.Add(new AdminKanbanJourneyOperationsCategoryBreakdownRecord
+                {
+                    Category = reader.IsDBNull(0) ? "Nao informada" : reader.GetString(0),
+                    TotalJourneys = reader.IsDBNull(1) ? 0 : reader.GetInt32(1),
+                    CompletedJourneys = reader.IsDBNull(2) ? 0 : reader.GetInt32(2),
+                    NoMatchJourneys = reader.IsDBNull(3) ? 0 : reader.GetInt32(3),
+                    OperationalExceptionJourneys = reader.IsDBNull(4) ? 0 : reader.GetInt32(4)
+                });
+            }
+        }
+
+        var cities = new List<AdminKanbanJourneyOperationsCityBreakdownRecord>();
+        if (reader.NextResult())
+        {
+            while (reader.Read())
+            {
+                cities.Add(new AdminKanbanJourneyOperationsCityBreakdownRecord
+                {
+                    City = reader.IsDBNull(0) ? "Nao informada" : reader.GetString(0),
+                    TotalJourneys = reader.IsDBNull(1) ? 0 : reader.GetInt32(1),
+                    CompletedJourneys = reader.IsDBNull(2) ? 0 : reader.GetInt32(2),
+                    NoMatchJourneys = reader.IsDBNull(3) ? 0 : reader.GetInt32(3),
+                    OperationalExceptionJourneys = reader.IsDBNull(4) ? 0 : reader.GetInt32(4)
+                });
+            }
+        }
+
+        var exceptionReasons = new List<AdminKanbanJourneyOperationsExceptionReasonRecord>();
+        if (reader.NextResult())
+        {
+            while (reader.Read())
+            {
+                exceptionReasons.Add(new AdminKanbanJourneyOperationsExceptionReasonRecord
+                {
+                    Reason = reader.IsDBNull(0) ? "Sem motivo registrado" : reader.GetString(0),
+                    TotalJourneys = reader.IsDBNull(1) ? 0 : reader.GetInt32(1)
+                });
+            }
+        }
+
+        var waveBreakdown = new List<AdminKanbanJourneyOperationsWaveBreakdownRecord>();
+        if (reader.NextResult())
+        {
+            while (reader.Read())
+            {
+                waveBreakdown.Add(new AdminKanbanJourneyOperationsWaveBreakdownRecord
+                {
+                    WaveNumber = reader.IsDBNull(0) ? 0 : reader.GetInt32(0),
+                    TotalJourneys = reader.IsDBNull(1) ? 0 : reader.GetInt32(1),
+                    ReservedJourneys = reader.IsDBNull(2) ? 0 : reader.GetInt32(2),
+                    CompletedJourneys = reader.IsDBNull(3) ? 0 : reader.GetInt32(3),
+                    OperationalExceptionJourneys = reader.IsDBNull(4) ? 0 : reader.GetInt32(4)
+                });
+            }
+        }
+
+        var stageBacklog = new List<AdminKanbanJourneyOperationsStageBacklogRecord>();
+        if (reader.NextResult())
+        {
+            while (reader.Read())
+            {
+                stageBacklog.Add(new AdminKanbanJourneyOperationsStageBacklogRecord
+                {
+                    BoardType = reader.IsDBNull(0) ? string.Empty : reader.GetString(0),
+                    StageName = reader.IsDBNull(1) ? string.Empty : reader.GetString(1),
+                    TotalLeads = reader.IsDBNull(2) ? 0 : reader.GetInt32(2),
+                    OverdueTimerJourneys = reader.IsDBNull(3) ? 0 : reader.GetInt32(3),
+                    OperationalExceptionJourneys = reader.IsDBNull(4) ? 0 : reader.GetInt32(4),
+                    NoMatchJourneys = reader.IsDBNull(5) ? 0 : reader.GetInt32(5),
+                    AverageLeadAgeHours = reader.IsDBNull(6) ? null : reader.GetDecimal(6)
+                });
+            }
+        }
+
+        return snapshot with
+        {
+            SourceBreakdown = sourceBreakdown,
+            StateBreakdown = stateBreakdown,
+            TopCategories = categories,
+            TopCities = cities,
+            ExceptionReasons = exceptionReasons,
+            WaveBreakdown = waveBreakdown,
+            StageBacklog = stageBacklog
+        };
+    }
+
     public AdminKanbanChatwootDiagnosticsSnapshot GetChatwootDiagnostics(string? boardType, int issueLimit, int queueLimit)
     {
         EnsureInitialized();

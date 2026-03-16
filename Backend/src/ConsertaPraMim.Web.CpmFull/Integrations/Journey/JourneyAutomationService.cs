@@ -10,6 +10,7 @@ public sealed class JourneyAutomationService : IJourneyAutomationService
 
     private readonly IAdminKanbanService _kanbanService;
     private readonly IChatwootLeadSyncService _chatwootLeadSyncService;
+    private readonly IJourneyGovernanceService _journeyGovernanceService;
     private readonly IJourneyQualificationService _journeyQualificationService;
     private readonly JourneyAutomationOptions _options;
     private readonly ILogger<JourneyAutomationService> _logger;
@@ -17,12 +18,14 @@ public sealed class JourneyAutomationService : IJourneyAutomationService
     public JourneyAutomationService(
         IAdminKanbanService kanbanService,
         IChatwootLeadSyncService chatwootLeadSyncService,
+        IJourneyGovernanceService journeyGovernanceService,
         IJourneyQualificationService journeyQualificationService,
         IOptions<JourneyAutomationOptions> options,
         ILogger<JourneyAutomationService> logger)
     {
         _kanbanService = kanbanService;
         _chatwootLeadSyncService = chatwootLeadSyncService;
+        _journeyGovernanceService = journeyGovernanceService;
         _journeyQualificationService = journeyQualificationService;
         _options = options.Value;
         _logger = logger;
@@ -59,6 +62,15 @@ public sealed class JourneyAutomationService : IJourneyAutomationService
         if (normalizedBoardType == AdminKanbanBoardTypes.Providers && !_options.ProvidersAutomationEnabled)
         {
             return JourneyAutomationResult.Fail(StatusCodes.Status409Conflict, "Automacao de jornada para prestadores desabilitada no ambiente atual.");
+        }
+
+        var governanceDecision = _journeyGovernanceService.EvaluateIntake(
+            normalizedBoardType,
+            request.SourceChannel,
+            BuildStableKey(request));
+        if (!governanceDecision.Allowed)
+        {
+            return JourneyAutomationResult.Fail(StatusCodes.Status409Conflict, governanceDecision.Reason);
         }
 
         if (string.IsNullOrWhiteSpace(request.Name))
@@ -155,6 +167,41 @@ public sealed class JourneyAutomationService : IJourneyAutomationService
     private bool IsSecretValid(string providedSecret) =>
         !string.IsNullOrWhiteSpace(providedSecret) &&
         string.Equals(providedSecret.Trim(), _options.SharedSecret.Trim(), StringComparison.Ordinal);
+
+    private static string BuildStableKey(JourneyAutomationRequest request)
+    {
+        if (request.TelegramChatId.HasValue && request.TelegramChatId.Value > 0)
+        {
+            return $"telegram:{request.TelegramChatId.Value}";
+        }
+
+        if (request.ChatbotConversationId.HasValue && request.ChatbotConversationId.Value != Guid.Empty)
+        {
+            return $"conversation:{request.ChatbotConversationId.Value:N}";
+        }
+
+        if (request.ServiceRequestId.HasValue && request.ServiceRequestId.Value != Guid.Empty)
+        {
+            return $"service-request:{request.ServiceRequestId.Value:N}";
+        }
+
+        if (request.LandingLeadId.HasValue && request.LandingLeadId.Value != Guid.Empty)
+        {
+            return $"landing:{request.LandingLeadId.Value:N}";
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Phone))
+        {
+            return $"phone:{request.Phone.Trim()}";
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Email))
+        {
+            return $"email:{request.Email.Trim().ToLowerInvariant()}";
+        }
+
+        return $"{request.SourceChannel}:{request.Name.Trim().ToLowerInvariant()}";
+    }
 
     private static AdminKanbanJourneyQualificationRecord ToQualificationRecord(JourneyQualificationResult qualification) =>
         new()

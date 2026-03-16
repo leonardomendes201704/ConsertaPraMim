@@ -172,8 +172,29 @@ public sealed class JourneyServiceClosureServiceTests
         IJourneyServiceClosureLinkService linkService,
         ITelegramBridgeDeliveryClient telegramClient)
     {
+        var governanceService = new Mock<IJourneyGovernanceService>(MockBehavior.Strict);
+        governanceService
+            .Setup(service => service.EvaluateStep(JourneyGovernanceSteps.Closure, AdminKanbanJourneySourceChannels.Landing))
+            .Returns(new JourneyGovernanceDecision
+            {
+                Allowed = true,
+                Step = JourneyGovernanceSteps.Closure,
+                Reason = "Etapa liberada pela governanca."
+            });
+        governanceService
+            .Setup(service => service.ResolveOperationalException(It.IsAny<string>(), It.IsAny<string>()))
+            .Returns<string, string>((reasonCode, fallbackSummary) => new JourneyOperationalExceptionPolicy
+            {
+                ReasonCode = reasonCode,
+                Summary = fallbackSummary,
+                HistoryEventType = reasonCode == JourneyGovernanceReasonCodes.ClientContestation
+                    ? "jornada_conclusao_contestada"
+                    : "jornada_conclusao_excecao"
+            });
+
         return new JourneyServiceClosureService(
             kanbanService,
+            governanceService.Object,
             linkService,
             telegramClient,
             Options.Create(new JourneyProviderNotificationOptions

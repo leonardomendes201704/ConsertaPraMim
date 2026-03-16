@@ -905,6 +905,107 @@ public sealed record class AdminKanbanTelegramBusinessDashboardSnapshot
     public IReadOnlyList<AdminKanbanTelegramBusinessHandoffReasonRecord> HandoffReasons { get; init; } = [];
 }
 
+public sealed class AdminKanbanJourneyOperationsDashboardFilter
+{
+    public string? BoardType { get; init; }
+    public string? SourceChannel { get; init; }
+    public DateTime CreatedFromUtc { get; init; }
+    public DateTime CreatedToUtcExclusive { get; init; }
+    public int BreakdownLimit { get; init; } = 8;
+}
+
+public sealed record class AdminKanbanJourneyOperationsSourceBreakdownRecord
+{
+    public string SourceChannel { get; init; } = string.Empty;
+    public int TotalJourneys { get; init; }
+    public int CompletedJourneys { get; init; }
+    public int OperationalExceptionJourneys { get; init; }
+    public int NoMatchJourneys { get; init; }
+}
+
+public sealed record class AdminKanbanJourneyOperationsStateBreakdownRecord
+{
+    public string CurrentState { get; init; } = string.Empty;
+    public int TotalJourneys { get; init; }
+    public int CompletedJourneys { get; init; }
+    public int OperationalExceptionJourneys { get; init; }
+    public int NoMatchJourneys { get; init; }
+    public decimal? AverageJourneyAgeHours { get; init; }
+}
+
+public sealed record class AdminKanbanJourneyOperationsCategoryBreakdownRecord
+{
+    public string Category { get; init; } = string.Empty;
+    public int TotalJourneys { get; init; }
+    public int CompletedJourneys { get; init; }
+    public int NoMatchJourneys { get; init; }
+    public int OperationalExceptionJourneys { get; init; }
+}
+
+public sealed record class AdminKanbanJourneyOperationsCityBreakdownRecord
+{
+    public string City { get; init; } = string.Empty;
+    public int TotalJourneys { get; init; }
+    public int CompletedJourneys { get; init; }
+    public int NoMatchJourneys { get; init; }
+    public int OperationalExceptionJourneys { get; init; }
+}
+
+public sealed record class AdminKanbanJourneyOperationsExceptionReasonRecord
+{
+    public string Reason { get; init; } = string.Empty;
+    public int TotalJourneys { get; init; }
+}
+
+public sealed record class AdminKanbanJourneyOperationsWaveBreakdownRecord
+{
+    public int WaveNumber { get; init; }
+    public int TotalJourneys { get; init; }
+    public int ReservedJourneys { get; init; }
+    public int CompletedJourneys { get; init; }
+    public int OperationalExceptionJourneys { get; init; }
+}
+
+public sealed record class AdminKanbanJourneyOperationsStageBacklogRecord
+{
+    public string BoardType { get; init; } = string.Empty;
+    public string StageName { get; init; } = string.Empty;
+    public int TotalLeads { get; init; }
+    public int OverdueTimerJourneys { get; init; }
+    public int OperationalExceptionJourneys { get; init; }
+    public int NoMatchJourneys { get; init; }
+    public decimal? AverageLeadAgeHours { get; init; }
+}
+
+public sealed record class AdminKanbanJourneyOperationsDashboardSnapshot
+{
+    public string ScopeBoardType { get; init; } = string.Empty;
+    public string ScopeSourceChannel { get; init; } = string.Empty;
+    public DateTime CreatedFromUtc { get; init; }
+    public DateTime CreatedToUtcExclusive { get; init; }
+    public int TotalJourneys { get; init; }
+    public int ScheduledJourneys { get; init; }
+    public int ProviderConnectedJourneys { get; init; }
+    public int CompletedJourneys { get; init; }
+    public int ReviewCompletedJourneys { get; init; }
+    public int OperationalExceptionJourneys { get; init; }
+    public int NoMatchJourneys { get; init; }
+    public int ScheduleFailureJourneys { get; init; }
+    public int DispatchFailureJourneys { get; init; }
+    public int ContestationJourneys { get; init; }
+    public int ActiveTimerOverdueJourneys { get; init; }
+    public decimal? AverageHoursToSchedule { get; init; }
+    public decimal? AverageHoursToReserve { get; init; }
+    public decimal? AverageHoursToComplete { get; init; }
+    public IReadOnlyList<AdminKanbanJourneyOperationsSourceBreakdownRecord> SourceBreakdown { get; init; } = [];
+    public IReadOnlyList<AdminKanbanJourneyOperationsStateBreakdownRecord> StateBreakdown { get; init; } = [];
+    public IReadOnlyList<AdminKanbanJourneyOperationsCategoryBreakdownRecord> TopCategories { get; init; } = [];
+    public IReadOnlyList<AdminKanbanJourneyOperationsCityBreakdownRecord> TopCities { get; init; } = [];
+    public IReadOnlyList<AdminKanbanJourneyOperationsExceptionReasonRecord> ExceptionReasons { get; init; } = [];
+    public IReadOnlyList<AdminKanbanJourneyOperationsWaveBreakdownRecord> WaveBreakdown { get; init; } = [];
+    public IReadOnlyList<AdminKanbanJourneyOperationsStageBacklogRecord> StageBacklog { get; init; } = [];
+}
+
 public sealed class AdminKanbanJourneyIntakeRequest
 {
     public required string BoardType { get; init; }

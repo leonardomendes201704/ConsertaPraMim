@@ -37,6 +37,7 @@ builder.Services.AddScoped<IChatwootLeadSyncService, ChatwootLeadSyncService>();
 builder.Services.AddScoped<IChatwootBackfillService, ChatwootBackfillService>();
 builder.Services.AddScoped<IChatwootWebhookService, ChatwootWebhookService>();
 builder.Services.AddScoped<IJourneyAutomationService, JourneyAutomationService>();
+builder.Services.AddScoped<IJourneyGovernanceService, JourneyGovernanceService>();
 builder.Services.AddScoped<IJourneyQualificationService, JourneyQualificationService>();
 builder.Services.AddScoped<IJourneySchedulingService, JourneySchedulingService>();
 builder.Services.AddScoped<IJourneyProviderMatchingService, JourneyProviderMatchingService>();
@@ -63,6 +64,7 @@ builder.Services.AddHostedService<TelegramDeliveryWorker>();
 builder.Services.AddHostedService<TelegramDeliveryRetentionWorker>();
 builder.Services.AddSingleton<IValidateOptions<ChatwootOptions>, ChatwootOptionsValidator>();
 builder.Services.AddSingleton<IValidateOptions<JourneyAutomationOptions>, JourneyAutomationOptionsValidator>();
+builder.Services.AddSingleton<IValidateOptions<JourneyGovernanceOptions>, JourneyGovernanceOptionsValidator>();
 builder.Services.AddSingleton<IValidateOptions<JourneyQualificationOptions>, JourneyQualificationOptionsValidator>();
 builder.Services.AddSingleton<IValidateOptions<JourneySchedulingOptions>, JourneySchedulingOptionsValidator>();
 builder.Services.AddSingleton<IValidateOptions<JourneyProviderMatchingOptions>, JourneyProviderMatchingOptionsValidator>();
@@ -76,6 +78,9 @@ builder.Services.AddOptions<ChatwootOptions>()
     .ValidateOnStart();
 builder.Services.AddOptions<JourneyAutomationOptions>()
     .Bind(builder.Configuration.GetSection(JourneyAutomationOptions.SectionName))
+    .ValidateOnStart();
+builder.Services.AddOptions<JourneyGovernanceOptions>()
+    .Bind(builder.Configuration.GetSection(JourneyGovernanceOptions.SectionName))
     .ValidateOnStart();
 builder.Services.AddOptions<JourneyQualificationOptions>()
     .Bind(builder.Configuration.GetSection(JourneyQualificationOptions.SectionName))
