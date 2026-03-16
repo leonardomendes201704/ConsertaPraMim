@@ -652,7 +652,7 @@ Como plataforma, queremos fechar a jornada apos o atendimento com confirmacao de
 
 ### Status
 
-- Planejada.
+- Concluida.
 
 ### Criterios de aceite
 
@@ -669,6 +669,16 @@ Como plataforma, queremos fechar a jornada apos o atendimento com confirmacao de
 - `TASK-09.04` Persistir avaliacoes, comentarios e motivos de nota baixa.
 - `TASK-09.05` Atualizar score operacional de prestador e historico do cliente.
 - `TASK-09.06` Cobrir no-show, cancelamento tardio e servico contestado.
+
+### Entrega implementada
+
+- O `JourneyServiceClosureService` passou a iniciar automaticamente o encerramento da jornada logo apos a conexao direta entre cliente e prestador.
+- Foram criados links assinados e expiraveis para o prestador registrar o desfecho do atendimento, para o cliente confirmar ou contestar a conclusao e para as duas partes enviarem a avaliacao final.
+- O snapshot da jornada agora persiste `ClosureStatus`, `ClosureOutcome`, timestamps de servico/conclusao/contestacao e as duas avaliacoes com nota, comentario, motivo de nota baixa e indicador de recompra.
+- O `Kanban` ganhou a nova secao `Encerramento e avaliacoes`, exibindo status, desfecho, contestacao e o andamento da avaliacao bilateral.
+- No-show do cliente, cancelamento tardio e contestacao do servico agora tiram o caso do fluxo automatico e encaminham a jornada para `Excecao operacional`.
+- Quando o cliente confirma a conclusao, a jornada avanca para `Aguardando avaliacao do cliente`; depois da avaliacao do cliente, passa para `Aguardando avaliacao do prestador`; apos a avaliacao final do prestador, o card e concluido automaticamente.
+- Foram adicionados testes dedicados para token assinado do encerramento, fluxo de contestacao, avaliacao do cliente e ajuste da conexao direta para iniciar a trilha de encerramento.
 
 ## US-10 / ST-110 - Excecoes, handoff minimo, observabilidade e rollout
 

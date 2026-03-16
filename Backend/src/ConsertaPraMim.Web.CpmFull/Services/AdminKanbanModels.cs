@@ -467,6 +467,90 @@ public static class AdminKanbanJourneyDispatchInteractionTypes
     };
 }
 
+public static class AdminKanbanJourneyClosureStatuses
+{
+    public const string NotStarted = "nao_iniciado";
+    public const string ServiceInProgress = "servico_em_andamento";
+    public const string WaitingClientConfirmation = "aguardando_confirmacao_cliente";
+    public const string WaitingClientReview = "aguardando_avaliacao_cliente";
+    public const string WaitingProviderReview = "aguardando_avaliacao_prestador";
+    public const string Completed = "concluido";
+    public const string Contested = "contestado";
+    public const string ClientNoShow = "cliente_nao_compareceu";
+    public const string LateCancellation = "cancelamento_tardio";
+
+    public static string Normalize(string? value) => (value ?? string.Empty).Trim().ToLowerInvariant() switch
+    {
+        ServiceInProgress => ServiceInProgress,
+        WaitingClientConfirmation => WaitingClientConfirmation,
+        WaitingClientReview => WaitingClientReview,
+        WaitingProviderReview => WaitingProviderReview,
+        Completed => Completed,
+        Contested => Contested,
+        ClientNoShow => ClientNoShow,
+        LateCancellation => LateCancellation,
+        _ => NotStarted
+    };
+
+    public static string GetLabel(string? value) => Normalize(value) switch
+    {
+        ServiceInProgress => "Servico em andamento",
+        WaitingClientConfirmation => "Aguardando confirmacao do cliente",
+        WaitingClientReview => "Aguardando avaliacao do cliente",
+        WaitingProviderReview => "Aguardando avaliacao do prestador",
+        Completed => "Concluido",
+        Contested => "Contestacao aberta",
+        ClientNoShow => "Cliente nao compareceu",
+        LateCancellation => "Cancelamento tardio",
+        _ => "Nao iniciado"
+    };
+}
+
+public static class AdminKanbanJourneyReviewStatuses
+{
+    public const string Pending = "pendente";
+    public const string Submitted = "enviada";
+    public const string Skipped = "nao_recebida";
+
+    public static string Normalize(string? value) => (value ?? string.Empty).Trim().ToLowerInvariant() switch
+    {
+        Submitted => Submitted,
+        Skipped => Skipped,
+        _ => Pending
+    };
+
+    public static string GetLabel(string? value) => Normalize(value) switch
+    {
+        Submitted => "Enviada",
+        Skipped => "Nao recebida",
+        _ => "Pendente"
+    };
+}
+
+public static class AdminKanbanJourneyCompletionOutcomes
+{
+    public const string Completed = "servico_concluido";
+    public const string ClientNoShow = "cliente_nao_compareceu";
+    public const string LateCancellation = "cancelamento_tardio";
+    public const string Contested = "contestacao";
+
+    public static string Normalize(string? value) => (value ?? string.Empty).Trim().ToLowerInvariant() switch
+    {
+        ClientNoShow => ClientNoShow,
+        LateCancellation => LateCancellation,
+        Contested => Contested,
+        _ => Completed
+    };
+
+    public static string GetLabel(string? value) => Normalize(value) switch
+    {
+        ClientNoShow => "Cliente nao compareceu",
+        LateCancellation => "Cancelamento tardio",
+        Contested => "Contestacao aberta",
+        _ => "Servico concluido"
+    };
+}
+
 public static class AdminKanbanJourneyDispatchQueueStatuses
 {
     public const string Pending = "pending";
@@ -893,6 +977,7 @@ public sealed class AdminKanbanLeadJourneyRecord
     public AdminKanbanJourneySchedulingRecord Scheduling { get; init; } = new();
     public AdminKanbanJourneyMatchingRecord Matching { get; init; } = new();
     public AdminKanbanJourneyDispatchRecord Dispatch { get; init; } = new();
+    public AdminKanbanJourneyClosureRecord Closure { get; init; } = new();
     public AdminKanbanJourneyStageAutomationRecord StageAutomation { get; init; } = new();
 }
 
@@ -1011,6 +1096,34 @@ public sealed record class AdminKanbanJourneyDispatchTargetRecord
     public DateTime? LastInteractionAtUtc { get; init; }
     public string LastError { get; init; } = string.Empty;
     public string Note { get; init; } = string.Empty;
+}
+
+public sealed class AdminKanbanJourneyClosureRecord
+{
+    public string Status { get; init; } = string.Empty;
+    public string Summary { get; init; } = string.Empty;
+    public string Outcome { get; init; } = string.Empty;
+    public DateTime? ServiceInProgressAtUtc { get; init; }
+    public DateTime? ProviderCompletionRequestedAtUtc { get; init; }
+    public DateTime? ProviderCompletionSubmittedAtUtc { get; init; }
+    public DateTime? ClientConfirmationRequestedAtUtc { get; init; }
+    public DateTime? ClientConfirmedAtUtc { get; init; }
+    public DateTime? CompletedAtUtc { get; init; }
+    public DateTime? ContestedAtUtc { get; init; }
+    public string ContestedReason { get; init; } = string.Empty;
+    public string ClientReviewStatus { get; init; } = string.Empty;
+    public string ProviderReviewStatus { get; init; } = string.Empty;
+    public AdminKanbanJourneyReviewRecord ClientReview { get; init; } = new();
+    public AdminKanbanJourneyReviewRecord ProviderReview { get; init; } = new();
+}
+
+public sealed class AdminKanbanJourneyReviewRecord
+{
+    public int Rating { get; init; }
+    public string Comment { get; init; } = string.Empty;
+    public string LowScoreReason { get; init; } = string.Empty;
+    public bool? WouldHireAgain { get; init; }
+    public DateTime? SubmittedAtUtc { get; init; }
 }
 
 public sealed class AdminKanbanJourneyProviderMatchRecord
@@ -1145,6 +1258,38 @@ public sealed record class AdminKanbanJourneyDispatchUpdateResult
     public int JourneyId { get; init; }
     public string CurrentState { get; init; } = string.Empty;
     public AdminKanbanJourneyDispatchRecord Dispatch { get; init; } = new();
+}
+
+public sealed class AdminKanbanJourneyClosureUpdateRequest
+{
+    public string Status { get; init; } = string.Empty;
+    public string Summary { get; init; } = string.Empty;
+    public string Outcome { get; init; } = string.Empty;
+    public DateTime? ServiceInProgressAtUtc { get; init; }
+    public DateTime? ProviderCompletionRequestedAtUtc { get; init; }
+    public DateTime? ProviderCompletionSubmittedAtUtc { get; init; }
+    public DateTime? ClientConfirmationRequestedAtUtc { get; init; }
+    public DateTime? ClientConfirmedAtUtc { get; init; }
+    public DateTime? CompletedAtUtc { get; init; }
+    public DateTime? ContestedAtUtc { get; init; }
+    public string ContestedReason { get; init; } = string.Empty;
+    public string ClientReviewStatus { get; init; } = string.Empty;
+    public string ProviderReviewStatus { get; init; } = string.Empty;
+    public AdminKanbanJourneyReviewRecord ClientReview { get; init; } = new();
+    public AdminKanbanJourneyReviewRecord ProviderReview { get; init; } = new();
+    public required string CurrentState { get; init; }
+    public string HistoryEventType { get; init; } = string.Empty;
+    public string HistoryDescription { get; init; } = string.Empty;
+    public string SourceChannel { get; init; } = string.Empty;
+    public string MetadataJson { get; init; } = string.Empty;
+}
+
+public sealed record class AdminKanbanJourneyClosureUpdateResult
+{
+    public int LeadId { get; init; }
+    public int JourneyId { get; init; }
+    public string CurrentState { get; init; } = string.Empty;
+    public AdminKanbanJourneyClosureRecord Closure { get; init; } = new();
 }
 
 public sealed class AdminKanbanJourneyProviderProfileRecord

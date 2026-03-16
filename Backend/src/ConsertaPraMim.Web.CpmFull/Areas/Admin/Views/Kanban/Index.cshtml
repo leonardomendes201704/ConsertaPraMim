@@ -276,6 +276,23 @@
                     <div class="col-12"><strong>Ondas registradas:</strong> <div id="detailsJourneyDispatchWaves" class="text-secondary-emphasis"></div></div>
                     <div class="col-12"><strong>Alvos do disparo:</strong> <div id="detailsJourneyDispatchTargets" class="text-secondary-emphasis"></div></div>
                     <div class="col-12"><hr class="my-1" /></div>
+                    <div class="col-12"><h6 class="fw-bold mb-0">Encerramento e avaliacoes</h6></div>
+                    <div class="col-12 col-md-6"><strong>Status do encerramento:</strong> <span id="detailsJourneyClosureStatus"></span></div>
+                    <div class="col-12 col-md-6"><strong>Desfecho:</strong> <span id="detailsJourneyClosureOutcome"></span></div>
+                    <div class="col-12 col-md-6"><strong>Servico iniciado em:</strong> <span id="detailsJourneyClosureServiceInProgressAt"></span></div>
+                    <div class="col-12 col-md-6"><strong>Prestador acionado em:</strong> <span id="detailsJourneyClosureProviderCompletionRequestedAt"></span></div>
+                    <div class="col-12 col-md-6"><strong>Prestador respondeu em:</strong> <span id="detailsJourneyClosureProviderCompletionSubmittedAt"></span></div>
+                    <div class="col-12 col-md-6"><strong>Cliente acionado em:</strong> <span id="detailsJourneyClosureClientConfirmationRequestedAt"></span></div>
+                    <div class="col-12 col-md-6"><strong>Cliente confirmou em:</strong> <span id="detailsJourneyClosureClientConfirmedAt"></span></div>
+                    <div class="col-12 col-md-6"><strong>Concluido em:</strong> <span id="detailsJourneyClosureCompletedAt"></span></div>
+                    <div class="col-12 col-md-6"><strong>Contestacao em:</strong> <span id="detailsJourneyClosureContestedAt"></span></div>
+                    <div class="col-12 col-md-6"><strong>Status da avaliacao do cliente:</strong> <span id="detailsJourneyClosureClientReviewStatus"></span></div>
+                    <div class="col-12 col-md-6"><strong>Status da avaliacao do prestador:</strong> <span id="detailsJourneyClosureProviderReviewStatus"></span></div>
+                    <div class="col-12"><strong>Resumo do encerramento:</strong> <div id="detailsJourneyClosureSummary" class="text-secondary-emphasis"></div></div>
+                    <div class="col-12"><strong>Motivo da contestacao:</strong> <div id="detailsJourneyClosureContestedReason" class="text-secondary-emphasis"></div></div>
+                    <div class="col-12"><strong>Avaliacao do cliente:</strong> <div id="detailsJourneyClosureClientReview" class="text-secondary-emphasis"></div></div>
+                    <div class="col-12"><strong>Avaliacao do prestador:</strong> <div id="detailsJourneyClosureProviderReview" class="text-secondary-emphasis"></div></div>
+                    <div class="col-12"><hr class="my-1" /></div>
                     <div class="col-12"><h6 class="fw-bold mb-0">Vinculo Telegram</h6></div>
                     <div class="col-12 col-md-6"><strong>Origem automatizada:</strong> <span id="detailsTelegramOrigin"></span></div>
                     <div class="col-12 col-md-6"><strong>Ultima atualizacao do vinculo:</strong> <span id="detailsTelegramUpdatedAt"></span></div>
@@ -1409,6 +1426,7 @@
                 const scheduling = journey.scheduling || {};
                 const matching = journey.matching || {};
                 const dispatch = journey.dispatch || {};
+                const closure = journey.closure || {};
                 const telegram = lead.telegram || {};
                 const chatwoot = lead.chatwoot || {};
                 const conversationLink = document.getElementById("openLeadChatwootConversationBtn");
@@ -1531,6 +1549,19 @@
                         </div>
                     `
                     : "<div class='small text-secondary'>Nenhum alvo de disparo registrado ate o momento.</div>";
+                const formatReviewMarkup = (review) => {
+                    if (!review || !review.rating) {
+                        return "-";
+                    }
+
+                    return [
+                        `Nota: ${escapeHtml(String(review.rating || 0))}/5`,
+                        `Comentario: ${escapeHtml(review.comment || "-")}`,
+                        `Motivo nota baixa: ${escapeHtml(review.lowScoreReason || "-")}`,
+                        `Contrataria novamente: ${review.wouldHireAgain === true ? "Sim" : review.wouldHireAgain === false ? "Nao" : "-"}`,
+                        `Enviada em: ${escapeHtml(review.submittedAt || "-")}`
+                    ].join(" | ");
+                };
                 document.getElementById("detailsName").textContent = lead.name || "-";
                 document.getElementById("detailsStage").textContent = lead.stageName || "-";
                 document.getElementById("detailsChatwootStatus").textContent = chatwoot.syncStatusLabel || "Ainda nao sincronizado";
@@ -1614,6 +1645,21 @@
                 document.getElementById("detailsJourneyDispatchReservedProvider").textContent = dispatchReservedProvider || "-";
                 document.getElementById("detailsJourneyDispatchWaves").innerHTML = dispatchWavesMarkup;
                 document.getElementById("detailsJourneyDispatchTargets").innerHTML = dispatchTargetsMarkup;
+                document.getElementById("detailsJourneyClosureStatus").textContent = closure.statusLabel || "-";
+                document.getElementById("detailsJourneyClosureOutcome").textContent = closure.outcomeLabel || "-";
+                document.getElementById("detailsJourneyClosureServiceInProgressAt").textContent = closure.serviceInProgressAt || "-";
+                document.getElementById("detailsJourneyClosureProviderCompletionRequestedAt").textContent = closure.providerCompletionRequestedAt || "-";
+                document.getElementById("detailsJourneyClosureProviderCompletionSubmittedAt").textContent = closure.providerCompletionSubmittedAt || "-";
+                document.getElementById("detailsJourneyClosureClientConfirmationRequestedAt").textContent = closure.clientConfirmationRequestedAt || "-";
+                document.getElementById("detailsJourneyClosureClientConfirmedAt").textContent = closure.clientConfirmedAt || "-";
+                document.getElementById("detailsJourneyClosureCompletedAt").textContent = closure.completedAt || "-";
+                document.getElementById("detailsJourneyClosureContestedAt").textContent = closure.contestedAt || "-";
+                document.getElementById("detailsJourneyClosureClientReviewStatus").textContent = closure.clientReviewStatusLabel || "-";
+                document.getElementById("detailsJourneyClosureProviderReviewStatus").textContent = closure.providerReviewStatusLabel || "-";
+                document.getElementById("detailsJourneyClosureSummary").textContent = closure.summary || "-";
+                document.getElementById("detailsJourneyClosureContestedReason").textContent = closure.contestedReason || "-";
+                document.getElementById("detailsJourneyClosureClientReview").textContent = formatReviewMarkup(closure.clientReview);
+                document.getElementById("detailsJourneyClosureProviderReview").textContent = formatReviewMarkup(closure.providerReview);
                 if (schedulingEventLink) {
                     if (scheduling.googleCalendarEventLink) {
                         schedulingEventLink.href = scheduling.googleCalendarEventLink;

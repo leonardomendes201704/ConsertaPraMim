@@ -1285,6 +1285,82 @@ Preencher a secao `Chatwoot` via `appsettings.Local.json` ou variaveis de ambien
 - Conversa duplicada apareceu: revisar se o contato possuia conversa no mesmo inbox do funil; o reaproveitamento ocorre por `contact_id + inbox_id`.
 - Dry-run trouxe lead como falha: normalmente indica ausencia de telefone e e-mail validos no cadastro do lead.
 
+## Conclusao do servico e avaliacao bilateral da jornada
+
+### Objetivo desta etapa
+
+- Fechar a jornada depois da conexao direta entre cliente e prestador.
+- Registrar o desfecho do atendimento com trilha auditavel e links assinados.
+- Cobrar e persistir a avaliacao do cliente e do prestador sem depender de operacao manual nos casos padrao.
+
+### Escopo entregue nesta fatia
+
+- O `JourneyProviderConnectionService` agora inicia automaticamente a trilha de encerramento logo apos a reserva vencedora.
+- O `JourneyServiceClosureLinkService` gera links assinados e expiraveis para:
+  - desfecho do atendimento pelo prestador;
+  - confirmacao ou contestacao da conclusao pelo cliente;
+  - avaliacao do cliente;
+  - avaliacao do prestador.
+- O `JourneyServiceClosureController` passou a expor as paginas publicas:
+  - `/jornada/encerramento/prestador`
+  - `/jornada/encerramento/cliente`
+  - `/jornada/avaliacoes/responder`
+- A jornada passou a persistir `ClosureStatus`, `ClosureSummary`, `ClosureOutcome`, timestamps da etapa final e as duas avaliacoes.
+- O modal do lead no Kanban ganhou a secao `Encerramento e avaliacoes`.
+
+### Configuracao minima
+
+No `ConsertaPraMim.Web.CpmFull`, configurar a secao `JourneyServiceClosure`:
+
+- `Enabled`
+- `CompletionLinkExpirationHours`
+- `ReviewLinkExpirationHours`
+- `LowScoreThreshold`
+
+Pre-condicoes operacionais:
+
+- `JourneyProviderNotification:Enabled=true`
+- `JourneyProviderNotification:PublicBaseUrl` preenchido com URL publica valida
+- `JourneyProviderNotification:LinkSigningSecret` configurado
+- `JourneyProviderNotification:EmailEnabled=true` quando a cobranca por e-mail estiver ativa
+
+### Comportamento esperado
+
+- Assim que o prestador vencedor e conectado ao cliente, a jornada avanca para `Servico em andamento`.
+- O prestador recebe um link assinado para informar se o servico foi concluido, se houve `cliente nao compareceu` ou `cancelamento tardio`.
+- Quando o prestador marca `servico concluido`, o cliente recebe link para `confirmar` ou `contestar`.
+- Se o cliente contesta, a jornada sai do fluxo automatico e vai para `Excecao operacional`.
+- Se o cliente confirma, a jornada avanca para `Aguardando avaliacao do cliente`.
+- Depois da avaliacao do cliente, a jornada avanca para `Aguardando avaliacao do prestador`.
+- Depois da avaliacao do prestador, a jornada vai para `Concluido`.
+
+### Checklist de QA
+
+1. Configurar `JourneyServiceClosure:Enabled=true` e manter `JourneyProviderNotification` com `PublicBaseUrl` e `LinkSigningSecret`.
+2. Executar uma jornada ate `Prestador conectado`.
+3. Confirmar no modal do lead que a secao `Encerramento e avaliacoes` mostra `Servico em andamento`.
+4. Abrir o e-mail do prestador e acessar a pagina `Registrar conclusao do atendimento`.
+5. Registrar `Servico concluido` e confirmar que o lead avanca para `Aguardando confirmacao de conclusao`.
+6. Abrir a URL enviada ao cliente e confirmar a conclusao.
+7. Validar que o lead vai para `Aguardando avaliacao do cliente`.
+8. Enviar a avaliacao do cliente e validar no Kanban o `Status da avaliacao do cliente = Enviada`.
+9. Abrir a URL de avaliacao do prestador e concluir a ultima avaliacao.
+10. Validar que o card vai para `Concluido`.
+11. Repetir o fluxo de encerramento e testar:
+12. `Cliente nao compareceu`
+13. `Cancelamento tardio`
+14. `Conclusao contestada`
+15. Confirmar nos tres casos que a jornada vai para `Excecao operacional`.
+16. Validar no modal que `Resumo do encerramento`, `Desfecho`, `Motivo da contestacao` e as duas avaliacoes aparecem em PT-BR.
+
+### Troubleshooting
+
+- Link de encerramento invalido ou expirado: validar `PublicBaseUrl`, `LinkSigningSecret` e as janelas `CompletionLinkExpirationHours` / `ReviewLinkExpirationHours`.
+- Prestador nao recebeu solicitacao de conclusao: revisar `ReservedProviderEmail`, `JourneyProviderNotification:EmailEnabled` e o transporte configurado.
+- Cliente nao recebeu confirmacao de conclusao: validar se o lead ainda possui `TelegramChatId`; sem Telegram ativo, o fallback e e-mail.
+- Jornada nao sai de `Aguardando avaliacao do cliente`: validar se a avaliacao foi enviada com token de `cliente` e se `ClientReviewStatus` foi persistido.
+- Jornada nao conclui apos a avaliacao do prestador: validar `ProviderReviewStatus`, `CompletedAtUtc` e o historico `jornada_avaliacao_prestador_enviada`.
+
 ## Integracao Chatwoot - observabilidade e diagnostico no Kanban
 
 ### Objetivo

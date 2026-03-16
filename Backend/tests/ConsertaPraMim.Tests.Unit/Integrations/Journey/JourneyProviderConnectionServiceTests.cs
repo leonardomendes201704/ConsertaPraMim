@@ -17,6 +17,7 @@ public sealed class JourneyProviderConnectionServiceTests
         var calendarGateway = new Mock<IJourneyCalendarGateway>(MockBehavior.Strict);
         var telegramClient = new Mock<ITelegramBridgeDeliveryClient>(MockBehavior.Strict);
         var kanbanService = new Mock<IAdminKanbanService>(MockBehavior.Strict);
+        var closureService = new Mock<IJourneyServiceClosureService>(MockBehavior.Strict);
 
         calendarGateway
             .Setup(service => service.UpdateEventAsync(
@@ -49,11 +50,19 @@ public sealed class JourneyProviderConnectionServiceTests
                 value.Contains("Cliente: avisado", StringComparison.Ordinal) &&
                 value.Contains("Prestador: avisado", StringComparison.Ordinal))))
             .Returns(true);
+        closureService
+            .Setup(service => service.StartServiceAsync(801, new DateTime(2026, 3, 22, 12, 0, 0, DateTimeKind.Utc), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JourneyServiceClosureStartResult
+            {
+                Success = true,
+                Message = "Encerramento iniciado."
+            });
 
         var sut = new JourneyProviderConnectionService(
             calendarGateway.Object,
             telegramClient.Object,
             kanbanService.Object,
+            closureService.Object,
             Options.Create(new JourneyProviderNotificationOptions
             {
                 Enabled = true,
@@ -78,6 +87,7 @@ public sealed class JourneyProviderConnectionServiceTests
         calendarGateway.VerifyAll();
         telegramClient.VerifyAll();
         kanbanService.VerifyAll();
+        closureService.VerifyAll();
     }
 
     [Fact(DisplayName = "Journey Provider Connection | Deve registrar alerta quando cliente nao tiver canal de contato")]
@@ -88,17 +98,26 @@ public sealed class JourneyProviderConnectionServiceTests
         var calendarGateway = new Mock<IJourneyCalendarGateway>(MockBehavior.Strict);
         var telegramClient = new Mock<ITelegramBridgeDeliveryClient>(MockBehavior.Strict);
         var kanbanService = new Mock<IAdminKanbanService>(MockBehavior.Strict);
+        var closureService = new Mock<IJourneyServiceClosureService>(MockBehavior.Strict);
 
         kanbanService
             .Setup(service => service.AddHistoryEvent(802, "jornada_conexao_direta_liberada", It.Is<string>(value =>
                 value.Contains("Cliente: nao avisado", StringComparison.Ordinal) &&
                 value.Contains("Prestador: avisado", StringComparison.Ordinal))))
             .Returns(true);
+        closureService
+            .Setup(service => service.StartServiceAsync(802, new DateTime(2026, 3, 22, 12, 30, 0, DateTimeKind.Utc), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JourneyServiceClosureStartResult
+            {
+                Success = true,
+                Message = "Encerramento iniciado."
+            });
 
         var sut = new JourneyProviderConnectionService(
             calendarGateway.Object,
             telegramClient.Object,
             kanbanService.Object,
+            closureService.Object,
             Options.Create(new JourneyProviderNotificationOptions
             {
                 Enabled = true,
@@ -124,6 +143,7 @@ public sealed class JourneyProviderConnectionServiceTests
         calendarGateway.VerifyNoOtherCalls();
         telegramClient.VerifyNoOtherCalls();
         kanbanService.VerifyAll();
+        closureService.VerifyAll();
     }
 
     private static AdminKanbanLeadDetailsRecord BuildLead(

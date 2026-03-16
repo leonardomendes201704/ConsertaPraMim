@@ -46,7 +46,7 @@
 ### Backlog
 
 - [ST-108 - Reserva do caso e conexao direta entre cliente e prestador](STORIES/DONE/ST-108-reserva-caso-conexao-direta-cliente-prestador.md)
-- [ST-109 - Conclusao do servico e avaliacao bilateral](STORIES/BACKLOG/ST-109-conclusao-servico-avaliacao-bilateral.md)
+- [ST-109 - Conclusao do servico e avaliacao bilateral](STORIES/DONE/ST-109-conclusao-servico-avaliacao-bilateral.md)
 - [ST-110 - Excecoes, handoff minimo, observabilidade e rollout da jornada](STORIES/BACKLOG/ST-110-excecoes-handoff-observabilidade-rollout-jornada.md)
 - [ST-022 - API de atendimento para portal admin](STORIES/BACKLOG/ST-022-api-atendimento-portal-admin.md)
 - [ST-023 - UI de suporte no portal prestador](STORIES/BACKLOG/ST-023-ui-suporte-portal-prestador.md)

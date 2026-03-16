@@ -285,6 +285,54 @@ public sealed class KanbanController : Controller
                         lastError = string.IsNullOrWhiteSpace(item.LastError) ? "-" : item.LastError,
                         note = item.Note
                     })
+                },
+                closure = new
+                {
+                    status = lead.Journey.Closure.Status,
+                    statusLabel = string.IsNullOrWhiteSpace(lead.Journey.Closure.Status)
+                        ? "-"
+                        : AdminKanbanJourneyClosureStatuses.GetLabel(lead.Journey.Closure.Status),
+                    summary = lead.Journey.Closure.Summary,
+                    outcome = lead.Journey.Closure.Outcome,
+                    outcomeLabel = string.IsNullOrWhiteSpace(lead.Journey.Closure.Outcome)
+                        ? "-"
+                        : AdminKanbanJourneyCompletionOutcomes.GetLabel(lead.Journey.Closure.Outcome),
+                    serviceInProgressAt = lead.Journey.Closure.ServiceInProgressAtUtc?.ToString("dd/MM/yyyy HH:mm") ?? "-",
+                    providerCompletionRequestedAt = lead.Journey.Closure.ProviderCompletionRequestedAtUtc?.ToString("dd/MM/yyyy HH:mm") ?? "-",
+                    providerCompletionSubmittedAt = lead.Journey.Closure.ProviderCompletionSubmittedAtUtc?.ToString("dd/MM/yyyy HH:mm") ?? "-",
+                    clientConfirmationRequestedAt = lead.Journey.Closure.ClientConfirmationRequestedAtUtc?.ToString("dd/MM/yyyy HH:mm") ?? "-",
+                    clientConfirmedAt = lead.Journey.Closure.ClientConfirmedAtUtc?.ToString("dd/MM/yyyy HH:mm") ?? "-",
+                    completedAt = lead.Journey.Closure.CompletedAtUtc?.ToString("dd/MM/yyyy HH:mm") ?? "-",
+                    contestedAt = lead.Journey.Closure.ContestedAtUtc?.ToString("dd/MM/yyyy HH:mm") ?? "-",
+                    contestedReason = lead.Journey.Closure.ContestedReason,
+                    clientReviewStatus = lead.Journey.Closure.ClientReviewStatus,
+                    clientReviewStatusLabel = string.IsNullOrWhiteSpace(lead.Journey.Closure.ClientReviewStatus)
+                        ? "-"
+                        : AdminKanbanJourneyReviewStatuses.GetLabel(lead.Journey.Closure.ClientReviewStatus),
+                    providerReviewStatus = lead.Journey.Closure.ProviderReviewStatus,
+                    providerReviewStatusLabel = string.IsNullOrWhiteSpace(lead.Journey.Closure.ProviderReviewStatus)
+                        ? "-"
+                        : AdminKanbanJourneyReviewStatuses.GetLabel(lead.Journey.Closure.ProviderReviewStatus),
+                    clientReview = lead.Journey.Closure.ClientReview is null
+                        ? null
+                        : new
+                        {
+                            rating = lead.Journey.Closure.ClientReview.Rating,
+                            comment = lead.Journey.Closure.ClientReview.Comment,
+                            lowScoreReason = lead.Journey.Closure.ClientReview.LowScoreReason,
+                            wouldHireAgain = lead.Journey.Closure.ClientReview.WouldHireAgain,
+                            submittedAt = lead.Journey.Closure.ClientReview.SubmittedAtUtc?.ToString("dd/MM/yyyy HH:mm") ?? "-"
+                        },
+                    providerReview = lead.Journey.Closure.ProviderReview is null
+                        ? null
+                        : new
+                        {
+                            rating = lead.Journey.Closure.ProviderReview.Rating,
+                            comment = lead.Journey.Closure.ProviderReview.Comment,
+                            lowScoreReason = lead.Journey.Closure.ProviderReview.LowScoreReason,
+                            wouldHireAgain = lead.Journey.Closure.ProviderReview.WouldHireAgain,
+                            submittedAt = lead.Journey.Closure.ProviderReview.SubmittedAtUtc?.ToString("dd/MM/yyyy HH:mm") ?? "-"
+                        }
                 }
             },
             telegram = new
@@ -1205,6 +1253,14 @@ public sealed class KanbanController : Controller
             "jornada_disparo_onda_expirada" => "Onda de disparo expirada",
             "jornada_disparo_esgotado" => "Ondas de disparo esgotadas",
             "jornada_disparo_reservado" => "Caso reservado por prestador",
+            "jornada_servico_iniciado" => "Servico iniciado automaticamente",
+            "jornada_conclusao_link_prestador_enviado" => "Solicitacao de conclusao enviada ao prestador",
+            "jornada_conclusao_solicitada" => "Conclusao aguardando confirmacao do cliente",
+            "jornada_conclusao_confirmada" => "Conclusao confirmada pelo cliente",
+            "jornada_conclusao_contestada" => "Conclusao contestada pelo cliente",
+            "jornada_conclusao_excecao" => "Desfecho operacional fora do fluxo automatico",
+            "jornada_avaliacao_cliente_enviada" => "Avaliacao do cliente registrada",
+            "jornada_avaliacao_prestador_enviada" => "Avaliacao do prestador registrada",
             "telegram_lead_criado" => "Lead criado via bot Telegram",
             "telegram_lead_atualizado" => "Lead atualizado via bot Telegram",
             "telegram_entrega_enfileirada" => "Entrega Telegram enfileirada",

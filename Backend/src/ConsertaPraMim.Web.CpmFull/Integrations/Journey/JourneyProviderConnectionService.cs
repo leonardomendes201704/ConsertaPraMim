@@ -12,6 +12,7 @@ public sealed class JourneyProviderConnectionService : IJourneyProviderConnectio
     private readonly IJourneyCalendarGateway _calendarGateway;
     private readonly ITelegramBridgeDeliveryClient _telegramBridgeDeliveryClient;
     private readonly IAdminKanbanService _kanbanService;
+    private readonly IJourneyServiceClosureService _closureService;
     private readonly JourneyProviderNotificationOptions _options;
     private readonly ILogger<JourneyProviderConnectionService> _logger;
 
@@ -19,12 +20,14 @@ public sealed class JourneyProviderConnectionService : IJourneyProviderConnectio
         IJourneyCalendarGateway calendarGateway,
         ITelegramBridgeDeliveryClient telegramBridgeDeliveryClient,
         IAdminKanbanService kanbanService,
+        IJourneyServiceClosureService closureService,
         IOptions<JourneyProviderNotificationOptions> options,
         ILogger<JourneyProviderConnectionService> logger)
     {
         _calendarGateway = calendarGateway;
         _telegramBridgeDeliveryClient = telegramBridgeDeliveryClient;
         _kanbanService = kanbanService;
+        _closureService = closureService;
         _options = options.Value;
         _logger = logger;
     }
@@ -62,6 +65,12 @@ public sealed class JourneyProviderConnectionService : IJourneyProviderConnectio
         if (!providerNotification.Success && !string.IsNullOrWhiteSpace(providerNotification.ErrorMessage))
         {
             warnings.Add($"Prestador: {providerNotification.ErrorMessage}");
+        }
+
+        var closureResult = await _closureService.StartServiceAsync(request.Lead.Id, request.ReservedAtUtc, cancellationToken);
+        if (!closureResult.Success && !string.IsNullOrWhiteSpace(closureResult.Message))
+        {
+            warnings.Add($"Encerramento: {closureResult.Message}");
         }
 
         var historyDescription = BuildHistoryDescription(calendarUpdated, clientNotified, providerNotified, warnings);
