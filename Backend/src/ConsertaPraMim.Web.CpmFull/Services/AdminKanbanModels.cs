@@ -41,6 +41,155 @@ public static class AdminKanbanBoardTypes
         };
 }
 
+public static class AdminKanbanJourneySourceChannels
+{
+    public const string Landing = "landing";
+    public const string Telegram = "telegram";
+    public const string ServiceRequest = "service_request";
+
+    public static string Normalize(string? value) => (value ?? string.Empty).Trim().ToLowerInvariant() switch
+    {
+        Landing => Landing,
+        Telegram => Telegram,
+        ServiceRequest => ServiceRequest,
+        _ => throw new ArgumentException("Canal de jornada invalido.", nameof(value))
+    };
+
+    public static string GetLabel(string? value) => Normalize(value) switch
+    {
+        Landing => "Landing / Site",
+        Telegram => "Telegram",
+        ServiceRequest => "Portal do Cliente",
+        _ => "Canal desconhecido"
+    };
+}
+
+public static class AdminKanbanJourneyStates
+{
+    public const string IntakeOpened = "intake_aberto";
+    public const string AutomatedTriage = "triagem_automatica";
+    public const string QualificationPending = "dados_pendentes";
+    public const string QualificationConfirmationRequired = "confirmacao_necessaria";
+    public const string QualificationValidated = "qualificacao_validada";
+    public const string SlotSuggested = "janela_sugerida";
+    public const string AppointmentConfirmed = "agendamento_confirmado";
+    public const string AppointmentCancelled = "agendamento_cancelado";
+    public const string ServiceRequestOpened = "pedido_aberto";
+
+    public static string Normalize(string? value) => (value ?? string.Empty).Trim().ToLowerInvariant() switch
+    {
+        IntakeOpened => IntakeOpened,
+        AutomatedTriage => AutomatedTriage,
+        QualificationPending => QualificationPending,
+        QualificationConfirmationRequired => QualificationConfirmationRequired,
+        QualificationValidated => QualificationValidated,
+        SlotSuggested => SlotSuggested,
+        AppointmentConfirmed => AppointmentConfirmed,
+        AppointmentCancelled => AppointmentCancelled,
+        ServiceRequestOpened => ServiceRequestOpened,
+        _ => IntakeOpened
+    };
+
+    public static string GetLabel(string? value) => Normalize(value) switch
+    {
+        IntakeOpened => "Intake aberto",
+        AutomatedTriage => "Triagem automatica",
+        QualificationPending => "Dados pendentes",
+        QualificationConfirmationRequired => "Confirmacao necessaria",
+        QualificationValidated => "Qualificacao validada",
+        SlotSuggested => "Janela sugerida",
+        AppointmentConfirmed => "Agendamento confirmado",
+        AppointmentCancelled => "Agendamento cancelado",
+        ServiceRequestOpened => "Pedido aberto",
+        _ => "Intake aberto"
+    };
+
+    public static int GetSortOrder(string? value) => Normalize(value) switch
+    {
+        IntakeOpened => 1,
+        AutomatedTriage => 2,
+        QualificationPending => 3,
+        QualificationConfirmationRequired => 4,
+        QualificationValidated => 5,
+        SlotSuggested => 6,
+        AppointmentConfirmed => 7,
+        AppointmentCancelled => 8,
+        ServiceRequestOpened => 9,
+        _ => 1
+    };
+}
+
+public static class AdminKanbanJourneyQualificationStatuses
+{
+    public const string Pending = "dados_pendentes";
+    public const string ConfirmationRequired = "confirmacao_necessaria";
+    public const string Qualified = "qualificacao_validada";
+
+    public static string Normalize(string? value) => (value ?? string.Empty).Trim().ToLowerInvariant() switch
+    {
+        Pending => Pending,
+        ConfirmationRequired => ConfirmationRequired,
+        Qualified => Qualified,
+        _ => Pending
+    };
+
+    public static string GetLabel(string? value) => Normalize(value) switch
+    {
+        Pending => "Dados pendentes",
+        ConfirmationRequired => "Confirmacao necessaria",
+        Qualified => "Qualificacao validada",
+        _ => "Dados pendentes"
+    };
+}
+
+public static class AdminKanbanJourneyQualificationSources
+{
+    public const string Deterministic = "deterministico";
+    public const string OpenAi = "openai";
+    public const string Hybrid = "hibrido";
+
+    public static string Normalize(string? value) => (value ?? string.Empty).Trim().ToLowerInvariant() switch
+    {
+        OpenAi => OpenAi,
+        Hybrid => Hybrid,
+        _ => Deterministic
+    };
+
+    public static string GetLabel(string? value) => Normalize(value) switch
+    {
+        OpenAi => "OpenAI",
+        Hybrid => "Hibrido",
+        _ => "Deterministico"
+    };
+}
+
+public static class AdminKanbanJourneySchedulingStatuses
+{
+    public const string NotStarted = "nao_iniciado";
+    public const string SlotSuggested = "janela_sugerida";
+    public const string Confirmed = "confirmado";
+    public const string Cancelled = "cancelado";
+    public const string NoAvailability = "sem_disponibilidade";
+
+    public static string Normalize(string? value) => (value ?? string.Empty).Trim().ToLowerInvariant() switch
+    {
+        SlotSuggested => SlotSuggested,
+        Confirmed => Confirmed,
+        Cancelled => Cancelled,
+        NoAvailability => NoAvailability,
+        _ => NotStarted
+    };
+
+    public static string GetLabel(string? value) => Normalize(value) switch
+    {
+        SlotSuggested => "Janela sugerida",
+        Confirmed => "Confirmado",
+        Cancelled => "Cancelado",
+        NoAvailability => "Sem disponibilidade",
+        _ => "Nao iniciado"
+    };
+}
+
 public sealed class AdminKanbanBoardData
 {
     public required string BoardType { get; init; }
@@ -95,6 +244,7 @@ public sealed class AdminKanbanLeadDetailsRecord
     public DateTime CreatedAt { get; init; }
     public DateTime? UpdatedAt { get; init; }
     public DateTime? LastContactAt { get; init; }
+    public AdminKanbanLeadJourneyRecord Journey { get; init; } = new();
     public AdminKanbanLeadTelegramLinkRecord Telegram { get; init; } = new();
     public AdminKanbanLeadChatwootSyncRecord Chatwoot { get; init; } = new();
     public required IReadOnlyList<AdminKanbanLeadHistoryRecord> History { get; init; }
@@ -374,6 +524,152 @@ public sealed record class AdminKanbanTelegramBusinessDashboardSnapshot
     public IReadOnlyList<AdminKanbanTelegramBusinessCityRecord> TopCities { get; init; } = [];
     public IReadOnlyList<AdminKanbanTelegramBusinessStagePressureRecord> StagePressures { get; init; } = [];
     public IReadOnlyList<AdminKanbanTelegramBusinessHandoffReasonRecord> HandoffReasons { get; init; } = [];
+}
+
+public sealed class AdminKanbanJourneyIntakeRequest
+{
+    public required string BoardType { get; init; }
+    public required string SourceChannel { get; init; }
+    public string SourceOrigin { get; init; } = string.Empty;
+    public required string Name { get; init; }
+    public string Phone { get; init; } = string.Empty;
+    public string Email { get; init; } = string.Empty;
+    public string ServiceCategory { get; init; } = string.Empty;
+    public string ProblemDescription { get; init; } = string.Empty;
+    public string Street { get; init; } = string.Empty;
+    public string Neighborhood { get; init; } = string.Empty;
+    public string State { get; init; } = string.Empty;
+    public string PostalCode { get; init; } = string.Empty;
+    public string City { get; init; } = string.Empty;
+    public double? Latitude { get; init; }
+    public double? Longitude { get; init; }
+    public string StatusNote { get; init; } = string.Empty;
+    public string InternalNotes { get; init; } = string.Empty;
+    public Guid? LandingLeadId { get; init; }
+    public Guid? ServiceRequestId { get; init; }
+    public Guid? ClientId { get; init; }
+    public string VisitorId { get; init; } = string.Empty;
+    public string SessionId { get; init; } = string.Empty;
+    public Guid? ChatbotConversationId { get; init; }
+    public string ChannelConversationId { get; init; } = string.Empty;
+    public long? TelegramChatId { get; init; }
+    public DateTime? RequestedAtUtc { get; init; }
+    public DateTime? LastContactAtUtc { get; init; }
+    public AdminKanbanJourneyQualificationRecord Qualification { get; init; } = new();
+    public AdminKanbanJourneySchedulingRecord Scheduling { get; init; } = new();
+}
+
+public sealed record class AdminKanbanJourneyUpsertResult
+{
+    public int LeadId { get; init; }
+    public int JourneyId { get; init; }
+    public Guid JourneyPublicId { get; init; }
+    public bool CreatedLead { get; init; }
+    public bool CreatedJourney { get; init; }
+    public int StageId { get; init; }
+    public string BoardType { get; init; } = string.Empty;
+    public string CurrentState { get; init; } = string.Empty;
+}
+
+public sealed class AdminKanbanLeadJourneyRecord
+{
+    public int JourneyId { get; init; }
+    public Guid JourneyPublicId { get; init; }
+    public int LeadId { get; init; }
+    public string BoardType { get; init; } = string.Empty;
+    public string JourneyKey { get; init; } = string.Empty;
+    public string SourceChannel { get; init; } = string.Empty;
+    public string SourceOrigin { get; init; } = string.Empty;
+    public string CurrentState { get; init; } = string.Empty;
+    public Guid? LandingLeadId { get; init; }
+    public Guid? ServiceRequestId { get; init; }
+    public Guid? ClientId { get; init; }
+    public string VisitorId { get; init; } = string.Empty;
+    public string SessionId { get; init; } = string.Empty;
+    public Guid? ChatbotConversationId { get; init; }
+    public string ChannelConversationId { get; init; } = string.Empty;
+    public long? TelegramChatId { get; init; }
+    public string PrimaryPhone { get; init; } = string.Empty;
+    public string PrimaryEmail { get; init; } = string.Empty;
+    public DateTime CreatedAt { get; init; }
+    public DateTime? UpdatedAt { get; init; }
+    public DateTime? LastIntakeAt { get; init; }
+    public AdminKanbanJourneyQualificationRecord Qualification { get; init; } = new();
+    public AdminKanbanJourneySchedulingRecord Scheduling { get; init; } = new();
+}
+
+public sealed class AdminKanbanJourneyQualificationRecord
+{
+    public string Status { get; init; } = string.Empty;
+    public string Source { get; init; } = string.Empty;
+    public decimal ConfidenceScore { get; init; }
+    public bool HasRequiredData { get; init; }
+    public bool NeedsConfirmation { get; init; }
+    public string NormalizedServiceCategoryId { get; init; } = string.Empty;
+    public string NormalizedServiceCategoryName { get; init; } = string.Empty;
+    public string ProblemContext { get; init; } = string.Empty;
+    public string Street { get; init; } = string.Empty;
+    public string Neighborhood { get; init; } = string.Empty;
+    public string City { get; init; } = string.Empty;
+    public string State { get; init; } = string.Empty;
+    public string PostalCode { get; init; } = string.Empty;
+    public double? Latitude { get; init; }
+    public double? Longitude { get; init; }
+    public string Summary { get; init; } = string.Empty;
+    public string ConfirmationPrompt { get; init; } = string.Empty;
+    public DateTime? QualifiedAtUtc { get; init; }
+    public IReadOnlyList<string> RequiredFields { get; init; } = [];
+    public IReadOnlyList<string> MissingRequiredFields { get; init; } = [];
+    public IReadOnlyList<string> OptionalFields { get; init; } = [];
+}
+
+public sealed class AdminKanbanJourneySchedulingRecord
+{
+    public string Status { get; init; } = string.Empty;
+    public string Summary { get; init; } = string.Empty;
+    public string GoogleCalendarEventId { get; init; } = string.Empty;
+    public string GoogleCalendarEventLink { get; init; } = string.Empty;
+    public DateTime? SuggestedAtUtc { get; init; }
+    public DateTime? ConfirmedAtUtc { get; init; }
+    public DateTime? CancelledAtUtc { get; init; }
+    public DateTime? ScheduledStartAtUtc { get; init; }
+    public DateTime? ScheduledEndAtUtc { get; init; }
+    public IReadOnlyList<AdminKanbanJourneySuggestedSlotRecord> SuggestedSlots { get; init; } = [];
+}
+
+public sealed class AdminKanbanJourneySuggestedSlotRecord
+{
+    public int OptionNumber { get; init; }
+    public DateTime StartsAtUtc { get; init; }
+    public DateTime EndsAtUtc { get; init; }
+    public string Label { get; init; } = string.Empty;
+}
+
+public sealed class AdminKanbanJourneySchedulingUpdateRequest
+{
+    public string Status { get; init; } = string.Empty;
+    public string Summary { get; init; } = string.Empty;
+    public string GoogleCalendarEventId { get; init; } = string.Empty;
+    public string GoogleCalendarEventLink { get; init; } = string.Empty;
+    public DateTime? SuggestedAtUtc { get; init; }
+    public DateTime? ConfirmedAtUtc { get; init; }
+    public DateTime? CancelledAtUtc { get; init; }
+    public DateTime? ScheduledStartAtUtc { get; init; }
+    public DateTime? ScheduledEndAtUtc { get; init; }
+    public required string CurrentState { get; init; }
+    public string HistoryEventType { get; init; } = string.Empty;
+    public string HistoryDescription { get; init; } = string.Empty;
+    public string SourceChannel { get; init; } = string.Empty;
+    public string MetadataJson { get; init; } = string.Empty;
+    public IReadOnlyList<AdminKanbanJourneySuggestedSlotRecord> SuggestedSlots { get; init; } = [];
+}
+
+public sealed record class AdminKanbanJourneySchedulingUpdateResult
+{
+    public int LeadId { get; init; }
+    public int JourneyId { get; init; }
+    public string CurrentState { get; init; } = string.Empty;
+    public AdminKanbanJourneySchedulingRecord Scheduling { get; init; } = new();
 }
 
 public sealed class AdminKanbanBoardOrderUpdateRequest

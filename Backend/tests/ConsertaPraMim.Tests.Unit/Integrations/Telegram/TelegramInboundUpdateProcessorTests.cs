@@ -15,6 +15,7 @@ public sealed class TelegramInboundUpdateProcessorTests
         var chatService = new Mock<ITelegramChatService>(MockBehavior.Strict);
         var leadAutomationClient = new Mock<ITelegramLeadAutomationClient>(MockBehavior.Strict);
         var automationClient = new Mock<ITelegramMessageAutomationClient>(MockBehavior.Strict);
+        var schedulingClient = new Mock<ITelegramJourneySchedulingClient>(MockBehavior.Strict);
         var botApiClient = new Mock<ITelegramBotApiClient>(MockBehavior.Strict);
         var handoffStateService = new Mock<ITelegramHumanHandoffStateService>(MockBehavior.Strict);
         var observability = new Mock<ITelegramChatbotObservabilityService>(MockBehavior.Strict);
@@ -23,6 +24,7 @@ public sealed class TelegramInboundUpdateProcessorTests
             chatService.Object,
             leadAutomationClient.Object,
             automationClient.Object,
+            schedulingClient.Object,
             botApiClient.Object,
             handoffStateService.Object,
             observability.Object);
@@ -74,6 +76,7 @@ public sealed class TelegramInboundUpdateProcessorTests
         var chatService = new Mock<ITelegramChatService>(MockBehavior.Strict);
         var leadAutomationClient = new Mock<ITelegramLeadAutomationClient>(MockBehavior.Strict);
         var automationClient = new Mock<ITelegramMessageAutomationClient>(MockBehavior.Strict);
+        var schedulingClient = new Mock<ITelegramJourneySchedulingClient>(MockBehavior.Strict);
         var botApiClient = new Mock<ITelegramBotApiClient>(MockBehavior.Strict);
         var handoffStateService = new Mock<ITelegramHumanHandoffStateService>(MockBehavior.Strict);
         var observability = new Mock<ITelegramChatbotObservabilityService>(MockBehavior.Strict);
@@ -130,6 +133,15 @@ public sealed class TelegramInboundUpdateProcessorTests
                 QueueStatus = "queued",
                 Message = "Mensagem enfileirada."
             });
+        schedulingClient
+            .Setup(client => client.ProcessTurnAsync(
+                It.Is<TelegramJourneySchedulingTurnRequest>(request =>
+                    request.ChatbotConversationId != Guid.Empty &&
+                    request.TelegramChatId == 5513997114422 &&
+                    request.ChannelConversationId == "5513997114422" &&
+                    request.MessageText == "Preciso de ajuda urgente com meu chuveiro em Santos."),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(TelegramJourneySchedulingTurnResult.NoOp());
         botApiClient
             .Setup(client => client.SendMessageAsync(
                 5513997114422,
@@ -147,6 +159,7 @@ public sealed class TelegramInboundUpdateProcessorTests
             chatService.Object,
             leadAutomationClient.Object,
             automationClient.Object,
+            schedulingClient.Object,
             botApiClient.Object,
             handoffStateService.Object,
             observability.Object,
@@ -165,6 +178,7 @@ public sealed class TelegramInboundUpdateProcessorTests
         Assert.True(result);
         chatService.VerifyAll();
         automationClient.VerifyAll();
+        schedulingClient.VerifyAll();
         leadAutomationClient.VerifyAll();
         botApiClient.VerifyAll();
         handoffStateService.VerifyAll();
@@ -212,6 +226,7 @@ public sealed class TelegramInboundUpdateProcessorTests
         var chatService = new Mock<ITelegramChatService>(MockBehavior.Strict);
         var leadAutomationClient = new Mock<ITelegramLeadAutomationClient>(MockBehavior.Strict);
         var automationClient = new Mock<ITelegramMessageAutomationClient>(MockBehavior.Strict);
+        var schedulingClient = new Mock<ITelegramJourneySchedulingClient>(MockBehavior.Strict);
         var botApiClient = new Mock<ITelegramBotApiClient>(MockBehavior.Strict);
         var handoffStateService = new Mock<ITelegramHumanHandoffStateService>(MockBehavior.Strict);
         var observability = new Mock<ITelegramChatbotObservabilityService>(MockBehavior.Strict);
@@ -253,6 +268,13 @@ public sealed class TelegramInboundUpdateProcessorTests
                 QueueStatus = "queued",
                 Message = "Mensagem enfileirada."
             });
+        schedulingClient
+            .Setup(client => client.ProcessTurnAsync(
+                It.Is<TelegramJourneySchedulingTurnRequest>(request =>
+                    request.ChatbotConversationId != Guid.Empty &&
+                    request.TelegramChatId == 5513997114422),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(TelegramJourneySchedulingTurnResult.NoOp());
         botApiClient
             .SetupGet(client => client.IsConfigured)
             .Returns(true);
@@ -275,6 +297,7 @@ public sealed class TelegramInboundUpdateProcessorTests
             chatService.Object,
             leadAutomationClient.Object,
             automationClient.Object,
+            schedulingClient.Object,
             botApiClient.Object,
             handoffStateService.Object,
             observability.Object,
@@ -294,6 +317,7 @@ public sealed class TelegramInboundUpdateProcessorTests
         chatService.VerifyAll();
         leadAutomationClient.VerifyAll();
         automationClient.VerifyAll();
+        schedulingClient.VerifyAll();
         botApiClient.VerifyAll();
         handoffStateService.VerifyAll();
         observability.VerifyAll();
@@ -335,6 +359,7 @@ public sealed class TelegramInboundUpdateProcessorTests
         var chatService = new Mock<ITelegramChatService>(MockBehavior.Strict);
         var leadAutomationClient = new Mock<ITelegramLeadAutomationClient>(MockBehavior.Strict);
         var automationClient = new Mock<ITelegramMessageAutomationClient>(MockBehavior.Strict);
+        var schedulingClient = new Mock<ITelegramJourneySchedulingClient>(MockBehavior.Strict);
         var botApiClient = new Mock<ITelegramBotApiClient>(MockBehavior.Strict);
         var handoffStateService = new Mock<ITelegramHumanHandoffStateService>(MockBehavior.Strict);
         var observability = new Mock<ITelegramChatbotObservabilityService>(MockBehavior.Strict);
@@ -386,6 +411,7 @@ public sealed class TelegramInboundUpdateProcessorTests
             chatService.Object,
             leadAutomationClient.Object,
             automationClient.Object,
+            schedulingClient.Object,
             botApiClient.Object,
             handoffStateService.Object,
             observability.Object,
@@ -405,6 +431,7 @@ public sealed class TelegramInboundUpdateProcessorTests
         chatService.VerifyAll();
         leadAutomationClient.VerifyAll();
         automationClient.VerifyAll();
+        schedulingClient.VerifyNoOtherCalls();
         observability.VerifyAll();
     }
 
@@ -444,6 +471,7 @@ public sealed class TelegramInboundUpdateProcessorTests
         var chatService = new Mock<ITelegramChatService>(MockBehavior.Strict);
         var leadAutomationClient = new Mock<ITelegramLeadAutomationClient>(MockBehavior.Strict);
         var automationClient = new Mock<ITelegramMessageAutomationClient>(MockBehavior.Strict);
+        var schedulingClient = new Mock<ITelegramJourneySchedulingClient>(MockBehavior.Strict);
         var botApiClient = new Mock<ITelegramBotApiClient>(MockBehavior.Strict);
         var handoffStateService = new Mock<ITelegramHumanHandoffStateService>(MockBehavior.Strict);
         var observability = new Mock<ITelegramChatbotObservabilityService>(MockBehavior.Strict);
@@ -489,6 +517,7 @@ public sealed class TelegramInboundUpdateProcessorTests
             chatService.Object,
             leadAutomationClient.Object,
             automationClient.Object,
+            schedulingClient.Object,
             botApiClient.Object,
             handoffStateService.Object,
             observability.Object,
@@ -508,6 +537,7 @@ public sealed class TelegramInboundUpdateProcessorTests
         chatService.VerifyAll();
         leadAutomationClient.VerifyAll();
         automationClient.VerifyAll();
+        schedulingClient.VerifyNoOtherCalls();
         handoffStateService.VerifyAll();
         observability.VerifyAll();
         botApiClient.VerifyGet(client => client.IsConfigured, Times.Once);
@@ -521,10 +551,142 @@ public sealed class TelegramInboundUpdateProcessorTests
             Times.Never);
     }
 
+    [Fact(DisplayName = "Telegram inbound update processor | Deve priorizar resposta de autoagendamento quando turno for tratado")]
+    public async Task ProcessAsync_DevePriorizarRespostaDeAutoagendamentoQuandoTurnoForTratado()
+    {
+        var update = new TelegramUpdate
+        {
+            UpdateId = 9006,
+            Message = new TelegramMessage
+            {
+                MessageId = 999,
+                DateUnix = 1_773_512_700,
+                Text = "Agendar visita",
+                Chat = new TelegramChat
+                {
+                    Id = 5513997114422,
+                    FirstName = "Ricardo"
+                },
+                From = new TelegramUser
+                {
+                    Id = 5513997114422,
+                    FirstName = "Ricardo"
+                }
+            }
+        };
+
+        var storedMessage = new ChatMessageDto(
+            Id: "telegram:5513997114422:999",
+            ChatId: 5513997114422,
+            IsOutgoing: false,
+            SenderDisplayName: "Ricardo",
+            Text: "Agendar visita",
+            SentAtUtc: new DateTimeOffset(2026, 3, 15, 18, 15, 0, TimeSpan.Zero),
+            Attachments: []);
+
+        var chatService = new Mock<ITelegramChatService>(MockBehavior.Strict);
+        var leadAutomationClient = new Mock<ITelegramLeadAutomationClient>(MockBehavior.Strict);
+        var automationClient = new Mock<ITelegramMessageAutomationClient>(MockBehavior.Strict);
+        var schedulingClient = new Mock<ITelegramJourneySchedulingClient>(MockBehavior.Strict);
+        var botApiClient = new Mock<ITelegramBotApiClient>(MockBehavior.Strict);
+        var handoffStateService = new Mock<ITelegramHumanHandoffStateService>(MockBehavior.Strict);
+        var observability = new Mock<ITelegramChatbotObservabilityService>(MockBehavior.Strict);
+
+        observability.Setup(service => service.RecordInboundMessage(0));
+        observability.Setup(service => service.RecordBusinessEvent("scheduling_attempt", false));
+        chatService
+            .Setup(service => service.ReceiveFromTelegramAsync(update.Message, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(storedMessage);
+        leadAutomationClient
+            .Setup(client => client.UpsertLeadAsync(
+                It.IsAny<TelegramLeadAutomationUpsertRequest>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TelegramLeadAutomationUpsertResult
+            {
+                Success = true,
+                HttpStatusCode = StatusCodes.Status200OK,
+                LeadId = 81,
+                Created = false,
+                BoardType = "clientes",
+                Message = "Lead atualizado via automacao do bot Telegram."
+            });
+        automationClient
+            .Setup(client => client.MirrorInboundMessageAsync(
+                It.IsAny<TelegramInboundMessageAutomationRequest>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TelegramInboundMessageAutomationResult
+            {
+                Success = true,
+                HttpStatusCode = StatusCodes.Status202Accepted,
+                LeadId = 81,
+                QueueStatus = "queued",
+                Message = "Mensagem enfileirada."
+            });
+        schedulingClient
+            .Setup(client => client.ProcessTurnAsync(
+                It.Is<TelegramJourneySchedulingTurnRequest>(request =>
+                    request.ChatbotConversationId != Guid.Empty &&
+                    request.TelegramChatId == 5513997114422 &&
+                    request.MessageText == "Agendar visita"),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TelegramJourneySchedulingTurnResult
+            {
+                Success = true,
+                Handled = true,
+                HttpStatusCode = StatusCodes.Status200OK,
+                LeadId = 81,
+                JourneyId = 17,
+                CurrentState = "janela_sugerida",
+                SchedulingStatus = "janela_sugerida",
+                ReplyText = "Encontrei estas janelas para atendimento: 1. Hoje, 15/03, 10:00 as 12:00",
+                RemoveReplyKeyboard = true
+            });
+        botApiClient.SetupGet(client => client.IsConfigured).Returns(true);
+        handoffStateService.Setup(service => service.IsActive(5513997114422)).Returns(false);
+        botApiClient
+            .Setup(client => client.SendMessageAsync(
+                5513997114422,
+                It.Is<string>(text => text.Contains("Encontrei estas janelas", StringComparison.Ordinal)),
+                It.Is<IReadOnlyList<StoredLocalFile>>(files => files.Count == 0),
+                It.IsAny<CancellationToken>(),
+                It.Is<TelegramMessageSendOptions?>(options => options is not null && options.RemoveReplyKeyboard)))
+            .Returns(Task.CompletedTask);
+
+        var sut = CreateSut(
+            chatService.Object,
+            leadAutomationClient.Object,
+            automationClient.Object,
+            schedulingClient.Object,
+            botApiClient.Object,
+            handoffStateService.Object,
+            observability.Object,
+            new TelegramAutomationOptions
+            {
+                Enabled = true,
+                ClientsAutomationEnabled = true,
+                MirrorMessagesEnabled = true,
+                SharedSecret = "segredo-compartilhado",
+                CpmFullBaseUrl = "https://www.consertapramim.com",
+                RequestTimeoutSeconds = 15
+            });
+
+        var result = await sut.ProcessAsync(update, "webhook", CancellationToken.None);
+
+        Assert.True(result);
+        chatService.VerifyAll();
+        leadAutomationClient.VerifyAll();
+        automationClient.VerifyAll();
+        schedulingClient.VerifyAll();
+        botApiClient.VerifyAll();
+        handoffStateService.VerifyAll();
+        observability.VerifyAll();
+    }
+
     private static TelegramInboundUpdateProcessor CreateSut(
         ITelegramChatService chatService,
         ITelegramLeadAutomationClient leadAutomationClient,
         ITelegramMessageAutomationClient automationClient,
+        ITelegramJourneySchedulingClient journeySchedulingClient,
         ITelegramBotApiClient botApiClient,
         ITelegramHumanHandoffStateService humanHandoffStateService,
         ITelegramChatbotObservabilityService observabilityService,
@@ -543,6 +705,7 @@ public sealed class TelegramInboundUpdateProcessorTests
             }),
             leadAutomationClient,
             automationClient,
+            journeySchedulingClient,
             botApiClient,
             humanHandoffStateService,
             observabilityService,

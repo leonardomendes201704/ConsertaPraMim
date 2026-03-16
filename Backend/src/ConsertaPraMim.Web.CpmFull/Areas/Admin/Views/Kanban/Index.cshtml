@@ -188,6 +188,60 @@
                     <div class="col-12 col-md-6"><strong>Fonte:</strong> <span id="detailsSource"></span></div>
                     <div class="col-12 col-md-6"><strong>Prioridade:</strong> <span id="detailsPriority"></span></div>
                     <div class="col-12"><hr class="my-1" /></div>
+                    <div class="col-12"><h6 class="fw-bold mb-0">Jornada automatica</h6></div>
+                    <div class="col-12 col-md-6"><strong>ID interno da jornada:</strong> <span id="detailsJourneyId"></span></div>
+                    <div class="col-12 col-md-6"><strong>ID publico:</strong> <span id="detailsJourneyPublicId"></span></div>
+                    <div class="col-12 col-md-6"><strong>Canal da abertura:</strong> <span id="detailsJourneySourceChannel"></span></div>
+                    <div class="col-12 col-md-6"><strong>Estado atual:</strong> <span id="detailsJourneyCurrentState"></span></div>
+                    <div class="col-12 col-md-6"><strong>Origem tecnica:</strong> <span id="detailsJourneySourceOrigin"></span></div>
+                    <div class="col-12 col-md-6"><strong>Chave de deduplicacao:</strong> <span id="detailsJourneyKey"></span></div>
+                    <div class="col-12 col-md-6"><strong>Landing lead vinculada:</strong> <span id="detailsJourneyLandingLeadId"></span></div>
+                    <div class="col-12 col-md-6"><strong>Pedido vinculado:</strong> <span id="detailsJourneyServiceRequestId"></span></div>
+                    <div class="col-12 col-md-6"><strong>Cliente vinculado:</strong> <span id="detailsJourneyClientId"></span></div>
+                    <div class="col-12 col-md-6"><strong>VisitorId:</strong> <span id="detailsJourneyVisitorId"></span></div>
+                    <div class="col-12 col-md-6"><strong>SessionId:</strong> <span id="detailsJourneySessionId"></span></div>
+                    <div class="col-12 col-md-6"><strong>Conversa do bot:</strong> <span id="detailsJourneyChatbotConversationId"></span></div>
+                    <div class="col-12 col-md-6"><strong>Conversa do canal:</strong> <span id="detailsJourneyChannelConversationId"></span></div>
+                    <div class="col-12 col-md-6"><strong>Chat ID (mascarado):</strong> <span id="detailsJourneyTelegramChatId"></span></div>
+                    <div class="col-12 col-md-6"><strong>Telefone principal (mascarado):</strong> <span id="detailsJourneyPrimaryPhone"></span></div>
+                    <div class="col-12 col-md-6"><strong>E-mail principal (mascarado):</strong> <span id="detailsJourneyPrimaryEmail"></span></div>
+                    <div class="col-12 col-md-6"><strong>Inicio da jornada:</strong> <span id="detailsJourneyCreatedAt"></span></div>
+                    <div class="col-12 col-md-6"><strong>Ultimo intake:</strong> <span id="detailsJourneyLastIntakeAt"></span></div>
+                    <div class="col-12 col-md-6"><strong>Ultima atualizacao:</strong> <span id="detailsJourneyUpdatedAt"></span></div>
+                    <div class="col-12"><hr class="my-1" /></div>
+                    <div class="col-12"><h6 class="fw-bold mb-0">Qualificacao estruturada</h6></div>
+                    <div class="col-12 col-md-6"><strong>Status da qualificacao:</strong> <span id="detailsJourneyQualificationStatus"></span></div>
+                    <div class="col-12 col-md-6"><strong>Origem da qualificacao:</strong> <span id="detailsJourneyQualificationSource"></span></div>
+                    <div class="col-12 col-md-6"><strong>Confianca:</strong> <span id="detailsJourneyQualificationConfidence"></span></div>
+                    <div class="col-12 col-md-6"><strong>Campos obrigatorios completos:</strong> <span id="detailsJourneyQualificationHasRequiredData"></span></div>
+                    <div class="col-12 col-md-6"><strong>Requer confirmacao:</strong> <span id="detailsJourneyQualificationNeedsConfirmation"></span></div>
+                    <div class="col-12 col-md-6"><strong>Categoria normalizada:</strong> <span id="detailsJourneyQualificationCategory"></span></div>
+                    <div class="col-12 col-md-6"><strong>ID categoria normalizada:</strong> <span id="detailsJourneyQualificationCategoryId"></span></div>
+                    <div class="col-12"><strong>Resumo da qualificacao:</strong> <div id="detailsJourneyQualificationSummary" class="text-secondary-emphasis"></div></div>
+                    <div class="col-12"><strong>Contexto identificado:</strong> <div id="detailsJourneyQualificationProblemContext" class="text-secondary-emphasis"></div></div>
+                    <div class="col-12"><strong>Endereco qualificado:</strong> <div id="detailsJourneyQualificationAddress" class="text-secondary-emphasis"></div></div>
+                    <div class="col-12 col-md-6"><strong>Latitude / Longitude:</strong> <span id="detailsJourneyQualificationCoordinates"></span></div>
+                    <div class="col-12 col-md-6"><strong>Qualificado em:</strong> <span id="detailsJourneyQualificationQualifiedAt"></span></div>
+                    <div class="col-12"><strong>Campos obrigatorios:</strong> <div id="detailsJourneyQualificationRequiredFields" class="text-secondary-emphasis"></div></div>
+                    <div class="col-12"><strong>Campos faltantes:</strong> <div id="detailsJourneyQualificationMissingFields" class="text-secondary-emphasis"></div></div>
+                    <div class="col-12"><strong>Campos opcionais:</strong> <div id="detailsJourneyQualificationOptionalFields" class="text-secondary-emphasis"></div></div>
+                    <div class="col-12"><strong>Solicitacao de confirmacao:</strong> <div id="detailsJourneyQualificationConfirmationPrompt" class="text-secondary-emphasis"></div></div>
+                    <div class="col-12"><hr class="my-1" /></div>
+                    <div class="col-12"><h6 class="fw-bold mb-0">Agendamento automatico</h6></div>
+                    <div class="col-12 col-md-6"><strong>Status do agendamento:</strong> <span id="detailsJourneySchedulingStatus"></span></div>
+                    <div class="col-12 col-md-6"><strong>Janela confirmada:</strong> <span id="detailsJourneySchedulingWindow"></span></div>
+                    <div class="col-12 col-md-6"><strong>Janela sugerida em:</strong> <span id="detailsJourneySchedulingSuggestedAt"></span></div>
+                    <div class="col-12 col-md-6"><strong>Confirmado em:</strong> <span id="detailsJourneySchedulingConfirmedAt"></span></div>
+                    <div class="col-12 col-md-6"><strong>Cancelado em:</strong> <span id="detailsJourneySchedulingCancelledAt"></span></div>
+                    <div class="col-12 col-md-6"><strong>Evento Google Calendar:</strong> <span id="detailsJourneySchedulingEventId"></span></div>
+                    <div class="col-12"><strong>Resumo do agendamento:</strong> <div id="detailsJourneySchedulingSummary" class="text-secondary-emphasis"></div></div>
+                    <div class="col-12"><strong>Janelas sugeridas:</strong> <div id="detailsJourneySchedulingSuggestedSlots" class="text-secondary-emphasis"></div></div>
+                    <div class="col-12">
+                        <a id="detailsJourneySchedulingEventLink" class="link-primary d-none" href="#" target="_blank" rel="noopener noreferrer">
+                            Abrir evento no Google Calendar
+                        </a>
+                    </div>
+                    <div class="col-12"><hr class="my-1" /></div>
                     <div class="col-12"><h6 class="fw-bold mb-0">Vinculo Telegram</h6></div>
                     <div class="col-12 col-md-6"><strong>Origem automatizada:</strong> <span id="detailsTelegramOrigin"></span></div>
                     <div class="col-12 col-md-6"><strong>Ultima atualizacao do vinculo:</strong> <span id="detailsTelegramUpdatedAt"></span></div>
@@ -1315,9 +1369,31 @@
             };
 
             const fillDetails = (lead) => {
+                const journey = lead.journey || {};
+                const qualification = journey.qualification || {};
+                const scheduling = journey.scheduling || {};
                 const telegram = lead.telegram || {};
                 const chatwoot = lead.chatwoot || {};
                 const conversationLink = document.getElementById("openLeadChatwootConversationBtn");
+                const schedulingEventLink = document.getElementById("detailsJourneySchedulingEventLink");
+                const qualificationAddress = [
+                    qualification.street,
+                    qualification.neighborhood,
+                    qualification.city,
+                    qualification.state,
+                    qualification.postalCode
+                ].filter(Boolean).join(" / ");
+                const qualificationCoordinates = [qualification.latitude, qualification.longitude].filter(Boolean).join(" / ");
+                const qualificationRequiredFields = Array.isArray(qualification.requiredFields) ? qualification.requiredFields.join(", ") : "";
+                const qualificationMissingFields = Array.isArray(qualification.missingRequiredFields) ? qualification.missingRequiredFields.join(", ") : "";
+                const qualificationOptionalFields = Array.isArray(qualification.optionalFields) ? qualification.optionalFields.join(", ") : "";
+                const schedulingWindow = [scheduling.scheduledStartAt, scheduling.scheduledEndAt].filter(value => value && value !== "-").join(" ate ");
+                const schedulingSuggestedSlots = Array.isArray(scheduling.suggestedSlots)
+                    ? scheduling.suggestedSlots
+                        .map(item => item?.label ? `${item.optionNumber}. ${item.label}` : "")
+                        .filter(Boolean)
+                        .join(" | ")
+                    : "";
                 document.getElementById("detailsName").textContent = lead.name || "-";
                 document.getElementById("detailsStage").textContent = lead.stageName || "-";
                 document.getElementById("detailsChatwootStatus").textContent = chatwoot.syncStatusLabel || "Ainda nao sincronizado";
@@ -1328,6 +1404,58 @@
                 document.getElementById("detailsAddress").textContent = [lead.postalCode, lead.city].filter(Boolean).join(" / ") || "-";
                 document.getElementById("detailsSource").textContent = lead.source || "-";
                 document.getElementById("detailsPriority").textContent = lead.priority || "-";
+                document.getElementById("detailsJourneyId").textContent = journey.journeyId || "-";
+                document.getElementById("detailsJourneyPublicId").textContent = journey.journeyPublicId || "-";
+                document.getElementById("detailsJourneySourceChannel").textContent = journey.sourceChannelLabel || "-";
+                document.getElementById("detailsJourneyCurrentState").textContent = journey.currentStateLabel || "-";
+                document.getElementById("detailsJourneySourceOrigin").textContent = journey.sourceOrigin || "-";
+                document.getElementById("detailsJourneyKey").textContent = journey.journeyKey || "-";
+                document.getElementById("detailsJourneyLandingLeadId").textContent = journey.landingLeadId || "-";
+                document.getElementById("detailsJourneyServiceRequestId").textContent = journey.serviceRequestId || "-";
+                document.getElementById("detailsJourneyClientId").textContent = journey.clientId || "-";
+                document.getElementById("detailsJourneyVisitorId").textContent = journey.visitorId || "-";
+                document.getElementById("detailsJourneySessionId").textContent = journey.sessionId || "-";
+                document.getElementById("detailsJourneyChatbotConversationId").textContent = journey.chatbotConversationId || "-";
+                document.getElementById("detailsJourneyChannelConversationId").textContent = journey.channelConversationId || "-";
+                document.getElementById("detailsJourneyTelegramChatId").textContent = journey.telegramChatId || "-";
+                document.getElementById("detailsJourneyPrimaryPhone").textContent = journey.primaryPhone || "-";
+                document.getElementById("detailsJourneyPrimaryEmail").textContent = journey.primaryEmail || "-";
+                document.getElementById("detailsJourneyCreatedAt").textContent = journey.createdAt || "-";
+                document.getElementById("detailsJourneyLastIntakeAt").textContent = journey.lastIntakeAt || "-";
+                document.getElementById("detailsJourneyUpdatedAt").textContent = journey.updatedAt || "-";
+                document.getElementById("detailsJourneyQualificationStatus").textContent = qualification.statusLabel || "-";
+                document.getElementById("detailsJourneyQualificationSource").textContent = qualification.sourceLabel || "-";
+                document.getElementById("detailsJourneyQualificationConfidence").textContent = qualification.confidenceScore || "-";
+                document.getElementById("detailsJourneyQualificationHasRequiredData").textContent = qualification.hasRequiredData === true ? "Sim" : "Nao";
+                document.getElementById("detailsJourneyQualificationNeedsConfirmation").textContent = qualification.needsConfirmation === true ? "Sim" : "Nao";
+                document.getElementById("detailsJourneyQualificationCategory").textContent = qualification.normalizedServiceCategoryName || "-";
+                document.getElementById("detailsJourneyQualificationCategoryId").textContent = qualification.normalizedServiceCategoryId || "-";
+                document.getElementById("detailsJourneyQualificationSummary").textContent = qualification.summary || "-";
+                document.getElementById("detailsJourneyQualificationProblemContext").textContent = qualification.problemContext || "-";
+                document.getElementById("detailsJourneyQualificationAddress").textContent = qualificationAddress || "-";
+                document.getElementById("detailsJourneyQualificationCoordinates").textContent = qualificationCoordinates || "-";
+                document.getElementById("detailsJourneyQualificationQualifiedAt").textContent = qualification.qualifiedAt || "-";
+                document.getElementById("detailsJourneyQualificationRequiredFields").textContent = qualificationRequiredFields || "-";
+                document.getElementById("detailsJourneyQualificationMissingFields").textContent = qualificationMissingFields || "-";
+                document.getElementById("detailsJourneyQualificationOptionalFields").textContent = qualificationOptionalFields || "-";
+                document.getElementById("detailsJourneyQualificationConfirmationPrompt").textContent = qualification.confirmationPrompt || "-";
+                document.getElementById("detailsJourneySchedulingStatus").textContent = scheduling.statusLabel || "-";
+                document.getElementById("detailsJourneySchedulingWindow").textContent = schedulingWindow || "-";
+                document.getElementById("detailsJourneySchedulingSuggestedAt").textContent = scheduling.suggestedAt || "-";
+                document.getElementById("detailsJourneySchedulingConfirmedAt").textContent = scheduling.confirmedAt || "-";
+                document.getElementById("detailsJourneySchedulingCancelledAt").textContent = scheduling.cancelledAt || "-";
+                document.getElementById("detailsJourneySchedulingEventId").textContent = scheduling.googleCalendarEventId || "-";
+                document.getElementById("detailsJourneySchedulingSummary").textContent = scheduling.summary || "-";
+                document.getElementById("detailsJourneySchedulingSuggestedSlots").textContent = schedulingSuggestedSlots || "-";
+                if (schedulingEventLink) {
+                    if (scheduling.googleCalendarEventLink) {
+                        schedulingEventLink.href = scheduling.googleCalendarEventLink;
+                        schedulingEventLink.classList.remove("d-none");
+                    } else {
+                        schedulingEventLink.href = "#";
+                        schedulingEventLink.classList.add("d-none");
+                    }
+                }
                 document.getElementById("detailsTelegramOrigin").textContent = telegram.originLabel || (lead.source || "-");
                 document.getElementById("detailsTelegramUpdatedAt").textContent = telegram.updatedAt || "-";
                 document.getElementById("detailsTelegramChatbotConversationId").textContent = telegram.chatbotConversationId || "-";

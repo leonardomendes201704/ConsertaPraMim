@@ -39,11 +39,19 @@
 - [EPIC-CHATWOOT-001 - Integracao Chatwoot com Funis CPM](../../Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/EPIC_CHATWOOT_FUNIS_CPM.md)
 - [EPIC-TELEGRAM-001 - Automacao do Bot Telegram com Funis CPM e Chatwoot](../../Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/EPIC_TELEGRAM_AUTOMACAO_FUNIL_CPM.md)
 - [EPIC-TELEGRAM-002 - Enriquecimento operacional do bot Telegram no CPM e Chatwoot](../../Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/EPIC_TELEGRAM_ENRIQUECIMENTO_OPERACIONAL.md)
+- [EPIC-JORNADA-001 - Jornada autonoma de servico do cliente](../../Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/EPIC_JORNADA_AUTONOMA_SERVICO_CPM.md)
 
 ## Stories
 
 ### Backlog
 
+- [ST-104 - Kanban autonomo e timers operacionais da jornada](STORIES/BACKLOG/ST-104-kanban-autonomo-timers-operacionais.md)
+- [ST-105 - Matching geografico e elegibilidade de prestadores](STORIES/BACKLOG/ST-105-matching-geografico-elegibilidade-prestadores.md)
+- [ST-106 - Motor de disparo em ondas para prestadores](STORIES/BACKLOG/ST-106-motor-disparo-ondas-prestadores.md)
+- [ST-107 - Notificacao confiavel para prestadores com links assinados](STORIES/BACKLOG/ST-107-notificacao-confiavel-prestadores-links-assinados.md)
+- [ST-108 - Reserva do caso e conexao direta entre cliente e prestador](STORIES/BACKLOG/ST-108-reserva-caso-conexao-direta-cliente-prestador.md)
+- [ST-109 - Conclusao do servico e avaliacao bilateral](STORIES/BACKLOG/ST-109-conclusao-servico-avaliacao-bilateral.md)
+- [ST-110 - Excecoes, handoff minimo, observabilidade e rollout da jornada](STORIES/BACKLOG/ST-110-excecoes-handoff-observabilidade-rollout-jornada.md)
 - [ST-022 - API de atendimento para portal admin](STORIES/BACKLOG/ST-022-api-atendimento-portal-admin.md)
 - [ST-023 - UI de suporte no portal prestador](STORIES/BACKLOG/ST-023-ui-suporte-portal-prestador.md)
 - [ST-024 - UI de atendimento no portal admin](STORIES/BACKLOG/ST-024-ui-atendimento-portal-admin.md)
@@ -73,6 +81,9 @@
 
 ### Done
 
+- [ST-103 - Autoagendamento com Google Calendar](STORIES/DONE/ST-103-autoagendamento-google-calendar.md)
+- [ST-102 - Qualificacao estruturada e validacao de dados do cliente](STORIES/DONE/ST-102-qualificacao-estruturada-validacao-dados-cliente.md)
+- [ST-101 - Intake omnichannel e maquina de estados da jornada de servico](STORIES/DONE/ST-101-intake-omnichannel-maquina-estados-jornada-servico.md)
 - [ST-098 - Observabilidade de negocio do canal Telegram](STORIES/DONE/ST-098-observabilidade-negocio-canal-telegram.md)
 - [ST-097 - Politica operacional de handoff entre Telegram e Chatwoot](STORIES/DONE/ST-097-politica-handoff-telegram-chatwoot.md)
 - [ST-096 - Qualificacao inicial do lead Telegram com cidade, categoria e intencao](STORIES/DONE/ST-096-qualificacao-inicial-lead-telegram.md)

@@ -5,7 +5,7 @@ using Microsoft.Data.SqlClient;
 
 namespace AppMobileCPM.Services;
 
-public sealed class SqlAdminKanbanService : IAdminKanbanService
+public sealed partial class SqlAdminKanbanService : IAdminKanbanService
 {
     private const string TablePrefix = "cpm_web_";
     private const string RedactedWebhookPayloadJson = "{\"redacted\":true,\"reason\":\"retention\"}";
@@ -337,6 +337,7 @@ ORDER BY h.CreatedAt DESC, h.Id DESC;
             CreatedAt = details.CreatedAt,
             UpdatedAt = details.UpdatedAt,
             LastContactAt = details.LastContactAt,
+            Journey = GetJourneyDetails(leadId) ?? details.Journey,
             Telegram = telegramLink ?? details.Telegram,
             Chatwoot = details.Chatwoot,
             History = history
@@ -410,6 +411,12 @@ DELETE FROM dbo.{TablePrefix}telegram_delivery_queue
 WHERE LeadId = @leadId;
 
 DELETE FROM dbo.{TablePrefix}chatwoot_sync_queue
+WHERE LeadId = @leadId;
+
+DELETE FROM dbo.{TablePrefix}journey_events
+WHERE LeadId = @leadId;
+
+DELETE FROM dbo.{TablePrefix}journey_executions
 WHERE LeadId = @leadId;
 
 DELETE FROM dbo.{TablePrefix}telegram_funil_links

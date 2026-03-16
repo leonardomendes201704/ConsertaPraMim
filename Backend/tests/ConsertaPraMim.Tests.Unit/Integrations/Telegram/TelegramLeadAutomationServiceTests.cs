@@ -1,4 +1,5 @@
 using AppMobileCPM.Integrations.Chatwoot;
+using AppMobileCPM.Integrations.Journey;
 using AppMobileCPM.Integrations.Telegram;
 using AppMobileCPM.Services;
 using Microsoft.AspNetCore.Http;
@@ -18,25 +19,71 @@ public sealed class TelegramLeadAutomationServiceTests
 
         var kanbanService = new Mock<IAdminKanbanService>(MockBehavior.Strict);
         var chatwootLeadSyncService = new Mock<IChatwootLeadSyncService>(MockBehavior.Strict);
+        var journeyQualificationService = new Mock<IJourneyQualificationService>(MockBehavior.Strict);
+
+        journeyQualificationService
+            .Setup(service => service.QualifyAsync(
+                It.Is<JourneyQualificationInput>(input =>
+                    input.BoardType == AdminKanbanBoardTypes.Clients &&
+                    input.SourceChannel == AdminKanbanJourneySourceChannels.Telegram &&
+                    input.Phone == "+5513997114422" &&
+                    input.Email == "cliente@telegram.com" &&
+                    input.ServiceCategory == "Eletricista" &&
+                    input.ProblemDescription == "Chuveiro queimou no apartamento"),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JourneyQualificationResult
+            {
+                Status = AdminKanbanJourneyQualificationStatuses.Qualified,
+                Source = AdminKanbanJourneyQualificationSources.Deterministic,
+                ConfidenceScore = 0.92m,
+                HasRequiredData = true,
+                NeedsConfirmation = false,
+                NormalizedServiceCategoryId = "eletricista",
+                NormalizedServiceCategoryName = "Eletricista",
+                ProblemContext = "Chuveiro queimou no apartamento",
+                Street = "Rua Bahia",
+                Neighborhood = "Ocian",
+                City = "Praia Grande",
+                State = "SP",
+                PostalCode = "11701-200",
+                Latitude = -24.010101,
+                Longitude = -46.40202,
+                Summary = "Triagem concluida.",
+                RequiredFields = ["Telefone", "Categoria", "CEP", "Cidade", "Logradouro ou bairro", "Contexto do problema"],
+                OptionalFields = ["E-mail", "UF", "Latitude", "Longitude"]
+            });
 
         kanbanService
-            .Setup(service => service.UpsertTelegramLead(It.Is<AdminKanbanTelegramLeadUpsertRequest>(request =>
+            .Setup(service => service.UpsertJourneyIntake(It.Is<AdminKanbanJourneyIntakeRequest>(request =>
                 request.BoardType == AdminKanbanBoardTypes.Clients &&
+                request.SourceChannel == AdminKanbanJourneySourceChannels.Telegram &&
                 request.ChatbotConversationId == chatbotConversationId &&
                 request.ChannelConversationId == "chat-telegram-5513" &&
                 request.TelegramChatId == 5513997114422 &&
                 request.ClientId == userId &&
-                request.ClientPhone == "+5513997114422" &&
-                request.ClientEmail == "cliente@telegram.com" &&
+                request.Phone == "+5513997114422" &&
+                request.Email == "cliente@telegram.com" &&
                 request.ServiceCategory == "Eletricista" &&
-                request.City == "Praia Grande")))
-            .Returns(new AdminKanbanTelegramLeadUpsertResult
+                request.ProblemDescription == "Chuveiro queimou no apartamento" &&
+                request.Street == "Rua Bahia" &&
+                request.Neighborhood == "Ocian" &&
+                request.City == "Praia Grande" &&
+                request.State == "SP" &&
+                request.PostalCode == "11701-200" &&
+                request.Latitude == -24.010101 &&
+                request.Longitude == -46.40202 &&
+                request.Qualification.Status == AdminKanbanJourneyQualificationStatuses.Qualified &&
+                request.Qualification.NormalizedServiceCategoryId == "eletricista"))))
+            .Returns(new AdminKanbanJourneyUpsertResult
             {
                 LeadId = 81,
-                Created = true,
+                JourneyId = 17,
+                JourneyPublicId = Guid.Parse("11111111-1111-1111-1111-111111111111"),
+                CreatedLead = true,
+                CreatedJourney = true,
                 StageId = 1,
                 BoardType = AdminKanbanBoardTypes.Clients,
-                ChatbotConversationId = chatbotConversationId
+                CurrentState = AdminKanbanJourneyStates.AutomatedTriage
             });
         chatwootLeadSyncService
             .Setup(service => service.SyncLeadAsync(81, It.IsAny<CancellationToken>(), false))
@@ -49,6 +96,7 @@ public sealed class TelegramLeadAutomationServiceTests
         var sut = CreateSut(
             kanbanService.Object,
             chatwootLeadSyncService.Object,
+            journeyQualificationService.Object,
             new TelegramAutomationOptions
             {
                 Enabled = true,
@@ -71,6 +119,7 @@ public sealed class TelegramLeadAutomationServiceTests
                 UserPhone = "+5513997114422",
                 UserEmail = "cliente@telegram.com",
                 ServiceCategory = "Eletricista",
+                ProblemDescription = "Chuveiro queimou no apartamento",
                 PostalCode = "11701-200",
                 City = "Praia Grande",
                 LastContactAtUtc = new DateTime(2026, 3, 14, 20, 0, 0, DateTimeKind.Utc)
@@ -89,6 +138,7 @@ public sealed class TelegramLeadAutomationServiceTests
         Assert.Equal(1, result.Payload.ChatwootInboxId);
         kanbanService.VerifyAll();
         chatwootLeadSyncService.VerifyAll();
+        journeyQualificationService.VerifyAll();
     }
 
     [Fact(DisplayName = "Telegram Lead Automation | Deve rejeitar segredo invalido")]
@@ -97,6 +147,7 @@ public sealed class TelegramLeadAutomationServiceTests
         var sut = CreateSut(
             Mock.Of<IAdminKanbanService>(),
             Mock.Of<IChatwootLeadSyncService>(),
+            Mock.Of<IJourneyQualificationService>(),
             new TelegramAutomationOptions
             {
                 Enabled = true,
@@ -129,6 +180,7 @@ public sealed class TelegramLeadAutomationServiceTests
         var sut = CreateSut(
             Mock.Of<IAdminKanbanService>(),
             Mock.Of<IChatwootLeadSyncService>(),
+            Mock.Of<IJourneyQualificationService>(),
             new TelegramAutomationOptions
             {
                 Enabled = true,
@@ -158,11 +210,13 @@ public sealed class TelegramLeadAutomationServiceTests
     private static TelegramLeadAutomationService CreateSut(
         IAdminKanbanService kanbanService,
         IChatwootLeadSyncService chatwootLeadSyncService,
+        IJourneyQualificationService journeyQualificationService,
         TelegramAutomationOptions options)
     {
         return new TelegramLeadAutomationService(
             kanbanService,
             chatwootLeadSyncService,
+            journeyQualificationService,
             Options.Create(options),
             NullLogger<TelegramLeadAutomationService>.Instance);
     }

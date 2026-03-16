@@ -19,7 +19,9 @@ using System.Globalization;
 using Microsoft.AspNetCore.Localization;
 using System.Threading.RateLimiting;
 using ConsertaPraMim.API.Swagger;
+using ConsertaPraMim.API.Integrations.Journey;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.Extensions.Options;
 //teste de deploy automatico
 var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddSystemSettingsOverridesFromDatabase();
@@ -99,6 +101,22 @@ builder.Services.AddSwaggerGen(c =>
 // Clean Architecture Layers
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddApplication();
+builder.Services.AddSingleton<IValidateOptions<JourneyAutomationGatewayOptions>, JourneyAutomationGatewayOptionsValidator>();
+builder.Services.AddOptions<JourneyAutomationGatewayOptions>()
+    .Bind(builder.Configuration.GetSection(JourneyAutomationGatewayOptions.SectionName))
+    .ValidateOnStart();
+builder.Services.AddHttpClient<IServiceJourneyAutomationGateway, JourneyAutomationGateway>((serviceProvider, client) =>
+{
+    var options = serviceProvider.GetRequiredService<IOptions<JourneyAutomationGatewayOptions>>().Value;
+    if (Uri.TryCreate(options.BaseUrl, UriKind.Absolute, out var baseUri))
+    {
+        client.BaseAddress = baseUri;
+    }
+
+    client.Timeout = options.GetRequestTimeout();
+    client.DefaultRequestHeaders.TryAddWithoutValidation("Accept", "application/json");
+    client.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", "ConsertaPraMim.API/1.0");
+});
 builder.Services.AddHostedService<ServiceAppointmentExpirationWorker>();
 builder.Services.AddHostedService<ServiceScopeChangeExpirationWorker>();
 builder.Services.AddHostedService<ServiceAppointmentReminderWorker>();

@@ -5,6 +5,9 @@ public interface IAdminKanbanService
     AdminKanbanBoardData GetBoard(string boardType);
     IReadOnlyList<AdminKanbanStageRecord> GetStages(string boardType);
     AdminKanbanLeadDetailsRecord? GetLeadDetails(int leadId);
+    AdminKanbanLeadJourneyRecord? GetJourneyDetails(int leadId);
+    AdminKanbanJourneyUpsertResult UpsertJourneyIntake(AdminKanbanJourneyIntakeRequest request);
+    AdminKanbanJourneySchedulingUpdateResult? UpdateJourneyScheduling(int leadId, AdminKanbanJourneySchedulingUpdateRequest request);
     int CreateLead(AdminKanbanLeadUpsertRequest request);
     bool DeleteLead(int leadId);
     AdminKanbanTelegramLeadUpsertResult UpsertTelegramLead(AdminKanbanTelegramLeadUpsertRequest request);

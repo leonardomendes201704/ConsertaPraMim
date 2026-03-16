@@ -2,6 +2,7 @@ using AppMobileCPM.Areas.Admin.ViewModels;
 using AppMobileCPM.Integrations.Chatwoot;
 using AppMobileCPM.Integrations.Telegram;
 using AppMobileCPM.Services;
+using System.Globalization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
@@ -85,6 +86,84 @@ public sealed class KanbanController : Controller
             createdAt = lead.CreatedAt.ToString("dd/MM/yyyy HH:mm"),
             updatedAt = lead.UpdatedAt?.ToString("dd/MM/yyyy HH:mm") ?? "-",
             lastContactAt = lead.LastContactAt?.ToString("yyyy-MM-ddTHH:mm") ?? string.Empty,
+            journey = new
+            {
+                journeyId = lead.Journey.JourneyId,
+                journeyPublicId = lead.Journey.JourneyPublicId == Guid.Empty ? string.Empty : lead.Journey.JourneyPublicId.ToString(),
+                journeyKey = lead.Journey.JourneyKey,
+                sourceChannel = lead.Journey.SourceChannel,
+                sourceChannelLabel = string.IsNullOrWhiteSpace(lead.Journey.SourceChannel) ? "-" : AdminKanbanJourneySourceChannels.GetLabel(lead.Journey.SourceChannel),
+                sourceOrigin = string.IsNullOrWhiteSpace(lead.Journey.SourceOrigin) ? "-" : lead.Journey.SourceOrigin,
+                currentState = lead.Journey.CurrentState,
+                currentStateLabel = string.IsNullOrWhiteSpace(lead.Journey.CurrentState) ? "-" : AdminKanbanJourneyStates.GetLabel(lead.Journey.CurrentState),
+                landingLeadId = lead.Journey.LandingLeadId?.ToString() ?? string.Empty,
+                serviceRequestId = lead.Journey.ServiceRequestId?.ToString() ?? string.Empty,
+                clientId = lead.Journey.ClientId?.ToString() ?? string.Empty,
+                visitorId = lead.Journey.VisitorId,
+                sessionId = lead.Journey.SessionId,
+                chatbotConversationId = lead.Journey.ChatbotConversationId?.ToString() ?? string.Empty,
+                channelConversationId = lead.Journey.ChannelConversationId,
+                telegramChatId = lead.Journey.TelegramChatId.HasValue ? TelegramSecuritySanitizer.MaskChatId(lead.Journey.TelegramChatId) : string.Empty,
+                primaryPhone = string.IsNullOrWhiteSpace(lead.Journey.PrimaryPhone) ? string.Empty : TelegramSecuritySanitizer.MaskPhone(lead.Journey.PrimaryPhone),
+                primaryEmail = string.IsNullOrWhiteSpace(lead.Journey.PrimaryEmail) ? string.Empty : TelegramSecuritySanitizer.MaskEmail(lead.Journey.PrimaryEmail),
+                createdAt = lead.Journey.JourneyId > 0 ? lead.Journey.CreatedAt.ToString("dd/MM/yyyy HH:mm") : "-",
+                updatedAt = lead.Journey.UpdatedAt?.ToString("dd/MM/yyyy HH:mm") ?? "-",
+                lastIntakeAt = lead.Journey.LastIntakeAt?.ToString("dd/MM/yyyy HH:mm") ?? "-",
+                qualification = new
+                {
+                    status = lead.Journey.Qualification.Status,
+                    statusLabel = string.IsNullOrWhiteSpace(lead.Journey.Qualification.Status)
+                        ? "-"
+                        : AdminKanbanJourneyQualificationStatuses.GetLabel(lead.Journey.Qualification.Status),
+                    source = lead.Journey.Qualification.Source,
+                    sourceLabel = string.IsNullOrWhiteSpace(lead.Journey.Qualification.Source)
+                        ? "-"
+                        : AdminKanbanJourneyQualificationSources.GetLabel(lead.Journey.Qualification.Source),
+                    confidenceScore = lead.Journey.Qualification.ConfidenceScore > 0
+                        ? lead.Journey.Qualification.ConfidenceScore.ToString("P0", CultureInfo.GetCultureInfo("pt-BR"))
+                        : "-",
+                    hasRequiredData = lead.Journey.Qualification.HasRequiredData,
+                    needsConfirmation = lead.Journey.Qualification.NeedsConfirmation,
+                    normalizedServiceCategoryId = lead.Journey.Qualification.NormalizedServiceCategoryId,
+                    normalizedServiceCategoryName = lead.Journey.Qualification.NormalizedServiceCategoryName,
+                    problemContext = lead.Journey.Qualification.ProblemContext,
+                    street = lead.Journey.Qualification.Street,
+                    neighborhood = lead.Journey.Qualification.Neighborhood,
+                    city = lead.Journey.Qualification.City,
+                    state = lead.Journey.Qualification.State,
+                    postalCode = lead.Journey.Qualification.PostalCode,
+                    latitude = lead.Journey.Qualification.Latitude?.ToString("F6", CultureInfo.InvariantCulture) ?? string.Empty,
+                    longitude = lead.Journey.Qualification.Longitude?.ToString("F6", CultureInfo.InvariantCulture) ?? string.Empty,
+                    summary = lead.Journey.Qualification.Summary,
+                    confirmationPrompt = lead.Journey.Qualification.ConfirmationPrompt,
+                    qualifiedAt = lead.Journey.Qualification.QualifiedAtUtc?.ToString("dd/MM/yyyy HH:mm") ?? "-",
+                    requiredFields = lead.Journey.Qualification.RequiredFields,
+                    missingRequiredFields = lead.Journey.Qualification.MissingRequiredFields,
+                    optionalFields = lead.Journey.Qualification.OptionalFields
+                },
+                scheduling = new
+                {
+                    status = lead.Journey.Scheduling.Status,
+                    statusLabel = string.IsNullOrWhiteSpace(lead.Journey.Scheduling.Status)
+                        ? "-"
+                        : AdminKanbanJourneySchedulingStatuses.GetLabel(lead.Journey.Scheduling.Status),
+                    summary = lead.Journey.Scheduling.Summary,
+                    googleCalendarEventId = lead.Journey.Scheduling.GoogleCalendarEventId,
+                    googleCalendarEventLink = lead.Journey.Scheduling.GoogleCalendarEventLink,
+                    suggestedAt = lead.Journey.Scheduling.SuggestedAtUtc?.ToString("dd/MM/yyyy HH:mm") ?? "-",
+                    confirmedAt = lead.Journey.Scheduling.ConfirmedAtUtc?.ToString("dd/MM/yyyy HH:mm") ?? "-",
+                    cancelledAt = lead.Journey.Scheduling.CancelledAtUtc?.ToString("dd/MM/yyyy HH:mm") ?? "-",
+                    scheduledStartAt = lead.Journey.Scheduling.ScheduledStartAtUtc?.ToString("dd/MM/yyyy HH:mm") ?? "-",
+                    scheduledEndAt = lead.Journey.Scheduling.ScheduledEndAtUtc?.ToString("dd/MM/yyyy HH:mm") ?? "-",
+                    suggestedSlots = lead.Journey.Scheduling.SuggestedSlots.Select(item => new
+                    {
+                        optionNumber = item.OptionNumber,
+                        startsAt = item.StartsAtUtc.ToString("dd/MM/yyyy HH:mm"),
+                        endsAt = item.EndsAtUtc.ToString("dd/MM/yyyy HH:mm"),
+                        label = item.Label
+                    })
+                }
+            },
             telegram = new
             {
                 originLabel = string.Equals(lead.Source, "Telegram", StringComparison.OrdinalIgnoreCase) ? "Telegram" : "-",
@@ -986,6 +1065,15 @@ public sealed class KanbanController : Controller
             "atualizado" => "Dados atualizados",
             "nota" => "Anotacao",
             "seed" => "Carga inicial",
+            "jornada_criada" => "Jornada automatica criada",
+            "jornada_atualizada" => "Jornada automatica atualizada",
+            "jornada_reentrada_omnichannel" => "Reentrada omnichannel reaproveitou a jornada",
+            "jornada_pedido_vinculado" => "Pedido vinculado a jornada automatica",
+            "agenda_janela_sugerida" => "Janelas de atendimento sugeridas",
+            "agenda_confirmada" => "Agendamento confirmado",
+            "agenda_confirmacao_falhou" => "Falha ao confirmar agendamento",
+            "agenda_cancelada" => "Agendamento cancelado",
+            "agenda_sem_disponibilidade" => "Sem janelas disponiveis na agenda",
             "telegram_lead_criado" => "Lead criado via bot Telegram",
             "telegram_lead_atualizado" => "Lead atualizado via bot Telegram",
             "telegram_entrega_enfileirada" => "Entrega Telegram enfileirada",

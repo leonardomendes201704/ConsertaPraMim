@@ -4,6 +4,178 @@
 
 Orientar validacao funcional e operacao basica do projeto `ConsertaPraMim.Web.CpmFull`.
 
+## Jornada autonoma omnichannel -> CPM Full
+
+### Objetivo desta etapa
+
+- Unificar `landing/site`, `portal do cliente` e intake via `Telegram` na mesma jornada operacional de serviço.
+- Persistir estado auditável da jornada separado do canal de origem e do card visual do Kanban.
+- Deduplicar reentradas do mesmo cliente por identificadores fortes e janela temporal controlada.
+- Projetar a jornada no detalhe do lead para que operação e QA consigam entender de onde o caso nasceu e como ele foi reaproveitado.
+
+### Escopo entregue nesta fatia
+
+- O `ConsertaPraMim.Web.CpmFull` passou a expor `POST /api/integrations/journey/automation/intake`, endpoint interno protegido por `X-Journey-Automation-Key`.
+- O `ConsertaPraMim.API` ganhou o `JourneyAutomationGateway`, usado por `LandingLeadService` e `ServiceRequestService` para abrir ou atualizar a mesma jornada no CPM Full.
+- O fluxo Telegram passou a reaproveitar o mesmo contrato unificado de jornada por meio do `TelegramLeadAutomationService`.
+- O CPM Full passou a persistir `dbo.cpm_web_journey_executions` e `dbo.cpm_web_journey_events` com DDL idempotente.
+- A deduplicação atual considera `LandingLeadId`, `ServiceRequestId`, `ChatbotConversationId`, `TelegramChatId`, telefone normalizado, e-mail normalizado e janela temporal de 48 horas.
+- O detalhe do lead no Kanban agora exibe a seção `Jornada automatica` com canal, estado, origem técnica, chave de deduplicação, vínculos com landing/pedido/cliente e identificadores de canal.
+- O histórico funcional do lead agora registra eventos em PT-BR para criação, atualização, reentrada omnichannel e vínculo de pedido na jornada.
+- A exclusão operacional do lead passou a remover também registros de jornada para evitar resíduos em novos testes.
+- A jornada agora registra uma `Qualificacao estruturada` com categoria normalizada, contexto do problema, endereço consolidado, score de confiança, campos obrigatórios e status (`Dados pendentes`, `Confirmacao necessaria` ou `Qualificacao validada`).
+- A seção `Qualificacao estruturada` do modal do lead passou a mostrar o snapshot validado da triagem, inclusive resumo operacional e prompt de confirmação quando a confiança não for suficiente para autoaplicação.
+
+### Configuracao minima
+
+No `ConsertaPraMim.Web.CpmFull`, configurar a seção `JourneyAutomation`:
+
+- `Enabled`
+- `ClientsAutomationEnabled`
+- `ProvidersAutomationEnabled`
+- `SharedSecret`
+
+No `ConsertaPraMim.Web.CpmFull`, configurar também a seção `JourneyQualification`:
+
+- `Enabled`
+- `AiEnabled`
+- `OpenAiApiKey`
+- `OpenAiModel`
+- `RequestTimeoutSeconds`
+- `MaxRetries`
+- `MinimumConfidenceForAutoApply`
+
+No `ConsertaPraMim.API`, configurar a seção `JourneyAutomationGateway`:
+
+- `Enabled`
+- `ClientsAutomationEnabled`
+- `ProvidersAutomationEnabled`
+- `BaseUrl`
+- `SharedSecret`
+- `RequestTimeoutSeconds`
+
+### Comportamento esperado
+
+- Com `JourneyAutomation:Enabled=false` no CPM Full, o endpoint interno deve rejeitar o intake com `409`.
+- Com `JourneyAutomationGateway:Enabled=false` na API, landing e abertura de pedido continuam funcionando, mas sem projetar jornada automatizada.
+- Uma captura nova de `landing` deve criar lead e jornada no board correto (`clientes` ou `prestadores`).
+- A qualificação da jornada deve classificar os dados mínimos do caso em campos estruturados, separando dados obrigatórios de dados opcionais.
+- Quando houver telefone, categoria, cidade/região e contexto suficientes, a jornada deve evoluir pelo menos para `Confirmacao necessaria`; para clientes com endereço consolidado e confiança suficiente, deve evoluir para `Qualificacao validada`.
+- A abertura de `ServiceRequest` pelo portal do cliente deve reaproveitar o mesmo lead quando houver deduplicação elegível e registrar o vínculo do pedido na jornada.
+- O intake vindo do Telegram deve reaproveitar o mesmo contrato de jornada já existente no CPM Full.
+- O detalhe do lead deve mostrar a seção `Jornada automatica` com `Canal da abertura`, `Estado atual`, `Origem tecnica`, `Chave de deduplicacao` e timestamps.
+- O detalhe do lead deve mostrar também a seção `Qualificacao estruturada` com `Status da qualificacao`, `Origem da qualificacao`, `Confianca`, `Categoria normalizada`, `Contexto identificado`, `Endereco qualificado`, `Campos faltantes` e `Solicitacao de confirmacao`.
+- Reentradas do mesmo cliente em outro canal dentro da janela de deduplicação devem atualizar a mesma jornada e registrar histórico `Reentrada omnichannel da jornada automatica`.
+
+### Checklist de QA
+
+1. Configurar `JourneyAutomation` no CPM Full e `JourneyAutomationGateway` na API com o mesmo `SharedSecret`.
+2. Subir o `ConsertaPraMim.Web.CpmFull` e o `ConsertaPraMim.API`.
+3. Capturar um lead de cliente pela landing pública.
+4. Acessar `/admin/funil/clientes` e validar o lead com a seção `Jornada automatica`.
+5. Confirmar no detalhe do lead que `Canal da abertura = Landing` e `Estado atual = Intake aberto`.
+6. Abrir um pedido pelo portal do cliente com o mesmo telefone/e-mail do lead capturado.
+7. Reabrir o mesmo lead no Kanban e validar que a jornada foi reaproveitada, sem duplicar o card.
+8. Confirmar histórico com evento `Pedido vinculado a jornada automatica`.
+9. Confirmar no detalhe da jornada que `ServiceRequestId` foi preenchido.
+10. Em fluxo Telegram já ativo, reenviar intake do mesmo cliente e validar reaproveitamento do mesmo lead quando a deduplicação for elegível.
+11. Validar histórico `Reentrada omnichannel da jornada automatica` quando o canal de origem mudar.
+12. Validar no modal do lead a seção `Qualificacao estruturada`, incluindo score de confiança, campos obrigatórios, campos faltantes e resumo da triagem.
+13. Confirmar em banco que `dbo.cpm_web_journey_executions` possui snapshot de qualificação (`QualificationStatus`, `QualificationSource`, `QualificationSummary`, `QualificationJson`).
+14. Excluir o lead e confirmar em banco que `cpm_web_journey_executions` e `cpm_web_journey_events` não ficaram órfãos.
+
+### Troubleshooting
+
+- `401` no endpoint `/api/integrations/journey/automation/intake`: validar o header `X-Journey-Automation-Key` e o mesmo `SharedSecret` entre API e CPM Full.
+- `409` com automação desabilitada: revisar `JourneyAutomation:Enabled` no CPM Full e `JourneyAutomationGateway:Enabled` na API.
+- Landing ou pedido criou registro local, mas sem jornada: revisar `JourneyAutomationGateway:BaseUrl`, reachability HTTP e logs do `JourneyAutomationGateway`.
+- Reentrada omnichannel duplicou lead: revisar normalização de telefone/e-mail e se os identificadores fortes (`LandingLeadId`, `ServiceRequestId`, `ChatbotConversationId`) chegaram ao CPM Full.
+- Detalhe do lead sem a seção `Jornada automatica`: validar se `dbo.cpm_web_journey_executions` possui registro para o `LeadId` e se o modal foi recarregado após a sincronização.
+- Jornada sem qualificação estruturada: validar se o payload chegou ao CPM Full com `problemDescription`, endereço e categoria, se `JourneyQualification:Enabled` está ligado e se o catálogo interno de categorias possui a categoria esperada.
+- `Confirmacao necessaria` sem texto no modal: validar se o caso tem baixa confiança apesar de dados mínimos completos; o prompt precisa orientar confirmação do endereço, categoria ou contexto.
+- Exclusão operacional deixou resíduos: revisar se `DeleteLead` removeu também `dbo.cpm_web_journey_events` e `dbo.cpm_web_journey_executions`.
+
+### Autoagendamento com Google Calendar
+
+#### Objetivo desta etapa
+
+- Sugerir janelas validas ao cliente logo apos a `Qualificacao validada`.
+- Confirmar a janela no proprio Telegram, sem operador humano nos casos padrao.
+- Criar, atualizar e cancelar o mesmo evento no Google Calendar de forma idempotente.
+- Exibir o status do agendamento no detalhe do lead, junto com `GoogleCalendarEventId` e link do evento.
+
+#### Escopo entregue nesta fatia
+
+- O `CPM Full` passou a expor `POST /api/integrations/telegram/automation/scheduling/turn`, protegido por `X-Telegram-Automation-Key`.
+- O `JourneyGoogleCalendarGateway` passou a autenticar por `service account`, consultar indisponibilidade via `freeBusy` e criar ou atualizar eventos na agenda oficial.
+- O `JourneySchedulingService` passou a sugerir slots em horario comercial, respeitando duracao do atendimento, antecedencia minima, dias habilitados e janela maxima de busca.
+- O bot Telegram agora entende os comandos operacionais `1`, `2`, `3`, `reagendar` e `cancelar agendamento`.
+- A jornada passou a persistir `SchedulingStatus`, `SuggestedSlotsJson`, `SuggestedAtUtc`, `SchedulingConfirmedAtUtc`, `SchedulingCancelledAtUtc`, `ScheduledStartAtUtc`, `ScheduledEndAtUtc`, `GoogleCalendarEventId` e `GoogleCalendarEventLink`.
+- O modal do lead ganhou a secao `Agendamento automatico`, com status, janela confirmada, slots sugeridos, resumo da agenda e link para abrir o evento no Google Calendar.
+
+#### Configuracao minima
+
+No `ConsertaPraMim.Web.CpmFull`, configurar a secao `JourneyScheduling`:
+
+- `Enabled`
+- `ProjectId`
+- `ServiceAccountEmail`
+- `PrivateKey`
+- `CalendarId`
+- `Timezone`
+- `BusinessHoursStartLocal`
+- `BusinessHoursEndLocal`
+- `SaturdayEnabled`
+- `SundayEnabled`
+- `SlotDurationMinutes`
+- `SuggestionCount`
+- `SuggestionWindowDays`
+- `MinimumNoticeMinutes`
+- `RequestTimeoutSeconds`
+- `TokenRefreshSafetyMinutes`
+
+Pre-condicoes operacionais:
+
+- A agenda Google precisa estar compartilhada com a `service account` usada pelo CPM Full.
+- A permissao da agenda deve permitir alteracao de eventos.
+- A trilha Telegram precisa continuar com `TelegramAutomation:Enabled=true`.
+
+#### Comportamento esperado
+
+- A sugestao de janelas so acontece para leads do board `clientes`.
+- O autoagendamento so roda quando a jornada estiver em `qualificacao_validada`.
+- O bot nao deve sugerir janelas enquanto o handoff humano do Telegram estiver ativo.
+- Quando houver disponibilidade, o bot responde com tres opcoes numeradas.
+- Quando o cliente responde `1`, `2` ou `3`, o CPM Full confirma a opcao correspondente e grava o evento no Google Calendar.
+- Quando o cliente responde `reagendar`, o sistema limpa a confirmacao atual e gera nova rodada de slots.
+- Quando o cliente responde `cancelar agendamento`, o sistema cancela o evento confirmado e atualiza a jornada.
+- Quando nao houver disponibilidade na janela configurada, o bot deve responder com mensagem clara e o lead deve registrar historico `Agenda sem disponibilidade`.
+
+#### Checklist de QA
+
+1. Configurar `JourneyScheduling:Enabled=true` no CPM Full com `ProjectId`, `ServiceAccountEmail`, `PrivateKey`, `CalendarId` e `Timezone`.
+2. Confirmar que a `service account` possui acesso de escrita na agenda configurada.
+3. Subir `ConsertaPraMim.Web.CpmFull`, `ConsertaPraMim.Web.TelegramBridge` e o restante do fluxo da jornada.
+4. Iniciar uma conversa nova no Telegram com um cliente que ja consiga chegar a `Qualificacao validada`.
+5. Enviar uma mensagem simples apos a qualificacao e validar que o bot responde com tres janelas numeradas.
+6. Abrir o detalhe do lead no Kanban e confirmar a secao `Agendamento automatico` com status `Janela sugerida`.
+7. Responder `1` no Telegram e validar mensagem de confirmacao.
+8. Reabrir o lead e confirmar `GoogleCalendarEventId`, `Link do evento`, `Janela confirmada` e `Status = Confirmado`.
+9. Abrir a agenda Google e validar titulo, descricao, local, telefone do cliente, categoria, canal de origem e `LeadId` no evento.
+10. Responder `reagendar` e confirmar nova rodada de slots, sem criar card duplicado.
+11. Responder `2` e validar nova confirmacao da agenda.
+12. Responder `cancelar agendamento` e confirmar que a jornada registra o cancelamento e remove ou invalida o evento correspondente.
+13. Validar no historico do lead os eventos `Agenda confirmada`, `Agenda cancelada` e `Agenda sem disponibilidade`, quando aplicavel.
+14. Confirmar em banco que `dbo.cpm_web_journey_executions` persiste os campos de agenda e o snapshot dos slots sugeridos.
+
+#### Troubleshooting
+
+- O bot nao sugere janelas: validar `JourneyScheduling:Enabled`, se o lead esta em `qualificacao_validada`, se o board e `clientes` e se o handoff humano nao esta ativo.
+- Erro ao consultar a agenda Google: revisar `ProjectId`, `ServiceAccountEmail`, `PrivateKey`, `CalendarId`, horario do servidor e permissao da agenda para a `service account`.
+- O cliente respondeu `1`, `2` ou `3` e nada confirmou: validar se `SuggestedSlotsJson` ainda existe na jornada e se a mensagem nao foi consumida com handoff humano ativo.
+- O evento foi criado em horario inesperado: revisar `JourneyScheduling:Timezone` e a exibicao do fuso de negocio `America/Sao_Paulo`.
+- O cliente pediu `reagendar`, mas o mesmo slot reapareceu: revisar se o `freeBusy` da agenda foi atualizado e se o evento anterior foi alterado ou removido corretamente.
+
 ## Automacao Telegram -> funis clientes/prestadores -> Chatwoot
 
 ### Objetivo desta etapa
