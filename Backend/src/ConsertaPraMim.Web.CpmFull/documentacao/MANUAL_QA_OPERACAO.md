@@ -1723,6 +1723,28 @@ Equivalentes no deploy VPS:
 - O bot publicado agora pode operar por `long polling` ou `webhook` seguro, conforme `TelegramBridge:UpdateTransport`.
 - O primeiro ciclo de enriquecimento operacional do bot ja cobre telefone/e-mail, qualificacao inicial com cidade/categoria/intencao e reset operacional do lead para testes recorrentes.
 
+### Hotfix operacional do Telegram - coleta guiada de dados
+
+- A qualificacao do bot Telegram passou a seguir estrategia de `um dado por vez`.
+- Depois que o telefone for informado, o bot deve pedir somente o primeiro campo obrigatorio faltante, por exemplo `tipo de servico`, depois `cidade`, depois `CEP`, depois `bairro/logradouro`, depois `o que precisa resolver`, conforme o estado real da jornada.
+- Quando o lead ja estiver qualificado e o usuario enviar apenas o e-mail, o bot nao deve voltar para o prompt inicial pedindo telefone novamente.
+- Respostas curtas de localizacao, como `Praia Grande`, devem ser aproveitadas sem exigir repeticao da frase inteira.
+
+### Checklist de QA do hotfix ST-113
+
+1. Iniciar conversa no Telegram com `oi`.
+2. Compartilhar ou digitar o telefone.
+3. Confirmar que o bot pede apenas o primeiro campo faltante, e nao a lista completa.
+4. Responder os campos restantes um a um.
+5. Enviar apenas o e-mail ao final da qualificacao.
+6. Confirmar que a resposta do bot reconhece o e-mail e nao volta ao texto inicial de cadastro.
+
+### Troubleshooting do hotfix ST-113
+
+- Se o bot voltar a pedir telefone depois de o lead ja estar qualificado, validar no detalhe do lead se `PrimaryPhone` e `Phone` continuam preenchidos.
+- Se o bot pedir varios campos ao mesmo tempo, validar se o ambiente publicado ja contem o hotfix `ST-113`.
+- Se uma resposta curta de cidade nao for reconhecida, revisar os logs do `TelegramBridge` para o texto bruto recebido e o snapshot da qualificacao no CPM Full.
+
 ### Proxima evolucao documentada
 
 - A base funcional da automacao publicada continua registrada no documento `EPIC-TELEGRAM-001 - Automacao do Bot Telegram com Funis CPM e Chatwoot`.

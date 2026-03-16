@@ -289,9 +289,8 @@ public sealed class TelegramInboundUpdateProcessorTests
                 5513997114422,
                 It.Is<string>(text =>
                     text.Contains("Recebi seu telefone", StringComparison.Ordinal) &&
-                    text.Contains("sua cidade", StringComparison.Ordinal) &&
                     text.Contains("tipo de servico", StringComparison.Ordinal) &&
-                    text.Contains("o que voce precisa resolver", StringComparison.Ordinal)),
+                    !text.Contains("sua cidade", StringComparison.Ordinal)),
                 It.Is<IReadOnlyList<StoredLocalFile>>(files => files.Count == 0),
                 It.IsAny<CancellationToken>(),
                 It.Is<TelegramMessageSendOptions?>(options => options is not null && options.RemoveReplyKeyboard)))
@@ -416,9 +415,136 @@ public sealed class TelegramInboundUpdateProcessorTests
                 5513996891738,
                 It.Is<string>(text =>
                     text.Contains("tipo de servico", StringComparison.Ordinal) &&
-                    text.Contains("seu CEP", StringComparison.Ordinal) &&
-                    text.Contains("bairro ou logradouro", StringComparison.Ordinal) &&
-                    text.Contains("o que voce precisa resolver", StringComparison.Ordinal)),
+                    !text.Contains("seu CEP", StringComparison.Ordinal) &&
+                    !text.Contains("bairro ou logradouro", StringComparison.Ordinal) &&
+                    !text.Contains("o que voce precisa resolver", StringComparison.Ordinal)),
+                It.Is<IReadOnlyList<StoredLocalFile>>(files => files.Count == 0),
+                It.IsAny<CancellationToken>(),
+                It.Is<TelegramMessageSendOptions?>(options => options is not null && options.RemoveReplyKeyboard)))
+            .Returns(Task.CompletedTask);
+
+        var sut = CreateSut(
+            chatService.Object,
+            leadAutomationClient.Object,
+            automationClient.Object,
+            schedulingClient.Object,
+            botApiClient.Object,
+            handoffStateService.Object,
+            observability.Object,
+            new TelegramAutomationOptions
+            {
+                Enabled = true,
+                ClientsAutomationEnabled = true,
+                MirrorMessagesEnabled = true,
+                SharedSecret = "segredo-compartilhado",
+                CpmFullBaseUrl = "https://www.consertapramim.com",
+                RequestTimeoutSeconds = 15
+            });
+
+        var result = await sut.ProcessAsync(update, "webhook", CancellationToken.None);
+
+        Assert.True(result);
+        chatService.VerifyAll();
+        leadAutomationClient.VerifyAll();
+        automationClient.VerifyAll();
+        schedulingClient.VerifyAll();
+        botApiClient.VerifyAll();
+        handoffStateService.VerifyAll();
+        observability.VerifyAll();
+    }
+
+    [Fact(DisplayName = "Telegram inbound update processor | Nao deve resetar para o prompt inicial apos capturar e-mail")]
+    public async Task ProcessAsync_NaoDeveResetarParaPromptInicialAposCapturarEmail()
+    {
+        var update = new TelegramUpdate
+        {
+            UpdateId = 9011,
+            Message = new TelegramMessage
+            {
+                MessageId = 779,
+                DateUnix = 1_773_512_580,
+                Text = "encontrosnocaminho@gmail.com",
+                Chat = new TelegramChat
+                {
+                    Id = 5513996891738,
+                    FirstName = "Mendes"
+                },
+                From = new TelegramUser
+                {
+                    Id = 5513996891738,
+                    FirstName = "Mendes"
+                }
+            }
+        };
+
+        var storedMessage = new ChatMessageDto(
+            Id: "telegram:5513996891738:779",
+            ChatId: 5513996891738,
+            IsOutgoing: false,
+            SenderDisplayName: "Mendes",
+            Text: "encontrosnocaminho@gmail.com",
+            SentAtUtc: new DateTimeOffset(2026, 3, 16, 18, 25, 0, TimeSpan.Zero),
+            Attachments: []);
+
+        var chatService = new Mock<ITelegramChatService>(MockBehavior.Strict);
+        var leadAutomationClient = new Mock<ITelegramLeadAutomationClient>(MockBehavior.Strict);
+        var automationClient = new Mock<ITelegramMessageAutomationClient>(MockBehavior.Strict);
+        var schedulingClient = new Mock<ITelegramJourneySchedulingClient>(MockBehavior.Strict);
+        var botApiClient = new Mock<ITelegramBotApiClient>(MockBehavior.Strict);
+        var handoffStateService = new Mock<ITelegramHumanHandoffStateService>(MockBehavior.Strict);
+        var observability = new Mock<ITelegramChatbotObservabilityService>(MockBehavior.Strict);
+
+        observability.Setup(service => service.RecordInboundMessage(0));
+        chatService
+            .Setup(service => service.ReceiveFromTelegramAsync(update.Message, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(storedMessage);
+        leadAutomationClient
+            .Setup(client => client.UpsertLeadAsync(
+                It.Is<TelegramLeadAutomationUpsertRequest>(request =>
+                    request.BoardType == "clientes" &&
+                    request.UserEmail == "encontrosnocaminho@gmail.com" &&
+                    string.IsNullOrWhiteSpace(request.UserPhone)),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TelegramLeadAutomationUpsertResult
+            {
+                Success = true,
+                HttpStatusCode = StatusCodes.Status200OK,
+                LeadId = 81,
+                Created = false,
+                BoardType = "clientes",
+                HasPhone = true,
+                HasEmail = true,
+                HasCity = true,
+                HasServiceCategory = true,
+                QualificationStatus = "qualificacao_validada",
+                MissingRequiredFields = [],
+                Message = "Lead atualizado via automacao do bot Telegram."
+            });
+        automationClient
+            .Setup(client => client.MirrorInboundMessageAsync(
+                It.IsAny<TelegramInboundMessageAutomationRequest>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TelegramInboundMessageAutomationResult
+            {
+                Success = true,
+                HttpStatusCode = StatusCodes.Status202Accepted,
+                LeadId = 81,
+                QueueStatus = "queued",
+                Message = "Mensagem enfileirada."
+            });
+        schedulingClient
+            .Setup(client => client.ProcessTurnAsync(
+                It.IsAny<TelegramJourneySchedulingTurnRequest>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(TelegramJourneySchedulingTurnResult.NoOp());
+        botApiClient.SetupGet(client => client.IsConfigured).Returns(true);
+        handoffStateService.Setup(service => service.IsActive(5513996891738)).Returns(false);
+        botApiClient
+            .Setup(client => client.SendMessageAsync(
+                5513996891738,
+                It.Is<string>(text =>
+                    text.Contains("Recebi seu e-mail", StringComparison.Ordinal) &&
+                    !text.Contains("compartilhe seu telefone", StringComparison.Ordinal)),
                 It.Is<IReadOnlyList<StoredLocalFile>>(files => files.Count == 0),
                 It.IsAny<CancellationToken>(),
                 It.Is<TelegramMessageSendOptions?>(options => options is not null && options.RemoveReplyKeyboard)))

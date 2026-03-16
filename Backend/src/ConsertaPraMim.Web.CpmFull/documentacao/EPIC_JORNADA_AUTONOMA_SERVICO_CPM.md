@@ -770,6 +770,8 @@ Como operacao, queremos controlar excecoes, medir a automacao e garantir rollout
 
 - `ST-101` a `ST-110`: concluidas.
 - `ST-111`: hotfix aplicado para continuidade de qualificacao do Telegram apos contato persistido.
+- `ST-112`: hotfix aplicado para eliminar loop de qualificacao por campos faltantes.
+- `ST-113`: hotfix aplicado para coleta guiada de um dado por vez e para impedir reset do bot apos captura isolada de e-mail.
 - Estado atual: `Completed`.
 - Resultado: a jornada autonoma agora cobre intake, qualificacao, agenda, Kanban autonomo, matching, disparo em ondas, aceite assinado, conexao direta, encerramento, avaliacao bilateral, governanca, observabilidade e rollout progressivo.
 
