@@ -154,6 +154,11 @@ public sealed class TelegramLeadAutomationService : ITelegramLeadAutomationServi
         var hasEmail = !string.IsNullOrWhiteSpace(leadDetails?.Email) || !string.IsNullOrWhiteSpace(journeyDetails?.PrimaryEmail);
         var hasCity = !string.IsNullOrWhiteSpace(leadDetails?.City) || !string.IsNullOrWhiteSpace(journeyDetails?.Qualification.City);
         var hasServiceCategory = !string.IsNullOrWhiteSpace(leadDetails?.ServiceCategory) || !string.IsNullOrWhiteSpace(journeyDetails?.Qualification.NormalizedServiceCategoryName);
+        var hasPostalCode = !string.IsNullOrWhiteSpace(leadDetails?.PostalCode) || !string.IsNullOrWhiteSpace(journeyDetails?.Qualification.PostalCode);
+        var hasAddressDetails =
+            !string.IsNullOrWhiteSpace(journeyDetails?.Qualification.Street) ||
+            !string.IsNullOrWhiteSpace(journeyDetails?.Qualification.Neighborhood);
+        var hasProblemContext = !string.IsNullOrWhiteSpace(journeyDetails?.Qualification.ProblemContext);
         var message = upsertResult.CreatedLead
             ? "Lead criado via automacao do bot Telegram."
             : "Lead atualizado via automacao do bot Telegram.";
@@ -178,6 +183,9 @@ public sealed class TelegramLeadAutomationService : ITelegramLeadAutomationServi
             HasEmail = hasEmail,
             HasCity = hasCity,
             HasServiceCategory = hasServiceCategory,
+            HasPostalCode = hasPostalCode,
+            HasAddressDetails = hasAddressDetails,
+            HasProblemContext = hasProblemContext,
             QualificationStatus = qualification.Status,
             ConfirmationPrompt = qualification.ConfirmationPrompt,
             MissingRequiredFields = qualification.MissingRequiredFields,

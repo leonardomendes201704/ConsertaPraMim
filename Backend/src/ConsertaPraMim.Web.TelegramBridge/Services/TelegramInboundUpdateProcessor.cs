@@ -367,6 +367,9 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
                 HasEmailOnLead: result.HasEmail,
                 HasCityOnLead: result.HasCity,
                 HasServiceCategoryOnLead: result.HasServiceCategory,
+                HasPostalCodeOnLead: result.HasPostalCode,
+                HasAddressDetailsOnLead: result.HasAddressDetails,
+                HasProblemContextOnLead: result.HasProblemContext,
                 QualificationStatus: result.QualificationStatus,
                 ConfirmationPrompt: result.ConfirmationPrompt,
                 MissingRequiredFields: result.MissingRequiredFields,
@@ -390,6 +393,9 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
                 HasEmailOnLead: capturedContact.HasEmail,
                 HasCityOnLead: !string.IsNullOrWhiteSpace(qualification.City),
                 HasServiceCategoryOnLead: !string.IsNullOrWhiteSpace(qualification.ServiceCategory),
+                HasPostalCodeOnLead: !string.IsNullOrWhiteSpace(qualification.PostalCode),
+                HasAddressDetailsOnLead: false,
+                HasProblemContextOnLead: false,
                 QualificationStatus: string.Empty,
                 ConfirmationPrompt: string.Empty,
                 MissingRequiredFields: [],
@@ -574,7 +580,14 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
             var text = BuildQualificationPrompt(
                 effectiveQualification,
                 effectiveCapturedContact,
-                bootstrap.MissingRequiredFields,
+                NormalizeMissingFields(bootstrap.MissingRequiredFields, new TelegramQualificationState(
+                    hasPhone,
+                    hasEmail,
+                    bootstrap.HasCityOnLead || !string.IsNullOrWhiteSpace(bootstrap.Qualification.City),
+                    bootstrap.HasServiceCategoryOnLead || !string.IsNullOrWhiteSpace(bootstrap.Qualification.ServiceCategory),
+                    bootstrap.HasPostalCodeOnLead || !string.IsNullOrWhiteSpace(bootstrap.Qualification.PostalCode),
+                    bootstrap.HasAddressDetailsOnLead,
+                    bootstrap.HasProblemContextOnLead)),
                 bootstrap.ConfirmationPrompt,
                 bootstrap.QualificationStatus,
                 leadCreatedNow: bootstrap.LeadCreated && !bootstrap.HasPhoneOnLead && !bootstrap.HasEmailOnLead);
@@ -904,7 +917,7 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
         var boardIsProvider = string.Equals(qualification.BoardType, ProvidersBoardType, StringComparison.OrdinalIgnoreCase);
         var hasPhone = capturedContact.HasPhone;
         var hasEmail = capturedContact.HasEmail;
-        var normalizedMissingFields = NormalizeMissingFields(missingRequiredFields, hasPhone);
+        var normalizedMissingFields = missingRequiredFields;
 
         if (!hasPhone)
         {
@@ -956,7 +969,7 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
 
     private static IReadOnlyList<string> NormalizeMissingFields(
         IReadOnlyList<string> missingRequiredFields,
-        bool hasPhone)
+        TelegramQualificationState state)
     {
         if (missingRequiredFields.Count == 0)
         {
@@ -964,12 +977,24 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
         }
 
         return missingRequiredFields
-            .Where(field => !hasPhone || !string.Equals(field, "Telefone", StringComparison.OrdinalIgnoreCase))
+            .Where(field => !ShouldSkipMissingField(field, state))
             .Select(field => field.Trim())
             .Where(field => !string.IsNullOrWhiteSpace(field))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
     }
+
+    private static bool ShouldSkipMissingField(string field, TelegramQualificationState state) =>
+        field.Trim() switch
+        {
+            "Telefone" => state.HasPhone,
+            "Categoria" or "Categoria tecnica" => state.HasServiceCategory,
+            "Cidade" or "Cidade ou regiao" => state.HasCity,
+            "CEP" => state.HasPostalCode,
+            "Logradouro ou bairro" => state.HasAddressDetails,
+            "Contexto do problema" or "Contexto da parceria" => state.HasProblemContext,
+            _ => false
+        };
 
     private static string BuildMissingFieldsPrompt(
         bool boardIsProvider,
@@ -1192,14 +1217,26 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
         bool HasEmailOnLead,
         bool HasCityOnLead,
         bool HasServiceCategoryOnLead,
+        bool HasPostalCodeOnLead,
+        bool HasAddressDetailsOnLead,
+        bool HasProblemContextOnLead,
         string QualificationStatus,
         string ConfirmationPrompt,
         IReadOnlyList<string> MissingRequiredFields,
         TelegramLeadQualification Qualification)
     {
         public static TelegramInboundBootstrapResult Disabled =>
-            new(false, Guid.Empty, string.Empty, false, 0, false, false, false, false, false, string.Empty, string.Empty, [], TelegramLeadQualification.Empty);
+            new(false, Guid.Empty, string.Empty, false, 0, false, false, false, false, false, false, false, false, string.Empty, string.Empty, [], TelegramLeadQualification.Empty);
     }
+
+    private readonly record struct TelegramQualificationState(
+        bool HasPhone,
+        bool HasEmail,
+        bool HasCity,
+        bool HasServiceCategory,
+        bool HasPostalCode,
+        bool HasAddressDetails,
+        bool HasProblemContext);
 
     private readonly record struct TelegramCapturedContact(
         string Phone,

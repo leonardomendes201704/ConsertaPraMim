@@ -37,6 +37,9 @@ public sealed class TelegramLeadAutomationUpsertResult
     public bool HasEmail { get; init; }
     public bool HasCity { get; init; }
     public bool HasServiceCategory { get; init; }
+    public bool HasPostalCode { get; init; }
+    public bool HasAddressDetails { get; init; }
+    public bool HasProblemContext { get; init; }
     public string QualificationStatus { get; init; } = string.Empty;
     public string ConfirmationPrompt { get; init; } = string.Empty;
     public IReadOnlyList<string> MissingRequiredFields { get; init; } = [];
