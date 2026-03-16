@@ -12,8 +12,14 @@ public sealed class TelegramLeadAutomationRequest
     public string UserEmail { get; init; } = string.Empty;
     public Guid? ServiceRequestId { get; init; }
     public string ServiceCategory { get; init; } = string.Empty;
+    public string ProblemDescription { get; init; } = string.Empty;
+    public string Street { get; init; } = string.Empty;
+    public string Neighborhood { get; init; } = string.Empty;
+    public string State { get; init; } = string.Empty;
     public string PostalCode { get; init; } = string.Empty;
     public string City { get; init; } = string.Empty;
+    public double? Latitude { get; init; }
+    public double? Longitude { get; init; }
     public string StatusNote { get; init; } = string.Empty;
     public string InternalNotes { get; init; } = string.Empty;
     public DateTime? LastContactAtUtc { get; init; }

@@ -4,6 +4,377 @@
 
 Orientar validacao funcional e operacao basica do projeto `ConsertaPraMim.Web.CpmFull`.
 
+## Jornada autonoma omnichannel -> CPM Full
+
+### Objetivo desta etapa
+
+- Unificar `landing/site`, `portal do cliente` e intake via `Telegram` na mesma jornada operacional de serviço.
+- Persistir estado auditável da jornada separado do canal de origem e do card visual do Kanban.
+- Deduplicar reentradas do mesmo cliente por identificadores fortes e janela temporal controlada.
+- Projetar a jornada no detalhe do lead para que operação e QA consigam entender de onde o caso nasceu e como ele foi reaproveitado.
+
+### Escopo entregue nesta fatia
+
+- O `ConsertaPraMim.Web.CpmFull` passou a expor `POST /api/integrations/journey/automation/intake`, endpoint interno protegido por `X-Journey-Automation-Key`.
+- O `ConsertaPraMim.API` ganhou o `JourneyAutomationGateway`, usado por `LandingLeadService` e `ServiceRequestService` para abrir ou atualizar a mesma jornada no CPM Full.
+- O fluxo Telegram passou a reaproveitar o mesmo contrato unificado de jornada por meio do `TelegramLeadAutomationService`.
+- O CPM Full passou a persistir `dbo.cpm_web_journey_executions` e `dbo.cpm_web_journey_events` com DDL idempotente.
+- A deduplicação atual considera `LandingLeadId`, `ServiceRequestId`, `ChatbotConversationId`, `TelegramChatId`, telefone normalizado, e-mail normalizado e janela temporal de 48 horas.
+- O detalhe do lead no Kanban agora exibe a seção `Jornada automatica` com canal, estado, origem técnica, chave de deduplicação, vínculos com landing/pedido/cliente e identificadores de canal.
+- O histórico funcional do lead agora registra eventos em PT-BR para criação, atualização, reentrada omnichannel e vínculo de pedido na jornada.
+- A exclusão operacional do lead passou a remover também registros de jornada para evitar resíduos em novos testes.
+- A jornada agora registra uma `Qualificacao estruturada` com categoria normalizada, contexto do problema, endereço consolidado, score de confiança, campos obrigatórios e status (`Dados pendentes`, `Confirmacao necessaria` ou `Qualificacao validada`).
+- A seção `Qualificacao estruturada` do modal do lead passou a mostrar o snapshot validado da triagem, inclusive resumo operacional e prompt de confirmação quando a confiança não for suficiente para autoaplicação.
+
+### Configuracao minima
+
+No `ConsertaPraMim.Web.CpmFull`, configurar a seção `JourneyAutomation`:
+
+- `Enabled`
+- `ClientsAutomationEnabled`
+- `ProvidersAutomationEnabled`
+- `SharedSecret`
+
+No `ConsertaPraMim.Web.CpmFull`, configurar também a seção `JourneyQualification`:
+
+- `Enabled`
+- `AiEnabled`
+- `OpenAiApiKey`
+- `OpenAiModel`
+- `RequestTimeoutSeconds`
+- `MaxRetries`
+- `MinimumConfidenceForAutoApply`
+
+No `ConsertaPraMim.API`, configurar a seção `JourneyAutomationGateway`:
+
+- `Enabled`
+- `ClientsAutomationEnabled`
+- `ProvidersAutomationEnabled`
+- `BaseUrl`
+- `SharedSecret`
+- `RequestTimeoutSeconds`
+
+### Comportamento esperado
+
+- Com `JourneyAutomation:Enabled=false` no CPM Full, o endpoint interno deve rejeitar o intake com `409`.
+- Com `JourneyAutomationGateway:Enabled=false` na API, landing e abertura de pedido continuam funcionando, mas sem projetar jornada automatizada.
+- Uma captura nova de `landing` deve criar lead e jornada no board correto (`clientes` ou `prestadores`).
+- A qualificação da jornada deve classificar os dados mínimos do caso em campos estruturados, separando dados obrigatórios de dados opcionais.
+- Quando houver telefone, categoria, cidade/região e contexto suficientes, a jornada deve evoluir pelo menos para `Confirmacao necessaria`; para clientes com endereço consolidado e confiança suficiente, deve evoluir para `Qualificacao validada`.
+- A abertura de `ServiceRequest` pelo portal do cliente deve reaproveitar o mesmo lead quando houver deduplicação elegível e registrar o vínculo do pedido na jornada.
+- O intake vindo do Telegram deve reaproveitar o mesmo contrato de jornada já existente no CPM Full.
+- O detalhe do lead deve mostrar a seção `Jornada automatica` com `Canal da abertura`, `Estado atual`, `Origem tecnica`, `Chave de deduplicacao` e timestamps.
+- O detalhe do lead deve mostrar também a seção `Qualificacao estruturada` com `Status da qualificacao`, `Origem da qualificacao`, `Confianca`, `Categoria normalizada`, `Contexto identificado`, `Endereco qualificado`, `Campos faltantes` e `Solicitacao de confirmacao`.
+- Reentradas do mesmo cliente em outro canal dentro da janela de deduplicação devem atualizar a mesma jornada e registrar histórico `Reentrada omnichannel da jornada automatica`.
+
+### Checklist de QA
+
+1. Configurar `JourneyAutomation` no CPM Full e `JourneyAutomationGateway` na API com o mesmo `SharedSecret`.
+2. Subir o `ConsertaPraMim.Web.CpmFull` e o `ConsertaPraMim.API`.
+3. Capturar um lead de cliente pela landing pública.
+4. Acessar `/admin/funil/clientes` e validar o lead com a seção `Jornada automatica`.
+5. Confirmar no detalhe do lead que `Canal da abertura = Landing` e `Estado atual = Intake aberto`.
+6. Abrir um pedido pelo portal do cliente com o mesmo telefone/e-mail do lead capturado.
+7. Reabrir o mesmo lead no Kanban e validar que a jornada foi reaproveitada, sem duplicar o card.
+8. Confirmar histórico com evento `Pedido vinculado a jornada automatica`.
+9. Confirmar no detalhe da jornada que `ServiceRequestId` foi preenchido.
+10. Em fluxo Telegram já ativo, reenviar intake do mesmo cliente e validar reaproveitamento do mesmo lead quando a deduplicação for elegível.
+11. Validar histórico `Reentrada omnichannel da jornada automatica` quando o canal de origem mudar.
+12. Validar no modal do lead a seção `Qualificacao estruturada`, incluindo score de confiança, campos obrigatórios, campos faltantes e resumo da triagem.
+13. Confirmar em banco que `dbo.cpm_web_journey_executions` possui snapshot de qualificação (`QualificationStatus`, `QualificationSource`, `QualificationSummary`, `QualificationJson`).
+14. Excluir o lead e confirmar em banco que `cpm_web_journey_executions` e `cpm_web_journey_events` não ficaram órfãos.
+
+### Troubleshooting
+
+- `401` no endpoint `/api/integrations/journey/automation/intake`: validar o header `X-Journey-Automation-Key` e o mesmo `SharedSecret` entre API e CPM Full.
+- `409` com automação desabilitada: revisar `JourneyAutomation:Enabled` no CPM Full e `JourneyAutomationGateway:Enabled` na API.
+- Landing ou pedido criou registro local, mas sem jornada: revisar `JourneyAutomationGateway:BaseUrl`, reachability HTTP e logs do `JourneyAutomationGateway`.
+- Reentrada omnichannel duplicou lead: revisar normalização de telefone/e-mail e se os identificadores fortes (`LandingLeadId`, `ServiceRequestId`, `ChatbotConversationId`) chegaram ao CPM Full.
+- Detalhe do lead sem a seção `Jornada automatica`: validar se `dbo.cpm_web_journey_executions` possui registro para o `LeadId` e se o modal foi recarregado após a sincronização.
+- Jornada sem qualificação estruturada: validar se o payload chegou ao CPM Full com `problemDescription`, endereço e categoria, se `JourneyQualification:Enabled` está ligado e se o catálogo interno de categorias possui a categoria esperada.
+- `Confirmacao necessaria` sem texto no modal: validar se o caso tem baixa confiança apesar de dados mínimos completos; o prompt precisa orientar confirmação do endereço, categoria ou contexto.
+- Exclusão operacional deixou resíduos: revisar se `DeleteLead` removeu também `dbo.cpm_web_journey_events` e `dbo.cpm_web_journey_executions`.
+
+### Autoagendamento com Google Calendar
+
+#### Objetivo desta etapa
+
+- Sugerir janelas validas ao cliente logo apos a `Qualificacao validada`.
+- Confirmar a janela no proprio Telegram, sem operador humano nos casos padrao.
+- Criar, atualizar e cancelar o mesmo evento no Google Calendar de forma idempotente.
+- Exibir o status do agendamento no detalhe do lead, junto com `GoogleCalendarEventId` e link do evento.
+
+#### Escopo entregue nesta fatia
+
+- O `CPM Full` passou a expor `POST /api/integrations/telegram/automation/scheduling/turn`, protegido por `X-Telegram-Automation-Key`.
+- O `JourneyGoogleCalendarGateway` passou a autenticar por `service account`, consultar indisponibilidade via `freeBusy` e criar ou atualizar eventos na agenda oficial.
+- O `JourneySchedulingService` passou a sugerir slots em horario comercial, respeitando duracao do atendimento, antecedencia minima, dias habilitados e janela maxima de busca.
+- O bot Telegram agora entende os comandos operacionais `1`, `2`, `3`, `reagendar` e `cancelar agendamento`.
+- A jornada passou a persistir `SchedulingStatus`, `SuggestedSlotsJson`, `SuggestedAtUtc`, `SchedulingConfirmedAtUtc`, `SchedulingCancelledAtUtc`, `ScheduledStartAtUtc`, `ScheduledEndAtUtc`, `GoogleCalendarEventId` e `GoogleCalendarEventLink`.
+- O modal do lead ganhou a secao `Agendamento automatico`, com status, janela confirmada, slots sugeridos, resumo da agenda e link para abrir o evento no Google Calendar.
+
+#### Configuracao minima
+
+No `ConsertaPraMim.Web.CpmFull`, configurar a secao `JourneyScheduling`:
+
+- `Enabled`
+- `ProjectId`
+- `ServiceAccountEmail`
+- `PrivateKey`
+- `CalendarId`
+- `Timezone`
+- `BusinessHoursStartLocal`
+- `BusinessHoursEndLocal`
+- `SaturdayEnabled`
+- `SundayEnabled`
+- `SlotDurationMinutes`
+- `SuggestionCount`
+- `SuggestionWindowDays`
+- `MinimumNoticeMinutes`
+- `RequestTimeoutSeconds`
+- `TokenRefreshSafetyMinutes`
+
+Pre-condicoes operacionais:
+
+- A agenda Google precisa estar compartilhada com a `service account` usada pelo CPM Full.
+- A permissao da agenda deve permitir alteracao de eventos.
+- A trilha Telegram precisa continuar com `TelegramAutomation:Enabled=true`.
+
+#### Comportamento esperado
+
+- A sugestao de janelas so acontece para leads do board `clientes`.
+- O autoagendamento so roda quando a jornada estiver em `qualificacao_validada`.
+- O bot nao deve sugerir janelas enquanto o handoff humano do Telegram estiver ativo.
+- Quando houver disponibilidade, o bot responde com tres opcoes numeradas.
+- Quando o cliente responde `1`, `2` ou `3`, o CPM Full confirma a opcao correspondente e grava o evento no Google Calendar.
+- Quando o cliente responde `reagendar`, o sistema limpa a confirmacao atual e gera nova rodada de slots.
+- Quando o cliente responde `cancelar agendamento`, o sistema cancela o evento confirmado e atualiza a jornada.
+- Quando nao houver disponibilidade na janela configurada, o bot deve responder com mensagem clara e o lead deve registrar historico `Agenda sem disponibilidade`.
+
+#### Checklist de QA
+
+1. Configurar `JourneyScheduling:Enabled=true` no CPM Full com `ProjectId`, `ServiceAccountEmail`, `PrivateKey`, `CalendarId` e `Timezone`.
+2. Confirmar que a `service account` possui acesso de escrita na agenda configurada.
+3. Subir `ConsertaPraMim.Web.CpmFull`, `ConsertaPraMim.Web.TelegramBridge` e o restante do fluxo da jornada.
+4. Iniciar uma conversa nova no Telegram com um cliente que ja consiga chegar a `Qualificacao validada`.
+5. Enviar uma mensagem simples apos a qualificacao e validar que o bot responde com tres janelas numeradas.
+6. Abrir o detalhe do lead no Kanban e confirmar a secao `Agendamento automatico` com status `Janela sugerida`.
+7. Responder `1` no Telegram e validar mensagem de confirmacao.
+8. Reabrir o lead e confirmar `GoogleCalendarEventId`, `Link do evento`, `Janela confirmada` e `Status = Confirmado`.
+9. Abrir a agenda Google e validar titulo, descricao, local, telefone do cliente, categoria, canal de origem e `LeadId` no evento.
+10. Responder `reagendar` e confirmar nova rodada de slots, sem criar card duplicado.
+11. Responder `2` e validar nova confirmacao da agenda.
+12. Responder `cancelar agendamento` e confirmar que a jornada registra o cancelamento e remove ou invalida o evento correspondente.
+13. Validar no historico do lead os eventos `Agenda confirmada`, `Agenda cancelada` e `Agenda sem disponibilidade`, quando aplicavel.
+14. Confirmar em banco que `dbo.cpm_web_journey_executions` persiste os campos de agenda e o snapshot dos slots sugeridos.
+
+#### Troubleshooting
+
+- O bot nao sugere janelas: validar `JourneyScheduling:Enabled`, se o lead esta em `qualificacao_validada`, se o board e `clientes` e se o handoff humano nao esta ativo.
+- Erro ao consultar a agenda Google: revisar `ProjectId`, `ServiceAccountEmail`, `PrivateKey`, `CalendarId`, horario do servidor e permissao da agenda para a `service account`.
+- O cliente respondeu `1`, `2` ou `3` e nada confirmou: validar se `SuggestedSlotsJson` ainda existe na jornada e se a mensagem nao foi consumida com handoff humano ativo.
+- O evento foi criado em horario inesperado: revisar `JourneyScheduling:Timezone` e a exibicao do fuso de negocio `America/Sao_Paulo`.
+- O cliente pediu `reagendar`, mas o mesmo slot reapareceu: revisar se o `freeBusy` da agenda foi atualizado e se o evento anterior foi alterado ou removido corretamente.
+
+### Kanban autonomo e timers operacionais da jornada
+
+#### Objetivo desta etapa
+
+- Fazer o card do cliente caminhar sozinho pelas etapas do Kanban conforme a jornada evolui.
+- Persistir motivo, origem e timer da ultima automacao diretamente no snapshot da jornada.
+- Escalar automaticamente casos parados para `Excecao operacional`, `Sem match` ou fechamento da jornada quando o prazo vencer.
+
+#### Escopo entregue nesta fatia
+
+- O board `clientes` agora usa o conjunto completo de etapas da jornada autonoma, com migracao idempotente dos nomes legados no seed do Kanban.
+- O `JourneyStageAutomationService` passou a ler candidatos em `dbo.cpm_web_journey_executions`, aplicar a matriz de transicoes e atualizar lead + jornada de forma idempotente.
+- O `JourneyStageAutomationWorker` executa periodicamente essa automacao com base na configuracao `JourneyStageAutomation`.
+- A jornada passou a persistir `LastStageAutomationReason`, `LastStageAutomationOrigin`, `LastStageAutomationAtUtc`, `ActiveTimerCode` e `ActiveTimerDueAtUtc`.
+- O modal do lead agora exibe `Ultimo motivo da automacao`, `Origem da automacao`, `Ultima transicao automatica`, `Timer ativo` e `Timer vence em`.
+- Timers operacionais foram entregues para `dados pendentes`, `confirmacao da agenda`, `aceite do prestador`, `avaliacao do cliente` e `avaliacao do prestador`.
+
+#### Configuracao minima
+
+No `ConsertaPraMim.Web.CpmFull`, configurar a secao `JourneyStageAutomation`:
+
+- `Enabled`
+- `WorkerEnabled`
+- `WorkerIntervalSeconds`
+- `WorkerBatchSize`
+- `PendingDataTimeoutMinutes`
+- `ScheduleConfirmationTimeoutMinutes`
+- `ProviderAcceptanceTimeoutMinutes`
+- `ClientReviewTimeoutHours`
+- `ProviderReviewTimeoutHours`
+
+Pre-condicoes operacionais:
+
+- A trilha `JourneyAutomation` deve continuar habilitada para o board `clientes`.
+- A jornada precisa estar sendo persistida em `dbo.cpm_web_journey_executions`.
+- O worker precisa estar ativo no runtime do `ConsertaPraMim.Web.CpmFull`.
+
+#### Comportamento esperado
+
+- Um lead novo de jornada deve sair de `Novo lead` para `Triagem automatica` sem intervencao humana.
+- Casos com `dados pendentes` ou `confirmacao necessaria` devem parar em `Dados pendentes` e ganhar timer operacional.
+- Quando slots forem sugeridos, o card deve passar por `Janela sugerida` e depois `Aguardando confirmacao da agenda`.
+- Quando a agenda for confirmada, o card deve ir para `Agendamento confirmado`.
+- Quando um timer vencer, a jornada deve registrar o motivo em historico e mover o card para a etapa de excecao ou conclusao correspondente.
+- A mesma transicao nao deve ser reaplicada em loop quando stage, estado, motivo, origem e timer ja estiverem alinhados.
+
+#### Checklist de QA
+
+1. Configurar `JourneyStageAutomation:Enabled=true` e `JourneyStageAutomation:WorkerEnabled=true` no CPM Full.
+2. Subir o `ConsertaPraMim.Web.CpmFull` com `JourneyAutomation` e `JourneyScheduling` ativos.
+3. Criar um lead de jornada novo via landing ou Telegram e validar que o card sai de `Novo lead` para `Triagem automatica`.
+4. Forcar um caso com dados faltantes e validar o card em `Dados pendentes`.
+5. Abrir o modal do lead e validar `Ultimo motivo da automacao`, `Origem da automacao = Maquina de estados` e `Timer ativo = Dados pendentes`.
+6. Completar os dados obrigatorios e validar que o card avanca para `Endereco e categoria validados`.
+7. Gerar slots de agenda e validar que o card passa por `Janela sugerida` e depois `Aguardando confirmacao da agenda`.
+8. Confirmar uma janela e validar o card em `Agendamento confirmado`.
+9. Simular um timer vencido de `confirmacao da agenda` e validar o card em `Excecao operacional`.
+10. Confirmar em banco que `dbo.cpm_web_journey_executions` grava `LastStageAutomationReason`, `LastStageAutomationOrigin`, `LastStageAutomationAtUtc`, `ActiveTimerCode` e `ActiveTimerDueAtUtc`.
+
+#### Troubleshooting
+
+- O card nao se move sozinho: validar `JourneyStageAutomation:Enabled`, `WorkerEnabled` e logs do `JourneyStageAutomationWorker`.
+- O worker roda, mas nao muda o card: revisar `CurrentState`, `StageName` atual e se a matriz da jornada cobre o estado persistido.
+- Timer nao aparece no modal: validar se `ActiveTimerCode` e `ActiveTimerDueAtUtc` foram gravados em `dbo.cpm_web_journey_executions`.
+- Historico repetido em loop: revisar se houve mudanca real de stage/estado/timer ou se algum processo externo esta sobrescrevendo o `CurrentState`.
+- Caso parado em `Aguardando confirmacao da agenda`: revisar se `SuggestedAtUtc` foi persistido e se o worker conseguiu calcular `ScheduleConfirmationTimeoutMinutes`.
+
+### Matching geografico e elegibilidade de prestadores
+
+#### Objetivo desta etapa
+
+- Encontrar apenas prestadores realmente aderentes ao caso ja qualificado e agendado.
+- Registrar de forma auditavel quem foi avaliado, quem ficou elegivel e por qual motivo cada bloqueio aconteceu.
+- Preparar a jornada para a proxima etapa de disparo em ondas sem depender de triagem manual.
+
+#### Escopo entregue nesta fatia
+
+- Foi criado o `JourneyProviderMatchingService`, que processa jornadas do board `clientes` em `Agendamento confirmado`.
+- Foi criado o `JourneyProviderMatchingWorker`, que executa o matching periodicamente conforme a configuracao `JourneyProviderMatching`.
+- O matching considera categoria, subcategoria, raio, disponibilidade, status operacional, pendencias de compliance, restricoes de confianca e conflitos de agenda do prestador.
+- A jornada passou a persistir `MatchingStatus`, `MatchingSummary`, `MatchingRequestedCategory`, `MatchingRequestedSubcategory`, `MatchingEvaluatedProviders`, `MatchingEligibleProviders`, `MatchingCandidatesJson` e `MatchingLastRunAtUtc`.
+- O modal do lead agora mostra a secao `Matching geografico`, com contagens e lista de candidatos ranqueados.
+
+#### Configuracao minima
+
+No `ConsertaPraMim.Web.CpmFull`, configurar a secao `JourneyProviderMatching`:
+
+- `Enabled`
+- `WorkerEnabled`
+- `WorkerIntervalSeconds`
+- `WorkerBatchSize`
+- `MaxCandidatesToPersist`
+- `Timezone`
+
+Pre-condicoes operacionais:
+
+- A jornada precisa estar em `Agendamento confirmado`.
+- O lead precisa ter categoria normalizada, coordenadas e janela confirmada.
+- Os prestadores precisam ter `ProviderProfiles` com categoria, raio e coordenadas base preenchidos.
+
+#### Comportamento esperado
+
+- O matching so roda para jornadas do board `clientes`.
+- A categoria normalizada da jornada e comparada com as categorias do prestador.
+- A subcategoria e inferida a partir do contexto do problema e usada para refinar o ranking.
+- Prestadores fora do raio, sem disponibilidade, com onboarding pendente, compliance pendente, restricao operacional ou conflito de agenda nao entram como elegiveis.
+- Quando houver elegiveis, a jornada registra `Elegiveis encontrados` e o card vai para `Em matching`.
+- Quando nao houver cobertura suficiente, a jornada registra `Sem cobertura` e o card vai para `Sem match`.
+
+#### Checklist de QA
+
+1. Configurar `JourneyProviderMatching:Enabled=true` e `JourneyProviderMatching:WorkerEnabled=true` no CPM Full.
+2. Garantir pelo menos dois prestadores de teste com `ProviderProfiles` validos, um dentro do raio e outro fora do raio.
+3. Criar ou reaproveitar uma jornada de cliente com `Qualificacao validada` e `Agendamento confirmado`.
+4. Aguardar a execucao do worker ou disparar a execucao manualmente no ambiente de teste.
+5. Abrir o lead em `/admin/funil/clientes` e validar a secao `Matching geografico`.
+6. Confirmar `Status do matching`, `Categoria solicitada`, `Subcategoria solicitada`, `Prestadores avaliados` e `Prestadores elegiveis`.
+7. Validar que o candidato elegivel aparece com `Elegivel`, `Rank 1`, distancia, score e resumo operacional.
+8. Validar que candidatos bloqueados exibem o motivo correto, como `Fora do raio de atendimento`.
+9. Confirmar que o card avancou para `Em matching` quando houver elegiveis ou para `Sem match` quando nao houver cobertura.
+10. Confirmar em banco que `dbo.cpm_web_journey_executions` persiste o snapshot do matching e o JSON dos candidatos avaliados.
+
+#### Troubleshooting
+
+- O matching nao roda: validar `JourneyProviderMatching:Enabled`, `WorkerEnabled` e logs do `JourneyProviderMatchingWorker`.
+- O lead nao sai de `Agendamento confirmado`: revisar se a jornada possui `Qualification.NormalizedServiceCategoryName`, `Latitude`, `Longitude`, `ScheduledStartAtUtc` e `ScheduledEndAtUtc`.
+- Todos os prestadores aparecem bloqueados por categoria: revisar o mapeamento de `ProviderProfiles.Categories` e a categoria normalizada da jornada.
+- Prestador esperado ficou `Fora do raio de atendimento`: revisar coordenadas base do prestador, coordenadas da jornada e `RadiusKm`.
+- Prestador esperado ficou indisponivel: revisar `ProviderAvailabilityRules`, horario local de negocio e conflitos em `ServiceAppointments`.
+- Modal sem lista de candidatos: validar se `MatchingCandidatesJson` foi persistido em `dbo.cpm_web_journey_executions`.
+
+### Disparo em ondas para prestadores
+
+#### Objetivo desta etapa
+
+- Preparar e enviar oportunidades para prestadores elegiveis em ondas controladas.
+- Evitar spam na base de prestadores e parar o disparo assim que houver reserva valida do caso.
+- Deixar auditavel no Kanban quais ondas foram abertas, quem recebeu, quem expirou e qual prestador ficou reservado.
+
+#### Escopo entregue nesta fatia
+
+- Foi criado o `JourneyProviderDispatchService`, que trabalha sobre jornadas do board `clientes` em `Em matching` e `Aguardando aceite`.
+- Foi criado o `JourneyProviderDispatchWorker`, que executa periodicamente o motor de disparo conforme a configuracao `JourneyProviderDispatch`.
+- A jornada passou a persistir `DispatchStatus`, `DispatchSummary`, `DispatchStrategy`, `DispatchCurrentWaveNumber`, `DispatchMaxWaveNumber`, contagens de alvos e o snapshot JSON completo do disparo.
+- Foi criada a fila `dbo.cpm_web_journey_dispatch_queue`, com idempotencia por `TargetKey` e estados `pending`, `processing`, `retrying`, `processed` e `dead_letter`.
+- O modal do lead agora mostra a secao `Disparo em ondas`, com estrategia, resumo, ondas registradas, alvos enviados e prestador reservado.
+- A reserva do caso passou a usar `TryReserveJourneyDispatchTarget`, com lock pessimista para impedir dois aceites validos no mesmo lead.
+
+#### Configuracao minima
+
+No `ConsertaPraMim.Web.CpmFull`, configurar a secao `JourneyProviderDispatch`:
+
+- `Enabled`
+- `WorkerEnabled`
+- `WorkerIntervalSeconds`
+- `WorkerBatchSize`
+- `QueueBatchSize`
+- `WaveSize`
+- `MaxWaves`
+- `AcceptanceTimeoutMinutes`
+- `QueueMaxAttempts`
+- `DispatchStrategy`
+
+Pre-condicoes operacionais:
+
+- A jornada precisa estar em `Em matching` com `MatchingStatus = Elegiveis encontrados` ou `Pronto para disparo`.
+- O snapshot de matching precisa ter candidatos elegiveis persistidos.
+- O worker `JourneyProviderDispatchWorker` precisa estar ativo no runtime do `ConsertaPraMim.Web.CpmFull`.
+
+#### Comportamento esperado
+
+- A primeira onda e preparada quando a jornada entra em `Em matching` com prestadores elegiveis.
+- Cada onda respeita `WaveSize`, `MaxWaves` e `AcceptanceTimeoutMinutes`.
+- O card avanca para `Disparo para prestadores` quando a onda e preparada e para `Aguardando aceite` quando o item da fila e processado.
+- Se uma onda expirar sem aceite, os alvos pendentes viram `Expirado` e o sistema tenta a proxima onda elegivel.
+- Se nao houver mais prestadores elegiveis ou o limite de ondas for atingido, a jornada vai para `Sem match`.
+- Quando um prestador reserva o caso, o disparo para imediatamente, os demais alvos pendentes viram `Dispensado` e o card vai para `Prestador conectado`.
+
+#### Checklist de QA
+
+1. Configurar `JourneyProviderDispatch:Enabled=true` e `JourneyProviderDispatch:WorkerEnabled=true` no CPM Full.
+2. Garantir uma jornada de cliente em `Em matching` com snapshot de matching contendo ao menos dois prestadores elegiveis.
+3. Aguardar a execucao do worker ou disparar a execucao manualmente em ambiente de teste.
+4. Abrir o lead em `/admin/funil/clientes` e validar a nova secao `Disparo em ondas`.
+5. Confirmar `Status do disparo = Onda enfileirada` logo apos a preparacao da primeira onda.
+6. Confirmar que `Ondas registradas` mostra a onda `1` com quantidade de alvos coerente com `WaveSize`.
+7. Aguardar o processamento da fila e validar `Status do disparo = Aguardando aceite`, `Alvos disparados` e `Aceite ate`.
+8. Simular expiracao da janela sem aceite e validar criacao da proxima onda, com a anterior marcada como `Expirada`.
+9. Simular reserva valida via `TryReserveJourneyDispatchTarget` e validar o card em `Prestador conectado`, com prestador reservado exibido no modal.
+10. Confirmar em banco que `dbo.cpm_web_journey_executions` persiste o snapshot do disparo e que `dbo.cpm_web_journey_dispatch_queue` registra o lifecycle dos alvos.
+
+#### Troubleshooting
+
+- A onda nao e preparada: validar `JourneyProviderDispatch:Enabled`, `WorkerEnabled`, `WaveSize`, `MaxWaves` e se a jornada esta em `Em matching`.
+- O item fica preso na fila: revisar `dbo.cpm_web_journey_dispatch_queue`, `AttemptCount`, `NextAttemptAt`, `LastError` e logs do `JourneyProviderDispatchWorker`.
+- O lead nao muda para `Aguardando aceite`: revisar se a fila foi adquirida, se o alvo ainda estava `Enfileirado` e se o stage `Aguardando aceite` existe no board `clientes`.
+- A proxima onda nao abre apos expiracao: revisar `DispatchWaitingAcceptanceUntilUtc`, `CurrentWaveNumber`, `MaxWaves` e se ainda existem candidatos elegiveis nao disparados.
+- Dois prestadores tentaram aceitar o mesmo caso: validar o resultado de `TryReserveJourneyDispatchTarget`; o primeiro aceite deve reservar o caso e os demais devem retornar `AlreadyReserved = true`.
+
 ## Automacao Telegram -> funis clientes/prestadores -> Chatwoot
 
 ### Objetivo desta etapa

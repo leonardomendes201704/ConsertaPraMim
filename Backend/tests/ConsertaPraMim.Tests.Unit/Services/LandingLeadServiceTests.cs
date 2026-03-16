@@ -163,4 +163,95 @@ public class LandingLeadServiceTests
                 It.IsAny<CancellationToken>()),
             Times.Once);
     }
+
+
+    [Fact(DisplayName = "Landing lead service | Captura | Deve sincronizar cliente com jornada automatizada")]
+    public async Task CaptureAsync_ShouldSyncJourneyForClientLead()
+    {
+        var repositoryMock = new Mock<ILandingLeadRepository>();
+        var adminNotificationMock = new Mock<ILandingAdminNotificationService>();
+        var journeyGatewayMock = new Mock<IServiceJourneyAutomationGateway>();
+        LandingLead? persistedLead = null;
+
+        repositoryMock
+            .Setup(repository => repository.AddAsync(It.IsAny<LandingLead>(), It.IsAny<CancellationToken>()))
+            .Callback<LandingLead, CancellationToken>((lead, _) => persistedLead = lead)
+            .Returns(Task.CompletedTask);
+        journeyGatewayMock
+            .Setup(gateway => gateway.UpsertJourneyAsync(
+                It.Is<ServiceJourneyAutomationRequestDto>(request =>
+                    request.BoardType == "clientes" &&
+                    request.SourceChannel == "landing" &&
+                    request.Name == "Ana Paula" &&
+                    request.Phone == "13999990000" &&
+                    request.Email == "ana@teste.com" &&
+                    request.City == "Praia Grande" &&
+                    request.Neighborhood == "Ocian" &&
+                    request.State == "SP" &&
+                    request.ProblemDescription == "Preciso de ajuda hoje."),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ServiceJourneyAutomationResultDto
+            {
+                Success = true,
+                HttpStatusCode = 200,
+                LeadId = 12,
+                JourneyId = 34,
+                JourneyPublicId = Guid.Parse("22222222-2222-2222-2222-222222222222"),
+                CreatedLead = true,
+                CreatedJourney = true,
+                BoardType = "clientes",
+                CurrentState = "intake_aberto",
+                Message = "ok"
+            });
+
+        var service = new ConsertaPraMim.Application.Services.LandingLeadService(
+            repositoryMock.Object,
+            adminNotificationMock.Object,
+            journeyGatewayMock.Object);
+
+        var request = new CaptureLandingLeadRequestDto(
+            Origin: LandingLeadOrigin.Client,
+            VisitorId: "visitor-journey-001",
+            SessionId: "session-journey-001",
+            FullName: "Ana Paula",
+            Phone: "13999990000",
+            Email: "ana@teste.com",
+            City: "Praia Grande",
+            State: "SP",
+            Neighborhood: "Ocian",
+            ServiceCategory: "Encanador",
+            RequestedService: "Troca de torneira",
+            CompanyName: null,
+            CompanyDocument: null,
+            YearsOfExperience: null,
+            Message: "Preciso de ajuda hoje.",
+            CurrentPageUrl: "https://www.consertapramim.com/landing",
+            ReferrerUrl: null,
+            QueryString: null,
+            UtmSource: null,
+            UtmMedium: null,
+            UtmCampaign: null,
+            UtmTerm: null,
+            UtmContent: null,
+            BrowserLanguage: "pt-BR",
+            ScreenResolution: "1920x1080",
+            DevicePlatform: "Windows",
+            TimeZone: "America/Sao_Paulo");
+
+        var context = new LandingLeadCaptureContextDto(
+            IpAddress: "127.0.0.1",
+            ForwardedFor: string.Empty,
+            UserAgent: "Mozilla/5.0",
+            AcceptLanguage: "pt-BR",
+            Host: "api.consertapramim.com",
+            Scheme: "https",
+            Path: "/api/landing-leads/public",
+            RefererHeader: string.Empty);
+
+        await service.CaptureAsync(request, context);
+
+        Assert.NotNull(persistedLead);
+        journeyGatewayMock.VerifyAll();
+    }
+
 }

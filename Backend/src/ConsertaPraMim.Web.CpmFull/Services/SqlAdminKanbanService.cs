@@ -5,20 +5,33 @@ using Microsoft.Data.SqlClient;
 
 namespace AppMobileCPM.Services;
 
-public sealed class SqlAdminKanbanService : IAdminKanbanService
+public sealed partial class SqlAdminKanbanService : IAdminKanbanService
 {
     private const string TablePrefix = "cpm_web_";
     private const string RedactedWebhookPayloadJson = "{\"redacted\":true,\"reason\":\"retention\"}";
     private const string RedactedTelegramPayloadJson = "{\"redacted\":true,\"reason\":\"retention\"}";
 
-    private static readonly IReadOnlyList<(string Name, string Color)> ClientDefaultStages =
+    private static readonly IReadOnlyList<(string Name, string Color)> ClientJourneyStages =
     [
         ("Novo lead", "#0d6efd"),
-        ("Tentativa de contato", "#fd7e14"),
-        ("Agendado", "#6f42c1"),
-        ("Em atendimento", "#0dcaf0"),
+        ("Triagem automatica", "#fd7e14"),
+        ("Dados pendentes", "#ffc107"),
+        ("Endereco e categoria validados", "#20c997"),
+        ("Janela sugerida", "#6f42c1"),
+        ("Aguardando confirmacao da agenda", "#6610f2"),
+        ("Agendamento confirmado", "#0dcaf0"),
+        ("Em matching", "#198754"),
+        ("Disparo para prestadores", "#198754"),
+        ("Aguardando aceite", "#fd7e14"),
+        ("Prestador conectado", "#20c997"),
+        ("Servico em andamento", "#0dcaf0"),
+        ("Aguardando confirmacao de conclusao", "#ffc107"),
+        ("Aguardando avaliacao do cliente", "#6c757d"),
+        ("Aguardando avaliacao do prestador", "#6c757d"),
         ("Concluido", "#198754"),
-        ("Perdido", "#dc3545")
+        ("Sem match", "#dc3545"),
+        ("Cancelado", "#6c757d"),
+        ("Excecao operacional", "#dc3545")
     ];
 
     private static readonly IReadOnlyList<(string Name, string Color)> ProviderDefaultStages =
@@ -337,6 +350,7 @@ ORDER BY h.CreatedAt DESC, h.Id DESC;
             CreatedAt = details.CreatedAt,
             UpdatedAt = details.UpdatedAt,
             LastContactAt = details.LastContactAt,
+            Journey = GetJourneyDetails(leadId) ?? details.Journey,
             Telegram = telegramLink ?? details.Telegram,
             Chatwoot = details.Chatwoot,
             History = history
@@ -410,6 +424,12 @@ DELETE FROM dbo.{TablePrefix}telegram_delivery_queue
 WHERE LeadId = @leadId;
 
 DELETE FROM dbo.{TablePrefix}chatwoot_sync_queue
+WHERE LeadId = @leadId;
+
+DELETE FROM dbo.{TablePrefix}journey_events
+WHERE LeadId = @leadId;
+
+DELETE FROM dbo.{TablePrefix}journey_executions
 WHERE LeadId = @leadId;
 
 DELETE FROM dbo.{TablePrefix}telegram_funil_links
@@ -2675,8 +2695,9 @@ CREATE INDEX IX_{TablePrefix}telegram_delivery_queue_due
                 command.ExecuteNonQuery();
             }
 
-            SeedStages(connection, transaction, AdminKanbanBoardTypes.Clients, ClientDefaultStages);
+            SeedStages(connection, transaction, AdminKanbanBoardTypes.Clients, ClientJourneyStages);
             SeedStages(connection, transaction, AdminKanbanBoardTypes.Providers, ProviderDefaultStages);
+            MigrateLegacyClientStagesToJourneyFlow(connection, transaction);
             SeedSampleLeads(connection, transaction);
 
             transaction.Commit();
@@ -2704,6 +2725,16 @@ BEGIN
     INSERT INTO dbo.{TablePrefix}kanban_stages (BoardType, Name, Color, SortOrder, IsActive)
     VALUES (@boardType, @name, @color, @sortOrder, 1);
 END;
+ELSE
+BEGIN
+    UPDATE dbo.{TablePrefix}kanban_stages
+    SET Color = @color,
+        SortOrder = @sortOrder,
+        IsActive = 1,
+        UpdatedAt = SYSUTCDATETIME()
+    WHERE BoardType = @boardType
+      AND Name = @name;
+END;
 """;
             command.Parameters.AddRange(
             [
@@ -2714,6 +2745,56 @@ END;
             ]);
             command.ExecuteNonQuery();
         }
+    }
+
+    private static void MigrateLegacyClientStagesToJourneyFlow(SqlConnection connection, SqlTransaction transaction)
+    {
+        RenameLegacyClientStageIfNeeded(connection, transaction, "Tentativa de contato", AdminKanbanJourneyClientStageNames.AutomatedTriage);
+        RenameLegacyClientStageIfNeeded(connection, transaction, "Agendado", AdminKanbanJourneyClientStageNames.AppointmentConfirmed);
+        RenameLegacyClientStageIfNeeded(connection, transaction, "Em atendimento", AdminKanbanJourneyClientStageNames.ServiceInProgress);
+        RenameLegacyClientStageIfNeeded(connection, transaction, "Perdido", AdminKanbanJourneyClientStageNames.OperationalException);
+    }
+
+    private static void RenameLegacyClientStageIfNeeded(SqlConnection connection, SqlTransaction transaction, string legacyStageName, string targetStageName)
+    {
+        if (string.Equals(legacyStageName, targetStageName, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = $"""
+IF EXISTS (
+    SELECT 1
+    FROM dbo.{TablePrefix}kanban_stages
+    WHERE BoardType = @boardType
+      AND Name = @legacyStageName
+      AND IsActive = 1
+)
+AND NOT EXISTS (
+    SELECT 1
+    FROM dbo.{TablePrefix}kanban_stages
+    WHERE BoardType = @boardType
+      AND Name = @targetStageName
+      AND IsActive = 1
+)
+BEGIN
+    UPDATE dbo.{TablePrefix}kanban_stages
+    SET Name = @targetStageName,
+        UpdatedAt = SYSUTCDATETIME()
+    WHERE BoardType = @boardType
+      AND Name = @legacyStageName
+      AND IsActive = 1;
+END;
+""";
+        command.Parameters.AddRange(
+        [
+            new SqlParameter("@boardType", SqlDbType.NVarChar, 30) { Value = AdminKanbanBoardTypes.Clients },
+            new SqlParameter("@legacyStageName", SqlDbType.NVarChar, 120) { Value = legacyStageName },
+            new SqlParameter("@targetStageName", SqlDbType.NVarChar, 120) { Value = targetStageName }
+        ]);
+        command.ExecuteNonQuery();
     }
 
     private static void SeedSampleLeads(SqlConnection connection, SqlTransaction transaction)
@@ -2729,18 +2810,18 @@ END;
         if (!HasAnyLead(connection, transaction, boardType))
         {
             var novoLeadStageId = GetStageIdByName(connection, transaction, boardType, "Novo lead");
-            var tentativaContatoStageId = GetStageIdByName(connection, transaction, boardType, "Tentativa de contato");
-            var agendadoStageId = GetStageIdByName(connection, transaction, boardType, "Agendado");
-            var emAtendimentoStageId = GetStageIdByName(connection, transaction, boardType, "Em atendimento");
+            var triagemStageId = GetStageIdByName(connection, transaction, boardType, "Triagem automatica");
+            var agendadoStageId = GetStageIdByName(connection, transaction, boardType, "Agendamento confirmado");
+            var emAtendimentoStageId = GetStageIdByName(connection, transaction, boardType, "Servico em andamento");
             var concluidoStageId = GetStageIdByName(connection, transaction, boardType, "Concluido");
-            var perdidoStageId = GetStageIdByName(connection, transaction, boardType, "Perdido");
+            var excecaoStageId = GetStageIdByName(connection, transaction, boardType, "Excecao operacional");
 
             UpsertSeedLeadBySource(connection, transaction, boardType, "seed.cliente.1", novoLeadStageId, "Mariana Souza", "(13) 99877-1100", "mariana@email.com", "Encanador", "Padrao", "Vazamento na pia da cozinha", null, "11700-130", "Praia Grande");
-            UpsertSeedLeadBySource(connection, transaction, boardType, "seed.cliente.2", tentativaContatoStageId, "Ricardo Almeida", "(13) 99711-4422", "ricardo@email.com", "Eletricista", "WhatsApp", "Aguardando retorno do cliente", DateTime.UtcNow.AddHours(-5), "11701-200", "Praia Grande");
+            UpsertSeedLeadBySource(connection, transaction, boardType, "seed.cliente.2", triagemStageId, "Ricardo Almeida", "(13) 99711-4422", "ricardo@email.com", "Eletricista", "WhatsApp", "Aguardando retorno do cliente", DateTime.UtcNow.AddHours(-5), "11701-200", "Praia Grande");
             UpsertSeedLeadBySource(connection, transaction, boardType, "seed.cliente.3", agendadoStageId, "Carla Nunes", "(13) 99655-8822", "carla@email.com", "Ar-condicionado", "Formulario", "Visita agendada para amanha 14h", DateTime.UtcNow.AddHours(-2), "11702-330", "Praia Grande");
             UpsertSeedLeadBySource(connection, transaction, boardType, "seed.cliente.4", emAtendimentoStageId, "Fernando Lima", "(13) 99122-7600", "fernando@email.com", "Pedreiro", "Indicacao", "Reforma em andamento", DateTime.UtcNow.AddDays(-1), "11703-040", "Sao Vicente");
             UpsertSeedLeadBySource(connection, transaction, boardType, "seed.cliente.5", concluidoStageId, "Luciana Prado", "(13) 99966-1200", "luciana@email.com", "Pintor", "Formulario", "Servico finalizado e cliente satisfeito", DateTime.UtcNow.AddDays(-2), "11704-900", "Praia Grande");
-            UpsertSeedLeadBySource(connection, transaction, boardType, "seed.cliente.6", perdidoStageId, "Bruno Castro", "(13) 99221-4567", "bruno@email.com", "Chaveiro", "Ligacao", "Cliente fechou com concorrente", DateTime.UtcNow.AddDays(-3), "11705-010", "Praia Grande");
+            UpsertSeedLeadBySource(connection, transaction, boardType, "seed.cliente.6", excecaoStageId, "Bruno Castro", "(13) 99221-4567", "bruno@email.com", "Chaveiro", "Ligacao", "Cliente fechou com concorrente", DateTime.UtcNow.AddDays(-3), "11705-010", "Praia Grande");
         }
 
         if (TableExists(connection, transaction, $"{TablePrefix}service_requests"))

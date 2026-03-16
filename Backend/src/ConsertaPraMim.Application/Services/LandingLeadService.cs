@@ -5,6 +5,7 @@ using ConsertaPraMim.Application.Interfaces;
 using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
 using ConsertaPraMim.Domain.Repositories;
+using Microsoft.Extensions.Logging;
 
 namespace ConsertaPraMim.Application.Services;
 
@@ -40,13 +41,19 @@ public sealed class LandingLeadService : ILandingLeadService
 
     private readonly ILandingLeadRepository _landingLeadRepository;
     private readonly ILandingAdminNotificationService _landingAdminNotificationService;
+    private readonly IServiceJourneyAutomationGateway? _serviceJourneyAutomationGateway;
+    private readonly ILogger<LandingLeadService>? _logger;
 
     public LandingLeadService(
         ILandingLeadRepository landingLeadRepository,
-        ILandingAdminNotificationService landingAdminNotificationService)
+        ILandingAdminNotificationService landingAdminNotificationService,
+        IServiceJourneyAutomationGateway? serviceJourneyAutomationGateway = null,
+        ILogger<LandingLeadService>? logger = null)
     {
         _landingLeadRepository = landingLeadRepository;
         _landingAdminNotificationService = landingAdminNotificationService;
+        _serviceJourneyAutomationGateway = serviceJourneyAutomationGateway;
+        _logger = logger;
     }
 
     public async Task<CaptureLandingLeadResponseDto> CaptureAsync(
@@ -102,6 +109,7 @@ public sealed class LandingLeadService : ILandingLeadService
 
         await _landingLeadRepository.AddAsync(lead, cancellationToken);
         await _landingAdminNotificationService.NotifyLandingLeadCapturedAsync(lead, cancellationToken);
+        await TrySyncJourneyAsync(lead, cancellationToken);
 
         return new CaptureLandingLeadResponseDto(
             lead.Id,
@@ -247,6 +255,73 @@ public sealed class LandingLeadService : ILandingLeadService
 
         var digits = new string(raw.Where(char.IsDigit).ToArray());
         return string.IsNullOrWhiteSpace(digits) ? null : digits;
+    }
+
+
+    private async Task TrySyncJourneyAsync(LandingLead lead, CancellationToken cancellationToken)
+    {
+        if (_serviceJourneyAutomationGateway is null)
+        {
+            return;
+        }
+
+        var boardType = lead.Origin == LandingLeadOrigin.Provider ? "prestadores" : "clientes";
+        var result = await _serviceJourneyAutomationGateway.UpsertJourneyAsync(
+            new ServiceJourneyAutomationRequestDto
+            {
+                BoardType = boardType,
+                SourceChannel = "landing",
+                SourceOrigin = FirstNonEmpty(lead.CurrentPageUrl, lead.ReferrerUrl, "landing-public") ?? "landing-public",
+                Name = lead.FullName,
+                Phone = lead.Phone,
+                Email = lead.Email,
+                ServiceCategory = lead.ServiceCategory ?? lead.RequestedService ?? string.Empty,
+                ProblemDescription = FirstNonEmpty(lead.Message, lead.RequestedService) ?? string.Empty,
+                Neighborhood = lead.Neighborhood ?? string.Empty,
+                State = lead.State ?? string.Empty,
+                PostalCode = string.Empty,
+                City = lead.City,
+                StatusNote = lead.Origin == LandingLeadOrigin.Provider
+                    ? "Prestador capturado pela landing publica para onboarding automatizado."
+                    : "Lead capturado pela landing publica para jornada automatizada.",
+                InternalNotes = BuildJourneyInternalNotes(lead),
+                LandingLeadId = lead.Id,
+                VisitorId = lead.VisitorId ?? string.Empty,
+                SessionId = lead.SessionId ?? string.Empty,
+                RequestedAtUtc = lead.CreatedAt,
+                LastContactAtUtc = lead.CreatedAt
+            },
+            cancellationToken);
+
+        if (!result.Success)
+        {
+            _logger?.LogWarning(
+                "Falha ao sincronizar landing lead {LandingLeadId} com a jornada automatizada. Status={StatusCode}. Message={Message}",
+                lead.Id,
+                result.HttpStatusCode,
+                result.Message);
+        }
+    }
+
+    private static string BuildJourneyInternalNotes(LandingLead lead)
+    {
+        var parts = new List<string>();
+        if (!string.IsNullOrWhiteSpace(lead.RequestedService))
+        {
+            parts.Add($"Servico solicitado: {lead.RequestedService}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(lead.CompanyName))
+        {
+            parts.Add($"Empresa informada: {lead.CompanyName}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(lead.Message))
+        {
+            parts.Add($"Mensagem do lead: {lead.Message}");
+        }
+
+        return string.Join(Environment.NewLine, parts);
     }
 
     private static string? FirstNonEmpty(params string?[] values)

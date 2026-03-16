@@ -5,6 +5,18 @@ public interface IAdminKanbanService
     AdminKanbanBoardData GetBoard(string boardType);
     IReadOnlyList<AdminKanbanStageRecord> GetStages(string boardType);
     AdminKanbanLeadDetailsRecord? GetLeadDetails(int leadId);
+    AdminKanbanLeadJourneyRecord? GetJourneyDetails(int leadId);
+    AdminKanbanJourneyUpsertResult UpsertJourneyIntake(AdminKanbanJourneyIntakeRequest request);
+    AdminKanbanJourneySchedulingUpdateResult? UpdateJourneyScheduling(int leadId, AdminKanbanJourneySchedulingUpdateRequest request);
+    AdminKanbanJourneyMatchingUpdateResult? UpdateJourneyMatching(int leadId, AdminKanbanJourneyMatchingUpdateRequest request);
+    AdminKanbanJourneyDispatchUpdateResult? UpdateJourneyDispatch(int leadId, AdminKanbanJourneyDispatchUpdateRequest request);
+    AdminKanbanJourneyDispatchReservationResult? TryReserveJourneyDispatchTarget(AdminKanbanJourneyDispatchReservationRequest request);
+    IReadOnlyList<AdminKanbanJourneyStageAutomationCandidateRecord> ListJourneyStageAutomationCandidates(string boardType, DateTime nowUtc, int batchSize);
+    AdminKanbanJourneyStageAutomationUpdateResult? ApplyJourneyStageAutomation(AdminKanbanJourneyStageAutomationUpdateRequest request);
+    IReadOnlyList<AdminKanbanJourneyProviderProfileRecord> ListJourneyProviderProfiles(DateTime? scheduledStartAtUtc, DateTime? scheduledEndAtUtc);
+    AdminKanbanJourneyDispatchQueueItemRecord EnqueueJourneyDispatchQueueItem(AdminKanbanJourneyDispatchQueueEnqueueRequest request);
+    IReadOnlyList<AdminKanbanJourneyDispatchQueueItemRecord> AcquireDueJourneyDispatchQueueItems(int batchSize, DateTime attemptStartedAtUtc, string workerInstance);
+    AdminKanbanJourneyDispatchQueueItemRecord? FinalizeJourneyDispatchQueueItem(AdminKanbanJourneyDispatchQueueFinalizeRequest request);
     int CreateLead(AdminKanbanLeadUpsertRequest request);
     bool DeleteLead(int leadId);
     AdminKanbanTelegramLeadUpsertResult UpsertTelegramLead(AdminKanbanTelegramLeadUpsertRequest request);

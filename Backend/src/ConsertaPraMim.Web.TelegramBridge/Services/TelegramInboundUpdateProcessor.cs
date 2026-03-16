@@ -150,6 +150,7 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
     private readonly TelegramAutomationOptions _automationOptions;
     private readonly ITelegramLeadAutomationClient _telegramLeadAutomationClient;
     private readonly ITelegramMessageAutomationClient _telegramMessageAutomationClient;
+    private readonly ITelegramJourneySchedulingClient _telegramJourneySchedulingClient;
     private readonly ITelegramBotApiClient _telegramBotApiClient;
     private readonly ITelegramHumanHandoffStateService _humanHandoffStateService;
     private readonly ITelegramChatbotObservabilityService _observabilityService;
@@ -160,6 +161,7 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
         IOptions<TelegramAutomationOptions> automationOptions,
         ITelegramLeadAutomationClient telegramLeadAutomationClient,
         ITelegramMessageAutomationClient telegramMessageAutomationClient,
+        ITelegramJourneySchedulingClient telegramJourneySchedulingClient,
         ITelegramBotApiClient telegramBotApiClient,
         ITelegramHumanHandoffStateService humanHandoffStateService,
         ITelegramChatbotObservabilityService observabilityService,
@@ -169,6 +171,7 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
         _automationOptions = automationOptions.Value;
         _telegramLeadAutomationClient = telegramLeadAutomationClient;
         _telegramMessageAutomationClient = telegramMessageAutomationClient;
+        _telegramJourneySchedulingClient = telegramJourneySchedulingClient;
         _telegramBotApiClient = telegramBotApiClient;
         _humanHandoffStateService = humanHandoffStateService;
         _observabilityService = observabilityService;
@@ -196,7 +199,8 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
             var capturedContact = ResolveCapturedContact(update.Message);
             var bootstrap = await TryBootstrapLeadAsync(update.Message, storedMessage, capturedContact, cancellationToken);
             await TryMirrorInboundMessageAsync(update.Message, storedMessage, bootstrap.ChatbotConversationId, cancellationToken);
-            await TrySendAutomaticResponseAsync(update.Message, bootstrap, capturedContact, cancellationToken);
+            var schedulingTurn = await TryProcessJourneySchedulingAsync(update.Message, storedMessage, bootstrap, cancellationToken);
+            await TrySendAutomaticResponseAsync(update.Message, bootstrap, capturedContact, schedulingTurn, cancellationToken);
             return storedMessage is not null;
         }
         catch (Exception exception)
@@ -218,6 +222,70 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
                 source);
 
             throw;
+        }
+    }
+
+    private async Task<TelegramJourneySchedulingTurnResult?> TryProcessJourneySchedulingAsync(
+        TelegramMessage updateMessage,
+        ChatMessageDto? storedMessage,
+        TelegramInboundBootstrapResult bootstrap,
+        CancellationToken cancellationToken)
+    {
+        if (!_automationOptions.Enabled ||
+            !_automationOptions.ClientsAutomationEnabled ||
+            !string.Equals(bootstrap.BoardType, ClientsBoardType, StringComparison.OrdinalIgnoreCase) ||
+            bootstrap.ChatbotConversationId == Guid.Empty)
+        {
+            return null;
+        }
+
+        var chatId = updateMessage.Chat?.Id ?? 0;
+        if (chatId <= 0)
+        {
+            return null;
+        }
+
+        if (_humanHandoffStateService.IsActive(chatId))
+        {
+            return null;
+        }
+
+        var messageText = storedMessage?.Text;
+        if (string.IsNullOrWhiteSpace(messageText))
+        {
+            messageText = NormalizeOptionalText(updateMessage.Text) ?? NormalizeOptionalText(updateMessage.Caption) ?? string.Empty;
+        }
+
+        var sentAtUtc = storedMessage?.SentAtUtc.UtcDateTime ?? ResolveSentAtUtc(updateMessage);
+
+        try
+        {
+            var result = await _telegramJourneySchedulingClient.ProcessTurnAsync(
+                new TelegramJourneySchedulingTurnRequest
+                {
+                    ChatbotConversationId = bootstrap.ChatbotConversationId,
+                    ChannelConversationId = chatId.ToString(CultureInfo.InvariantCulture),
+                    TelegramChatId = chatId,
+                    MessageText = messageText,
+                    MessageSentAtUtc = sentAtUtc
+                },
+                cancellationToken);
+
+            if (result.Handled)
+            {
+                var schedulingConfirmed = string.Equals(result.SchedulingStatus, "confirmed", StringComparison.OrdinalIgnoreCase);
+                _observabilityService.RecordBusinessEvent("scheduling_attempt", schedulingConfirmed);
+            }
+
+            return result;
+        }
+        catch (Exception exception)
+        {
+            _logger.LogWarning(
+                exception,
+                "Falha ao processar turno de autoagendamento para o chat {ChatId}.",
+                TelegramSecuritySanitizer.MaskChatId(chatId));
+            return null;
         }
     }
 
@@ -266,6 +334,7 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
                     UserPhone = capturedContact.Phone,
                     UserEmail = capturedContact.Email,
                     ServiceCategory = qualification.ServiceCategory,
+                    ProblemDescription = messageText,
                     PostalCode = qualification.PostalCode,
                     City = qualification.City,
                     StatusNote = BuildStatusNote(qualification),
@@ -365,6 +434,7 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
         TelegramMessage updateMessage,
         TelegramInboundBootstrapResult bootstrap,
         TelegramCapturedContact capturedContact,
+        TelegramJourneySchedulingTurnResult? schedulingTurn,
         CancellationToken cancellationToken)
     {
         var chatId = updateMessage.Chat?.Id ?? 0;
@@ -380,7 +450,18 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
 
         try
         {
-            var response = BuildAutomaticResponse(bootstrap, capturedContact);
+            TelegramAutomaticResponse? response = null;
+            if (schedulingTurn?.Handled == true && !string.IsNullOrWhiteSpace(schedulingTurn.ReplyText))
+            {
+                response = new TelegramAutomaticResponse(
+                    schedulingTurn.ReplyText,
+                    new TelegramMessageSendOptions
+                    {
+                        RemoveReplyKeyboard = schedulingTurn.RemoveReplyKeyboard
+                    });
+            }
+
+            response ??= BuildAutomaticResponse(bootstrap, capturedContact);
             if (response is null)
             {
                 return;

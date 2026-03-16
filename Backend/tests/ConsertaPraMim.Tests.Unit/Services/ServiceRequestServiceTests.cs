@@ -626,4 +626,103 @@ public class ServiceRequestServiceTests
                 It.IsAny<string>()),
             Times.Once);
     }
+
+
+    [Fact(DisplayName = "Servico requisicao servico | Criar | Deve sincronizar a jornada automatizada")]
+    public async Task CreateAsync_ShouldSyncJourneyAutomation_WhenRequestIsCreated()
+    {
+        var requestRepoMock = new Mock<IServiceRequestRepository>();
+        var categoryRepoMock = new Mock<IServiceCategoryRepository>();
+        var userRepoMock = new Mock<IUserRepository>();
+        var zipGeocodingMock = new Mock<IZipGeocodingService>();
+        var notificationMock = new Mock<INotificationService>();
+        var journeyGatewayMock = new Mock<IServiceJourneyAutomationGateway>();
+        ServiceRequest? persistedRequest = null;
+        var clientId = Guid.NewGuid();
+
+        requestRepoMock
+            .Setup(repository => repository.AddAsync(It.IsAny<ServiceRequest>()))
+            .Callback<ServiceRequest>(request => persistedRequest = request)
+            .Returns(Task.CompletedTask);
+        userRepoMock
+            .Setup(repository => repository.GetByIdAsync(clientId))
+            .ReturnsAsync(new User
+            {
+                Id = clientId,
+                Name = "Cliente Jornada",
+                Email = "cliente.jornada@teste.com",
+                Phone = "13999994444",
+                Role = UserRole.Client,
+                IsActive = true
+            });
+        userRepoMock.Setup(repository => repository.GetAllAsync()).ReturnsAsync(new List<User>());
+        categoryRepoMock
+            .Setup(repository => repository.GetFirstActiveByLegacyAsync(ServiceCategory.Electrical))
+            .ReturnsAsync(new ServiceCategoryDefinition
+            {
+                Id = Guid.NewGuid(),
+                Name = "Eletricista",
+                Slug = "eletricista",
+                LegacyCategory = ServiceCategory.Electrical,
+                IsActive = true
+            });
+        zipGeocodingMock
+            .Setup(service => service.ResolveCoordinatesAsync("11701-200", "Rua A", "Praia Grande"))
+            .ReturnsAsync(("11701-200", -23.5, -46.6, "Rua A", (string?)"Ocian", "Praia Grande"));
+        journeyGatewayMock
+            .Setup(gateway => gateway.UpsertJourneyAsync(
+                It.Is<ServiceJourneyAutomationRequestDto>(request =>
+                    request.BoardType == "clientes" &&
+                    request.SourceChannel == "service_request" &&
+                    request.Name == "Cliente Jornada" &&
+                    request.Phone == "13999994444" &&
+                    request.Email == "cliente.jornada@teste.com" &&
+                    request.ServiceCategory == "Eletricista" &&
+                    request.ProblemDescription == "Tomada sem energia" &&
+                    request.Street == "Rua A" &&
+                    request.Neighborhood == "Ocian" &&
+                    request.PostalCode == "11701-200" &&
+                    request.City == "Praia Grande" &&
+                    request.Latitude == -23.5 &&
+                    request.Longitude == -46.6),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ServiceJourneyAutomationResultDto
+            {
+                Success = true,
+                HttpStatusCode = 200,
+                LeadId = 77,
+                JourneyId = 88,
+                JourneyPublicId = Guid.Parse("33333333-3333-3333-3333-333333333333"),
+                CreatedLead = false,
+                CreatedJourney = false,
+                BoardType = "clientes",
+                CurrentState = "pedido_aberto",
+                Message = "ok"
+            });
+
+        var service = new ServiceRequestService(
+            requestRepoMock.Object,
+            categoryRepoMock.Object,
+            userRepoMock.Object,
+            zipGeocodingMock.Object,
+            notificationMock.Object,
+            serviceJourneyAutomationGateway: journeyGatewayMock.Object);
+
+        var result = await service.CreateAsync(
+            clientId,
+            new CreateServiceRequestDto(
+                CategoryId: null,
+                Category: ServiceCategory.Electrical,
+                Description: "Troca de disjuntor",
+                Street: "Rua A",
+                City: "Praia Grande",
+                Zip: "11701-200",
+                Lat: -23.5,
+                Lng: -46.6));
+
+        Assert.NotEqual(Guid.Empty, result);
+        Assert.NotNull(persistedRequest);
+        journeyGatewayMock.VerifyAll();
+    }
+
 }

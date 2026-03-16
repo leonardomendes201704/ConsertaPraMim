@@ -1,4 +1,5 @@
 using AppMobileCPM.Integrations.Chatwoot;
+using AppMobileCPM.Integrations.Journey;
 using AppMobileCPM.Services;
 using Microsoft.Extensions.Options;
 
@@ -10,17 +11,20 @@ public sealed class TelegramLeadAutomationService : ITelegramLeadAutomationServi
 
     private readonly IAdminKanbanService _kanbanService;
     private readonly IChatwootLeadSyncService _chatwootLeadSyncService;
+    private readonly IJourneyQualificationService _journeyQualificationService;
     private readonly TelegramAutomationOptions _options;
     private readonly ILogger<TelegramLeadAutomationService> _logger;
 
     public TelegramLeadAutomationService(
         IAdminKanbanService kanbanService,
         IChatwootLeadSyncService chatwootLeadSyncService,
+        IJourneyQualificationService journeyQualificationService,
         IOptions<TelegramAutomationOptions> options,
         ILogger<TelegramLeadAutomationService> logger)
     {
         _kanbanService = kanbanService;
         _chatwootLeadSyncService = chatwootLeadSyncService;
+        _journeyQualificationService = journeyQualificationService;
         _options = options.Value;
         _logger = logger;
     }
@@ -89,45 +93,79 @@ public sealed class TelegramLeadAutomationService : ITelegramLeadAutomationServi
                 "UserId e obrigatorio para automacao Telegram.");
         }
 
-        var upsertResult = _kanbanService.UpsertTelegramLead(new AdminKanbanTelegramLeadUpsertRequest
+        var qualification = await _journeyQualificationService.QualifyAsync(
+            new JourneyQualificationInput
+            {
+                BoardType = normalizedBoardType,
+                SourceChannel = AdminKanbanJourneySourceChannels.Telegram,
+                Name = string.IsNullOrWhiteSpace(request.UserName)
+                    ? (normalizedBoardType == AdminKanbanBoardTypes.Providers ? "Prestador Telegram" : "Cliente Telegram")
+                    : request.UserName.Trim(),
+                Phone = request.UserPhone,
+                Email = request.UserEmail,
+                ServiceCategory = request.ServiceCategory,
+                ProblemDescription = request.ProblemDescription,
+                Street = request.Street,
+                Neighborhood = request.Neighborhood,
+                City = request.City,
+                State = request.State,
+                PostalCode = request.PostalCode,
+                Latitude = request.Latitude,
+                Longitude = request.Longitude,
+                InternalNotes = request.InternalNotes
+            },
+            cancellationToken);
+
+        var upsertResult = _kanbanService.UpsertJourneyIntake(new AdminKanbanJourneyIntakeRequest
         {
             BoardType = normalizedBoardType,
+            SourceChannel = AdminKanbanJourneySourceChannels.Telegram,
+            SourceOrigin = string.IsNullOrWhiteSpace(request.ChannelConversationId) ? "telegram-bot" : request.ChannelConversationId,
+            Name = string.IsNullOrWhiteSpace(request.UserName)
+                ? (normalizedBoardType == AdminKanbanBoardTypes.Providers ? "Prestador Telegram" : "Cliente Telegram")
+                : request.UserName.Trim(),
+            Phone = request.UserPhone,
+            Email = request.UserEmail,
+            ServiceCategory = ResolvePreferredValue(qualification.NormalizedServiceCategoryName, request.ServiceCategory),
+            ProblemDescription = ResolvePreferredValue(qualification.ProblemContext, request.ProblemDescription),
+            Street = ResolvePreferredValue(qualification.Street, request.Street),
+            Neighborhood = ResolvePreferredValue(qualification.Neighborhood, request.Neighborhood),
+            State = ResolvePreferredValue(qualification.State, request.State),
+            PostalCode = ResolvePreferredValue(qualification.PostalCode, request.PostalCode),
+            City = ResolvePreferredValue(qualification.City, request.City),
+            Latitude = qualification.Latitude ?? request.Latitude,
+            Longitude = qualification.Longitude ?? request.Longitude,
+            StatusNote = request.StatusNote,
+            InternalNotes = request.InternalNotes,
+            ServiceRequestId = request.ServiceRequestId,
+            ClientId = request.UserId,
             ChatbotConversationId = request.ChatbotConversationId,
             ChannelConversationId = request.ChannelConversationId,
             TelegramChatId = request.TelegramChatId,
-            ClientId = request.UserId,
-            ClientName = string.IsNullOrWhiteSpace(request.UserName)
-                ? (normalizedBoardType == AdminKanbanBoardTypes.Providers ? "Prestador Telegram" : "Cliente Telegram")
-                : request.UserName.Trim(),
-            ClientPhone = request.UserPhone,
-            ClientEmail = request.UserEmail,
-            ServiceRequestId = request.ServiceRequestId,
-            ServiceCategory = request.ServiceCategory,
-            PostalCode = request.PostalCode,
-            City = request.City,
-            StatusNote = request.StatusNote,
-            InternalNotes = request.InternalNotes,
-            LastContactAt = request.LastContactAtUtc
+            RequestedAtUtc = request.LastContactAtUtc,
+            LastContactAtUtc = request.LastContactAtUtc,
+            Qualification = ToQualificationRecord(qualification)
         });
 
         var chatwootResult = await _chatwootLeadSyncService.SyncLeadAsync(upsertResult.LeadId, cancellationToken);
-        var message = upsertResult.Created
+        var message = upsertResult.CreatedLead
             ? "Lead criado via automacao do bot Telegram."
             : "Lead atualizado via automacao do bot Telegram.";
 
         _logger.LogInformation(
-            "Automacao Telegram processou conversa {ChatbotConversationId} no board {BoardType}. LeadId={LeadId}. Created={Created}. ChatwootStatus={ChatwootStatus}.",
-            upsertResult.ChatbotConversationId,
+            "Automacao Telegram processou conversa {ChatbotConversationId} no board {BoardType}. LeadId={LeadId}. CreatedLead={CreatedLead}. JourneyId={JourneyId}. ChatwootStatus={ChatwootStatus}.",
+            request.ChatbotConversationId,
             upsertResult.BoardType,
             upsertResult.LeadId,
-            upsertResult.Created,
+            upsertResult.CreatedLead,
+            upsertResult.JourneyId,
             chatwootResult.Status);
 
         return TelegramLeadAutomationResult.Ok(new TelegramLeadAutomationResponse
         {
             Success = true,
             LeadId = upsertResult.LeadId,
-            Created = upsertResult.Created,
+            Created = upsertResult.CreatedLead,
             BoardType = upsertResult.BoardType,
             Message = message,
             ChatwootStatus = chatwootResult.Status,
@@ -141,4 +179,37 @@ public sealed class TelegramLeadAutomationService : ITelegramLeadAutomationServi
     private bool IsSecretValid(string providedSecret) =>
         !string.IsNullOrWhiteSpace(providedSecret) &&
         string.Equals(providedSecret.Trim(), _options.SharedSecret.Trim(), StringComparison.Ordinal);
+
+    private static AdminKanbanJourneyQualificationRecord ToQualificationRecord(JourneyQualificationResult qualification) =>
+        new()
+        {
+            Status = qualification.Status,
+            Source = qualification.Source,
+            ConfidenceScore = qualification.ConfidenceScore,
+            HasRequiredData = qualification.HasRequiredData,
+            NeedsConfirmation = qualification.NeedsConfirmation,
+            NormalizedServiceCategoryId = qualification.NormalizedServiceCategoryId,
+            NormalizedServiceCategoryName = qualification.NormalizedServiceCategoryName,
+            ProblemContext = qualification.ProblemContext,
+            Street = qualification.Street,
+            Neighborhood = qualification.Neighborhood,
+            City = qualification.City,
+            State = qualification.State,
+            PostalCode = qualification.PostalCode,
+            Latitude = qualification.Latitude,
+            Longitude = qualification.Longitude,
+            Summary = qualification.Summary,
+            ConfirmationPrompt = qualification.ConfirmationPrompt,
+            QualifiedAtUtc = qualification.QualifiedAtUtc,
+            RequiredFields = qualification.RequiredFields,
+            MissingRequiredFields = qualification.MissingRequiredFields,
+            OptionalFields = qualification.OptionalFields
+        };
+
+    private static string ResolvePreferredValue(string? preferred, string? fallback) =>
+        !string.IsNullOrWhiteSpace(preferred)
+            ? preferred.Trim()
+            : string.IsNullOrWhiteSpace(fallback)
+                ? string.Empty
+                : fallback.Trim();
 }

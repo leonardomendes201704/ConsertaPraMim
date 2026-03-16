@@ -105,6 +105,16 @@ builder.Services.AddHttpClient<ITelegramMessageAutomationClient, TelegramMessage
 
     client.Timeout = options.GetRequestTimeout();
 });
+builder.Services.AddHttpClient<ITelegramJourneySchedulingClient, TelegramJourneySchedulingClient>((serviceProvider, client) =>
+{
+    var options = serviceProvider.GetRequiredService<IOptions<TelegramAutomationOptions>>().Value;
+    if (Uri.TryCreate(options.CpmFullBaseUrl, UriKind.Absolute, out var baseUri))
+    {
+        client.BaseAddress = baseUri;
+    }
+
+    client.Timeout = options.GetRequestTimeout();
+});
 
 builder.Services.AddSingleton<ITelegramConversationStore, TelegramConversationStore>();
 builder.Services.AddSingleton<ITelegramBotApiClient, TelegramBotApiClient>();

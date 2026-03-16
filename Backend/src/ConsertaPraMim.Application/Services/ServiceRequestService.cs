@@ -5,6 +5,7 @@ using ConsertaPraMim.Domain.Entities;
 using ConsertaPraMim.Domain.Enums;
 using System.Linq;
 using System.Text.Json;
+using Microsoft.Extensions.Logging;
 
 namespace ConsertaPraMim.Application.Services;
 
@@ -24,6 +25,8 @@ public class ServiceRequestService : IServiceRequestService
     private readonly INotificationService _notificationService;
     private readonly IAdminOperationalEventNotifier _adminOperationalEventNotifier;
     private readonly IServiceAppointmentService? _serviceAppointmentService;
+    private readonly IServiceJourneyAutomationGateway? _serviceJourneyAutomationGateway;
+    private readonly ILogger<ServiceRequestService>? _logger;
 
     public ServiceRequestService(
         IServiceRequestRepository repository,
@@ -32,7 +35,9 @@ public class ServiceRequestService : IServiceRequestService
         IZipGeocodingService zipGeocodingService,
         INotificationService notificationService,
         IAdminOperationalEventNotifier? adminOperationalEventNotifier = null,
-        IServiceAppointmentService? serviceAppointmentService = null)
+        IServiceAppointmentService? serviceAppointmentService = null,
+        IServiceJourneyAutomationGateway? serviceJourneyAutomationGateway = null,
+        ILogger<ServiceRequestService>? logger = null)
     {
         _repository = repository;
         _serviceCategoryRepository = serviceCategoryRepository;
@@ -41,6 +46,8 @@ public class ServiceRequestService : IServiceRequestService
         _notificationService = notificationService;
         _adminOperationalEventNotifier = adminOperationalEventNotifier ?? NullAdminOperationalEventNotifier.Instance;
         _serviceAppointmentService = serviceAppointmentService;
+        _serviceJourneyAutomationGateway = serviceJourneyAutomationGateway;
+        _logger = logger;
     }
 
     public async Task<Guid> CreateAsync(Guid clientId, CreateServiceRequestDto dto)
@@ -121,6 +128,7 @@ public class ServiceRequestService : IServiceRequestService
         };
 
         await _repository.AddAsync(request);
+        await TrySyncJourneyAsync(request, client, selectedCategory.Name, CancellationToken.None);
 
         var users = await _userRepository.GetAllAsync();
         var matchingProviders = users.Where(u =>
@@ -858,6 +866,54 @@ public class ServiceRequestService : IServiceRequestService
             ProviderClientPreference.PjOnly => clientProfileType == ClientProfileType.Pj,
             _ => true
         };
+    }
+
+
+    private async Task TrySyncJourneyAsync(
+        ServiceRequest request,
+        User client,
+        string categoryDisplayName,
+        CancellationToken cancellationToken)
+    {
+        if (_serviceJourneyAutomationGateway is null)
+        {
+            return;
+        }
+
+        var result = await _serviceJourneyAutomationGateway.UpsertJourneyAsync(
+            new ServiceJourneyAutomationRequestDto
+            {
+                BoardType = "clientes",
+                SourceChannel = "service_request",
+                SourceOrigin = "api/service-requests",
+                Name = string.IsNullOrWhiteSpace(client.Name) ? "Cliente do portal" : client.Name,
+                Phone = client.Phone,
+                Email = client.Email,
+                ServiceCategory = categoryDisplayName,
+                ProblemDescription = request.Description,
+                Street = request.AddressStreet,
+                Neighborhood = request.AddressNeighborhood ?? string.Empty,
+                PostalCode = request.AddressZip,
+                City = request.AddressCity,
+                Latitude = request.Latitude,
+                Longitude = request.Longitude,
+                StatusNote = "Pedido de servico aberto pelo portal do cliente e vinculado a jornada automatizada.",
+                InternalNotes = string.IsNullOrWhiteSpace(request.Description) ? string.Empty : $"Descricao inicial do pedido: {request.Description}",
+                ServiceRequestId = request.Id,
+                ClientId = client.Id,
+                RequestedAtUtc = request.CreatedAt,
+                LastContactAtUtc = request.CreatedAt
+            },
+            cancellationToken);
+
+        if (!result.Success)
+        {
+            _logger?.LogWarning(
+                "Falha ao sincronizar service request {ServiceRequestId} com a jornada automatizada. Status={StatusCode}. Message={Message}",
+                request.Id,
+                result.HttpStatusCode,
+                result.Message);
+        }
     }
 
     private sealed class NullAdminOperationalEventNotifier : IAdminOperationalEventNotifier
