@@ -148,6 +148,12 @@ public sealed class TelegramLeadAutomationService : ITelegramLeadAutomationServi
         });
 
         var chatwootResult = await _chatwootLeadSyncService.SyncLeadAsync(upsertResult.LeadId, cancellationToken);
+        var leadDetails = _kanbanService.GetLeadDetails(upsertResult.LeadId);
+        var journeyDetails = _kanbanService.GetJourneyDetails(upsertResult.LeadId);
+        var hasPhone = !string.IsNullOrWhiteSpace(leadDetails?.Phone) || !string.IsNullOrWhiteSpace(journeyDetails?.PrimaryPhone);
+        var hasEmail = !string.IsNullOrWhiteSpace(leadDetails?.Email) || !string.IsNullOrWhiteSpace(journeyDetails?.PrimaryEmail);
+        var hasCity = !string.IsNullOrWhiteSpace(leadDetails?.City) || !string.IsNullOrWhiteSpace(journeyDetails?.Qualification.City);
+        var hasServiceCategory = !string.IsNullOrWhiteSpace(leadDetails?.ServiceCategory) || !string.IsNullOrWhiteSpace(journeyDetails?.Qualification.NormalizedServiceCategoryName);
         var message = upsertResult.CreatedLead
             ? "Lead criado via automacao do bot Telegram."
             : "Lead atualizado via automacao do bot Telegram.";
@@ -168,6 +174,10 @@ public sealed class TelegramLeadAutomationService : ITelegramLeadAutomationServi
             Created = upsertResult.CreatedLead,
             BoardType = upsertResult.BoardType,
             Message = message,
+            HasPhone = hasPhone,
+            HasEmail = hasEmail,
+            HasCity = hasCity,
+            HasServiceCategory = hasServiceCategory,
             ChatwootStatus = chatwootResult.Status,
             ChatwootMessage = chatwootResult.Message,
             ChatwootContactId = chatwootResult.ContactId,

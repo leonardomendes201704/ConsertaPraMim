@@ -6,7 +6,7 @@
 - Produto: `ConsertaPraMim`
 - Data de criacao: `2026-03-15`
 - Prioridade: `Critica`
-- Status atual: `In Progress`
+- Status atual: `Completed`
 - Time alvo: `Backend`, `CPM Full`, `API`, `TelegramBridge`, `Integracoes`, `Dados`, `QA`, `Operacao`
 - Objetivo macro: automatizar a jornada do cliente desde a entrada por `landing/site` ou `Telegram` ate o agendamento, disparo para prestadores elegiveis, conexao entre as partes, conclusao do servico e avaliacao bilateral, mantendo handoff humano apenas por excecao.
 
@@ -769,6 +769,7 @@ Como operacao, queremos controlar excecoes, medir a automacao e garantir rollout
 ## 18.1 Status final do epic
 
 - `ST-101` a `ST-110`: concluidas.
+- `ST-111`: hotfix aplicado para continuidade de qualificacao do Telegram apos contato persistido.
 - Estado atual: `Completed`.
 - Resultado: a jornada autonoma agora cobre intake, qualificacao, agenda, Kanban autonomo, matching, disparo em ondas, aceite assinado, conexao direta, encerramento, avaliacao bilateral, governanca, observabilidade e rollout progressivo.
 

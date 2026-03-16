@@ -54,6 +54,10 @@ public sealed class TelegramAutomationController : ControllerBase
             created = result.Payload.Created,
             boardType = result.Payload.BoardType,
             message = result.Payload.Message,
+            hasPhone = result.Payload.HasPhone,
+            hasEmail = result.Payload.HasEmail,
+            hasCity = result.Payload.HasCity,
+            hasServiceCategory = result.Payload.HasServiceCategory,
             chatwoot = new
             {
                 status = result.Payload.ChatwootStatus,

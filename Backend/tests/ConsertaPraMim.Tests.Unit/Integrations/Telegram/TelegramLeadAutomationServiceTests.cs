@@ -85,6 +85,33 @@ public sealed class TelegramLeadAutomationServiceTests
                 BoardType = AdminKanbanBoardTypes.Clients,
                 CurrentState = AdminKanbanJourneyStates.AutomatedTriage
             });
+        kanbanService
+            .Setup(service => service.GetLeadDetails(81))
+            .Returns(new AdminKanbanLeadDetailsRecord
+            {
+                Id = 81,
+                StageId = 1,
+                StageName = "Novo lead",
+                BoardType = AdminKanbanBoardTypes.Clients,
+                Name = "Ricardo Almeida",
+                Phone = "+5513997114422",
+                Email = "cliente@telegram.com",
+                History = []
+            });
+        kanbanService
+            .Setup(service => service.GetJourneyDetails(81))
+            .Returns(new AdminKanbanLeadJourneyRecord
+            {
+                LeadId = 81,
+                BoardType = AdminKanbanBoardTypes.Clients,
+                PrimaryPhone = "+5513997114422",
+                PrimaryEmail = "cliente@telegram.com",
+                Qualification = new AdminKanbanJourneyQualificationRecord
+                {
+                    City = "Praia Grande",
+                    NormalizedServiceCategoryName = "Eletricista"
+                }
+            });
         chatwootLeadSyncService
             .Setup(service => service.SyncLeadAsync(81, It.IsAny<CancellationToken>(), false))
             .ReturnsAsync(ChatwootLeadSyncResult.Synced(
@@ -132,6 +159,10 @@ public sealed class TelegramLeadAutomationServiceTests
         Assert.Equal(81, result.Payload!.LeadId);
         Assert.True(result.Payload.Created);
         Assert.Equal(AdminKanbanBoardTypes.Clients, result.Payload.BoardType);
+        Assert.True(result.Payload.HasPhone);
+        Assert.True(result.Payload.HasEmail);
+        Assert.True(result.Payload.HasCity);
+        Assert.True(result.Payload.HasServiceCategory);
         Assert.Equal("synced", result.Payload.ChatwootStatus);
         Assert.Equal(101, result.Payload.ChatwootContactId);
         Assert.Equal(202, result.Payload.ChatwootConversationId);
@@ -205,6 +236,102 @@ public sealed class TelegramLeadAutomationServiceTests
         Assert.False(result.Success);
         Assert.Equal(StatusCodes.Status409Conflict, result.HttpStatusCode);
         Assert.Contains("prestadores", result.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact(DisplayName = "Telegram Lead Automation | Deve refletir contato persistido no retorno do upsert")]
+    public async Task UpsertLeadAsync_DeveRetornarContatoPersistidoDoLead()
+    {
+        var chatbotConversationId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+
+        var kanbanService = new Mock<IAdminKanbanService>(MockBehavior.Strict);
+        var chatwootLeadSyncService = new Mock<IChatwootLeadSyncService>(MockBehavior.Strict);
+        var journeyQualificationService = new Mock<IJourneyQualificationService>(MockBehavior.Strict);
+
+        journeyQualificationService
+            .Setup(service => service.QualifyAsync(It.IsAny<JourneyQualificationInput>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JourneyQualificationResult
+            {
+                Status = AdminKanbanJourneyQualificationStatuses.Pending,
+                Source = AdminKanbanJourneyQualificationSources.Deterministic,
+                ConfidenceScore = 0.71m,
+                HasRequiredData = false,
+                NeedsConfirmation = false
+            });
+
+        kanbanService
+            .Setup(service => service.UpsertJourneyIntake(It.IsAny<AdminKanbanJourneyIntakeRequest>()))
+            .Returns(new AdminKanbanJourneyUpsertResult
+            {
+                LeadId = 99,
+                JourneyId = 7,
+                JourneyPublicId = Guid.NewGuid(),
+                CreatedLead = false,
+                CreatedJourney = false,
+                StageId = 2,
+                BoardType = AdminKanbanBoardTypes.Clients,
+                CurrentState = AdminKanbanJourneyStates.QualificationPending
+            });
+        kanbanService
+            .Setup(service => service.GetLeadDetails(99))
+            .Returns(new AdminKanbanLeadDetailsRecord
+            {
+                Id = 99,
+                StageId = 2,
+                StageName = "Dados pendentes",
+                BoardType = AdminKanbanBoardTypes.Clients,
+                Name = "Ricardo Almeida",
+                Phone = "+5513996891738",
+                History = []
+            });
+        kanbanService
+            .Setup(service => service.GetJourneyDetails(99))
+            .Returns(new AdminKanbanLeadJourneyRecord
+            {
+                LeadId = 99,
+                BoardType = AdminKanbanBoardTypes.Clients,
+                PrimaryPhone = "+5513996891738"
+            });
+        chatwootLeadSyncService
+            .Setup(service => service.SyncLeadAsync(99, It.IsAny<CancellationToken>(), false))
+            .ReturnsAsync(ChatwootLeadSyncResult.Pending("Sincronizacao pendente."));
+
+        var sut = CreateSut(
+            kanbanService.Object,
+            chatwootLeadSyncService.Object,
+            journeyQualificationService.Object,
+            new TelegramAutomationOptions
+            {
+                Enabled = true,
+                ClientsAutomationEnabled = true,
+                ProvidersAutomationEnabled = true,
+                SharedSecret = "segredo-compartilhado",
+                TelegramBridgeBaseUrl = "https://bridge.exemplo.com",
+                RequestTimeoutSeconds = 15
+            });
+
+        var result = await sut.UpsertLeadAsync(
+            new TelegramLeadAutomationRequest
+            {
+                BoardType = AdminKanbanBoardTypes.Clients,
+                ChatbotConversationId = chatbotConversationId,
+                ChannelConversationId = "chat-telegram-5513",
+                TelegramChatId = 5513996891738,
+                UserId = userId,
+                UserName = "Ricardo Almeida",
+                City = "Praia Grande"
+            },
+            "segredo-compartilhado");
+
+        Assert.True(result.Success);
+        Assert.NotNull(result.Payload);
+        Assert.True(result.Payload!.HasPhone);
+        Assert.False(result.Payload.HasEmail);
+        Assert.False(result.Payload.HasCity);
+        Assert.False(result.Payload.HasServiceCategory);
+        kanbanService.VerifyAll();
+        chatwootLeadSyncService.VerifyAll();
+        journeyQualificationService.VerifyAll();
     }
 
     private static TelegramLeadAutomationService CreateSut(

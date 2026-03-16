@@ -360,6 +360,10 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
                 LeadCreated: result.Success && result.Created,
                 LeadId: result.LeadId,
                 Succeeded: result.Success,
+                HasPhoneOnLead: result.HasPhone,
+                HasEmailOnLead: result.HasEmail,
+                HasCityOnLead: result.HasCity,
+                HasServiceCategoryOnLead: result.HasServiceCategory,
                 Qualification: qualification);
         }
         catch (Exception exception)
@@ -376,6 +380,10 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
                 LeadCreated: false,
                 LeadId: 0,
                 Succeeded: false,
+                HasPhoneOnLead: capturedContact.HasPhone,
+                HasEmailOnLead: capturedContact.HasEmail,
+                HasCityOnLead: !string.IsNullOrWhiteSpace(qualification.City),
+                HasServiceCategoryOnLead: !string.IsNullOrWhiteSpace(qualification.ServiceCategory),
                 Qualification: qualification);
         }
     }
@@ -535,6 +543,15 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
         TelegramInboundBootstrapResult bootstrap,
         TelegramCapturedContact capturedContact)
     {
+        var hasPhone = capturedContact.HasPhone || bootstrap.HasPhoneOnLead;
+        var hasEmail = capturedContact.HasEmail || bootstrap.HasEmailOnLead;
+        var effectiveQualification = new TelegramLeadQualification(
+            bootstrap.Qualification.BoardType,
+            ResolveEffectiveQualificationValue(bootstrap.Qualification.ServiceCategory, bootstrap.HasServiceCategoryOnLead),
+            ResolveEffectiveQualificationValue(bootstrap.Qualification.City, bootstrap.HasCityOnLead),
+            bootstrap.Qualification.PostalCode,
+            bootstrap.Qualification.Intent);
+
         if ((capturedContact.HasPhone || capturedContact.HasEmail) && !bootstrap.Succeeded)
         {
             return null;
@@ -542,7 +559,13 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
 
         if (capturedContact.HasPhone)
         {
-            var text = BuildQualificationPrompt(bootstrap.Qualification, capturedContact, leadCreatedNow: false);
+            var text = BuildQualificationPrompt(
+                effectiveQualification,
+                new TelegramCapturedContact(
+                    hasPhone ? capturedContact.Phone : string.Empty,
+                    hasEmail ? capturedContact.Email : string.Empty,
+                    capturedContact.SharedNativeContact),
+                leadCreatedNow: false);
 
             return new TelegramAutomaticResponse(
                 text,
@@ -555,11 +578,37 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
         if (capturedContact.HasEmail)
         {
             return new TelegramAutomaticResponse(
-                BuildQualificationPrompt(bootstrap.Qualification, capturedContact, leadCreatedNow: false),
+                BuildQualificationPrompt(
+                    effectiveQualification,
+                    new TelegramCapturedContact(
+                        hasPhone ? capturedContact.Phone : string.Empty,
+                        hasEmail ? capturedContact.Email : string.Empty,
+                        capturedContact.SharedNativeContact),
+                    leadCreatedNow: false),
                 new TelegramMessageSendOptions
                 {
                     RequestContactButton = true,
                     ContactButtonLabel = "Compartilhar telefone"
+                });
+        }
+
+        if (hasPhone || hasEmail)
+        {
+            var text = BuildQualificationPrompt(
+                effectiveQualification,
+                new TelegramCapturedContact(
+                    hasPhone ? "persisted" : string.Empty,
+                    hasEmail ? "persisted" : string.Empty,
+                    capturedContact.SharedNativeContact),
+                leadCreatedNow: false);
+
+            return new TelegramAutomaticResponse(
+                text,
+                new TelegramMessageSendOptions
+                {
+                    RemoveReplyKeyboard = hasPhone,
+                    RequestContactButton = !hasPhone,
+                    ContactButtonLabel = !hasPhone ? "Compartilhar telefone" : string.Empty
                 });
         }
 
@@ -568,7 +617,7 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
             return null;
         }
 
-        var acknowledgement = BuildQualificationPrompt(bootstrap.Qualification, capturedContact, leadCreatedNow: true);
+        var acknowledgement = BuildQualificationPrompt(effectiveQualification, capturedContact, leadCreatedNow: true);
 
         return new TelegramAutomaticResponse(
             acknowledgement,
@@ -887,6 +936,11 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
             : "Recebi seu telefone e ja qualifiquei seu atendimento inicial. Se quiser, voce tambem pode enviar seu e-mail por mensagem.";
     }
 
+    private static string ResolveEffectiveQualificationValue(string value, bool hasPersistedValue) =>
+        !string.IsNullOrWhiteSpace(value) || hasPersistedValue
+            ? "preenchido"
+            : string.Empty;
+
     private static string CleanLocationCandidate(string candidate)
     {
         if (string.IsNullOrWhiteSpace(candidate))
@@ -1060,10 +1114,14 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
         bool LeadCreated,
         int LeadId,
         bool Succeeded,
+        bool HasPhoneOnLead,
+        bool HasEmailOnLead,
+        bool HasCityOnLead,
+        bool HasServiceCategoryOnLead,
         TelegramLeadQualification Qualification)
     {
         public static TelegramInboundBootstrapResult Disabled =>
-            new(false, Guid.Empty, string.Empty, false, 0, false, TelegramLeadQualification.Empty);
+            new(false, Guid.Empty, string.Empty, false, 0, false, false, false, false, false, TelegramLeadQualification.Empty);
     }
 
     private readonly record struct TelegramCapturedContact(

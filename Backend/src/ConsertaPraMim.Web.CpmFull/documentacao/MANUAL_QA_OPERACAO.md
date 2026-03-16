@@ -669,6 +669,8 @@ No `ConsertaPraMim.Web.CpmFull`, configurar a secao `TelegramAutomation`:
 8. Em outra conversa de teste, informar telefone em texto livre com formato valido e confirmar enriquecimento no mesmo lead.
 9. Informar e-mail em texto livre e confirmar que o vinculo Telegram e o lead reaproveitam o mesmo registro, sem limpar telefone/cidade/categoria ja existentes.
 10. Abrir o contato no Chatwoot e validar que o contato tecnico foi enriquecido com o telefone real capturado apos o bootstrap inicial.
+11. Depois de compartilhar o telefone, responder apenas com a cidade, por exemplo `Praia Grande`, e validar que o bot continua a conversa em vez de silenciar.
+12. Quando cidade e categoria ja tiverem sido capturadas em mensagens anteriores, validar que o bot nao volta a pedir telefone nem repete a mesma triagem completa; ele deve seguir para a proxima orientacao util ou oferecer envio opcional de e-mail.
 
 ### Checklist complementar para qualificacao inicial do lead Telegram
 
@@ -682,6 +684,12 @@ No `ConsertaPraMim.Web.CpmFull`, configurar a secao `TelegramAutomation`:
 8. Confirmar que o lead cai em `/admin/funil/prestadores`, com `ServiceCategory = Eletricista`, `City = Praia Grande` e objetivo de cadastro refletido no `StatusNote`.
 9. Validar que o roteamento `clientes` x `prestadores` ocorreu sem depender de ajuste manual no board.
 10. Revisar `InternalNotes` do lead e confirmar que cidade/regiao, categoria e intencao ficaram registradas junto da mensagem inicial.
+
+### Troubleshooting complementar do hotfix de continuidade
+
+- O bot parou de responder depois de uma mensagem parcial como `Praia Grande`: validar se o endpoint interno `POST /api/integrations/telegram/automation/lead` esta retornando `hasPhone=true` quando o telefone ja foi salvo no lead ou na jornada.
+- O bot continua pedindo telefone mesmo apos o compartilhamento: revisar se `HasPhone` voltou `false` no retorno do CPM Full e se o lead ou a jornada realmente persistiram `Phone` ou `PrimaryPhone`.
+- O bot repete cidade/categoria que ja tinham sido entendidas: revisar se `hasCity` e `hasServiceCategory` chegaram no payload de retorno do CPM Full e se a mensagem anterior realmente enriqueceu o mesmo lead.
 
 ### Checklist complementar para espelhamento e handoff
 
