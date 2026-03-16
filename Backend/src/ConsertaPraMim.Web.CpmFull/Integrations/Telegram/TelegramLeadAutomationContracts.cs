@@ -36,6 +36,9 @@ public sealed class TelegramLeadAutomationResponse
     public bool HasEmail { get; init; }
     public bool HasCity { get; init; }
     public bool HasServiceCategory { get; init; }
+    public string QualificationStatus { get; init; } = string.Empty;
+    public string ConfirmationPrompt { get; init; } = string.Empty;
+    public IReadOnlyList<string> MissingRequiredFields { get; init; } = [];
     public string ChatwootStatus { get; init; } = string.Empty;
     public string ChatwootMessage { get; init; } = string.Empty;
     public long? ChatwootContactId { get; init; }

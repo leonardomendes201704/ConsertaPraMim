@@ -25,6 +25,9 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
     private static readonly Regex LocationPatternRegex = new(
         @"\b(?:moro em|sou de|aqui em|estou em|na cidade de|cidade de|atendo em|trabalho em|atuo em|regiao de|regiao do|regiao da|regiao|em)\s+([\p{L}][\p{L}'\/\- ]{2,80})",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
+    private static readonly Regex LeadingLocationRegex = new(
+        @"^\s*([\p{L}][\p{L}'\-]+(?:\s+[\p{L}][\p{L}'\-]+){0,3})\s*(?:,|\s+-\s+|\s+(?:preciso|quero|gostaria|sou|estou|atendo|trabalho|procuro|busco|para|pra)\b|$)",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.Compiled);
     private static readonly string[] ProviderBoardKeywords =
     [
         "prestador",
@@ -364,6 +367,9 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
                 HasEmailOnLead: result.HasEmail,
                 HasCityOnLead: result.HasCity,
                 HasServiceCategoryOnLead: result.HasServiceCategory,
+                QualificationStatus: result.QualificationStatus,
+                ConfirmationPrompt: result.ConfirmationPrompt,
+                MissingRequiredFields: result.MissingRequiredFields,
                 Qualification: qualification);
         }
         catch (Exception exception)
@@ -384,6 +390,9 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
                 HasEmailOnLead: capturedContact.HasEmail,
                 HasCityOnLead: !string.IsNullOrWhiteSpace(qualification.City),
                 HasServiceCategoryOnLead: !string.IsNullOrWhiteSpace(qualification.ServiceCategory),
+                QualificationStatus: string.Empty,
+                ConfirmationPrompt: string.Empty,
+                MissingRequiredFields: [],
                 Qualification: qualification);
         }
     }
@@ -565,6 +574,9 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
                     hasPhone ? capturedContact.Phone : string.Empty,
                     hasEmail ? capturedContact.Email : string.Empty,
                     capturedContact.SharedNativeContact),
+                bootstrap.MissingRequiredFields,
+                bootstrap.ConfirmationPrompt,
+                bootstrap.QualificationStatus,
                 leadCreatedNow: false);
 
             return new TelegramAutomaticResponse(
@@ -581,9 +593,12 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
                 BuildQualificationPrompt(
                     effectiveQualification,
                     new TelegramCapturedContact(
-                        hasPhone ? capturedContact.Phone : string.Empty,
-                        hasEmail ? capturedContact.Email : string.Empty,
-                        capturedContact.SharedNativeContact),
+                    hasPhone ? capturedContact.Phone : string.Empty,
+                    hasEmail ? capturedContact.Email : string.Empty,
+                    capturedContact.SharedNativeContact),
+                    bootstrap.MissingRequiredFields,
+                    bootstrap.ConfirmationPrompt,
+                    bootstrap.QualificationStatus,
                     leadCreatedNow: false),
                 new TelegramMessageSendOptions
                 {
@@ -600,6 +615,9 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
                     hasPhone ? "persisted" : string.Empty,
                     hasEmail ? "persisted" : string.Empty,
                     capturedContact.SharedNativeContact),
+                bootstrap.MissingRequiredFields,
+                bootstrap.ConfirmationPrompt,
+                bootstrap.QualificationStatus,
                 leadCreatedNow: false);
 
             return new TelegramAutomaticResponse(
@@ -617,7 +635,13 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
             return null;
         }
 
-        var acknowledgement = BuildQualificationPrompt(effectiveQualification, capturedContact, leadCreatedNow: true);
+        var acknowledgement = BuildQualificationPrompt(
+            effectiveQualification,
+            capturedContact,
+            bootstrap.MissingRequiredFields,
+            bootstrap.ConfirmationPrompt,
+            bootstrap.QualificationStatus,
+            leadCreatedNow: true);
 
         return new TelegramAutomaticResponse(
             acknowledgement,
@@ -841,7 +865,24 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
             }
         }
 
+        var standaloneCandidate = ExtractStandaloneLocation(originalText);
+        if (!string.IsNullOrWhiteSpace(standaloneCandidate))
+        {
+            return standaloneCandidate;
+        }
+
         return string.Empty;
+    }
+
+    private static string ExtractStandaloneLocation(string originalText)
+    {
+        var match = LeadingLocationRegex.Match(originalText.Trim());
+        if (!match.Success)
+        {
+            return string.Empty;
+        }
+
+        return CleanLocationCandidate(match.Groups[1].Value);
     }
 
     private static string ExtractPostalCode(string originalText)
@@ -902,13 +943,15 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
     private static string BuildQualificationPrompt(
         TelegramLeadQualification qualification,
         TelegramCapturedContact capturedContact,
+        IReadOnlyList<string> missingRequiredFields,
+        string confirmationPrompt,
+        string qualificationStatus,
         bool leadCreatedNow)
     {
         var boardIsProvider = string.Equals(qualification.BoardType, ProvidersBoardType, StringComparison.OrdinalIgnoreCase);
-        var needsLocation = string.IsNullOrWhiteSpace(qualification.City);
-        var needsCategory = string.IsNullOrWhiteSpace(qualification.ServiceCategory);
         var hasPhone = capturedContact.HasPhone;
         var hasEmail = capturedContact.HasEmail;
+        var normalizedMissingFields = NormalizeMissingFields(missingRequiredFields, hasPhone);
 
         if (!hasPhone)
         {
@@ -917,11 +960,15 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
                 : "Recebi sua mensagem e ja registrei seu atendimento na ConsertaPraMim. Para agilizar, toque no botao abaixo e compartilhe seu telefone. Se puder, me diga tambem sua cidade, o tipo de servico e o que voce precisa resolver.";
         }
 
-        if (needsLocation || needsCategory)
+        if (normalizedMissingFields.Count > 0)
         {
-            return boardIsProvider
-                ? "Recebi seu telefone e atualizei seu atendimento. Agora me diga sua regiao de atendimento, categoria tecnica e objetivo principal para qualificar melhor o lead."
-                : "Recebi seu telefone e atualizei seu atendimento. Agora me diga sua cidade, o tipo de servico e o que voce precisa resolver para qualificar melhor o lead.";
+            return BuildMissingFieldsPrompt(boardIsProvider, normalizedMissingFields, capturedContact.HasPhone);
+        }
+
+        if (string.Equals(qualificationStatus, "confirmacao_necessaria", StringComparison.OrdinalIgnoreCase) &&
+            !string.IsNullOrWhiteSpace(confirmationPrompt))
+        {
+            return confirmationPrompt.Trim();
         }
 
         if (hasEmail)
@@ -940,6 +987,75 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
         !string.IsNullOrWhiteSpace(value) || hasPersistedValue
             ? "preenchido"
             : string.Empty;
+
+    private static IReadOnlyList<string> NormalizeMissingFields(
+        IReadOnlyList<string> missingRequiredFields,
+        bool hasPhone)
+    {
+        if (missingRequiredFields.Count == 0)
+        {
+            return [];
+        }
+
+        return missingRequiredFields
+            .Where(field => !hasPhone || !string.Equals(field, "Telefone", StringComparison.OrdinalIgnoreCase))
+            .Select(field => field.Trim())
+            .Where(field => !string.IsNullOrWhiteSpace(field))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static string BuildMissingFieldsPrompt(
+        bool boardIsProvider,
+        IReadOnlyList<string> missingRequiredFields,
+        bool capturedPhoneNow)
+    {
+        var intro = capturedPhoneNow
+            ? "Recebi seu telefone e atualizei seu atendimento."
+            : "Atualizei seu atendimento.";
+
+        var prompts = missingRequiredFields
+            .Select(field => ResolveMissingFieldPrompt(field, boardIsProvider))
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .ToList();
+
+        if (prompts.Count == 0)
+        {
+            return boardIsProvider
+                ? $"{intro} Agora me diga sua regiao de atendimento, categoria tecnica e objetivo principal."
+                : $"{intro} Agora me diga sua cidade, o tipo de servico e o que voce precisa resolver.";
+        }
+
+        return $"{intro} Agora me diga {JoinWithConjunction(prompts)}.";
+    }
+
+    private static string ResolveMissingFieldPrompt(string field, bool boardIsProvider)
+    {
+        return field switch
+        {
+            "Telefone" => "seu telefone",
+            "Categoria" => "o tipo de servico",
+            "Categoria tecnica" => "sua categoria tecnica",
+            "Cidade" => "sua cidade",
+            "Cidade ou regiao" => boardIsProvider ? "sua regiao de atendimento" : "sua cidade",
+            "CEP" => "seu CEP",
+            "Logradouro ou bairro" => "seu bairro ou logradouro",
+            "Contexto do problema" => "o que voce precisa resolver",
+            "Contexto da parceria" => "como voce quer atuar na plataforma",
+            _ => field.ToLowerInvariant()
+        };
+    }
+
+    private static string JoinWithConjunction(IReadOnlyList<string> values)
+    {
+        return values.Count switch
+        {
+            0 => string.Empty,
+            1 => values[0],
+            2 => $"{values[0]} e {values[1]}",
+            _ => $"{string.Join(", ", values.Take(values.Count - 1))} e {values[^1]}"
+        };
+    }
 
     private static string CleanLocationCandidate(string candidate)
     {
@@ -1118,10 +1234,13 @@ public sealed class TelegramInboundUpdateProcessor : ITelegramInboundUpdateProce
         bool HasEmailOnLead,
         bool HasCityOnLead,
         bool HasServiceCategoryOnLead,
+        string QualificationStatus,
+        string ConfirmationPrompt,
+        IReadOnlyList<string> MissingRequiredFields,
         TelegramLeadQualification Qualification)
     {
         public static TelegramInboundBootstrapResult Disabled =>
-            new(false, Guid.Empty, string.Empty, false, 0, false, false, false, false, false, TelegramLeadQualification.Empty);
+            new(false, Guid.Empty, string.Empty, false, 0, false, false, false, false, false, string.Empty, string.Empty, [], TelegramLeadQualification.Empty);
     }
 
     private readonly record struct TelegramCapturedContact(
