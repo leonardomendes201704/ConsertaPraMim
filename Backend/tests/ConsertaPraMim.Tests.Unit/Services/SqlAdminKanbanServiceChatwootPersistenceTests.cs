@@ -2557,10 +2557,12 @@ WHERE LeadId = @leadId;
         var refreshedSnapshot = service.GetBoard(AdminKanbanBoardTypes.Providers);
         var newRegistrationStage = Assert.Single(refreshedSnapshot.Stages.Where(item => item.Name == "Novo cadastro"));
         var syncedLead = Assert.Single(newRegistrationStage.Leads.Where(item => item.Name == "Luiz Eletricista"));
+        var firstLeadInStage = Assert.First(newRegistrationStage.Leads);
 
         Assert.Equal("(13) 99689-1738", syncedLead.Phone);
         Assert.Equal("Eletricista", syncedLead.ServiceCategory);
         Assert.Contains("Cadastro profissional #", syncedLead.Source, StringComparison.Ordinal);
+        Assert.Equal("Luiz Eletricista", firstLeadInStage.Name);
     }
 
     private static SqlAdminKanbanService CreateService(string connectionString)
