@@ -46,6 +46,7 @@ public sealed partial class SqlAdminKanbanService : IAdminKanbanService
 
     private readonly string _connectionString;
     private readonly object _initLock = new();
+    private readonly object _syncLock = new();
     private bool _initialized;
 
     public SqlAdminKanbanService(IConfiguration configuration)
@@ -58,6 +59,7 @@ public sealed partial class SqlAdminKanbanService : IAdminKanbanService
     {
         var normalizedBoardType = AdminKanbanBoardTypes.Normalize(boardType);
         EnsureInitialized();
+        SynchronizeBoardSources(normalizedBoardType);
 
         var stages = GetStages(normalizedBoardType)
             .Select(stage => new AdminKanbanStageRecord
@@ -3050,6 +3052,28 @@ CREATE INDEX IX_{TablePrefix}telegram_delivery_queue_due
 
             transaction.Commit();
             _initialized = true;
+        }
+    }
+
+    private void SynchronizeBoardSources(string boardType)
+    {
+        lock (_syncLock)
+        {
+            using var connection = OpenConnection();
+            using var transaction = connection.BeginTransaction();
+
+            switch (boardType)
+            {
+                case AdminKanbanBoardTypes.Clients:
+                    SeedClientExamples(connection, transaction);
+                    break;
+                case AdminKanbanBoardTypes.Providers:
+                    SeedProviderExamples(connection, transaction);
+                    SyncActiveProfessionalsToProviderKanban(connection, transaction);
+                    break;
+            }
+
+            transaction.Commit();
         }
     }
 

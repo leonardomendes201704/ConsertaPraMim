@@ -1,9 +1,11 @@
 using System.Data;
 using AppMobileCPM.Integrations.Chatwoot;
 using AppMobileCPM.Integrations.Telegram;
+using AppMobileCPM.Models;
 using AppMobileCPM.Services;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace ConsertaPraMim.Tests.Unit.Services;
 
@@ -2471,6 +2473,42 @@ WHERE LeadId = @leadId;
         Assert.Equal(timerDueAtUtc, reader.GetDateTime(4));
     }
 
+    [Fact(DisplayName = "GetBoard de prestadores deve sincronizar novos cadastros publicos apos a inicializacao")]
+    public void GetBoardProviders_DeveSincronizarCadastroProfissionalAposInicializacao()
+    {
+        using var database = new LocalDbKanbanDatabaseScope();
+        if (!database.IsAvailable)
+        {
+            return;
+        }
+
+        var service = CreateService(database.ConnectionString);
+        var repository = CreateMarketplaceRepository(database.ConnectionString);
+
+        var firstSnapshot = service.GetBoard(AdminKanbanBoardTypes.Providers);
+        Assert.NotEmpty(firstSnapshot.Stages);
+
+        repository.AddProfessionalRegistration(new ProfessionalRegistration
+        {
+            Name = "Luiz Eletricista",
+            Profession = "Eletricista",
+            Services = "Instalacao eletrica e reparo de chuveiro",
+            PostalCode = "11704-150",
+            Phone = "(13) 99689-1738",
+            IsWhatsapp = true,
+            Experience = "Atendimento residencial em Praia Grande",
+            SubmittedAt = new DateTimeOffset(2026, 4, 3, 18, 30, 0, TimeSpan.Zero)
+        });
+
+        var refreshedSnapshot = service.GetBoard(AdminKanbanBoardTypes.Providers);
+        var newRegistrationStage = Assert.Single(refreshedSnapshot.Stages.Where(item => item.Name == "Novo cadastro"));
+        var syncedLead = Assert.Single(newRegistrationStage.Leads.Where(item => item.Name == "Luiz Eletricista"));
+
+        Assert.Equal("(13) 99689-1738", syncedLead.Phone);
+        Assert.Equal("Eletricista", syncedLead.ServiceCategory);
+        Assert.Contains("Cadastro profissional #", syncedLead.Source, StringComparison.Ordinal);
+    }
+
     private static SqlAdminKanbanService CreateService(string connectionString)
     {
         var configuration = new ConfigurationBuilder()
@@ -2481,6 +2519,18 @@ WHERE LeadId = @leadId;
             .Build();
 
         return new SqlAdminKanbanService(configuration);
+    }
+
+    private static SqlMarketplaceRepository CreateMarketplaceRepository(string connectionString)
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["ConnectionStrings:DefaultConnection"] = connectionString
+            })
+            .Build();
+
+        return new SqlMarketplaceRepository(configuration, NullLogger<SqlMarketplaceRepository>.Instance);
     }
 
     private sealed class LocalDbKanbanDatabaseScope : IDisposable
