@@ -419,6 +419,39 @@ SELECT CAST(SCOPE_IDENTITY() AS INT);
         using var connection = OpenConnection();
         using var transaction = connection.BeginTransaction();
 
+        string? boardType = null;
+        string? sourceKey = null;
+
+        using (var leadCommand = connection.CreateCommand())
+        {
+            leadCommand.Transaction = transaction;
+            leadCommand.CommandText = $"""
+SELECT TOP (1) BoardType, Source
+FROM dbo.{TablePrefix}kanban_leads
+WHERE Id = @leadId
+  AND IsActive = 1;
+""";
+            leadCommand.Parameters.Add(new SqlParameter("@leadId", SqlDbType.Int) { Value = leadId });
+
+            using var reader = leadCommand.ExecuteReader();
+            if (reader.Read())
+            {
+                boardType = reader.GetString(0);
+                sourceKey = reader.IsDBNull(1) ? null : reader.GetString(1);
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(boardType))
+        {
+            transaction.Rollback();
+            return false;
+        }
+
+        if (ShouldSuppressDeletedProjection(boardType, sourceKey))
+        {
+            SuppressDeletedProjectionSource(connection, transaction, boardType, sourceKey!, leadId);
+        }
+
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = $"""
@@ -2841,6 +2874,16 @@ CREATE TABLE dbo.{TablePrefix}kanban_lead_history
     CreatedAt DATETIME2 NOT NULL DEFAULT(SYSUTCDATETIME())
 );
 
+IF OBJECT_ID('dbo.{TablePrefix}kanban_deleted_sources', 'U') IS NULL
+CREATE TABLE dbo.{TablePrefix}kanban_deleted_sources
+(
+    Id INT IDENTITY(1,1) NOT NULL PRIMARY KEY,
+    BoardType NVARCHAR(30) NOT NULL,
+    SourceKey NVARCHAR(120) NOT NULL,
+    DeletedLeadId INT NULL,
+    CreatedAt DATETIME2 NOT NULL DEFAULT(SYSUTCDATETIME())
+);
+
 IF OBJECT_ID('dbo.{TablePrefix}chatwoot_webhook_events', 'U') IS NULL
 CREATE TABLE dbo.{TablePrefix}chatwoot_webhook_events
 (
@@ -2969,6 +3012,10 @@ CREATE INDEX IX_{TablePrefix}kanban_leads_chatwoot_conversation
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID('dbo.{TablePrefix}kanban_lead_history') AND name = 'IX_{TablePrefix}kanban_history_lead')
 CREATE INDEX IX_{TablePrefix}kanban_history_lead
     ON dbo.{TablePrefix}kanban_lead_history(LeadId, CreatedAt DESC, Id DESC);
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID('dbo.{TablePrefix}kanban_deleted_sources') AND name = 'UX_{TablePrefix}kanban_deleted_sources_source')
+CREATE UNIQUE INDEX UX_{TablePrefix}kanban_deleted_sources_source
+    ON dbo.{TablePrefix}kanban_deleted_sources(BoardType, SourceKey);
 
 IF COL_LENGTH('dbo.{TablePrefix}chatwoot_webhook_events', 'ConversationId') IS NULL
 ALTER TABLE dbo.{TablePrefix}chatwoot_webhook_events ADD ConversationId BIGINT NULL;
@@ -3416,6 +3463,70 @@ SELECT CASE WHEN EXISTS (
         return Convert.ToInt32(command.ExecuteScalar()) == 1;
     }
 
+    private static bool IsDeletedProjectionSource(SqlConnection connection, SqlTransaction transaction, string boardType, string sourceKey)
+    {
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = $"""
+SELECT CASE WHEN EXISTS (
+    SELECT 1
+    FROM dbo.{TablePrefix}kanban_deleted_sources
+    WHERE BoardType = @boardType
+      AND SourceKey = @sourceKey
+) THEN 1 ELSE 0 END;
+""";
+        command.Parameters.AddRange(
+        [
+            new SqlParameter("@boardType", SqlDbType.NVarChar, 30) { Value = boardType },
+            new SqlParameter("@sourceKey", SqlDbType.NVarChar, 120) { Value = sourceKey }
+        ]);
+
+        return Convert.ToInt32(command.ExecuteScalar()) == 1;
+    }
+
+    private static bool ShouldSuppressDeletedProjection(string boardType, string? sourceKey)
+    {
+        if (string.IsNullOrWhiteSpace(sourceKey))
+        {
+            return false;
+        }
+
+        var normalizedBoardType = AdminKanbanBoardTypes.Normalize(boardType);
+        return normalizedBoardType switch
+        {
+            AdminKanbanBoardTypes.Clients => sourceKey.StartsWith("Solicitacao site #", StringComparison.Ordinal),
+            AdminKanbanBoardTypes.Providers => sourceKey.StartsWith("Cadastro profissional #", StringComparison.Ordinal)
+                || sourceKey.StartsWith("Profissional ativo #", StringComparison.Ordinal),
+            _ => false
+        };
+    }
+
+    private static void SuppressDeletedProjectionSource(SqlConnection connection, SqlTransaction transaction, string boardType, string sourceKey, int deletedLeadId)
+    {
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = $"""
+MERGE dbo.{TablePrefix}kanban_deleted_sources AS target
+USING (SELECT @boardType AS BoardType, @sourceKey AS SourceKey) AS source
+    ON target.BoardType = source.BoardType
+   AND target.SourceKey = source.SourceKey
+WHEN MATCHED THEN
+    UPDATE
+    SET DeletedLeadId = @deletedLeadId,
+        CreatedAt = SYSUTCDATETIME()
+WHEN NOT MATCHED THEN
+    INSERT (BoardType, SourceKey, DeletedLeadId, CreatedAt)
+    VALUES (@boardType, @sourceKey, @deletedLeadId, SYSUTCDATETIME());
+""";
+        command.Parameters.AddRange(
+        [
+            new SqlParameter("@boardType", SqlDbType.NVarChar, 30) { Value = boardType },
+            new SqlParameter("@sourceKey", SqlDbType.NVarChar, 120) { Value = sourceKey },
+            new SqlParameter("@deletedLeadId", SqlDbType.Int) { Value = deletedLeadId }
+        ]);
+        command.ExecuteNonQuery();
+    }
+
     private static int GetStageIdByName(SqlConnection connection, SqlTransaction transaction, string boardType, string stageName)
     {
         using var command = connection.CreateCommand();
@@ -3457,6 +3568,11 @@ ORDER BY SortOrder, Id;
         string? city)
     {
         sourceKey = TrimTo(sourceKey, 120);
+        if (IsDeletedProjectionSource(connection, transaction, boardType, sourceKey))
+        {
+            return 0;
+        }
+
         int? existingLeadId = null;
         int? existingStageId = null;
 
