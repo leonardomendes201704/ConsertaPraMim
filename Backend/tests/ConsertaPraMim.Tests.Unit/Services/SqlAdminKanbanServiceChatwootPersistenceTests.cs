@@ -1078,6 +1078,60 @@ SELECT
         Assert.Equal(0, reader.GetInt32(4));
     }
 
+    [Fact(DisplayName = "DeleteLead deve suprimir reprojecao de cadastro profissional no board de prestadores")]
+    public void DeleteLead_DeveSuprimirReprojecaoDeCadastroProfissional()
+    {
+        using var database = new LocalDbKanbanDatabaseScope();
+        if (!database.IsAvailable)
+        {
+            return;
+        }
+
+        var service = CreateService(database.ConnectionString);
+        var repository = CreateMarketplaceRepository(database.ConnectionString);
+
+        _ = service.GetBoard(AdminKanbanBoardTypes.Providers);
+
+        repository.AddProfessionalRegistration(new ProfessionalRegistration
+        {
+            Name = "Leonardo Mendes",
+            Profession = "Eletricista",
+            Services = "Instalacao e reparo eletrico",
+            PostalCode = "11704-150",
+            Phone = "(13) 99689-1738",
+            IsWhatsapp = true,
+            Experience = "Cadastro para onboarding",
+            SubmittedAt = new DateTimeOffset(2026, 4, 3, 19, 0, 0, TimeSpan.Zero)
+        });
+
+        var hydratedBoard = service.GetBoard(AdminKanbanBoardTypes.Providers);
+        var lead = hydratedBoard.Stages
+            .SelectMany(stage => stage.Leads)
+            .Single(item => item.Name == "Leonardo Mendes");
+
+        var deleted = service.DeleteLead(lead.Id);
+
+        Assert.True(deleted);
+
+        var refreshedBoard = service.GetBoard(AdminKanbanBoardTypes.Providers);
+        Assert.DoesNotContain(
+            refreshedBoard.Stages.SelectMany(stage => stage.Leads),
+            item => item.Name == "Leonardo Mendes");
+
+        using var connection = new SqlConnection(database.ConnectionString);
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = """
+SELECT COUNT(1)
+FROM dbo.cpm_web_kanban_deleted_sources
+WHERE BoardType = @boardType
+  AND SourceKey LIKE 'Cadastro profissional #%';
+""";
+        command.Parameters.Add(new SqlParameter("@boardType", SqlDbType.NVarChar, 30) { Value = AdminKanbanBoardTypes.Providers });
+
+        Assert.Equal(1, Convert.ToInt32(command.ExecuteScalar()));
+    }
+
     [Fact(DisplayName = "Diagnostico Chatwoot deve resumir status, erros recentes e fila operacional")]
     public void ChatwootDiagnostics_DeveRetornarResumoErrosEFila()
     {

@@ -772,6 +772,13 @@ No `ConsertaPraMim.Web.CpmFull`, configurar a secao `TelegramAutomation`:
 8. Para lead Telegram com handoff humano previo, reenviar mensagem no mesmo chat e validar que o bot voltou a responder sem exigir restart manual do bridge.
 9. Quando o checkbox tiver sido marcado, validar no Chatwoot que o contato tecnico foi removido; quando o checkbox nao tiver sido marcado, confirmar que o contato continua existindo.
 10. Confirmar que a conversa no Chatwoot segue o comportamento da propria plataforma e nao e prometida como excluida pelo CPM Full.
+11. Para card sincronizado de `/cadastro-profissional` ou de outras fontes projetadas automaticamente, recarregar o board e confirmar que o card nao reaparece apos a exclusao.
+12. Validar em banco que a origem sincronizada foi registrada em `dbo.cpm_web_kanban_deleted_sources`, evitando reprojecao automatica indevida.
+
+### Troubleshooting complementar para exclusao operacional
+
+- O card some e volta ao recarregar o board: validar se a instancia publicada ja contem a tabela `dbo.cpm_web_kanban_deleted_sources` e se a exclusao registrou a `SourceKey` correspondente.
+- O card do onboarding foi excluido, mas o cadastro bruto continua no banco: comportamento esperado. A exclusao operacional agora suprime a reprojecao do card sem apagar o registro original da fonte publica.
 
 ### Checklist complementar para painel Telegram de negocio
 

@@ -12,6 +12,12 @@
 
 ## Released
 
+- [2026-04-03] [CPMFULL-060][ST-117] Exclusao operacional passa a suprimir reprojecao de fontes sincronizadas no Kanban
+- Tipo: fix
+- Resumo: o `ConsertaPraMim.Web.CpmFull` passou a registrar `SourceKey` excluidas em `dbo.cpm_web_kanban_deleted_sources` quando um card sincronizado por fonte externa e removido pelo Kanban. Com isso, cards do onboarding de prestadores ou de outras projecoes sincronizadas deixam de reaparecer no refresh seguinte, sem exigir restart e sem apagar o registro bruto da origem.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.CpmFull/Services/SqlAdminKanbanService.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/SqlAdminKanbanServiceChatwootPersistenceTests.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/MANUAL_QA_OPERACAO.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-117-hotfix-exclusao-onboarding-suprimir-reprojecao.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: medio
+
 - [2026-04-03] [CPMFULL-059][ST-116] Sincronizacao incremental do cadastro profissional publico no onboarding de prestadores
 - Tipo: fix
 - Resumo: o `ConsertaPraMim.Web.CpmFull` passou a sincronizar `dbo.cpm_web_professional_registrations` e `dbo.cpm_web_professionals` toda vez que o board `prestadores` e lido, eliminando o gap em que novos cadastros do formulario `/cadastro-profissional` so apareciam no onboarding depois de reiniciar a aplicacao. A projecao para `dbo.cpm_web_kanban_leads` agora acontece de forma incremental e recebeu teste de regressao para o cenario real de board ja inicializado.
