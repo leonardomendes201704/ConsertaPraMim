@@ -4,6 +4,42 @@
 
 Orientar validacao funcional e operacao basica do projeto `ConsertaPraMim.Web.CpmFull`.
 
+## Cadastro profissional publico -> onboarding de prestadores
+
+### Objetivo desta etapa
+
+- Garantir que todo envio valido em `/cadastro-profissional` apareca no board `/admin/funil/prestadores`.
+- Projetar novos registros de `professional_registrations` no Kanban mesmo quando o `SqlAdminKanbanService` ja tiver sido inicializado anteriormente.
+- Evitar a necessidade de reiniciar a aplicacao para que o onboarding de prestadores reflita os cadastros publicos mais recentes.
+
+### Escopo entregue nesta fatia
+
+- O `SqlAdminKanbanService` passou a executar sincronizacao incremental das fontes externas sempre que o board e lido.
+- Para o board `prestadores`, a leitura agora reprocessa `dbo.cpm_web_professional_registrations` e `dbo.cpm_web_professionals` antes de montar as colunas do Kanban.
+- O cadastro feito em `/cadastro-profissional` continua gravando em `dbo.cpm_web_professional_registrations`, mas a projecao para `dbo.cpm_web_kanban_leads` nao depende mais apenas do `EnsureInitialized()`.
+- Foi adicionada regressao automatizada para o cenario em que o board de prestadores e aberto primeiro e o cadastro profissional chega depois.
+
+### Comportamento esperado
+
+- Se um prestador enviar o formulario publico e o admin recarregar `/admin/funil/prestadores`, o card deve aparecer em `Novo cadastro`.
+- O card projetado deve refletir `Nome`, `Telefone`, `Profissao principal` e o `source` `Cadastro profissional #<id>`.
+- Nao deve ser necessario reiniciar o `ConsertaPraMim.Web.CpmFull` para enxergar novos cadastros publicos.
+
+### Checklist de QA
+
+1. Abrir `/admin/funil/prestadores` uma vez para inicializar o board.
+2. Em outra aba, enviar um cadastro valido em `/cadastro-profissional`.
+3. Recarregar `/admin/funil/prestadores`.
+4. Confirmar que o novo prestador aparece na coluna `Novo cadastro`.
+5. Abrir o detalhe do card e validar nome, telefone, categoria e `source`.
+6. Repetir com um segundo cadastro para confirmar que a sincronizacao continua incremental apos a primeira inicializacao.
+
+### Troubleshooting
+
+- O cadastro existe em `dbo.cpm_web_professional_registrations`, mas nao aparece no board: validar se a leitura do board esta chamando a versao atual do `SqlAdminKanbanService`.
+- O card aparece duplicado: revisar a chave `Cadastro profissional #<id>` em `dbo.cpm_web_kanban_leads`.
+- O card nao entra em `Novo cadastro`: validar se as etapas padrao do board `prestadores` continuam ativas em `dbo.cpm_web_kanban_stages`.
+
 ## Jornada autonoma omnichannel -> CPM Full
 
 ### Objetivo desta etapa

@@ -12,6 +12,12 @@
 
 ## Released
 
+- [2026-04-03] [CPMFULL-059][ST-116] Sincronizacao incremental do cadastro profissional publico no onboarding de prestadores
+- Tipo: fix
+- Resumo: o `ConsertaPraMim.Web.CpmFull` passou a sincronizar `dbo.cpm_web_professional_registrations` e `dbo.cpm_web_professionals` toda vez que o board `prestadores` e lido, eliminando o gap em que novos cadastros do formulario `/cadastro-profissional` so apareciam no onboarding depois de reiniciar a aplicacao. A projecao para `dbo.cpm_web_kanban_leads` agora acontece de forma incremental e recebeu teste de regressao para o cenario real de board ja inicializado.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.CpmFull/Services/SqlAdminKanbanService.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/SqlAdminKanbanServiceChatwootPersistenceTests.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/MANUAL_QA_OPERACAO.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-116-hotfix-sync-cadastro-profissional-onboarding-prestadores.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: medio
+
 - [2026-03-16] [CPMFULL-058][ST-112] Hotfix do loop de qualificacao do Telegram com pergunta por campo faltante
 - Tipo: fix
 - Resumo: o `ConsertaPraMim.Web.TelegramBridge` passou a aceitar respostas curtas de localizacao, como `Praia Grande`, e deixou de repetir indefinidamente o mesmo bloco de triagem. O contrato interno do Telegram agora devolve `QualificationStatus`, `ConfirmationPrompt` e `MissingRequiredFields`, permitindo ao bot perguntar apenas os campos pendentes e ficar pronto para aproveitar a qualificacao hibrida com OpenAI quando a chave estiver configurada em runtime.
