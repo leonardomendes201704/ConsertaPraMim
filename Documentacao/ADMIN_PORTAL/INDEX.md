@@ -74,6 +74,7 @@
 
 ### Done
 
+- [ST-118 - Hotfix para novos cadastros aparecerem no topo do onboarding de prestadores](STORIES/DONE/ST-118-hotfix-novos-cadastros-topo-onboarding-prestadores.md)
 - [ST-117 - Hotfix da exclusao operacional para suprimir reprojecao no onboarding](STORIES/DONE/ST-117-hotfix-exclusao-onboarding-suprimir-reprojecao.md)
 - [ST-116 - Hotfix da sincronizacao do cadastro profissional no onboarding de prestadores](STORIES/DONE/ST-116-hotfix-sync-cadastro-profissional-onboarding-prestadores.md)
 - [ST-112 - Hotfix do loop de qualificacao do Telegram com pergunta por campo faltante](STORIES/DONE/ST-112-hotfix-loop-qualificacao-telegram-campos-faltantes.md)

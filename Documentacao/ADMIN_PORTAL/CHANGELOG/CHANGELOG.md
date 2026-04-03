@@ -12,6 +12,12 @@
 
 ## Released
 
+- [2026-04-03] [CPMFULL-061][ST-118] Novos cadastros de prestadores passam a entrar no topo do onboarding
+- Tipo: fix
+- Resumo: o `ConsertaPraMim.Web.CpmFull` passou a inserir novos cards sincronizados e novos leads no topo visual da coluna do Kanban, usando `SortOrder` anterior ao menor valor atual da etapa. Com isso, cadastros mais recentes de `/cadastro-profissional` ficam imediatamente visiveis em `Novo cadastro`, em vez de aparecer no fim da coluna.
+- Arquivos principais: `Backend/src/ConsertaPraMim.Web.CpmFull/Services/SqlAdminKanbanService.cs`, `Backend/tests/ConsertaPraMim.Tests.Unit/Services/SqlAdminKanbanServiceChatwootPersistenceTests.cs`, `Backend/src/ConsertaPraMim.Web.CpmFull/documentacao/MANUAL_QA_OPERACAO.md`, `Documentacao/ADMIN_PORTAL/STORIES/DONE/ST-118-hotfix-novos-cadastros-topo-onboarding-prestadores.md`, `Documentacao/ADMIN_PORTAL/INDEX.md`
+- Risco/Impacto: medio
+
 - [2026-04-03] [CPMFULL-060][ST-117] Exclusao operacional passa a suprimir reprojecao de fontes sincronizadas no Kanban
 - Tipo: fix
 - Resumo: o `ConsertaPraMim.Web.CpmFull` passou a registrar `SourceKey` excluidas em `dbo.cpm_web_kanban_deleted_sources` quando um card sincronizado por fonte externa e removido pelo Kanban. Com isso, cards do onboarding de prestadores ou de outras projecoes sincronizadas deixam de reaparecer no refresh seguinte, sem exigir restart e sem apagar o registro bruto da origem.

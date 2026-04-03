@@ -368,7 +368,7 @@ ORDER BY h.CreatedAt DESC, h.Id DESC;
         using var transaction = connection.BeginTransaction();
 
         var stageId = ResolveStageId(connection, transaction, normalizedBoardType, request.StageId);
-        var nextSortOrder = GetNextLeadSortOrder(connection, transaction, normalizedBoardType, stageId);
+        var nextSortOrder = GetTopLeadSortOrder(connection, transaction, normalizedBoardType, stageId);
 
         using var insertCommand = connection.CreateCommand();
         insertCommand.Transaction = transaction;
@@ -3651,7 +3651,7 @@ WHERE Id = @leadId;
             return existingLeadId.Value;
         }
 
-        var sortOrder = GetNextLeadSortOrder(connection, transaction, boardType, stageId);
+        var sortOrder = GetTopLeadSortOrder(connection, transaction, boardType, stageId);
         using (var insertCommand = connection.CreateCommand())
         {
             insertCommand.Transaction = transaction;
@@ -3750,6 +3750,23 @@ WHERE BoardType = @boardType AND StageId = @stageId AND IsActive = 1;
         return Convert.ToInt32(command.ExecuteScalar());
     }
 
+    private static int GetTopLeadSortOrder(SqlConnection connection, SqlTransaction transaction, string boardType, int stageId)
+    {
+        using var command = connection.CreateCommand();
+        command.Transaction = transaction;
+        command.CommandText = $"""
+SELECT ISNULL(MIN(SortOrder), 1) - 1
+FROM dbo.{TablePrefix}kanban_leads
+WHERE BoardType = @boardType AND StageId = @stageId AND IsActive = 1;
+""";
+        command.Parameters.AddRange(
+        [
+            new SqlParameter("@boardType", SqlDbType.NVarChar, 30) { Value = boardType },
+            new SqlParameter("@stageId", SqlDbType.Int) { Value = stageId }
+        ]);
+        return Convert.ToInt32(command.ExecuteScalar());
+    }
+
     private static int CreateTelegramLead(
         SqlConnection connection,
         SqlTransaction transaction,
@@ -3757,7 +3774,7 @@ WHERE BoardType = @boardType AND StageId = @stageId AND IsActive = 1;
         int stageId,
         AdminKanbanTelegramLeadUpsertRequest request)
     {
-        var nextSortOrder = GetNextLeadSortOrder(connection, transaction, boardType, stageId);
+        var nextSortOrder = GetTopLeadSortOrder(connection, transaction, boardType, stageId);
 
         using var insertCommand = connection.CreateCommand();
         insertCommand.Transaction = transaction;

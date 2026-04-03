@@ -18,10 +18,12 @@ Orientar validacao funcional e operacao basica do projeto `ConsertaPraMim.Web.Cp
 - Para o board `prestadores`, a leitura agora reprocessa `dbo.cpm_web_professional_registrations` e `dbo.cpm_web_professionals` antes de montar as colunas do Kanban.
 - O cadastro feito em `/cadastro-profissional` continua gravando em `dbo.cpm_web_professional_registrations`, mas a projecao para `dbo.cpm_web_kanban_leads` nao depende mais apenas do `EnsureInitialized()`.
 - Foi adicionada regressao automatizada para o cenario em que o board de prestadores e aberto primeiro e o cadastro profissional chega depois.
+- Novos cards sincronizados de onboarding agora entram no topo da coluna `Novo cadastro`, preservando visibilidade operacional dos cadastros mais recentes.
 
 ### Comportamento esperado
 
 - Se um prestador enviar o formulario publico e o admin recarregar `/admin/funil/prestadores`, o card deve aparecer em `Novo cadastro`.
+- O cadastro mais recente deve aparecer no topo visual da coluna `Novo cadastro`.
 - O card projetado deve refletir `Nome`, `Telefone`, `Profissao principal` e o `source` `Cadastro profissional #<id>`.
 - Nao deve ser necessario reiniciar o `ConsertaPraMim.Web.CpmFull` para enxergar novos cadastros publicos.
 
@@ -31,12 +33,14 @@ Orientar validacao funcional e operacao basica do projeto `ConsertaPraMim.Web.Cp
 2. Em outra aba, enviar um cadastro valido em `/cadastro-profissional`.
 3. Recarregar `/admin/funil/prestadores`.
 4. Confirmar que o novo prestador aparece na coluna `Novo cadastro`.
-5. Abrir o detalhe do card e validar nome, telefone, categoria e `source`.
-6. Repetir com um segundo cadastro para confirmar que a sincronizacao continua incremental apos a primeira inicializacao.
+5. Confirmar que o cadastro mais novo ficou acima dos cards antigos da mesma coluna.
+6. Abrir o detalhe do card e validar nome, telefone, categoria e `source`.
+7. Repetir com um segundo cadastro para confirmar que a sincronizacao continua incremental apos a primeira inicializacao.
 
 ### Troubleshooting
 
 - O cadastro existe em `dbo.cpm_web_professional_registrations`, mas nao aparece no board: validar se a leitura do board esta chamando a versao atual do `SqlAdminKanbanService`.
+- O cadastro aparece, mas no fim da coluna: validar se a instancia publicada ja contem a regra de `top insertion` para novos cards sincronizados.
 - O card aparece duplicado: revisar a chave `Cadastro profissional #<id>` em `dbo.cpm_web_kanban_leads`.
 - O card nao entra em `Novo cadastro`: validar se as etapas padrao do board `prestadores` continuam ativas em `dbo.cpm_web_kanban_stages`.
 
